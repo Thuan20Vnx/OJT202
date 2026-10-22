@@ -4,10 +4,20 @@
 
 | Thành phần | Công nghệ |
 |---|---|
-| Frontend | React 18 + Vite + Tailwind CSS (Inter, Material Symbols – đúng design system Stitch v2) |
-| Backend | Node.js 24 + Express 5 + Prisma 6 + Socket.io |
-| Database | **PostgreSQL** (chưa có PostgreSQL thì tự chạy PostgreSQL 17 nhúng) |
-| AI | Anthropic Claude (khi có `ANTHROPIC_API_KEY`) hoặc bộ AI nội bộ dựa trên quy tắc |
+| Thư mục | Thành phần | Công nghệ |
+|---|---|---|
+| `FrontEnd/` | Giao diện web | React 18 + Vite + Tailwind CSS (Inter, Material Symbols – đúng design system Stitch v2) |
+| `BackEnd/` | API + realtime | Node.js 24 + Express 5 + Prisma 6 + Socket.io, **PostgreSQL** (chưa có thì tự chạy PostgreSQL 17 nhúng) |
+| `AIService/` | Dịch vụ AI | Express 5 – Anthropic Claude (khi có `ANTHROPIC_API_KEY`) hoặc bộ AI nội bộ dựa trên quy tắc |
+
+```
+Trình duyệt ──HTTP/WebSocket──▶ BackEnd :4000 ──Prisma──▶ PostgreSQL / Supabase
+   (FrontEnd :5173)                    │
+                                       └──HTTP (x-ai-service-key)──▶ AIService :5000 ──▶ Claude (tùy chọn)
+```
+
+BackEnd giữ mọi thứ liên quan dữ liệu & quyền (kiểm quyền, hạn mức AI theo ngày, nhật ký gọi AI, lọc nguồn dữ liệu trước khi gửi);
+AIService chỉ nhận dữ liệu đã lọc và trả kết quả AI (kế hoạch nháp, action items, câu trả lời có trích dẫn, tóm tắt báo cáo, diễn giải rủi ro) – không kết nối database.
 
 ## Chạy nhanh
 
@@ -16,18 +26,19 @@ Yêu cầu: Node.js ≥ 20.
 ```bash
 cd taskflow
 npm run install:all
-cp server/.env.example server/.env    # rồi đổi JWT_SECRET
-npm run dev
+cp BackEnd/.env.example BackEnd/.env        # rồi đổi JWT_SECRET
+cp AIService/.env.example AIService/.env
+npm run dev                                 # chạy cả AIService + BackEnd + FrontEnd
 ```
 
-- Web: http://localhost:5173 · API: http://localhost:4000
-- Không cần cài PostgreSQL: khi `DATABASE_URL` để trống, API tự chạy PostgreSQL 17 nhúng (gói `embedded-postgres`, binary PostgreSQL thật) ở cổng `54329`. Dữ liệu dev lưu ở `server/.data/pg` nên khởi động lại không mất.
+- Web: http://localhost:5173 · API: http://localhost:4000 · AIService: http://localhost:5000
+- Không cần cài PostgreSQL: khi `DATABASE_URL` để trống, API tự chạy PostgreSQL 17 nhúng (gói `embedded-postgres`, binary PostgreSQL thật) ở cổng `54329`. Dữ liệu dev lưu ở `BackEnd/.data/pg` nên khởi động lại không mất.
 - Mỗi lần khởi động, API tự áp dụng migration (`prisma migrate deploy`).
 - DB trống sẽ được seed dữ liệu demo của Nhóm 24 (`SEED_DEMO=true`).
 
 ### Tài khoản demo (chỉ môi trường phát triển)
 
-Mật khẩu chung: `TaskFlow@2026` (định nghĩa trong `server/src/seed.js`).
+Mật khẩu chung: `TaskFlow@2026` (định nghĩa trong `BackEnd/src/seed.js`).
 
 | Email | Vai trò |
 |---|---|
@@ -41,7 +52,7 @@ Email xác minh / đặt lại mật khẩu / lời mời: khi chưa cấu hình
 
 ## Kết nối PostgreSQL thật
 
-Khi đã có PostgreSQL ≥ 13 (cài trực tiếp, Docker, Neon, Supabase, RDS…), tạo database rồi đặt trong `server/.env`:
+Khi đã có PostgreSQL ≥ 13 (cài trực tiếp, Docker, Neon, Supabase, RDS…), tạo database rồi đặt trong `BackEnd/.env`:
 
 ```env
 DATABASE_URL=postgresql://taskflow:matkhau@localhost:5432/taskflow
@@ -64,11 +75,11 @@ Ví dụ chạy PostgreSQL bằng Docker:
 docker run -d --name taskflow-pg -e POSTGRES_USER=taskflow -e POSTGRES_PASSWORD=matkhau -e POSTGRES_DB=taskflow -p 5432:5432 -v taskflow-pg:/var/lib/postgresql/data postgres:17
 ```
 
-Bảng, khóa ngoại, enum và chỉ mục được tạo bằng migration trong `server/prisma/migrations` – API tự chạy khi khởi động, hoặc chạy tay `npm --prefix server run db:migrate`.
+Bảng, khóa ngoại, enum và chỉ mục được tạo bằng migration trong `BackEnd/prisma/migrations` – API tự chạy khi khởi động, hoặc chạy tay `npm --prefix BackEnd run db:migrate`.
 
 ### Lược đồ dữ liệu
 
-`server/prisma/schema.prisma` gồm 21 bảng: `users`, `sessions`, `tokens`, `workspaces`, `memberships`, `invites`, `projects`, `tasks`, `comments`, `documents`, `document_revisions`, `notifications`, `notification_prefs`, `activities`, `ai_calls`, `ai_drafts`, `ai_reports`, `ai_conversations`, `risk_resolutions`, `admin_audits`, `outbox` (+ `counters` đánh số công việc).
+`BackEnd/prisma/schema.prisma` gồm 21 bảng: `users`, `sessions`, `tokens`, `workspaces`, `memberships`, `invites`, `projects`, `tasks`, `comments`, `documents`, `document_revisions`, `notifications`, `notification_prefs`, `activities`, `ai_calls`, `ai_drafts`, `ai_reports`, `ai_conversations`, `risk_resolutions`, `admin_audits`, `outbox` (+ `counters` đánh số công việc).
 
 - Khóa chính `uuid` (`gen_random_uuid()`), khóa ngoại có `ON DELETE CASCADE / SET NULL` phù hợp (xóa công việc ⇒ xóa bình luận, tệp đính kèm giữ lại).
 - Ràng buộc UNIQUE thay cho kiểm tra trong code: email, `(workspace, user)`, `(project, number)`, `(user, dedupeKey)` chống gửi trùng thông báo, `(project, aiDraftItem)` chống tạo trùng việc khi duyệt AI nhiều lần, `(document, version)`.
@@ -76,19 +87,20 @@ Bảng, khóa ngoại, enum và chỉ mục được tạo bằng migration tron
 - Cập nhật công việc kiểm tra `version` ngay trong câu `UPDATE … WHERE version = ?` nên hai người sửa cùng lúc không ghi đè nhau.
 - API vẫn trả khóa `_id` như trước (đổi tên `id → _id` tại một chỗ khi tuần tự hóa JSON) nên frontend không phải sửa.
 
-Xem/sửa dữ liệu trực quan: `npm --prefix server run db:studio` (Prisma Studio).
+Xem/sửa dữ liệu trực quan: `npm --prefix BackEnd run db:studio` (Prisma Studio).
 
 ## Lệnh
 
 | Lệnh | Mô tả |
 |---|---|
-| `npm run dev` | Chạy API + web (hot reload) |
-| `npm test` | 30 test tích hợp API theo tiêu chí nghiệm thu (dùng PostgreSQL nhúng tạm thời, không đụng dữ liệu dev) |
-| `npm --prefix server run db:migrate` | Áp dụng migration vào DB đang cấu hình |
-| `npm --prefix server run db:studio` | Mở Prisma Studio xem dữ liệu |
-| `npm run build` | Build frontend vào `client/dist` |
-| `npm start` | Chạy API production; nếu có `client/dist` thì phục vụ luôn frontend |
-| `npm --prefix server run seed` | Seed dữ liệu demo vào DB đang cấu hình (chỉ khi DB trống) |
+| `npm run dev` | Chạy AIService + BackEnd + FrontEnd (hot reload) |
+| `npm test` | Test AIService + 31 test tích hợp BackEnd theo tiêu chí nghiệm thu (PostgreSQL nhúng tạm thời + AIService chạy cùng tiến trình, không đụng dữ liệu dev) |
+| `npm --prefix BackEnd run db:migrate` | Áp dụng migration vào DB đang cấu hình |
+| `npm --prefix BackEnd run db:studio` | Mở Prisma Studio xem dữ liệu |
+| `npm run build` | Build frontend vào `FrontEnd/dist` |
+| `npm start` | Chạy BackEnd production; nếu có `FrontEnd/dist` thì phục vụ luôn giao diện |
+| `npm run start:ai` | Chạy AIService production |
+| `npm --prefix BackEnd run seed` | Seed dữ liệu demo vào DB đang cấu hình (chỉ khi DB trống) |
 
 ## Bản đồ màn hình ↔ user story
 
@@ -132,10 +144,15 @@ Xem/sửa dữ liệu trực quan: `npm --prefix server run db:studio` (Prisma S
 
 ## Dùng Claude thật cho Trợ lý AI
 
+Đặt trong `AIService/.env` (khóa Anthropic chỉ nằm ở AIService, BackEnd không cần biết):
+
 ```env
 ANTHROPIC_API_KEY=sk-ant-...
 AI_MODEL=claude-opus-5-5
 ```
+
+Khi triển khai, đặt cùng một `AI_SERVICE_KEY` ở `AIService/.env` và `BackEnd/.env` (BackEnd gửi kèm header `x-ai-service-key`), và `AI_SERVICE_URL` ở BackEnd trỏ tới AIService.
+AIService tắt hoặc lỗi ⇒ tính năng AI báo "AI đang bận" (503), mọi chức năng khác vẫn chạy.
 
 Không đặt khoá thì dùng bộ AI nội bộ (phân rã theo mẫu quy trình, tìm kiếm từ khóa tiếng Việt có trích dẫn, trích action item theo câu "Người: nội dung") – chạy offline, phù hợp demo và test.
 
@@ -143,7 +160,12 @@ Không đặt khoá thì dùng bộ AI nội bộ (phân rã theo mẫu quy trì
 
 ```
 taskflow/
-├─ server/
+├─ FrontEnd/
+│  └─ src/
+│     ├─ components/    # AppShell (top bar + sidebar), Select, modal công việc, UI kit, biểu đồ
+│     ├─ pages/         # các màn hình
+│     └─ lib/           # api client (tự refresh token), state, socket, hiệu ứng ripple, định dạng
+├─ BackEnd/
 │  ├─ prisma/
 │  │  ├─ schema.prisma  # lược đồ PostgreSQL (bảng, quan hệ, enum, chỉ mục)
 │  │  └─ migrations/    # migration SQL
@@ -151,19 +173,23 @@ taskflow/
 │  │  ├─ db.js          # kết nối PostgreSQL (thật hoặc nhúng), migration, tiện ích truy vấn
 │  │  ├─ routes/        # auth, me, workspaces, projects, tasks, documents, notifications, dashboard, ai, admin
 │  │  ├─ middleware/    # xác thực, CSRF, kiểm quyền workspace/dự án
-│  │  ├─ services/      # realtime, notify, activity, metrics (dashboard/rủi ro), jobs, ai/*
+│  │  ├─ services/      # realtime, notify, activity, metrics (dashboard/rủi ro), jobs
+│  │  │  └─ ai/         # cổng gọi AIService (hạn mức, timeout, nhật ký) + thu thập dữ liệu nguồn
 │  │  └─ seed.js        # dữ liệu demo Nhóm 24
 │  └─ test/api.test.js  # test tích hợp theo tiêu chí nghiệm thu
-└─ client/
-   └─ src/
-      ├─ components/    # AppShell (top bar + sidebar), modal công việc, UI kit, biểu đồ
-      ├─ pages/         # các màn hình
-      └─ lib/           # api client (tự refresh token), state, socket, định dạng
+├─ AIService/
+│  ├─ src/
+│  │  ├─ app.js         # API /v1/planner, meeting, qa, report, risk, info (kiểm tra khóa dùng chung)
+│  │  ├─ llm.js         # client Anthropic Claude (tùy chọn)
+│  │  ├─ text.js        # xử lý tiếng Việt (bỏ dấu, tách từ, chấm điểm)
+│  │  └─ features/      # lập kế hoạch, ghi chú họp, hỏi đáp, báo cáo, diễn giải rủi ro
+│  └─ test/ai.test.js
+└─ scripts/dev.mjs      # chạy song song 3 dịch vụ khi phát triển
 ```
 
 ## Giới hạn hiện tại
 
 - Nút "Tiếp tục với Google" cần cấu hình OAuth Client ID khi triển khai (bản này dùng email + mật khẩu).
-- Gửi email thật cần nối nhà cung cấp SMTP trong `server/src/services/mailer.js`.
+- Gửi email thật cần nối nhà cung cấp SMTP trong `BackEnd/src/services/mailer.js`.
 - Chuyển ngôn ngữ EN mới áp dụng cho menu điều hướng; nội dung còn lại tiếng Việt.
 - Chế độ tối là lớp ghi đè màu cơ bản, chưa tinh chỉnh từng màn hình.

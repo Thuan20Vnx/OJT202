@@ -3,10 +3,11 @@
   "private": true,
   "description": "TaskFlow – Nền tảng quản lý công việc và cộng tác nhóm (Nhóm 24)",
   "scripts": {
-    "install:all": "npm --prefix server install && npm --prefix client install",
+    "install:all": "npm --prefix BackEnd install && npm --prefix AIService install && npm --prefix FrontEnd install",
     "dev": "node scripts/dev.mjs",
-    "build": "npm --prefix client run build",
-    "start": "npm --prefix server start",
-    "test": "npm --prefix server test"
+    "build": "npm --prefix FrontEnd run build",
+    "start": "npm --prefix BackEnd start",
+    "start:ai": "npm --prefix AIService start",
+    "test": "npm --prefix AIService test && npm --prefix BackEnd test"
   }
 }
