@@ -1,0 +1,240 @@
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { api, onUnauthorized } from './api.js';
+import { closeSocket, getSocket, joinProject } from './socket.js';
+
+const AppCtx = createContext(null);
+const ToastCtx = createContext(() => {});
+
+const store = {
+  get: (k) => {
+    try {
+      return localStorage.getItem(k);
+    } catch {
+      return null;
+    }
+  },
+  set: (k, v) => {
+    try {
+      v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v);
+    } catch {
+      /* bỏ qua khi trình duyệt chặn storage */
+    }
+  },
+};
+
+export function ToastProvider({ children }) {
+  const [toasts, setToasts] = useState([]);
+  const push = useCallback((message, tone = 'success') => {
+    const id = Math.random().toString(36).slice(2);
+    setToasts((t) => [...t, { id, message, tone }]);
+    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 3800);
+  }, []);
+  return (
+    <ToastCtx.Provider value={push}>
+      {children}
+      <div className="pointer-events-none fixed right-4 top-[72px] z-[100] flex w-[340px] flex-col gap-2">
+        {toasts.map((t) => (
+          <div
+            key={t.id}
+            className={`animate-slide-in pointer-events-auto flex items-start gap-2.5 rounded-xl border bg-white px-3.5 py-3 text-body-sm shadow-pop ${
+              t.tone === 'error' ? 'border-rose-200' : t.tone === 'info' ? 'border-blue-200' : 'border-emerald-200'
+            }`}
+          >
+            <span
+              className={`material-symbols-outlined icon-fill !text-[18px] ${t.tone === 'error' ? 'text-rose-500' : t.tone === 'info' ? 'text-blue-600' : 'text-emerald-500'}`}
+            >
+              {t.tone === 'error' ? 'error' : t.tone === 'info' ? 'info' : 'check_circle'}
+            </span>
+            <span className="text-slate-700">{t.message}</span>
+          </div>
+        ))}
+      </div>
+    </ToastCtx.Provider>
+  );
+}
+export const useToast = () => useContext(ToastCtx);
+
+export function AppProvider({ children }) {
+  const [me, setMe] = useState(undefined); // undefined = đang tải, null = chưa đăng nhập
+  const [workspaces, setWorkspaces] = useState([]);
+  const [wsId, setWsId] = useState(store.get('tf_ws'));
+  const [ws, setWs] = useState(null); // { workspace, role, projects }
+  const [projectId, setProjectIdState] = useState(store.get('tf_project'));
+  const [unread, setUnread] = useState(0);
+  const [theme, setTheme] = useState(store.get('tf_theme') || 'light');
+  const loadingWs = useRef(null);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', theme === 'dark');
+    store.set('tf_theme', theme);
+  }, [theme]);
+
+  // offline = không gọi được /me vì server tạm lỗi/đang khởi động lại (không phải hết phiên)
+  const [offline, setOffline] = useState(false);
+  const retryTimer = useRef(null);
+  const loadMe = useCallback(async () => {
+    clearTimeout(retryTimer.current);
+    try {
+      const data = await api.get('/me');
+      setOffline(false);
+      setMe(data.user);
+      setWorkspaces(data.workspaces);
+      return data;
+    } catch (e) {
+      if (e.status === 401) {
+        setOffline(false);
+        setMe(null);
+        setWorkspaces([]);
+      } else {
+        // Thử lại thay vì đá người dùng ra trang đăng nhập; chỉ giữ một vòng thử lại
+        setOffline(true);
+        retryTimer.current = setTimeout(() => loadMeRef.current?.(), 2500);
+      }
+      return null;
+    }
+  }, []);
+  const loadMeRef = useRef(loadMe);
+  loadMeRef.current = loadMe;
+
+  useEffect(() => {
+    loadMe();
+    return onUnauthorized(() => setMe(null));
+  }, [loadMe]);
+
+  const activeWsId = useMemo(() => {
+    if (!workspaces.length) return null;
+    return workspaces.some((w) => w._id === wsId) ? wsId : workspaces[0]._id;
+  }, [workspaces, wsId]);
+
+  const reloadWorkspace = useCallback(async () => {
+    if (!activeWsId) return setWs(null);
+    const req = api.get(`/workspaces/${activeWsId}`);
+    loadingWs.current = req;
+    const data = await req;
+    if (loadingWs.current === req) setWs(data);
+    return data;
+  }, [activeWsId]);
+
+  const [wsError, setWsError] = useState(null);
+  const safeReloadWs = useCallback(async () => {
+    try {
+      setWsError(null);
+      return await reloadWorkspace();
+    } catch (e) {
+      setWsError(e);
+      return null;
+    }
+  }, [reloadWorkspace]);
+  useEffect(() => {
+    if (me && activeWsId) safeReloadWs();
+    if (activeWsId) store.set('tf_ws', activeWsId);
+  }, [me, activeWsId, safeReloadWs]);
+  // Mất kết nối rồi kết nối lại (vd server khởi động lại) => tải lại workspace nếu lần trước lỗi
+  useEffect(() => {
+    if (!wsError) return;
+    const retry = () => safeReloadWs();
+    window.addEventListener('tf:resync', retry);
+    const t = setTimeout(retry, 3000);
+    return () => {
+      window.removeEventListener('tf:resync', retry);
+      clearTimeout(t);
+    };
+  }, [wsError, safeReloadWs]);
+
+  const projects = ws?.projects || [];
+  const activeProjects = projects.filter((p) => p.status === 'active');
+  const project = projects.find((p) => p._id === projectId) || activeProjects[0] || projects[0] || null;
+
+  const setProjectId = useCallback((id) => {
+    setProjectIdState(id);
+    store.set('tf_project', id);
+  }, []);
+
+  // Realtime: vào phòng dự án hiện tại, nhận thông báo cá nhân
+  useEffect(() => {
+    if (!me) return closeSocket();
+    const s = getSocket();
+    const onNotif = () => setUnread((n) => n + 1);
+    s.on('notification:new', onNotif);
+    return () => s.off('notification:new', onNotif);
+  }, [me]);
+  useEffect(() => {
+    if (me && project?._id) joinProject(project._id);
+  }, [me, project?._id]);
+
+  const refreshUnread = useCallback(async () => {
+    if (!activeWsId) return;
+    const d = await api.get(`/notifications?limit=1&workspace=${activeWsId}`).catch(() => null);
+    if (d) setUnread(d.unread);
+  }, [activeWsId]);
+  useEffect(() => {
+    if (me) refreshUnread();
+  }, [me, refreshUnread]);
+
+  const logout = useCallback(async () => {
+    await api.post('/auth/logout').catch(() => {});
+    closeSocket();
+    setMe(null);
+    setWs(null);
+  }, []);
+
+  const value = {
+    me,
+    setMe,
+    loadMe,
+    offline,
+    workspaces,
+    wsId: activeWsId,
+    setWsId: (id) => {
+      setWsId(id);
+      store.set('tf_ws', id);
+      setProjectId(null);
+    },
+    ws,
+    role: ws?.role,
+    projects,
+    activeProjects,
+    project,
+    setProjectId,
+    reloadWorkspace: safeReloadWs,
+    wsError,
+    unread,
+    setUnread,
+    refreshUnread,
+    logout,
+    theme,
+    toggleTheme: () => setTheme((t) => (t === 'dark' ? 'light' : 'dark')),
+    canWriteProject: project && project.status === 'active' && ws?.role !== 'viewer',
+  };
+  return <AppCtx.Provider value={value}>{children}</AppCtx.Provider>;
+}
+
+export const useApp = () => useContext(AppCtx);
+
+/** Hook tải dữ liệu đơn giản: trả { data, error, loading, reload, setData } */
+export function useLoad(fn, deps) {
+  const [state, setState] = useState({ data: null, error: null, loading: true });
+  const seq = useRef(0);
+  const run = useCallback(async () => {
+    const id = ++seq.current;
+    setState((s) => ({ ...s, loading: true }));
+    try {
+      const data = await fn();
+      if (id === seq.current) setState({ data, error: null, loading: false });
+      return data;
+    } catch (error) {
+      if (id === seq.current) setState((s) => ({ ...s, error, loading: false }));
+      return null;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, deps);
+  useEffect(() => {
+    run();
+  }, [run]);
+  useEffect(() => {
+    const onResync = () => run();
+    window.addEventListener('tf:resync', onResync);
+    return () => window.removeEventListener('tf:resync', onResync);
+  }, [run]);
+  return { ...state, reload: run, setData: (d) => setState((s) => ({ ...s, data: typeof d === 'function' ? d(s.data) : d })) };
+}

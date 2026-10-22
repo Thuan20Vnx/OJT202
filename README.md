@@ -1,0 +1,169 @@
+# TaskFlow – Nền tảng quản lý công việc & cộng tác nhóm
+
+Đồ án Nhóm 24 (Hoàng Anh, Thuận, Như, Lộc, Đạt, Hiệp). Giao diện dựng theo 23 màn hình thiết kế trên Stitch (dự án *TaskFlow Kanban Interface*), nghiệp vụ theo Product Backlog trong `DN26_CPL_Mock_Project_Nhom24.xlsx`.
+
+| Thành phần | Công nghệ |
+|---|---|
+| Frontend | React 18 + Vite + Tailwind CSS (Inter, Material Symbols – đúng design system Stitch v2) |
+| Backend | Node.js 24 + Express 5 + Prisma 6 + Socket.io |
+| Database | **PostgreSQL** (chưa có PostgreSQL thì tự chạy PostgreSQL 17 nhúng) |
+| AI | Anthropic Claude (khi có `ANTHROPIC_API_KEY`) hoặc bộ AI nội bộ dựa trên quy tắc |
+
+## Chạy nhanh
+
+Yêu cầu: Node.js ≥ 20.
+
+```bash
+cd taskflow
+npm run install:all
+cp server/.env.example server/.env    # rồi đổi JWT_SECRET
+npm run dev
+```
+
+- Web: http://localhost:5173 · API: http://localhost:4000
+- Không cần cài PostgreSQL: khi `DATABASE_URL` để trống, API tự chạy PostgreSQL 17 nhúng (gói `embedded-postgres`, binary PostgreSQL thật) ở cổng `54329`. Dữ liệu dev lưu ở `server/.data/pg` nên khởi động lại không mất.
+- Mỗi lần khởi động, API tự áp dụng migration (`prisma migrate deploy`).
+- DB trống sẽ được seed dữ liệu demo của Nhóm 24 (`SEED_DEMO=true`).
+
+### Tài khoản demo (chỉ môi trường phát triển)
+
+Mật khẩu chung: `TaskFlow@2026` (định nghĩa trong `server/src/seed.js`).
+
+| Email | Vai trò |
+|---|---|
+| mai.anh@nhom24.edu.vn | Owner · PM |
+| hoang.anh@nhom24.edu.vn, thuan@nhom24.edu.vn | Admin |
+| nhu@, loc@, dat@, hiep@nhom24.edu.vn | Member |
+| khanh.linh@nhom24.edu.vn | Viewer (chỉ xem) |
+| admin@taskflow.local | System Admin (trang Quản trị hệ thống) |
+
+Email xác minh / đặt lại mật khẩu / lời mời: khi chưa cấu hình SMTP, hệ thống lưu vào **hộp thư dev** – mở http://localhost:5173/dev/outbox (endpoint chỉ bật khi không chạy production).
+
+## Kết nối PostgreSQL thật
+
+Khi đã có PostgreSQL ≥ 13 (cài trực tiếp, Docker, Neon, Supabase, RDS…), tạo database rồi đặt trong `server/.env`:
+
+```env
+DATABASE_URL=postgresql://taskflow:matkhau@localhost:5432/taskflow
+SEED_DEMO=false        # true nếu muốn có dữ liệu demo
+```
+
+**Supabase** (đang dùng): Supabase → nút **Connect** → **Session pooler**, thay `[YOUR-PASSWORD]` bằng mật khẩu database và thêm `?sslmode=require&connection_limit=10` (Session pooler gói miễn phí giới hạn ~15 kết nối; mặc định Prisma mở số nhân CPU × 2 + 1):
+
+```env
+DATABASE_URL=postgresql://postgres.<project-ref>:<mật-khẩu>@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres?sslmode=require&connection_limit=10
+```
+
+Mỗi truy vấn tới Supabase mất ~60–90ms đi-về nên backend được tối ưu theo số **lượt** truy vấn: kiểm tra phiên/quyền gộp bằng JOIN (`relationJoins`), các truy vấn độc lập chạy song song, kiểm tra vòng lặp phụ thuộc bằng CTE đệ quy, cập nhật công việc bằng `UPDATE … RETURNING`.
+
+Không cần `@supabase/supabase-js` – backend kết nối thẳng PostgreSQL qua Prisma; bảng hiện trong Supabase → Table Editor.
+
+Ví dụ chạy PostgreSQL bằng Docker:
+
+```bash
+docker run -d --name taskflow-pg -e POSTGRES_USER=taskflow -e POSTGRES_PASSWORD=matkhau -e POSTGRES_DB=taskflow -p 5432:5432 -v taskflow-pg:/var/lib/postgresql/data postgres:17
+```
+
+Bảng, khóa ngoại, enum và chỉ mục được tạo bằng migration trong `server/prisma/migrations` – API tự chạy khi khởi động, hoặc chạy tay `npm --prefix server run db:migrate`.
+
+### Lược đồ dữ liệu
+
+`server/prisma/schema.prisma` gồm 21 bảng: `users`, `sessions`, `tokens`, `workspaces`, `memberships`, `invites`, `projects`, `tasks`, `comments`, `documents`, `document_revisions`, `notifications`, `notification_prefs`, `activities`, `ai_calls`, `ai_drafts`, `ai_reports`, `ai_conversations`, `risk_resolutions`, `admin_audits`, `outbox` (+ `counters` đánh số công việc).
+
+- Khóa chính `uuid` (`gen_random_uuid()`), khóa ngoại có `ON DELETE CASCADE / SET NULL` phù hợp (xóa công việc ⇒ xóa bình luận, tệp đính kèm giữ lại).
+- Ràng buộc UNIQUE thay cho kiểm tra trong code: email, `(workspace, user)`, `(project, number)`, `(user, dedupeKey)` chống gửi trùng thông báo, `(project, aiDraftItem)` chống tạo trùng việc khi duyệt AI nhiều lần, `(document, version)`.
+- Danh sách id (thành viên dự án, phụ thuộc công việc, nhắc tên) là mảng `uuid[]` có chỉ mục GIN; dữ liệu lồng nhau ít truy vấn (checklist, cài đặt AI, sprint, nội dung bản nháp/báo cáo AI) là `JSONB`.
+- Cập nhật công việc kiểm tra `version` ngay trong câu `UPDATE … WHERE version = ?` nên hai người sửa cùng lúc không ghi đè nhau.
+- API vẫn trả khóa `_id` như trước (đổi tên `id → _id` tại một chỗ khi tuần tự hóa JSON) nên frontend không phải sửa.
+
+Xem/sửa dữ liệu trực quan: `npm --prefix server run db:studio` (Prisma Studio).
+
+## Lệnh
+
+| Lệnh | Mô tả |
+|---|---|
+| `npm run dev` | Chạy API + web (hot reload) |
+| `npm test` | 30 test tích hợp API theo tiêu chí nghiệm thu (dùng PostgreSQL nhúng tạm thời, không đụng dữ liệu dev) |
+| `npm --prefix server run db:migrate` | Áp dụng migration vào DB đang cấu hình |
+| `npm --prefix server run db:studio` | Mở Prisma Studio xem dữ liệu |
+| `npm run build` | Build frontend vào `client/dist` |
+| `npm start` | Chạy API production; nếu có `client/dist` thì phục vụ luôn frontend |
+| `npm --prefix server run seed` | Seed dữ liệu demo vào DB đang cấu hình (chỉ khi DB trống) |
+
+## Bản đồ màn hình ↔ user story
+
+| Màn hình (Stitch) | Đường dẫn | Story |
+|---|---|---|
+| Đăng nhập & Đăng ký, Xác minh email | `/login`, `/register`, `/verify-email` | U003, U004 |
+| Quên mật khẩu & Đặt lại | `/forgot-password`, `/reset-password` | U005 |
+| Tạo workspace (Onboarding) | `/onboarding` | U006 |
+| Thành viên & Phân quyền, Lời mời | `/settings/members`, `/settings/invites`, `/invite/:token` | U007 |
+| Quản lý dự án | `/projects` | U008 |
+| Bảng Kanban, Tạo công việc, Chi tiết công việc | `/board`, `?task=<id>` | U009, U010, U013, U014, U015 |
+| Việc của tôi | `/my-tasks` | U011 |
+| Tài liệu | `/documents` | U015 |
+| Thông báo | `/notifications` | U016 |
+| (Realtime toàn hệ thống) | Socket.io | U017 |
+| Lịch dự án & phụ thuộc | `/calendar` | U018 |
+| Tổng quan (Dashboard) | `/overview` | U019 |
+| Nhật ký hoạt động + xuất CSV | `/settings/activity` | U020 |
+| Trợ lý AI – Lập kế hoạch | `/ai/planner` | U021 |
+| Trợ lý AI – Báo cáo tiến độ | `/ai/report` (`/reports`) | U022 |
+| Cài đặt AI / hạn mức | `/settings/ai` | U023 |
+| Trợ lý AI – Hỏi đáp dự án | `/ai/qa` | U025 |
+| Cảnh báo rủi ro | `/risks` | U026 |
+| Trợ lý AI – Ghi chú họp (Should) | `/ai/meeting` | U027 |
+| Quản trị hệ thống (Should) | `/admin` | U028 |
+| Hồ sơ cá nhân | `/profile` | U005 |
+
+## Bảo mật & tiêu chí nghiệm thu đã hiện thực
+
+- **Phiên đăng nhập**: access token 15 phút + refresh token 30 ngày trong cookie `HttpOnly`, `SameSite=Lax`, `Secure` khi production; refresh **xoay vòng**, dùng lại token cũ ⇒ thu hồi cả chuỗi phiên; logout/đổi mật khẩu/reset thu hồi phiên. Lỗi đăng nhập chung chung, mật khẩu băm bcrypt.
+- **CSRF**: mọi request ghi phải có header `x-taskflow: 1`; CORS chỉ cho `CLIENT_URL`.
+- **Cách ly dữ liệu**: mọi truy vấn đi qua `workspaceAccess` / `projectAccess`; người ngoài nhóm nhận 404 (không lộ sự tồn tại). Viewer không ghi, không kéo thả; dự án lưu trữ chỉ đọc; phòng Socket.io chỉ vào được sau khi kiểm quyền; thu hồi quyền đẩy user khỏi phòng ngay.
+- **Kanban**: mỗi công việc có `version`; bản cũ ⇒ **409** kèm dữ liệu mới để UI tải lại.
+- **Phụ thuộc**: chặn tự liên kết, khác dự án và chu trình.
+- **Tệp**: chỉ PDF/TXT/PNG/JPG ≤ 10MB, kiểm tra cả MIME lẫn chữ ký đầu tệp; tải xuống qua backend proxy kiểm membership mỗi lần; ảnh/scan không dùng cho AI.
+- **Bình luận**: loại bỏ HTML, chỉ sửa/xóa bình luận của mình, @mention chỉ người trong dự án.
+- **Thông báo**: khi được giao, được nhắc tên, trước hạn 24 giờ, quá hạn, đổi trạng thái; `dedupeKey` đảm bảo không gửi trùng.
+- **Nhật ký**: chỉ thêm (không có API sửa/xóa); xuất CSV theo quyền, **chống formula injection**.
+- **AI gateway**: hạn mức theo workspace/ngày, bật/tắt từng tính năng, timeout + thử lại tối đa 1 lần, ghi token/độ trễ/model/trạng thái; lỗi AI không ảnh hưởng CRUD. Kế hoạch & action items luôn là **nháp**, chỉ tạo công việc khi duyệt, **duyệt nhiều lần không tạo trùng**. Báo cáo: số liệu tính bằng truy vấn DB, AI chỉ viết tóm tắt/đề xuất. Hỏi đáp: lọc quyền trước khi tìm, chỉ một dự án, có trích dẫn bấm được, **thiếu chứng cứ thì từ chối**, kiểm lại quyền trước khi trả kết quả, nguồn được bọc như dữ liệu để chống prompt injection. Cảnh báo rủi ro theo **quy tắc**, AI chỉ diễn giải.
+- **Quản trị**: System Admin khóa tài khoản phải có lý do, phiên bị chặn ngay, mọi hành động ghi audit; không có API đọc nội dung dự án.
+
+## Dùng Claude thật cho Trợ lý AI
+
+```env
+ANTHROPIC_API_KEY=sk-ant-...
+AI_MODEL=claude-opus-5-5
+```
+
+Không đặt khoá thì dùng bộ AI nội bộ (phân rã theo mẫu quy trình, tìm kiếm từ khóa tiếng Việt có trích dẫn, trích action item theo câu "Người: nội dung") – chạy offline, phù hợp demo và test.
+
+## Cấu trúc thư mục
+
+```
+taskflow/
+├─ server/
+│  ├─ prisma/
+│  │  ├─ schema.prisma  # lược đồ PostgreSQL (bảng, quan hệ, enum, chỉ mục)
+│  │  └─ migrations/    # migration SQL
+│  ├─ src/
+│  │  ├─ db.js          # kết nối PostgreSQL (thật hoặc nhúng), migration, tiện ích truy vấn
+│  │  ├─ routes/        # auth, me, workspaces, projects, tasks, documents, notifications, dashboard, ai, admin
+│  │  ├─ middleware/    # xác thực, CSRF, kiểm quyền workspace/dự án
+│  │  ├─ services/      # realtime, notify, activity, metrics (dashboard/rủi ro), jobs, ai/*
+│  │  └─ seed.js        # dữ liệu demo Nhóm 24
+│  └─ test/api.test.js  # test tích hợp theo tiêu chí nghiệm thu
+└─ client/
+   └─ src/
+      ├─ components/    # AppShell (top bar + sidebar), modal công việc, UI kit, biểu đồ
+      ├─ pages/         # các màn hình
+      └─ lib/           # api client (tự refresh token), state, socket, định dạng
+```
+
+## Giới hạn hiện tại
+
+- Nút "Tiếp tục với Google" cần cấu hình OAuth Client ID khi triển khai (bản này dùng email + mật khẩu).
+- Gửi email thật cần nối nhà cung cấp SMTP trong `server/src/services/mailer.js`.
+- Chuyển ngôn ngữ EN mới áp dụng cho menu điều hướng; nội dung còn lại tiếng Việt.
+- Chế độ tối là lớp ghi đè màu cơ bản, chưa tinh chỉnh từng màn hình.

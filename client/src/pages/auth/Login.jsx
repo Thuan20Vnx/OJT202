@@ -1,0 +1,241 @@
+import { useState } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import AuthLayout from './AuthLayout.jsx';
+import { Field, Icon, Notice, Spinner } from '../../components/ui.jsx';
+import { api } from '../../lib/api.js';
+import { useApp } from '../../lib/app.jsx';
+
+export function PasswordInput({ value, onChange, error, placeholder = '••••••••', autoComplete }) {
+  const [show, setShow] = useState(false);
+  return (
+    <div className="relative">
+      <Icon name="lock" size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+      <input type={show ? 'text' : 'password'} className={`input pl-9 pr-10 ${error ? 'input-error' : ''}`} value={value} onChange={onChange} placeholder={placeholder} autoComplete={autoComplete} />
+      <button type="button" onClick={() => setShow((s) => !s)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700" aria-label="Hiện/ẩn mật khẩu">
+        <Icon name={show ? 'visibility_off' : 'visibility'} size={18} />
+      </button>
+    </div>
+  );
+}
+
+export function PasswordStrength({ value }) {
+  const rules = [
+    [value.length >= 8, 'Ít nhất 8 ký tự'],
+    [/[A-Z]/.test(value), 'Có chữ hoa'],
+    [/[0-9]/.test(value), 'Có số'],
+  ];
+  const score = rules.filter((r) => r[0]).length;
+  const label = ['Yếu', 'Yếu', 'Trung bình', 'Mạnh'][score];
+  const tone = ['bg-rose-500', 'bg-rose-500', 'bg-amber-500', 'bg-emerald-500'][score];
+  return (
+    <div className="mt-2">
+      <div className="flex items-center justify-between text-label-md font-normal text-slate-500">
+        <span>Độ mạnh mật khẩu</span>
+        <span className={score === 3 ? 'font-semibold text-emerald-600' : ''}>{value ? label : ''}</span>
+      </div>
+      <div className="mt-1 grid grid-cols-3 gap-1">
+        {[0, 1, 2].map((i) => (
+          <span key={i} className={`h-1 rounded-full ${i < score ? tone : 'bg-slate-200'}`} />
+        ))}
+      </div>
+      <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1">
+        {rules.map(([ok, text]) => (
+          <span key={text} className={`flex items-center gap-1 text-label-md font-normal ${ok ? 'text-emerald-600' : 'text-slate-400'}`}>
+            <Icon name={ok ? 'check_circle' : 'radio_button_unchecked'} size={14} />
+            {text}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function GoogleButton() {
+  return (
+    <button type="button" className="btn-outline w-full" title="Đăng nhập Google cần cấu hình OAuth khi triển khai" onClick={() => alert('Đăng nhập Google cần cấu hình OAuth Client ID khi triển khai. Bản phát triển dùng email + mật khẩu.')}>
+      <svg width="16" height="16" viewBox="0 0 48 48" aria-hidden="true">
+        <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.6 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z" />
+        <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z" />
+        <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z" />
+        <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z" />
+      </svg>
+      Tiếp tục với Google
+    </button>
+  );
+}
+
+export default function Login({ initialTab = 'login' }) {
+  const [tab, setTab] = useState(initialTab);
+  const { loadMe } = useApp();
+  const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const [f, setF] = useState({ name: '', email: '', password: '', remember: true, accept: false });
+  const [errors, setErrors] = useState({});
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [sent, setSent] = useState(null);
+  const [unverified, setUnverified] = useState(false);
+  const set = (k) => (e) => setF((s) => ({ ...s, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value }));
+
+  const login = async (e) => {
+    e.preventDefault();
+    setBusy(true);
+    setError('');
+    setErrors({});
+    setUnverified(false);
+    try {
+      await api.post('/auth/login', { email: f.email, password: f.password, remember: f.remember });
+      const d = await loadMe();
+      navigate(params.get('next') || (d?.workspaces?.length ? '/overview' : d?.user?.isSystemAdmin ? '/admin' : '/onboarding'), { replace: true });
+    } catch (err) {
+      if (err.details?.code === 'EMAIL_NOT_VERIFIED') setUnverified(true);
+      setError(err.message);
+      setErrors(err.fields);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const register = async (e) => {
+    e.preventDefault();
+    setBusy(true);
+    setError('');
+    setErrors({});
+    try {
+      await api.post('/auth/register', { name: f.name, email: f.email, password: f.password, acceptTerms: f.accept });
+      setSent(f.email);
+    } catch (err) {
+      setError(err.message);
+      setErrors(err.fields);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const resend = async () => {
+    await api.post('/auth/resend-verification', { email: sent || f.email }).catch(() => {});
+    setSent(sent || f.email);
+  };
+
+  return (
+    <AuthLayout>
+      <div className="card p-6 shadow-card">
+        <div className="mb-5 grid grid-cols-2 rounded-lg bg-slate-100 p-1">
+          {[
+            ['login', 'login', 'Đăng nhập'],
+            ['register', 'person_add', 'Đăng ký'],
+          ].map(([key, icon, label]) => (
+            <button
+              key={key}
+              onClick={() => {
+                setTab(key);
+                setError('');
+                setErrors({});
+                setSent(null);
+              }}
+              className={`flex items-center justify-center gap-1.5 rounded-md py-2 text-label-lg ${tab === key ? 'bg-white font-semibold text-blue-700 shadow-sm' : 'text-slate-500'}`}
+            >
+              <Icon name={icon} size={18} />
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {tab === 'login' ? (
+          <form onSubmit={login} className="space-y-4">
+            <div>
+              <h2 className="text-headline-md text-slate-900">Chào mừng quay trở lại</h2>
+              <p className="text-body-sm text-slate-500">Nhập thông tin tài khoản TaskFlow của bạn để tiếp tục.</p>
+            </div>
+            {error && (
+              <Notice tone="danger">
+                {error}
+                {unverified && (
+                  <button type="button" className="ml-1 font-semibold underline" onClick={resend}>
+                    Gửi lại email xác minh
+                  </button>
+                )}
+              </Notice>
+            )}
+            {sent && <Notice tone="success">Đã gửi lại email xác minh tới {sent}.</Notice>}
+            <Field label="Email công việc" required error={errors.email}>
+              <div className="relative">
+                <Icon name="mail" size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input type="email" autoComplete="email" className="input pl-9" value={f.email} onChange={set('email')} placeholder="ban@congty.com" />
+              </div>
+            </Field>
+            <Field label="Mật khẩu" required error={errors.password}>
+              <PasswordInput value={f.password} onChange={set('password')} autoComplete="current-password" />
+            </Field>
+            <div className="flex items-center justify-between text-body-sm">
+              <label className="flex items-center gap-2 text-slate-600">
+                <input type="checkbox" className="form-checkbox rounded text-blue-600" checked={f.remember} onChange={set('remember')} />
+                Ghi nhớ đăng nhập
+              </label>
+              <Link to="/forgot-password" className="font-semibold text-blue-600 hover:underline">
+                Quên mật khẩu?
+              </Link>
+            </div>
+            <button className="btn-primary h-10 w-full" disabled={busy}>
+              {busy && <Spinner />}
+              Đăng nhập
+              <Icon name="arrow_forward" size={18} />
+            </button>
+            <div className="flex items-center gap-3 text-label-md font-normal text-slate-400">
+              <span className="h-px flex-1 bg-slate-200" />
+              hoặc
+              <span className="h-px flex-1 bg-slate-200" />
+            </div>
+            <GoogleButton />
+          </form>
+        ) : sent ? (
+          <div className="py-4 text-center">
+            <span className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-full bg-blue-50 text-blue-600">
+              <Icon name="mark_email_read" size={30} />
+            </span>
+            <h2 className="text-headline-md text-slate-900">Kiểm tra hộp thư của bạn</h2>
+            <p className="mt-1 text-body-sm text-slate-500">
+              Chúng tôi đã gửi email xác minh tới <b>{sent}</b>. Liên kết có hiệu lực trong 24 giờ.
+            </p>
+            <button className="btn-outline mt-4" onClick={resend}>
+              Gửi lại
+            </button>
+            <p className="mt-3 text-label-md font-normal text-slate-400">
+              Bản phát triển: xem email tại <Link className="text-blue-600 underline" to="/dev/outbox">hộp thư dev</Link>
+            </p>
+          </div>
+        ) : (
+          <form onSubmit={register} className="space-y-4">
+            <div>
+              <h2 className="text-headline-md text-slate-900">Tạo tài khoản</h2>
+              <p className="text-body-sm text-slate-500">Bắt đầu quản lý dự án hiệu quả cùng nhóm.</p>
+            </div>
+            {error && !Object.keys(errors).length && <Notice tone="danger">{error}</Notice>}
+            <Field label="Họ và tên" required error={errors.name}>
+              <input className="input" value={f.name} onChange={set('name')} placeholder="Nguyễn Văn A" autoComplete="name" />
+            </Field>
+            <Field label="Email công việc" required error={errors.email}>
+              <input type="email" className="input" value={f.email} onChange={set('email')} placeholder="ban@congty.com" autoComplete="email" />
+            </Field>
+            <Field label="Mật khẩu" required error={errors.password}>
+              <PasswordInput value={f.password} onChange={set('password')} autoComplete="new-password" />
+              <PasswordStrength value={f.password} />
+            </Field>
+            <label className="flex items-start gap-2 text-body-sm text-slate-600">
+              <input type="checkbox" className="form-checkbox mt-0.5 rounded text-blue-600" checked={f.accept} onChange={set('accept')} />
+              <span>
+                Tôi đồng ý với <span className="text-blue-600">Điều khoản dịch vụ</span> và <span className="text-blue-600">Chính sách bảo mật</span>
+              </span>
+            </label>
+            {errors.acceptTerms && <p className="field-error">{errors.acceptTerms}</p>}
+            <button className="btn-primary h-10 w-full" disabled={busy}>
+              {busy && <Spinner />}
+              Tạo tài khoản
+            </button>
+            <GoogleButton />
+          </form>
+        )}
+      </div>
+    </AuthLayout>
+  );
+}
