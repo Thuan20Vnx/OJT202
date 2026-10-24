@@ -219,7 +219,7 @@ function TopBar({ onToggleSidebar, onCreate, sidebarOpen }) {
 }
 
 function Sidebar({ collapsed, overlay, onClose }) {
-  const { ws, workspaces, setWsId, activeProjects, project, setProjectId, me } = useApp();
+  const { ws, workspaces, setWsId, activeProjects, project, setProjectId, me, role } = useApp();
   const [mine, setMine] = useState(null);
   const navigate = useNavigate();
   const loc = useLocation();
@@ -311,7 +311,7 @@ function Sidebar({ collapsed, overlay, onClose }) {
               <NavLink to="/projects" className={({ isActive }) => `text-label-sm ${isActive ? 'font-semibold text-blue-700' : 'text-slate-400 hover:text-slate-700'}`}>
                 Xem tất cả
               </NavLink>
-              <button className="flex h-5 w-5 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700" title="Thêm dự án" onClick={() => navigate('/projects?new=1')}>
+              <button disabled={role === 'viewer'} className="flex h-5 w-5 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-40" title="Thêm dự án" onClick={() => navigate('/projects?new=1')}>
                 <Icon name="add" size={15} />
               </button>
             </span>

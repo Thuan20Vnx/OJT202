@@ -91,6 +91,7 @@ enum AiFeature {
 }
 
 enum AiCallStatus {
+  pending
   success
   retried_success
   timeout
@@ -165,6 +166,7 @@ model User {
 }
 
 model Session {
+  remember Boolean @default(true)
   id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   user        String    @map("user_id") @db.Uuid
   refreshHash String
@@ -550,6 +552,7 @@ model AiReport {
   /// [{ key, title, body, refs: [taskId], aiSuggested }]
   sections    Json           @default("[]")
   sourceTasks String[]       @default([]) @db.Uuid
+  sourceRevision String?     @db.VarChar(64)
   status      AiReportStatus @default(draft)
   sharedAt    DateTime?
   createdAt   DateTime       @default(now())

@@ -26,7 +26,12 @@ async function raw(method, url, body, isForm) {
 }
 
 async function refresh() {
-  refreshing ||= raw('POST', '/auth/refresh').finally(() => setTimeout(() => (refreshing = null), 0));
+  // Nhiều tab dùng chung cookie: tab sau kiểm tra cookie mới trước khi xoay token.
+  const rotate = async () => {
+    const current = await raw('GET', '/me');
+    return current.ok ? current : raw('POST', '/auth/refresh');
+  };
+  refreshing ||= (globalThis.navigator?.locks ? navigator.locks.request('taskflow-refresh', rotate) : rotate()).finally(() => setTimeout(() => (refreshing = null), 0));
   const res = await refreshing;
   return res.ok;
 }

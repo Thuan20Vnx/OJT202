@@ -220,7 +220,7 @@ function Preview({ id, onDeleted, me }) {
   const save = async (body) => {
     setBusy(true);
     try {
-      await api.patch(`/documents/${d._id}`, body);
+      await api.patch(`/documents/${d._id}`, { ...body, version: d.version });
       toast(body.restoreVersion ? `Đã khôi phục v${body.restoreVersion}` : 'Đã lưu phiên bản mới');
       setEditing(false);
       setViewRev(null);

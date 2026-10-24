@@ -133,6 +133,10 @@ export default function Board() {
     const task = all.find((t) => t._id === drag);
     setDrag(null);
     if (!task) return;
+    if (status === 'done' && task.status !== 'done') {
+      if (!info?.access?.canManage) return toast('Chỉ PM, Owner hoặc Admin được duyệt hoàn thành. Hãy chuyển sang Đang kiểm duyệt.', 'info');
+      if (task.status !== 'review') return toast('Cần chuyển công việc sang Đang kiểm duyệt trước khi hoàn thành.', 'info');
+    }
     const col = cols.find((c) => c.status === status).tasks.filter((t) => t._id !== task._id);
     const before = col[index - 1]?.order ?? (col[0] ? col[0].order - 1000 : Date.now());
     const after = col[index]?.order ?? before + 2000;
@@ -258,7 +262,7 @@ export default function Board() {
                   {STATUS[col.status].label}
                   <span className="rounded-full bg-slate-200 px-2 text-label-sm text-slate-600">{col.tasks.length}</span>
                 </span>
-                {canDrag && (
+                {canDrag && col.status !== 'done' && (
                   <button className="icon-btn h-7 w-7" onClick={() => setCreating(col.status)} title="Thêm công việc">
                     <Icon name="add" size={18} />
                   </button>
@@ -280,7 +284,7 @@ export default function Board() {
                 ))}
                 {!col.tasks.length && <p className="rounded-lg border border-dashed border-slate-300 py-6 text-center text-body-sm text-slate-400">Kéo thẻ vào đây</p>}
               </div>
-              {canDrag && (
+              {canDrag && col.status !== 'done' && (
                 <button onClick={() => setCreating(col.status)} className="mt-2 flex items-center justify-center gap-1 rounded-lg py-1.5 text-label-md text-slate-500 hover:bg-white hover:text-slate-800">
                   <Icon name="add" size={16} /> Thêm công việc
                 </button>

@@ -6,10 +6,12 @@ import { z } from 'zod';
 import { config } from '../config.js';
 import { USER, countBy, ilike, isId, populate, populateAll, prisma } from '../db.js';
 import { requireAuth } from '../middleware/auth.js';
-import { assertWrite, documentAccess, middlewareProject } from '../middleware/access.js';
-import { logActivity } from '../services/activity.js';
+import { assertWrite, documentAccess, middlewareProject, projectAccess } from '../middleware/access.js';
+import { logActivityIn } from '../services/activity.js';
+import { withWorkspaceLock } from '../services/membership.js';
 import { emitProject } from '../services/realtime.js';
-import { badRequest, forbidden, notFound, parse } from '../utils/http.js';
+import { badRequest, conflict, forbidden, notFound, parse } from '../utils/http.js';
+import { pagination } from '../utils/http.js';
 import { plainText, randomToken } from '../utils/security.js';
 
 const router = Router();
@@ -56,43 +58,59 @@ function fixName(name) {
 }
 
 async function storeFiles(req, project, taskId) {
-  const out = [];
+  // Kiểm tra cả lô trước khi ghi; lỗi tệp thứ hai không để tệp thứ nhất lưu dở dang.
   for (const file of req.files || []) {
     const ext = path.extname(file.originalname).toLowerCase();
     if (!MAGIC[ext](file.buffer)) throw badRequest(`${fixName(file.originalname)}: nội dung tệp không khớp định dạng`);
-    const key = `${randomToken(16)}${ext}`;
-    await fs.promises.writeFile(path.join(config.uploadDir, key), file.buffer);
-    const isText = ext === '.txt';
-    const doc = await prisma.document.create({
-      data: {
-        workspace: project.workspace,
-        project: project.id,
-        task: taskId ?? null,
-        kind: 'file',
-        name: fixName(file.originalname).slice(0, 200),
-        mime: file.mimetype,
-        size: file.size,
-        storageKey: key,
-        // Ảnh (thường là bản scan) được lưu nhưng không OCR, không dùng cho Trợ lý AI
-        isScan: !isText && ext !== '.pdf',
-        content: isText ? file.buffer.toString('utf8').slice(0, 200000) : '',
-        uploadedBy: req.user.id,
-      },
-      omit: { storageKey: true },
-    });
-    await logActivity({
-      workspace: project.workspace,
-      project: project.id,
-      actor: req.user.id,
-      action: 'Tải tệp',
-      entityType: 'file',
-      entityId: doc.id,
-      entityLabel: doc.name,
-      after: `${doc.name} (${(doc.size / 1024 / 1024).toFixed(1)}MB)`,
-    });
-    out.push(doc);
   }
-  return out;
+  const written = [];
+  try {
+    return await withWorkspaceLock(project.workspace, async (tx) => {
+      assertWrite(await projectAccess(req.user.id, project.id, tx));
+      if (taskId && !(await tx.task.findFirst({ where: { id: taskId, project: project.id } }))) throw badRequest('Công việc không còn thuộc dự án');
+      const out = [];
+      for (const file of req.files || []) {
+        const ext = path.extname(file.originalname).toLowerCase();
+        if (!MAGIC[ext](file.buffer)) throw badRequest(`${fixName(file.originalname)}: nội dung tệp không khớp định dạng`);
+        const key = `${randomToken(16)}${ext}`;
+        await fs.promises.writeFile(path.join(config.uploadDir, key), file.buffer);
+        written.push(key);
+        const isText = ext === '.txt';
+        const doc = await tx.document.create({
+          data: {
+            workspace: project.workspace,
+            project: project.id,
+            task: taskId ?? null,
+            kind: 'file',
+            name: fixName(file.originalname).slice(0, 200),
+            mime: file.mimetype,
+            size: file.size,
+            storageKey: key,
+            // Ảnh (thường là bản scan) được lưu nhưng không OCR, không dùng cho Trợ lý AI
+            isScan: !isText && ext !== '.pdf',
+            content: isText ? file.buffer.toString('utf8').slice(0, 200000) : '',
+            uploadedBy: req.user.id,
+          },
+          omit: { storageKey: true },
+        });
+        await logActivityIn(tx, {
+          workspace: project.workspace,
+          project: project.id,
+          actor: req.user.id,
+          action: 'Tải tệp',
+          entityType: 'file',
+          entityId: doc.id,
+          entityLabel: doc.name,
+          after: `${doc.name} (${(doc.size / 1024 / 1024).toFixed(1)}MB)`,
+        });
+        out.push(doc);
+      }
+      return out;
+    });
+  } catch (error) {
+    await Promise.all(written.map((key) => fs.promises.rm(path.join(config.uploadDir, key), { force: true }).catch(() => {})));
+    throw error;
+  }
 }
 
 const TYPE_EXT = { pdf: ['.pdf'], txt: ['.txt'], png: ['.png'], jpg: ['.jpg', '.jpeg'] };
@@ -107,8 +125,7 @@ router.get('/projects/:projectId/documents', middlewareProject(), async (req, re
   if (exts) and.push({ OR: exts.map((e) => ({ name: { endsWith: e, mode: 'insensitive' } })) });
   if (req.query.search) and.push({ name: ilike(req.query.search) });
   const where = { AND: and };
-  const page = Math.max(1, Number(req.query.page) || 1);
-  const limit = Math.min(100, Number(req.query.limit) || 20);
+  const { page, limit } = pagination(req.query, 20);
   const [docs, total, counts] = await Promise.all([
     prisma.document.findMany({ where, omit: { content: true, storageKey: true }, orderBy: { updatedAt: 'desc' }, skip: (page - 1) * limit, take: limit }).then((r) =>
       populateAll(r, [
@@ -149,23 +166,36 @@ router.post('/projects/:projectId/documents', middlewareProject(), async (req, r
     task = t.id;
   }
   const content = plainText(body.content, 200000);
-  const doc = await prisma.document.create({
-    data: {
-      workspace: req.pa.project.workspace,
-      project: req.pa.project.id,
-      task,
-      kind: 'doc',
-      name: body.name.endsWith('.txt') ? body.name : `${body.name}.txt`,
-      mime: 'text/plain',
-      size: Buffer.byteLength(content),
-      content,
-      version: 1,
-      uploadedBy: req.user.id,
-      revisions: { create: { version: 1, content, author: req.user.id } },
-    },
-    omit: { storageKey: true },
+  const doc = await withWorkspaceLock(req.pa.project.workspace, async (tx) => {
+    assertWrite(await projectAccess(req.user.id, req.pa.project.id, tx));
+    if (task && !(await tx.task.findFirst({ where: { id: task, project: req.pa.project.id } }))) throw badRequest('Công việc không còn thuộc dự án');
+    const doc = await tx.document.create({
+      data: {
+        workspace: req.pa.project.workspace,
+        project: req.pa.project.id,
+        task,
+        kind: 'doc',
+        name: body.name.endsWith('.txt') ? body.name : `${body.name.slice(0, 196)}.txt`,
+        mime: 'text/plain',
+        size: Buffer.byteLength(content),
+        content,
+        version: 1,
+        uploadedBy: req.user.id,
+        revisions: { create: { version: 1, content, author: req.user.id } },
+      },
+      omit: { storageKey: true },
+    });
+    await logActivityIn(tx, {
+      workspace: doc.workspace,
+      project: doc.project,
+      actor: req.user.id,
+      action: 'Tạo tài liệu',
+      entityType: 'file',
+      entityId: doc.id,
+      entityLabel: doc.name,
+    });
+    return doc;
   });
-  await logActivity({ workspace: doc.workspace, project: doc.project, actor: req.user.id, action: 'Tạo tài liệu', entityType: 'file', entityId: doc.id, entityLabel: doc.name });
   emitProject(req.pa.project.id, 'documents:changed', {});
   res.status(201).json({ document: doc });
 });
@@ -201,14 +231,26 @@ router.get('/documents/:id/revisions/:version', async (req, res) => {
 router.patch('/documents/:id', async (req, res) => {
   const { doc, access } = await docAccess(req.user.id, req.params.id);
   assertWrite(access);
-  const body = parse(z.object({ name: z.string().trim().min(1).max(200).optional(), content: z.string().max(200000).optional(), restoreVersion: z.number().int().optional() }), req.body);
+  const body = parse(
+    z.object({
+      name: z.string().trim().min(1).max(200).optional(),
+      content: z.string().max(200000).optional(),
+      restoreVersion: z.number().int().min(1).optional(),
+      version: z.number().int().min(1).optional(),
+    }),
+    req.body,
+  );
   let content = body.content;
   if (body.restoreVersion) {
     const rev = await prisma.documentRevision.findUnique({ where: { document_version: { document: doc.id, version: body.restoreVersion } } });
-    content = rev?.content;
+    if (!rev) throw notFound('Không tìm thấy phiên bản');
+    content = rev.content;
   }
   if (content !== undefined && doc.kind !== 'doc' && doc.mime !== 'text/plain') throw badRequest('Chỉ sửa được tài liệu văn bản');
-  const updated = await prisma.$transaction(async (tx) => {
+  const updated = await withWorkspaceLock(doc.workspace, async (tx) => {
+    const fresh = await docAccess(req.user.id, doc.id, tx);
+    assertWrite(fresh.access);
+    if (fresh.doc.version !== (body.version ?? doc.version)) throw conflict('Tài liệu đã được cập nhật. Hãy tải lại và đối chiếu nội dung trước khi lưu.');
     const data = {};
     if (body.name) data.name = body.name;
     if (content !== undefined) {
@@ -218,17 +260,18 @@ router.patch('/documents/:id', async (req, res) => {
       Object.assign(data, { content: clean, size: Buffer.byteLength(clean) });
       await tx.documentRevision.create({ data: { document: doc.id, version, content: clean, author: req.user.id } });
     }
-    return tx.document.update({ where: { id: doc.id }, data, omit: { storageKey: true } });
-  });
-  await logActivity({
-    workspace: updated.workspace,
-    project: updated.project,
-    actor: req.user.id,
-    action: body.restoreVersion ? 'Khôi phục phiên bản' : 'Cập nhật tài liệu',
-    entityType: 'file',
-    entityId: updated.id,
-    entityLabel: updated.name,
-    after: `v${updated.version}`,
+    const updated = await tx.document.update({ where: { id: doc.id }, data, omit: { storageKey: true } });
+    await logActivityIn(tx, {
+      workspace: updated.workspace,
+      project: updated.project,
+      actor: req.user.id,
+      action: body.restoreVersion ? 'Khôi phục phiên bản' : 'Cập nhật tài liệu',
+      entityType: 'file',
+      entityId: updated.id,
+      entityLabel: updated.name,
+      after: `v${updated.version}`,
+    });
+    return updated;
   });
   emitProject(updated.project, 'documents:changed', {});
   res.json({ document: updated });
@@ -239,23 +282,30 @@ router.get('/documents/:id/download', async (req, res) => {
   const { doc } = await docAccess(req.user.id, req.params.id);
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(doc.name)}`);
-  if (doc.kind === 'doc' || !doc.storageKey) {
+  if (doc.kind === 'doc' || doc.mime === 'text/plain' || !doc.storageKey) {
     res.type('text/plain; charset=utf-8');
     return res.send(doc.content);
   }
   const file = path.join(config.uploadDir, path.basename(doc.storageKey));
   if (!fs.existsSync(file)) throw notFound('Tệp không còn tồn tại');
   res.type(doc.mime);
-  fs.createReadStream(file).pipe(res);
+  fs.createReadStream(file)
+    .on('error', () => res.destroy())
+    .pipe(res);
 });
 
 router.delete('/documents/:id', async (req, res) => {
   const { doc, access } = await docAccess(req.user.id, req.params.id);
   assertWrite(access);
   if (doc.uploadedBy !== req.user.id && !access.canManage) throw forbidden('Chỉ người tải lên hoặc quản lý dự án được xóa');
-  await prisma.document.delete({ where: { id: doc.id } }); // lịch sử phiên bản xóa theo (CASCADE)
+  await withWorkspaceLock(doc.workspace, async (tx) => {
+    const fresh = await docAccess(req.user.id, doc.id, tx);
+    assertWrite(fresh.access);
+    if (fresh.doc.uploadedBy !== req.user.id && !fresh.access.canManage) throw forbidden('Chỉ người tải lên hoặc quản lý dự án được xóa');
+    await tx.document.delete({ where: { id: doc.id } }); // lịch sử phiên bản xóa theo (CASCADE)
+    await logActivityIn(tx, { workspace: doc.workspace, project: doc.project, actor: req.user.id, action: 'Xóa tệp', entityType: 'file', entityId: doc.id, entityLabel: doc.name });
+  });
   if (doc.storageKey) await fs.promises.rm(path.join(config.uploadDir, path.basename(doc.storageKey)), { force: true });
-  await logActivity({ workspace: doc.workspace, project: doc.project, actor: req.user.id, action: 'Xóa tệp', entityType: 'file', entityId: doc.id, entityLabel: doc.name });
   emitProject(doc.project, 'documents:changed', {});
   res.json({ ok: true });
 });

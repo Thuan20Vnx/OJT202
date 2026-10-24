@@ -6,7 +6,7 @@ export default {
   darkMode: 'class',
   theme: {
     extend: {
-      fontFamily: { sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'] },
+      fontFamily: { sans: ['Inter Variable', 'ui-sans-serif', 'system-ui', 'sans-serif'] },
       fontSize: {
         'label-sm': ['11px', { lineHeight: '14px', letterSpacing: '0.02em', fontWeight: '600' }],
         'label-md': ['12px', { lineHeight: '16px', fontWeight: '500' }],

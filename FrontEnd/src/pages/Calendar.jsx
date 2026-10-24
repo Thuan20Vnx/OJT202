@@ -1,25 +1,27 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Avatar, Empty, ErrorBox, Icon, PageHeader, PageLoader, Select, StatusChip } from '../components/ui.jsx';
 import { api, qs } from '../lib/api.js';
 import { useApp, useLoad, useToast } from '../lib/app.jsx';
 import { STATUS, STATUS_ORDER, fmtDate, isoDate, sod } from '../lib/format.js';
 import { useProjectInfo, useSocketEvent } from '../lib/hooks.js';
+import { addDays, deadline, zoned } from '../lib/dates.js';
 
 const DOW = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ nhật'];
 const DAY = 86400000;
 const mondayOf = (d) => {
   const x = sod(d);
-  return new Date(x.getTime() - ((x.getDay() + 6) % 7) * DAY);
+  return addDays(x, -((x.getDay() + 6) % 7));
 };
 
 export default function Calendar() {
-  const { project, canWriteProject } = useApp();
+  const { project, canWriteProject, me } = useApp();
   const info = useProjectInfo(project?._id);
   const toast = useToast();
   const navigate = useNavigate();
   const [view, setView] = useState('month');
   const [cursor, setCursor] = useState(() => sod());
+  useEffect(() => setCursor(sod()), [me.timezone]);
   const [filter, setFilter] = useState({ assignee: '', status: '' });
   const [pop, setPop] = useState(null);
   const [drag, setDrag] = useState(null);
@@ -29,17 +31,21 @@ export default function Calendar() {
       const start = mondayOf(cursor);
       return { start, days: 7 };
     }
-    const first = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
+    const first = zoned(cursor);
+    first.setDate(1);
     const start = mondayOf(first);
-    const last = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0);
-    const days = Math.ceil((mondayOf(last).getTime() + 7 * DAY - start.getTime()) / DAY);
+    const last = zoned(first);
+    last.setMonth(last.getMonth() + 1, 0);
+    const days = Math.round((mondayOf(last).getTime() - start.getTime()) / DAY) + 7;
     return { start, days };
   }, [cursor, view]);
 
   const { data, error, loading, reload } = useLoad(
     () =>
       project
-        ? api.get(`/projects/${project._id}/calendar${qs({ from: range.start.toISOString(), to: new Date(range.start.getTime() + range.days * DAY).toISOString(), ...filter })}`)
+        ? api.get(
+            `/projects/${project._id}/calendar${qs({ from: range.start.toISOString(), to: new Date(addDays(range.start, range.days).getTime() - 1).toISOString(), ...filter })}`,
+          )
         : Promise.resolve(null),
     [project?._id, range.start.getTime(), range.days, JSON.stringify(filter)],
   );
@@ -53,7 +59,7 @@ export default function Calendar() {
   const sprintEnd = info?.project?.sprint?.end ? isoDate(info.project.sprint.end) : null;
 
   const move = (delta) => {
-    const c = new Date(cursor);
+    const c = zoned(cursor);
     if (view === 'week') c.setDate(c.getDate() + 7 * delta);
     else c.setMonth(c.getMonth() + delta, 1);
     setCursor(c);
@@ -63,8 +69,8 @@ export default function Calendar() {
     const t = data.tasks.find((x) => x._id === taskId);
     if (!t || isoDate(t.dueDate) === day) return;
     try {
-      const due = new Date(`${day}T17:00:00`);
-      await api.patch(`/tasks/${t._id}`, { dueDate: due.toISOString(), version: t.version });
+      const due = deadline(day);
+      await api.patch(`/tasks/${t._id}`, { dueDate: due, version: t.version });
       toast(`Đã dời hạn ${t.key} sang ${fmtDate(due)}`);
       reload();
     } catch (e) {
@@ -93,7 +99,7 @@ export default function Calendar() {
     }
   }
 
-  const title = view === 'week' ? `${fmtDate(range.start)} – ${fmtDate(new Date(range.start.getTime() + 6 * DAY))}` : `Tháng ${cursor.getMonth() + 1}, ${cursor.getFullYear()}`;
+  const title = view === 'week' ? `${fmtDate(range.start)} – ${fmtDate(addDays(range.start, 6))}` : `Tháng ${cursor.getMonth() + 1}, ${cursor.getFullYear()}`;
 
   return (
     <div className="p-6">
@@ -119,7 +125,11 @@ export default function Calendar() {
                 ['month', 'Tháng'],
                 ['week', 'Tuần'],
               ].map(([v, l]) => (
-                <button key={v} onClick={() => setView(v)} className={`rounded-md px-3 py-1 text-label-md ${view === v ? 'bg-white font-semibold text-slate-900 shadow-sm' : 'text-slate-500'}`}>
+                <button
+                  key={v}
+                  onClick={() => setView(v)}
+                  className={`rounded-md px-3 py-1 text-label-md ${view === v ? 'bg-white font-semibold text-slate-900 shadow-sm' : 'text-slate-500'}`}
+                >
                   {l}
                 </button>
               ))}
@@ -174,7 +184,7 @@ export default function Calendar() {
           ) : (
             <div className="grid grid-cols-7">
               {Array.from({ length: range.days }, (_, i) => {
-                const date = new Date(range.start.getTime() + i * DAY);
+                const date = addDays(range.start, i);
                 const key = isoDate(date);
                 const inMonth = view === 'week' || date.getMonth() === cursor.getMonth();
                 const list = byDay[key] || [];
@@ -187,13 +197,17 @@ export default function Calendar() {
                     className={`relative border-b border-r border-slate-100 p-1.5 ${view === 'week' ? 'min-h-[420px]' : 'min-h-[118px]'} ${inMonth ? 'bg-white' : 'bg-slate-50/70'}`}
                   >
                     <div className="mb-1 flex items-center justify-between">
-                      <span className={`flex h-6 min-w-6 items-center justify-center rounded-full px-1 text-label-md ${key === today ? 'bg-blue-600 font-bold text-white' : inMonth ? 'text-slate-700' : 'text-slate-300'}`}>{date.getDate()}</span>
+                      <span
+                        className={`flex h-6 min-w-6 items-center justify-center rounded-full px-1 text-label-md ${key === today ? 'bg-blue-600 font-bold text-white' : inMonth ? 'text-slate-700' : 'text-slate-300'}`}
+                      >
+                        {date.getDate()}
+                      </span>
                       {key === today && <span className="text-label-sm text-blue-600">Hôm nay</span>}
                     </div>
                     {key === sprintEnd && <div className="mb-1 rounded bg-purple-100 px-1.5 py-0.5 text-label-sm text-purple-700">Kết thúc {info.project.sprint.name}</div>}
                     <div className="space-y-1">
                       {shown.map((t) => {
-                        const overdue = t.status !== 'done' && sod(t.dueDate) < sod();
+                        const overdue = t.status !== 'done' && new Date(t.dueDate).getTime() < Date.now();
                         return (
                           <button
                             key={t._id}
@@ -235,12 +249,10 @@ export default function Calendar() {
               <div key={ci} className="mb-3 space-y-1">
                 <p className="flex items-center justify-between text-label-md text-slate-600">
                   Chuỗi nghẽn {ci + 1}
-                  {chain.filter((c) => c.status !== 'done').length > 1 && (
-                    <span className="chip border-rose-200 bg-rose-50 text-rose-700">Đang chặn {chain.length - 1} việc</span>
-                  )}
+                  {chain.filter((c) => c.status !== 'done').length > 1 && <span className="chip border-rose-200 bg-rose-50 text-rose-700">Đang chặn {chain.length - 1} việc</span>}
                 </p>
                 {chain.map((t, i) => {
-                  const overdue = t.status !== 'done' && t.dueDate && sod(t.dueDate) < sod();
+                  const overdue = t.status !== 'done' && t.dueDate && new Date(t.dueDate).getTime() < Date.now();
                   return (
                     <div key={t._id}>
                       <button
@@ -268,7 +280,11 @@ export default function Calendar() {
             <h3 className="mb-2 text-label-lg font-semibold text-slate-800">Việc bị chặn ({blocked.length})</h3>
             <div className="space-y-1.5">
               {blocked.map((t) => (
-                <button key={t._id} onClick={() => navigate({ search: `?task=${t._id}` })} className="flex w-full items-center gap-2 rounded-lg border border-slate-200 px-2.5 py-2 text-left text-body-sm hover:bg-slate-50">
+                <button
+                  key={t._id}
+                  onClick={() => navigate({ search: `?task=${t._id}` })}
+                  className="flex w-full items-center gap-2 rounded-lg border border-slate-200 px-2.5 py-2 text-left text-body-sm hover:bg-slate-50"
+                >
                   <span className="font-mono text-label-md text-rose-600">{t.key}</span>
                   <span className="flex-1 truncate">{t.title}</span>
                   <Icon name="chevron_right" size={16} className="text-slate-400" />
@@ -302,7 +318,11 @@ export default function Calendar() {
               </p>
               {pop.task.isBlocked && (
                 <p className="flex items-center gap-2 text-rose-600">
-                  <Icon name="block" size={16} /> Bị chặn bởi {pop.task.blockedBy.filter((b) => b.status !== 'done').map((b) => b.key).join(', ')}
+                  <Icon name="block" size={16} /> Bị chặn bởi{' '}
+                  {pop.task.blockedBy
+                    .filter((b) => b.status !== 'done')
+                    .map((b) => b.key)
+                    .join(', ')}
                 </p>
               )}
             </div>
@@ -313,7 +333,12 @@ export default function Calendar() {
               {canWriteProject && (
                 <label className="btn-outline btn-sm relative flex-1 cursor-pointer">
                   Đổi hạn
-                  <input type="date" className="absolute inset-0 cursor-pointer opacity-0" defaultValue={isoDate(pop.task.dueDate)} onChange={(e) => (reschedule(pop.task._id, e.target.value), setPop(null))} />
+                  <input
+                    type="date"
+                    className="absolute inset-0 cursor-pointer opacity-0"
+                    defaultValue={isoDate(pop.task.dueDate)}
+                    onChange={(e) => (reschedule(pop.task._id, e.target.value), setPop(null))}
+                  />
                 </label>
               )}
             </div>

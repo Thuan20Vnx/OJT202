@@ -34,6 +34,7 @@ const MINI_PDF = Buffer.from(
 const MINI_PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
 
 export async function seedDemo() {
+  if (config.isProd) throw new Error('Không được tạo tài khoản demo trong production');
   if (await prisma.user.findFirst({ select: { id: true } })) return false;
   console.log('[seed] Tạo dữ liệu demo Nhóm 24…');
   const hash = await bcrypt.hash(DEMO_PASSWORD, 10);
@@ -43,7 +44,16 @@ export async function seedDemo() {
   }
   const admin = await prisma.user.create({ data: { name: 'System Admin', email: 'admin@taskflow.local', passwordHash: hash, emailVerified: true, isSystemAdmin: true } });
   const spammer = await prisma.user.create({
-    data: { name: 'Người dùng thử', email: 'spam.test@example.com', passwordHash: hash, emailVerified: true, isLocked: true, lockReason: 'Spam lời mời', lockedAt: at(-2), lockedBy: admin.id },
+    data: {
+      name: 'Người dùng thử',
+      email: 'spam.test@example.com',
+      passwordHash: hash,
+      emailVerified: true,
+      isLocked: true,
+      lockReason: 'Spam lời mời',
+      lockedAt: at(-2),
+      lockedBy: admin.id,
+    },
   });
 
   const ws = await prisma.workspace.create({ data: { name: 'Nhóm 24 - Product Hub', slug: 'nhom-24', owner: u.maianh.id, size: '6-10' } });
@@ -114,11 +124,61 @@ export async function seedDemo() {
     return t;
   };
 
-  await mk(website, 98, { title: 'Cấu hình Load Balancer WSS trên cụm Cloud', status: 'in_progress', priority: 'high', assignee: u.hiep.id, dueDate: at(-2), estimateHours: 8, spentHours: 3, labels: ['DevOps'], description: 'Cấu hình load balancer hỗ trợ WebSocket bảo mật (WSS) cho cụm staging và production.' });
-  await mk(website, 99, { title: 'Thiết lập CI/CD pipeline cho frontend', status: 'done', priority: 'medium', assignee: u.hiep.id, completedAt: at(-6), estimateHours: 6, spentHours: 6, labels: ['DevOps'] });
-  await mk(website, 100, { title: 'Chuẩn hóa Design Tokens màu và bo góc', status: 'done', priority: 'low', assignee: u.nhu.id, completedAt: at(-5), estimateHours: 4, spentHours: 4, labels: ['UI/UX'] });
-  await mk(website, 101, { title: 'Thiết kế giao diện luồng Đăng nhập & Xác thực OTP 2 lớp', status: 'todo', priority: 'high', assignee: u.nhu.id, dueDate: at(3), estimateHours: 10, labels: ['UI/UX'], checklist: [{ text: 'Wireframe đăng nhập', done: true }, { text: 'Màn hình nhập OTP', done: false }, { text: 'Trạng thái lỗi', done: false }, { text: 'Bàn giao Figma', done: false }] });
-  await mk(website, 102, { title: 'Nghiên cứu tích hợp cổng thanh toán VNPay và Momo', status: 'todo', priority: 'medium', assignee: u.loc.id, dueDate: at(5), estimateHours: 16, labels: ['Fintech & API'] });
+  await mk(website, 98, {
+    title: 'Cấu hình Load Balancer WSS trên cụm Cloud',
+    status: 'in_progress',
+    priority: 'high',
+    assignee: u.hiep.id,
+    dueDate: at(-2),
+    estimateHours: 8,
+    spentHours: 3,
+    labels: ['DevOps'],
+    description: 'Cấu hình load balancer hỗ trợ WebSocket bảo mật (WSS) cho cụm staging và production.',
+  });
+  await mk(website, 99, {
+    title: 'Thiết lập CI/CD pipeline cho frontend',
+    status: 'done',
+    priority: 'medium',
+    assignee: u.hiep.id,
+    completedAt: at(-6),
+    estimateHours: 6,
+    spentHours: 6,
+    labels: ['DevOps'],
+  });
+  await mk(website, 100, {
+    title: 'Chuẩn hóa Design Tokens màu và bo góc',
+    status: 'done',
+    priority: 'low',
+    assignee: u.nhu.id,
+    completedAt: at(-5),
+    estimateHours: 4,
+    spentHours: 4,
+    labels: ['UI/UX'],
+  });
+  await mk(website, 101, {
+    title: 'Thiết kế giao diện luồng Đăng nhập & Xác thực OTP 2 lớp',
+    status: 'todo',
+    priority: 'high',
+    assignee: u.nhu.id,
+    dueDate: at(3),
+    estimateHours: 10,
+    labels: ['UI/UX'],
+    checklist: [
+      { text: 'Wireframe đăng nhập', done: true },
+      { text: 'Màn hình nhập OTP', done: false },
+      { text: 'Trạng thái lỗi', done: false },
+      { text: 'Bàn giao Figma', done: false },
+    ],
+  });
+  await mk(website, 102, {
+    title: 'Nghiên cứu tích hợp cổng thanh toán VNPay và Momo',
+    status: 'todo',
+    priority: 'medium',
+    assignee: u.loc.id,
+    dueDate: at(5),
+    estimateHours: 16,
+    labels: ['Fintech & API'],
+  });
   const t103 = await mk(website, 103, {
     title: 'Xây dựng API đồng bộ dữ liệu Real-time qua WebSocket',
     status: 'in_progress',
@@ -128,22 +188,130 @@ export async function seedDemo() {
     estimateHours: 12,
     spentHours: 7,
     labels: ['Backend', 'Real-time', 'WebSocket'],
-    description: 'Thiết kế kiến trúc Socket gateway và triển khai kết nối hai chiều WebSocket (WSS) kết hợp Redis Pub/Sub nhằm cập nhật trạng thái thẻ Kanban theo thời gian thực giữa các thành viên dự án mà không cần tải lại trang.',
-    acceptanceCriteria: ['Độ trễ cập nhật thẻ < 80ms trong cùng vùng mạng', 'Khôi phục trạng thái và đồng bộ lại sau khi mất kết nối dưới 30s', 'Mã hóa dữ liệu truyền tải qua WSS (TLS 1.3)'],
+    description:
+      'Thiết kế kiến trúc Socket gateway và triển khai kết nối hai chiều WebSocket (WSS) kết hợp Redis Pub/Sub nhằm cập nhật trạng thái thẻ Kanban theo thời gian thực giữa các thành viên dự án mà không cần tải lại trang.',
+    acceptanceCriteria: [
+      'Độ trễ cập nhật thẻ < 80ms trong cùng vùng mạng',
+      'Khôi phục trạng thái và đồng bộ lại sau khi mất kết nối dưới 30s',
+      'Mã hóa dữ liệu truyền tải qua WSS (TLS 1.3)',
+    ],
     blockedBy: [T['TF-98'].id],
   });
-  await mk(website, 104, { title: 'Tối ưu tốc độ tải trang Dashboard dưới 1.2s', status: 'in_progress', priority: 'high', assignee: u.dat.id, dueDate: at(1, 10), estimateHours: 10, spentHours: 5, labels: ['Hiệu năng Web'] });
-  await mk(website, 105, { title: 'Viết tài liệu Hướng dẫn sử dụng cho Quản trị viên', status: 'todo', priority: 'low', assignee: u.nhu.id, dueDate: at(8), estimateHours: 6, labels: ['Tài liệu'] });
-  await mk(website, 106, { title: 'Kiểm thử giao diện Responsive trên màn hình Tablet & Mobile', status: 'review', priority: 'medium', assignee: u.hiep.id, dueDate: at(2), reviewSince: at(-3), estimateHours: 6, spentHours: 6, labels: ['QA & Kiểm thử'] });
-  await mk(website, 107, { title: 'Thẩm định thiết kế luồng Onboarding người dùng mới', status: 'review', priority: 'high', assignee: u.maianh.id, dueDate: at(1), reviewSince: at(-1), estimateHours: 3, labels: ['Đánh giá PM'] });
-  await mk(website, 108, { title: 'Cập nhật thư viện biểu tượng SVG và bảng mã màu Design Tokens', status: 'done', priority: 'low', assignee: u.nhu.id, completedAt: at(-3), estimateHours: 4, spentHours: 4, labels: ['UI/UX'] });
-  await mk(website, 109, { title: 'Phê duyệt kế hoạch phát hành phiên bản Beta v1.2', status: 'done', priority: 'medium', assignee: u.maianh.id, completedAt: at(-1), estimateHours: 2, spentHours: 2 });
-  await mk(website, 110, { title: 'Tích hợp client SDK và hoàn thiện cơ chế reconnect tự động', status: 'todo', priority: 'medium', assignee: u.thuan.id, dueDate: at(3), estimateHours: 6, labels: ['Frontend', 'Real-time'], blockedBy: [t103.id] });
-  await mk(website, 111, { title: 'Viết test phân quyền cross-tenant', status: 'todo', priority: 'high', assignee: u.thuan.id, dueDate: at(2), estimateHours: 8, labels: ['Bảo mật'] });
-  await mk(website, 112, { title: 'Thiết kế màn hình Thông báo', status: 'in_progress', priority: 'medium', assignee: u.nhu.id, dueDate: at(2), estimateHours: 8, spentHours: 3, labels: ['UI/UX'] });
-  await mk(website, 113, { title: 'Xây dựng Dashboard tải công việc', status: 'done', priority: 'medium', assignee: u.dat.id, completedAt: at(-4), estimateHours: 8, spentHours: 9 });
-  await mk(website, 114, { title: 'Sửa lỗi kéo thả Kanban trên Safari', status: 'done', priority: 'high', assignee: u.loc.id, completedAt: at(-2), estimateHours: 3, spentHours: 2 });
-  await mk(website, 115, { title: 'Chuẩn hóa API phân trang và bộ lọc', status: 'todo', priority: 'medium', assignee: u.thuan.id, dueDate: at(4), estimateHours: 6, labels: ['Backend'] });
+  await mk(website, 104, {
+    title: 'Tối ưu tốc độ tải trang Dashboard dưới 1.2s',
+    status: 'in_progress',
+    priority: 'high',
+    assignee: u.dat.id,
+    dueDate: at(1, 10),
+    estimateHours: 10,
+    spentHours: 5,
+    labels: ['Hiệu năng Web'],
+  });
+  await mk(website, 105, {
+    title: 'Viết tài liệu Hướng dẫn sử dụng cho Quản trị viên',
+    status: 'todo',
+    priority: 'low',
+    assignee: u.nhu.id,
+    dueDate: at(8),
+    estimateHours: 6,
+    labels: ['Tài liệu'],
+  });
+  await mk(website, 106, {
+    title: 'Kiểm thử giao diện Responsive trên màn hình Tablet & Mobile',
+    status: 'review',
+    priority: 'medium',
+    assignee: u.hiep.id,
+    dueDate: at(2),
+    reviewSince: at(-3),
+    estimateHours: 6,
+    spentHours: 6,
+    labels: ['QA & Kiểm thử'],
+  });
+  await mk(website, 107, {
+    title: 'Thẩm định thiết kế luồng Onboarding người dùng mới',
+    status: 'review',
+    priority: 'high',
+    assignee: u.maianh.id,
+    dueDate: at(1),
+    reviewSince: at(-1),
+    estimateHours: 3,
+    labels: ['Đánh giá PM'],
+  });
+  await mk(website, 108, {
+    title: 'Cập nhật thư viện biểu tượng SVG và bảng mã màu Design Tokens',
+    status: 'done',
+    priority: 'low',
+    assignee: u.nhu.id,
+    completedAt: at(-3),
+    estimateHours: 4,
+    spentHours: 4,
+    labels: ['UI/UX'],
+  });
+  await mk(website, 109, {
+    title: 'Phê duyệt kế hoạch phát hành phiên bản Beta v1.2',
+    status: 'done',
+    priority: 'medium',
+    assignee: u.maianh.id,
+    completedAt: at(-1),
+    estimateHours: 2,
+    spentHours: 2,
+  });
+  await mk(website, 110, {
+    title: 'Tích hợp client SDK và hoàn thiện cơ chế reconnect tự động',
+    status: 'todo',
+    priority: 'medium',
+    assignee: u.thuan.id,
+    dueDate: at(3),
+    estimateHours: 6,
+    labels: ['Frontend', 'Real-time'],
+    blockedBy: [t103.id],
+  });
+  await mk(website, 111, {
+    title: 'Viết test phân quyền cross-tenant',
+    status: 'todo',
+    priority: 'high',
+    assignee: u.thuan.id,
+    dueDate: at(2),
+    estimateHours: 8,
+    labels: ['Bảo mật'],
+  });
+  await mk(website, 112, {
+    title: 'Thiết kế màn hình Thông báo',
+    status: 'in_progress',
+    priority: 'medium',
+    assignee: u.nhu.id,
+    dueDate: at(2),
+    estimateHours: 8,
+    spentHours: 3,
+    labels: ['UI/UX'],
+  });
+  await mk(website, 113, {
+    title: 'Xây dựng Dashboard tải công việc',
+    status: 'done',
+    priority: 'medium',
+    assignee: u.dat.id,
+    completedAt: at(-4),
+    estimateHours: 8,
+    spentHours: 9,
+  });
+  await mk(website, 114, {
+    title: 'Sửa lỗi kéo thả Kanban trên Safari',
+    status: 'done',
+    priority: 'high',
+    assignee: u.loc.id,
+    completedAt: at(-2),
+    estimateHours: 3,
+    spentHours: 2,
+  });
+  await mk(website, 115, {
+    title: 'Chuẩn hóa API phân trang và bộ lọc',
+    status: 'todo',
+    priority: 'medium',
+    assignee: u.thuan.id,
+    dueDate: at(4),
+    estimateHours: 6,
+    labels: ['Backend'],
+  });
 
   // Công việc con
   const subs103 = [
@@ -155,7 +323,8 @@ export async function seedDemo() {
     ['Tích hợp client SDK và hoàn thiện cơ chế reconnect', 'todo'],
   ];
   let n = 116;
-  for (const [title, status] of subs103) await mk(website, n++, { title, status, parent: t103.id, assignee: u.thuan.id, priority: 'medium', completedAt: status === 'done' ? at(-2) : null });
+  for (const [title, status] of subs103)
+    await mk(website, n++, { title, status, parent: t103.id, assignee: u.thuan.id, priority: 'medium', completedAt: status === 'done' ? at(-2) : null });
   const subs104 = [
     ['Đo baseline Lighthouse', 'done'],
     ['Tách bundle theo route', 'done'],
@@ -163,7 +332,8 @@ export async function seedDemo() {
     ['Cache API tổng quan', 'todo'],
     ['Đo lại và báo cáo', 'todo'],
   ];
-  for (const [title, status] of subs104) await mk(website, n++, { title, status, parent: T['TF-104'].id, assignee: u.dat.id, priority: 'medium', completedAt: status === 'done' ? at(-1) : null });
+  for (const [title, status] of subs104)
+    await mk(website, n++, { title, status, parent: T['TF-104'].id, assignee: u.dat.id, priority: 'medium', completedAt: status === 'done' ? at(-1) : null });
 
   const mobileTasks = [
     ['Thiết kế màn hình danh sách công việc', 'in_progress', u.nhu, 3],
@@ -186,14 +356,33 @@ export async function seedDemo() {
   await mk(hackathon, 2, { title: 'Demo prototype', status: 'done', assignee: u.dat.id, completedAt: at(-94) });
 
   await prisma.counter.createMany({
-    data: [[website, n - 1], [mobile, m - 1], [backend, b - 1], [hackathon, 2]].map(([p, max]) => ({ name: `task:${p.id}`, seq: max })),
+    data: [
+      [website, n - 1],
+      [mobile, m - 1],
+      [backend, b - 1],
+      [hackathon, 2],
+    ].map(([p, max]) => ({ name: `task:${p.id}`, seq: max })),
   });
 
   // Bình luận
   await prisma.comment.createMany({
     data: [
-      { task: t103.id, project: website.id, author: u.hiep.id, body: '@Thuận load balancer bên DevOps đang cấu hình WSS, dự kiến xong trong ngày mai.', mentions: [u.thuan.id], createdAt: at(-1, 9) },
-      { task: t103.id, project: website.id, author: u.thuan.id, body: 'Mình đã xong phần handshake và xác thực token, đang chờ WSS để test end-to-end. @Mai Anh nhờ chị theo dõi giúp TF-98.', mentions: [u.maianh.id], createdAt: at(-1, 10) },
+      {
+        task: t103.id,
+        project: website.id,
+        author: u.hiep.id,
+        body: '@Thuận load balancer bên DevOps đang cấu hình WSS, dự kiến xong trong ngày mai.',
+        mentions: [u.thuan.id],
+        createdAt: at(-1, 9),
+      },
+      {
+        task: t103.id,
+        project: website.id,
+        author: u.thuan.id,
+        body: 'Mình đã xong phần handshake và xác thực token, đang chờ WSS để test end-to-end. @Mai Anh nhờ chị theo dõi giúp TF-98.',
+        mentions: [u.maianh.id],
+        createdAt: at(-1, 10),
+      },
       { task: T['TF-107'].id, project: website.id, author: u.nhu.id, body: 'Em đã cập nhật lại bước chọn quy mô nhóm theo góp ý hôm qua.', createdAt: at(-1, 15) },
     ],
   });
@@ -229,7 +418,8 @@ export async function seedDemo() {
       },
     },
   });
-  const minutes = 'Họp Sprint 14 – thống nhất ưu tiên gỡ chặn TF-98 trước, sau đó kiểm thử end-to-end real-time.\n\nThuận phụ trách API WebSocket, Như cập nhật wireframe Thông báo, Hiệp hỗ trợ cấu hình WSS.';
+  const minutes =
+    'Họp Sprint 14 – thống nhất ưu tiên gỡ chặn TF-98 trước, sau đó kiểm thử end-to-end real-time.\n\nThuận phụ trách API WebSocket, Như cập nhật wireframe Thông báo, Hiệp hỗ trợ cấu hình WSS.';
   await prisma.document.create({
     data: {
       workspace: ws.id,
@@ -241,7 +431,12 @@ export async function seedDemo() {
       size: Buffer.byteLength(minutes),
       version: 2,
       uploadedBy: u.maianh.id,
-      revisions: { create: [{ version: 1, content: minutes.split('\n\n')[0], author: u.maianh.id }, { version: 2, content: minutes, author: u.maianh.id }] },
+      revisions: {
+        create: [
+          { version: 1, content: minutes.split('\n\n')[0], author: u.maianh.id },
+          { version: 2, content: minutes, author: u.maianh.id },
+        ],
+      },
     },
   });
   for (const [name, buf, mime, isScan, who, task] of [
@@ -250,13 +445,26 @@ export async function seedDemo() {
   ]) {
     const key = `${randomToken(16)}${path.extname(name)}`;
     fs.writeFileSync(path.join(config.uploadDir, key), buf);
-    await prisma.document.create({ data: { workspace: ws.id, project: website.id, task, kind: 'file', name, mime, size: buf.length, storageKey: key, isScan, uploadedBy: who.id } });
+    await prisma.document.create({
+      data: { workspace: ws.id, project: website.id, task, kind: 'file', name, mime, size: buf.length, storageKey: key, isScan, uploadedBy: who.id },
+    });
   }
 
   // Nhật ký hoạt động
   const act = (actor, action, task, before, after, ago) =>
     prisma.activity.create({
-      data: { workspace: ws.id, project: website.id, actor: actor.id, action, entityType: 'task', entityId: task.id, entityLabel: `${task.key} ${task.title}`, before, after, createdAt: new Date(Date.now() - ago * 3600000) },
+      data: {
+        workspace: ws.id,
+        project: website.id,
+        actor: actor.id,
+        action,
+        entityType: 'task',
+        entityId: task.id,
+        entityLabel: `${task.key} ${task.title}`,
+        before,
+        after,
+        createdAt: new Date(Date.now() - ago * 3600000),
+      },
     });
   await act(u.loc, 'Đổi trạng thái', T['TF-114'], 'Đang kiểm duyệt', 'Hoàn thành', 50);
   await act(u.hiep, 'Đổi trạng thái', T['TF-106'], 'Đang thực hiện', 'Đang kiểm duyệt', 72);
@@ -264,15 +472,61 @@ export async function seedDemo() {
   await act(u.thuan, 'Cập nhật hạn chót', t103, at(-1).toLocaleDateString('vi-VN'), at(0).toLocaleDateString('vi-VN'), 20);
   await act(u.dat, 'Đổi ưu tiên', T['TF-104'], 'Trung bình', 'Cao', 26);
   await act(u.maianh, 'Đổi trạng thái', T['TF-109'], 'Đang kiểm duyệt', 'Hoàn thành', 22);
-  await prisma.activity.create({ data: { workspace: ws.id, actor: u.hoanganh.id, action: 'Phân quyền', entityType: 'member', entityId: u.linh.id, entityLabel: 'Khánh Linh', before: 'Member', after: 'Viewer', createdAt: at(-2, 17) } });
-  await prisma.activity.create({ data: { workspace: ws.id, project: website.id, actor: u.thuan.id, action: 'Cập nhật tài liệu', entityType: 'file', entityId: archDoc.id, entityLabel: archDoc.name, after: 'v4', createdAt: at(0, 8) } });
+  await prisma.activity.create({
+    data: {
+      workspace: ws.id,
+      actor: u.hoanganh.id,
+      action: 'Phân quyền',
+      entityType: 'member',
+      entityId: u.linh.id,
+      entityLabel: 'Khánh Linh',
+      before: 'Member',
+      after: 'Viewer',
+      createdAt: at(-2, 17),
+    },
+  });
+  await prisma.activity.create({
+    data: {
+      workspace: ws.id,
+      project: website.id,
+      actor: u.thuan.id,
+      action: 'Cập nhật tài liệu',
+      entityType: 'file',
+      entityId: archDoc.id,
+      entityLabel: archDoc.name,
+      after: 'v4',
+      createdAt: at(0, 8),
+    },
+  });
 
   // Thông báo cho Mai Anh
-  const notif = (data, ago) => prisma.notification.create({ data: { user: u.maianh.id, workspace: ws.id, project: website.id, createdAt: new Date(Date.now() - ago * 60000), ...data } });
-  await notif({ type: 'mentioned', actor: u.thuan.id, task: t103.id, text: 'Thuận đã nhắc đến bạn trong TF-103', excerpt: 'Mình đã xong phần handshake… @Mai Anh nhờ chị theo dõi giúp TF-98.', dedupeKey: 'seed:1' }, 20);
+  const notif = (data, ago) =>
+    prisma.notification.create({ data: { user: u.maianh.id, workspace: ws.id, project: website.id, createdAt: new Date(Date.now() - ago * 60000), ...data } });
+  await notif(
+    {
+      type: 'mentioned',
+      actor: u.thuan.id,
+      task: t103.id,
+      text: 'Thuận đã nhắc đến bạn trong TF-103',
+      excerpt: 'Mình đã xong phần handshake… @Mai Anh nhờ chị theo dõi giúp TF-98.',
+      dedupeKey: 'seed:1',
+    },
+    20,
+  );
   await notif({ type: 'status', actor: u.hiep.id, task: T['TF-106'].id, text: 'Hiệp đã chuyển TF-106 sang Đang kiểm duyệt', dedupeKey: 'seed:2' }, 120);
   await notif({ type: 'due_soon', task: T['TF-107'].id, text: 'Nhắc hạn: TF-107 Thẩm định thiết kế luồng Onboarding đến hạn trong 24 giờ', dedupeKey: 'seed:3' }, 60);
-  await notif({ type: 'comment', actor: u.nhu.id, task: T['TF-107'].id, text: 'Như đã bình luận trong TF-107', excerpt: 'Em đã cập nhật lại bước chọn quy mô nhóm…', dedupeKey: 'seed:4', readAt: at(-1) }, 60 * 26);
+  await notif(
+    {
+      type: 'comment',
+      actor: u.nhu.id,
+      task: T['TF-107'].id,
+      text: 'Như đã bình luận trong TF-107',
+      excerpt: 'Em đã cập nhật lại bước chọn quy mô nhóm…',
+      dedupeKey: 'seed:4',
+      readAt: at(-1),
+    },
+    60 * 26,
+  );
   await notif({ type: 'overdue', task: T['TF-98'].id, text: 'TF-98 Cấu hình Load Balancer WSS đã quá hạn 2 ngày', dedupeKey: 'seed:5', readAt: at(-1) }, 60 * 28);
   await notif({ type: 'invite', actor: u.dat.id, project: mobile.id, text: 'Đạt đã thêm bạn vào dự án Mobile App', dedupeKey: 'seed:6', readAt: at(-3) }, 60 * 24 * 3);
 

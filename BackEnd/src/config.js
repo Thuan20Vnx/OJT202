@@ -12,9 +12,14 @@ export const config = {
   isProd: env.NODE_ENV === 'production',
   isTest: env.NODE_ENV === 'test',
   clientUrl: env.CLIENT_URL || 'http://localhost:5173',
+  trustProxy: env.TRUST_PROXY?.trim()
+    ? env.TRUST_PROXY.split(',')
+        .map((s) => s.trim())
+        .filter(Boolean)
+    : false,
   databaseUrl: env.DATABASE_URL || '',
   pgPort: Number(env.PG_EMBEDDED_PORT || 54329),
-  seedDemo: (env.SEED_DEMO ?? 'true') !== 'false',
+  seedDemo: (env.SEED_DEMO ?? (env.NODE_ENV === 'production' ? 'false' : 'true')) !== 'false',
   jwtSecret: env.JWT_SECRET || 'change-me-dev-only-secret',
   accessTtlSec: 15 * 60,
   refreshTtlSec: 30 * 24 * 3600,
@@ -32,8 +37,11 @@ export const config = {
   },
 };
 
-if (config.isProd && config.jwtSecret === 'change-me-dev-only-secret') {
-  throw new Error('JWT_SECRET phải được đặt khi chạy production');
+if (config.isProd && (config.jwtSecret === 'change-me-dev-only-secret' || config.jwtSecret.length < 32)) {
+  throw new Error('JWT_SECRET production phải có ít nhất 32 ký tự ngẫu nhiên');
+}
+if (config.isProd && config.seedDemo) {
+  throw new Error('Không được bật SEED_DEMO trong production vì tài khoản demo có mật khẩu công khai');
 }
 if (config.isProd && !config.ai.serviceKey) {
   throw new Error('AI_SERVICE_KEY phải được đặt khi chạy production');

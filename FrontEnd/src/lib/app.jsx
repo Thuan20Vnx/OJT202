@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { api, onUnauthorized } from './api.js';
 import { closeSocket, getSocket, joinProject } from './socket.js';
+import { setTimeZone } from './dates.js';
 
 const AppCtx = createContext(null);
 const ToastCtx = createContext(() => {});
@@ -40,9 +41,7 @@ export function ToastProvider({ children }) {
               t.tone === 'error' ? 'border-rose-200' : t.tone === 'info' ? 'border-blue-200' : 'border-emerald-200'
             }`}
           >
-            <span
-              className={`material-symbols-outlined icon-fill !text-[18px] ${t.tone === 'error' ? 'text-rose-500' : t.tone === 'info' ? 'text-blue-600' : 'text-emerald-500'}`}
-            >
+            <span className={`material-symbols-outlined icon-fill !text-[18px] ${t.tone === 'error' ? 'text-rose-500' : t.tone === 'info' ? 'text-blue-600' : 'text-emerald-500'}`}>
               {t.tone === 'error' ? 'error' : t.tone === 'info' ? 'info' : 'check_circle'}
             </span>
             <span className="text-slate-700">{t.message}</span>
@@ -55,7 +54,11 @@ export function ToastProvider({ children }) {
 export const useToast = () => useContext(ToastCtx);
 
 export function AppProvider({ children }) {
-  const [me, setMe] = useState(undefined); // undefined = đang tải, null = chưa đăng nhập
+  const [me, setMeState] = useState(undefined); // undefined = đang tải, null = chưa đăng nhập
+  const setMe = useCallback((user) => {
+    setTimeZone(user?.timezone);
+    setMeState(user);
+  }, []);
   const [workspaces, setWorkspaces] = useState([]);
   const [wsId, setWsId] = useState(store.get('tf_ws'));
   const [ws, setWs] = useState(null); // { workspace, role, projects }
@@ -63,6 +66,9 @@ export function AppProvider({ children }) {
   const [unread, setUnread] = useState(0);
   const [theme, setTheme] = useState(store.get('tf_theme') || 'light');
   const loadingWs = useRef(null);
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent('tf:resync'));
+  }, [me?.timezone]);
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', theme === 'dark');
@@ -155,9 +161,19 @@ export function AppProvider({ children }) {
     if (!me) return closeSocket();
     const s = getSocket();
     const onNotif = () => setUnread((n) => n + 1);
+    const onAccess = async () => {
+      setWs(null);
+      await loadMe();
+      await safeReloadWs();
+      window.dispatchEvent(new CustomEvent('tf:resync'));
+    };
     s.on('notification:new', onNotif);
-    return () => s.off('notification:new', onNotif);
-  }, [me]);
+    s.on('access:changed', onAccess);
+    return () => {
+      s.off('notification:new', onNotif);
+      s.off('access:changed', onAccess);
+    };
+  }, [me, loadMe, safeReloadWs]);
   useEffect(() => {
     if (me && project?._id) joinProject(project._id);
   }, [me, project?._id]);

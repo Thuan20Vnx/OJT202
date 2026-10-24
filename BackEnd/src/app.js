@@ -22,7 +22,7 @@ import devRoutes from './routes/dev.js';
 
 export function createApp() {
   const app = express();
-  app.set('trust proxy', 1);
+  app.set('trust proxy', config.trustProxy);
   app.set('json replacer', apiReplacer);
   app.use(helmet({ contentSecurityPolicy: false, crossOriginResourcePolicy: { policy: 'same-site' } }));
   app.use(cors({ origin: config.clientUrl, credentials: true }));

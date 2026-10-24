@@ -4,6 +4,8 @@ import { BrowserRouter } from 'react-router-dom';
 import App from './App.jsx';
 import { AppProvider, ToastProvider } from './lib/app.jsx';
 import { installRipple } from './lib/ripple.js';
+import '@fontsource-variable/inter';
+import '@fontsource/material-symbols-outlined/400.css';
 import './index.css';
 
 installRipple();

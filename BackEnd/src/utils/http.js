@@ -14,6 +14,18 @@ export const forbidden = (msg = 'Bạn không có quyền thực hiện thao tá
 export const notFound = (msg = 'Không tìm thấy') => new HttpError(404, msg);
 export const conflict = (msg, details) => new HttpError(409, msg, details);
 
+export function pagination(query, defaultLimit = 20) {
+  const positive = (value, fallback, field) => {
+    if (value === undefined || value === '') return fallback;
+    if (typeof value !== 'string' || !/^\d+$/.test(value) || !Number.isSafeInteger(Number(value)) || Number(value) < 1) throw badRequest(`${field} phải là số nguyên dương`);
+    return Number(value);
+  };
+  const page = positive(query.page, 1, 'Trang');
+  const limit = Math.min(100, positive(query.limit, defaultLimit, 'Số bản ghi'));
+  if ((page - 1) * limit > 2147483647) throw badRequest('Trang vượt phạm vi cho phép');
+  return { page, limit };
+}
+
 /** Validate body/query bằng zod, trả lỗi 400 với thông điệp tiếng Việt từng trường. */
 export function parse(schema, data) {
   try {

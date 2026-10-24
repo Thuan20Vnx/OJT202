@@ -11,7 +11,7 @@ export async function notify({ user, actor, type, dedupeKey, ...rest }) {
   if (pref && pref[type] === false) return null;
   try {
     const n = await prisma.notification.create({ data: { user, actor, type, dedupeKey, ...rest } });
-    emitUser(user, 'notification:new', { id: n.id, type, text: n.text });
+    emitUser(user, 'notification:new', { id: n.id, type, text: n.text }, rest.project);
     return n;
   } catch (e) {
     if (isUniqueError(e)) return null; // đã gửi trước đó

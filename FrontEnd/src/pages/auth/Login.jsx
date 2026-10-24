@@ -10,8 +10,20 @@ export function PasswordInput({ value, onChange, error, placeholder = '•••
   return (
     <div className="relative">
       <Icon name="lock" size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-      <input type={show ? 'text' : 'password'} className={`input pl-9 pr-10 ${error ? 'input-error' : ''}`} value={value} onChange={onChange} placeholder={placeholder} autoComplete={autoComplete} />
-      <button type="button" onClick={() => setShow((s) => !s)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700" aria-label="Hiện/ẩn mật khẩu">
+      <input
+        type={show ? 'text' : 'password'}
+        className={`input pl-9 pr-10 ${error ? 'input-error' : ''}`}
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        autoComplete={autoComplete}
+      />
+      <button
+        type="button"
+        onClick={() => setShow((s) => !s)}
+        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
+        aria-label="Hiện/ẩn mật khẩu"
+      >
         <Icon name={show ? 'visibility_off' : 'visibility'} size={18} />
       </button>
     </div>
@@ -24,11 +36,13 @@ export function PasswordStrength({ value }) {
     [/[A-Z]/.test(value), 'Có chữ hoa'],
     [/[0-9]/.test(value), 'Có số'],
   ];
-  const score = rules.filter((r) => r[0]).length;
+  const tooLong = new TextEncoder().encode(value).length > 72;
+  const score = tooLong ? 0 : rules.filter((r) => r[0]).length;
   const label = ['Yếu', 'Yếu', 'Trung bình', 'Mạnh'][score];
   const tone = ['bg-rose-500', 'bg-rose-500', 'bg-amber-500', 'bg-emerald-500'][score];
   return (
     <div className="mt-2">
+      {tooLong && <p className="mb-1 text-body-sm text-rose-600">Mật khẩu vượt 72 byte UTF-8; hãy rút ngắn (ký tự có dấu có thể chiếm nhiều byte).</p>}
       <div className="flex items-center justify-between text-label-md font-normal text-slate-500">
         <span>Độ mạnh mật khẩu</span>
         <span className={score === 3 ? 'font-semibold text-emerald-600' : ''}>{value ? label : ''}</span>
@@ -52,9 +66,17 @@ export function PasswordStrength({ value }) {
 
 function GoogleButton() {
   return (
-    <button type="button" className="btn-outline w-full" title="Đăng nhập Google cần cấu hình OAuth khi triển khai" onClick={() => alert('Đăng nhập Google cần cấu hình OAuth Client ID khi triển khai. Bản phát triển dùng email + mật khẩu.')}>
+    <button
+      type="button"
+      className="btn-outline w-full"
+      title="Đăng nhập Google cần cấu hình OAuth khi triển khai"
+      onClick={() => alert('Đăng nhập Google cần cấu hình OAuth Client ID khi triển khai. Bản phát triển dùng email + mật khẩu.')}
+    >
       <svg width="16" height="16" viewBox="0 0 48 48" aria-hidden="true">
-        <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.6 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z" />
+        <path
+          fill="#FFC107"
+          d="M43.6 20.5H42V20H24v8h11.3C33.6 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"
+        />
         <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z" />
         <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z" />
         <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z" />
@@ -82,7 +104,10 @@ export default function Login({ initialTab = 'login' }) {
     setErrors(err.fields);
     // Lắc nhẹ form khi lỗi (Web Animations API – không dựng lại form nên ô nhập giữ focus)
     if (!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
-      formRef.current?.animate([0, -6, 6, -4, 4, -2, 0].map((x) => ({ transform: `translateX(${x}px)` })), { duration: 400, easing: 'ease-in-out' });
+      formRef.current?.animate(
+        [0, -6, 6, -4, 4, -2, 0].map((x) => ({ transform: `translateX(${x}px)` })),
+        { duration: 400, easing: 'ease-in-out' },
+      );
     }
   };
   const set = (k) => (e) => setF((s) => ({ ...s, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value }));
@@ -229,7 +254,10 @@ export default function Login({ initialTab = 'login' }) {
                   Gửi lại email
                 </button>
                 <p className="mt-3 text-label-md font-normal text-slate-400">
-                  Bản phát triển: xem email tại <Link className="text-blue-600 underline" to="/dev/outbox">hộp thư dev</Link>
+                  Bản phát triển: xem email tại{' '}
+                  <Link className="text-blue-600 underline" to="/dev/outbox">
+                    hộp thư dev
+                  </Link>
                 </p>
               </>
             }

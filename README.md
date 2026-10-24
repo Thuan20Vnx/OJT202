@@ -56,7 +56,7 @@ Khi đã có PostgreSQL ≥ 13 (cài trực tiếp, Docker, Neon, Supabase, RDS�
 
 ```env
 DATABASE_URL=postgresql://taskflow:matkhau@localhost:5432/taskflow
-SEED_DEMO=false        # true nếu muốn có dữ liệu demo
+SEED_DEMO=false        # production bắt buộc false; true chỉ dành development
 ```
 
 **Supabase** (đang dùng): Supabase → nút **Connect** → **Session pooler**, thay `[YOUR-PASSWORD]` bằng mật khẩu database và thêm `?sslmode=require&connection_limit=10` (Session pooler gói miễn phí giới hạn ~15 kết nối; mặc định Prisma mở số nhân CPU × 2 + 1):
@@ -94,7 +94,7 @@ Xem/sửa dữ liệu trực quan: `npm --prefix BackEnd run db:studio` (Prisma 
 | Lệnh | Mô tả |
 |---|---|
 | `npm run dev` | Chạy AIService + BackEnd + FrontEnd (hot reload) |
-| `npm test` | Test AIService + 31 test tích hợp BackEnd theo tiêu chí nghiệm thu (PostgreSQL nhúng tạm thời + AIService chạy cùng tiến trình, không đụng dữ liệu dev) |
+| `npm test` | Test AIService + các test tích hợp BackEnd theo tiêu chí nghiệm thu, gồm hồi quy phân quyền và thao tác đồng thời (PostgreSQL nhúng tạm thời + AIService chạy cùng tiến trình, không đụng dữ liệu dev). Kết quả: [báo cáo kiểm thử Lộc](docs/LOC_TEST_RESULTS.md) |
 | `npm --prefix BackEnd run db:migrate` | Áp dụng migration vào DB đang cấu hình |
 | `npm --prefix BackEnd run db:studio` | Mở Prisma Studio xem dữ liệu |
 | `npm run build` | Build frontend vào `FrontEnd/dist` |
@@ -130,7 +130,7 @@ Xem/sửa dữ liệu trực quan: `npm --prefix BackEnd run db:studio` (Prisma 
 
 ## Bảo mật & tiêu chí nghiệm thu đã hiện thực
 
-- **Phiên đăng nhập**: access token 15 phút + refresh token 30 ngày trong cookie `HttpOnly`, `SameSite=Lax`, `Secure` khi production; refresh **xoay vòng**, dùng lại token cũ ⇒ thu hồi cả chuỗi phiên; logout/đổi mật khẩu/reset thu hồi phiên. Lỗi đăng nhập chung chung, mật khẩu băm bcrypt.
+- **Phiên đăng nhập**: access token 15 phút + refresh tối đa 30 ngày khi chọn Ghi nhớ; nếu không chọn thì cookie phiên và hạn server 24 giờ trong cookie `HttpOnly`, `SameSite=Lax`, `Secure` khi production; refresh **xoay vòng**, dùng lại token cũ ⇒ thu hồi cả chuỗi phiên; logout/đổi mật khẩu/reset thu hồi phiên. Lỗi đăng nhập chung chung, mật khẩu băm bcrypt.
 - **CSRF**: mọi request ghi phải có header `x-taskflow: 1`; CORS chỉ cho `CLIENT_URL`.
 - **Cách ly dữ liệu**: mọi truy vấn đi qua `workspaceAccess` / `projectAccess`; người ngoài nhóm nhận 404 (không lộ sự tồn tại). Viewer không ghi, không kéo thả; dự án lưu trữ chỉ đọc; phòng Socket.io chỉ vào được sau khi kiểm quyền; thu hồi quyền đẩy user khỏi phòng ngay.
 - **Kanban**: mỗi công việc có `version`; bản cũ ⇒ **409** kèm dữ liệu mới để UI tải lại.
@@ -193,3 +193,13 @@ taskflow/
 - Gửi email thật cần nối nhà cung cấp SMTP trong `BackEnd/src/services/mailer.js`.
 - Chuyển ngôn ngữ EN mới áp dụng cho menu điều hướng; nội dung còn lại tiếng Việt.
 - Chế độ tối là lớp ghi đè màu cơ bản, chưa tinh chỉnh từng màn hình.
+
+## Thay đổi nhánh Loc (23/10/2026)
+
+Xem [báo cáo review](docs/LOC_REVIEW.md) và [kết quả kiểm thử](docs/LOC_TEST_RESULTS.md): 95 backend + 16 AIService, build và audit ba package đều qua.
+
+Giữ thư mục `shared/` khi sao chép dự án. Cài lại dependency và generate Prisma trước khi chạy; có ba migration thêm pending AI, revision nguồn report và lựa chọn ghi nhớ phiên. Dừng backend trước khi generate trên Windows.
+
+Production cần `NODE_ENV=production`, `SEED_DEMO=false`, JWT_SECRET ít nhất 32 ký tự ngẫu nhiên và AI_SERVICE_KEY. Mặc định không tin header proxy; đặt `TRUST_PROXY` thành IP/CIDR của reverse proxy thực tế (ví dụ `loopback` nếu proxy cùng máy), không bật tin mọi địa chỉ. `npm start` tự nó không đặt NODE_ENV. Mailer vẫn cần kết nối nhà cung cấp SMTP thật; không coi outbox demo là email đã gửi.
+
+Ngày chót chỉ nhập ngày được hiểu hết ngày theo timezone hồ sơ; báo cáo, quota và số liệu chung dùng giờ Việt Nam. Không thay đổi ngầm timestamp các deadline cũ.

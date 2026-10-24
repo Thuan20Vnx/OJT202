@@ -3,16 +3,19 @@ import { useNavigate } from 'react-router-dom';
 import { Field, Icon, Notice, Select, Spinner } from '../../components/ui.jsx';
 import { api } from '../../lib/api.js';
 import { useApp, useLoad, useToast } from '../../lib/app.jsx';
-import { isoDate } from '../../lib/format.js';
+import { dates } from '../../lib/dates.js';
 import { History } from './Planner.jsx';
+import { useProjectInfo } from '../../lib/hooks.js';
 
 const DAY = 86400000;
 
 export default function Report({ project, onUsage, disabled }) {
   const toast = useToast();
   const { me } = useApp();
+  const info = useProjectInfo(project._id);
+  const canManage = !!info?.access?.canManage;
   const navigate = useNavigate();
-  const [f, setF] = useState({ from: isoDate(new Date(Date.now() - 6 * DAY)), to: isoDate(new Date()), template: 'week' });
+  const [f, setF] = useState({ from: dates.dateKey(new Date(Date.now() - 6 * DAY)), to: dates.dateKey(new Date()), template: 'week' });
   const [report, setReport] = useState(null);
   const [busy, setBusy] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -75,7 +78,7 @@ export default function Report({ project, onUsage, disabled }) {
             <Field label="Từ ngày">
               <input type="date" className="input" value={f.from} onChange={(e) => setF({ ...f, from: e.target.value })} />
             </Field>
-            <Field label="Đến ngày">
+            <Field label="Đến ngày" hint="Tính hết ngày theo giờ Việt Nam (UTC+7)">
               <input type="date" className="input" value={f.to} onChange={(e) => setF({ ...f, to: e.target.value })} />
             </Field>
           </div>
@@ -87,7 +90,8 @@ export default function Report({ project, onUsage, disabled }) {
             </Select>
           </Field>
           <Notice tone="warn">Số liệu được tính trực tiếp từ dữ liệu dự án, AI chỉ diễn giải.</Notice>
-          <button className="btn-primary h-10 w-full" onClick={generate} disabled={busy || disabled}>
+          {!canManage && <Notice>Chỉ PM, Owner hoặc Admin của dự án đang hoạt động được tạo, sửa và chia sẻ báo cáo.</Notice>}
+          <button className="btn-primary h-10 w-full" onClick={generate} disabled={busy || disabled || !canManage}>
             {busy ? <Spinner /> : <Icon name="auto_awesome" size={18} />}
             Tạo báo cáo nháp
           </button>
@@ -124,12 +128,29 @@ export default function Report({ project, onUsage, disabled }) {
               <Icon name="summarize" size={30} />
             </span>
             <p className="text-headline-sm text-slate-900">Chọn khoảng ngày và tạo báo cáo tiến độ nháp</p>
-            <p className="mt-1 max-w-md text-body-sm text-slate-500">Báo cáo tổng hợp việc đã xong, đang chậm và bị chặn – mỗi nhận định kèm liên kết tới công việc nguồn. Bạn sửa trước khi lưu và chia sẻ nội bộ.</p>
+            <p className="mt-1 max-w-md text-body-sm text-slate-500">
+              Báo cáo tổng hợp việc đã xong, đang chậm và bị chặn – mỗi nhận định kèm liên kết tới công việc nguồn. Bạn sửa trước khi lưu và chia sẻ nội bộ.
+            </p>
           </div>
         ) : (
           <div className="pb-24">
+            <Notice tone="warn" className="mb-3">
+              Báo cáo lưu số liệu tại thời điểm tạo.{' '}
+              {report.sourceState === 'changed'
+                ? 'Nguồn dự án đã thay đổi; hãy tạo báo cáo mới trước khi sử dụng số liệu hiện tại.'
+                : report.sourceState === 'unknown'
+                  ? 'Bản cũ chưa có thông tin phiên bản nguồn.'
+                  : 'Số liệu quá hạn có thể thay đổi theo thời gian.'}{' '}
+              {report.missingSources > 0 ? `${report.missingSources} công việc nguồn đã bị xóa.` : ''}
+            </Notice>
             <div className="card mb-3 flex flex-wrap items-center gap-3 px-4 py-3">
-              <input className="min-w-0 flex-1 border-0 bg-transparent p-0 text-headline-sm text-slate-900 focus:ring-0" defaultValue={report.title} onBlur={(e) => e.target.value !== report.title && save({ title: e.target.value })} />
+              <input
+                key={report._id}
+                readOnly={!canManage || !mine}
+                className="min-w-0 flex-1 border-0 bg-transparent p-0 text-headline-sm text-slate-900 focus:ring-0"
+                defaultValue={report.title}
+                onBlur={(e) => canManage && mine && e.target.value !== report.title && save({ title: e.target.value })}
+              />
               <span className={`chip ${report.status === 'shared' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-amber-200 bg-amber-50 text-amber-700'}`}>
                 {report.status === 'shared' ? 'Đã chia sẻ nội bộ' : '● Nháp – chưa chia sẻ'}
               </span>
@@ -137,13 +158,16 @@ export default function Report({ project, onUsage, disabled }) {
             </div>
             <div className="space-y-3">
               {report.sections.map((sec) => (
-                <div key={sec.key} className={`card p-4 ${sec.key === 'late' ? 'border-l-4 border-l-rose-400' : sec.key === 'blocked' ? 'border-l-4 border-l-amber-400' : sec.key === 'done' ? 'border-l-4 border-l-emerald-400' : ''}`}>
+                <div
+                  key={sec.key}
+                  className={`card p-4 ${sec.key === 'late' ? 'border-l-4 border-l-rose-400' : sec.key === 'blocked' ? 'border-l-4 border-l-amber-400' : sec.key === 'done' ? 'border-l-4 border-l-emerald-400' : ''}`}
+                >
                   <div className="mb-2 flex items-center justify-between">
                     <h3 className="flex items-center gap-2 text-label-lg font-semibold text-slate-900">
                       {sec.title}
                       {sec.aiSuggested && <span className="chip border-purple-200 bg-purple-50 text-purple-700">Gợi ý AI</span>}
                     </h3>
-                    {editing !== sec.key && (
+                    {canManage && mine && editing !== sec.key && (
                       <button className="icon-btn h-7 w-7" onClick={() => (setEditing(sec.key), setText(sec.body))} title="Sửa">
                         <Icon name="edit" size={16} />
                       </button>
@@ -167,7 +191,12 @@ export default function Report({ project, onUsage, disabled }) {
                   {sec.refs?.length > 0 && (
                     <div className="mt-2.5 flex flex-wrap gap-1.5">
                       {sec.refs.map((t) => (
-                        <button key={t._id} onClick={() => navigate({ search: `?task=${t._id}` })} className="chip border-slate-200 bg-white font-mono text-blue-700 hover:border-blue-300" title={t.title}>
+                        <button
+                          key={t._id}
+                          onClick={() => navigate({ search: `?task=${t._id}` })}
+                          className="chip border-slate-200 bg-white font-mono text-blue-700 hover:border-blue-300"
+                          title={t.title}
+                        >
                           {t.key}
                         </button>
                       ))}
@@ -183,10 +212,10 @@ export default function Report({ project, onUsage, disabled }) {
               <button className="btn-outline" onClick={exportTxt}>
                 <Icon name="download" size={16} /> Xuất tệp
               </button>
-              <button className="btn-outline" onClick={generate} disabled={busy}>
+              <button className="btn-outline" onClick={generate} disabled={busy || disabled || !canManage}>
                 <Icon name="refresh" size={16} /> Tạo lại
               </button>
-              {report.status !== 'shared' && mine && (
+              {report.status !== 'shared' && mine && canManage && (
                 <button className="btn-primary" onClick={() => save({ share: true }, 'Đã lưu & chia sẻ báo cáo trong dự án')} disabled={saving}>
                   {saving ? <Spinner /> : <Icon name="share" size={16} />} Lưu & chia sẻ nội bộ
                 </button>

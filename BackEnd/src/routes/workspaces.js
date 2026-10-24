@@ -3,13 +3,16 @@ import { z } from 'zod';
 import { config } from '../config.js';
 import { USER, countBy, ilike, isId, populate, populateAll, prisma, subtaskCounts } from '../db.js';
 import { requireAuth } from '../middleware/auth.js';
-import { atLeast, middlewareWorkspace, readableProjectsWhere } from '../middleware/access.js';
+import { atLeast, middlewareWorkspace, readableProjectsWhere, workspaceAccess } from '../middleware/access.js';
 import { logActivity } from '../services/activity.js';
 import { aiServiceInfo } from '../services/ai/gateway.js';
 import { sendMail } from '../services/mailer.js';
-import { kickFromProject } from '../services/realtime.js';
+import { emitProject, refreshUserAccess } from '../services/realtime.js';
+import { unassignTasks, withWorkspaceLock } from '../services/membership.js';
 import { badRequest, conflict, forbidden, notFound, parse } from '../utils/http.js';
+import { pagination } from '../utils/http.js';
 import { randomToken, sha256, slugify, toCsv } from '../utils/security.js';
+import { addDays, isDateInput, parseDate, startOfDay, weekRange } from '../utils/dates.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -17,7 +20,6 @@ router.use(requireAuth);
 const ROLE_VI = { owner: 'Owner', admin: 'Admin', member: 'Member', viewer: 'Viewer' };
 
 const findMember = (workspace, user) => (isId(user) ? prisma.membership.findUnique({ where: { workspace_user: { workspace, user } } }) : null);
-const userName = async (id) => (await prisma.user.findUnique({ where: { id }, select: { name: true } }))?.name;
 
 // ---------- Tạo & xem workspace ----------
 router.post('/', async (req, res) => {
@@ -33,7 +35,10 @@ router.post('/', async (req, res) => {
   const dup = await prisma.membership.findFirst({ where: { user: req.user.id, workspaceRef: { name: { equals: body.name, mode: 'insensitive' } } } });
   if (dup) throw conflict('Bạn đã có workspace tên này. Vui lòng chọn tên khác.', { fields: { name: 'Bạn đã có workspace tên này' } });
   let slug = slugify(body.slug || body.name);
-  if (await prisma.workspace.findUnique({ where: { slug } })) slug = `${slug}-${randomToken(3).toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+  if (await prisma.workspace.findUnique({ where: { slug } }))
+    slug = `${slug}-${randomToken(3)
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '')}`;
   const ws = await prisma.workspace.create({
     data: { name: body.name, slug, owner: req.user.id, size: body.size, memberships: { create: { user: req.user.id, role: 'owner' } } },
   });
@@ -63,7 +68,7 @@ router.get('/:wsId/members', middlewareWorkspace(), async (req, res) => {
   const wsId = req.ws.workspace.id;
   const [members, projects, lastSeen] = await Promise.all([
     prisma.membership.findMany({ where: { workspace: wsId }, include: { userRef: { select: USER } }, orderBy: { createdAt: 'asc' } }),
-    prisma.project.findMany({ where: { workspace: wsId }, select: { id: true, name: true, color: true, members: true } }),
+    prisma.project.findMany({ where: readableProjectsWhere(req.user.id, wsId, req.ws.role), select: { id: true, name: true, color: true, members: true } }),
     // Lần hoạt động gần nhất = phiên được làm mới gần nhất của thành viên workspace
     prisma.session.groupBy({ by: ['user'], where: { userRef: { memberships: { some: { workspace: wsId } } } }, _max: { updatedAt: true } }),
   ]);
@@ -87,53 +92,84 @@ router.patch('/:wsId/members/:userId', middlewareWorkspace('wsId', 'admin'), asy
     req.body,
   );
   const wsId = req.ws.workspace.id;
-  const target = await findMember(wsId, req.params.userId);
-  if (!target) throw notFound('Không tìm thấy thành viên');
-  const data = {};
-  if (body.role && body.role !== target.role) {
-    // Chỉ Owner được trao/thu quyền Owner hoặc Admin
-    if ((['owner', 'admin'].includes(body.role) || ['owner', 'admin'].includes(target.role)) && req.ws.role !== 'owner') {
-      throw forbidden('Chỉ Owner mới thay đổi được quyền Owner/Admin');
+  const member = await withWorkspaceLock(wsId, async (tx) => {
+    const current = await workspaceAccess(req.user.id, wsId, tx);
+    if (!atLeast(current.role, 'admin')) throw forbidden();
+    const target = isId(req.params.userId) ? await tx.membership.findUnique({ where: { workspace_user: { workspace: wsId, user: req.params.userId } } }) : null;
+    if (!target) throw notFound('Không tìm thấy thành viên');
+    if (['owner', 'admin'].includes(target.role) && current.role !== 'owner') throw forbidden('Chỉ Owner mới quản lý được Owner/Admin');
+    const data = {};
+    if (body.role && body.role !== target.role) {
+      // Chỉ Owner được trao/thu quyền Owner hoặc Admin
+      if ((['owner', 'admin'].includes(body.role) || ['owner', 'admin'].includes(target.role)) && current.role !== 'owner') {
+        throw forbidden('Chỉ Owner mới thay đổi được quyền Owner/Admin');
+      }
+      if (target.role === 'owner' && body.role !== 'owner') {
+        const owners = await tx.membership.count({ where: { workspace: wsId, role: 'owner' } });
+        if (owners <= 1) throw badRequest('Không thể hạ quyền Owner cuối cùng');
+      }
+      await tx.activity.create({
+        data: {
+          workspace: wsId,
+          actor: req.user.id,
+          action: 'Phân quyền',
+          entityType: 'member',
+          entityId: target.user,
+          entityLabel: (await tx.user.findUnique({ where: { id: target.user }, select: { name: true } })).name,
+          before: ROLE_VI[target.role],
+          after: ROLE_VI[body.role],
+        },
+      });
+      data.role = body.role;
+      if (body.role === 'viewer') {
+        await unassignTasks(tx, { workspace: wsId, users: [target.user], actor: req.user.id });
+        await tx.project.updateMany({ where: { workspace: wsId, manager: target.user }, data: { manager: null } });
+      }
+      if (current.workspace.owner === target.user && body.role !== 'owner') {
+        const replacement = await tx.membership.findFirst({ where: { workspace: wsId, role: 'owner', user: { not: target.user } }, orderBy: { createdAt: 'asc' } });
+        await tx.workspace.update({ where: { id: wsId }, data: { owner: replacement.user } });
+      }
     }
-    if (target.role === 'owner' && body.role !== 'owner') {
-      const owners = await prisma.membership.count({ where: { workspace: wsId, role: 'owner' } });
-      if (owners <= 1) throw badRequest('Không thể hạ quyền Owner cuối cùng');
-    }
-    await logActivity({
-      workspace: wsId,
-      actor: req.user.id,
-      action: 'Phân quyền',
-      entityType: 'member',
-      entityId: target.user,
-      entityLabel: await userName(target.user),
-      before: ROLE_VI[target.role],
-      after: ROLE_VI[body.role],
-    });
-    data.role = body.role;
-  }
-  if (body.title !== undefined) data.title = body.title;
-  if (body.weeklyHours !== undefined) data.weeklyHours = body.weeklyHours;
-  const member = await prisma.membership.update({ where: { id: target.id }, data });
+    if (body.title !== undefined) data.title = body.title;
+    if (body.weeklyHours !== undefined) data.weeklyHours = body.weeklyHours;
+    return tx.membership.update({ where: { id: target.id }, data });
+  });
+  await refreshUserAccess(member.user);
+  const projects = await prisma.project.findMany({ where: { workspace: wsId }, select: { id: true } });
+  for (const p of projects) emitProject(p.id, 'board:refresh', {});
   res.json({ member });
 });
 
 router.delete('/:wsId/members/:userId', middlewareWorkspace('wsId', 'admin'), async (req, res) => {
   const wsId = req.ws.workspace.id;
-  const target = await findMember(wsId, req.params.userId);
-  if (!target) throw notFound('Không tìm thấy thành viên');
-  if (target.role === 'owner') {
-    if (req.ws.role !== 'owner') throw forbidden('Chỉ Owner mới gỡ được Owner');
-    const owners = await prisma.membership.count({ where: { workspace: wsId, role: 'owner' } });
-    if (owners <= 1) throw badRequest('Không thể xóa Owner cuối cùng');
-  }
-  const projects = await prisma.$transaction(async (tx) => {
+  const projects = await withWorkspaceLock(wsId, async (tx) => {
+    const current = await workspaceAccess(req.user.id, wsId, tx);
+    if (!atLeast(current.role, 'admin')) throw forbidden();
+    const target = isId(req.params.userId) ? await tx.membership.findUnique({ where: { workspace_user: { workspace: wsId, user: req.params.userId } } }) : null;
+    if (!target) throw notFound('Không tìm thấy thành viên');
+    if (['owner', 'admin'].includes(target.role) && current.role !== 'owner') throw forbidden('Chỉ Owner mới gỡ được Owner/Admin');
+    if (target.role === 'owner') {
+      const owners = await tx.membership.count({ where: { workspace: wsId, role: 'owner' } });
+      if (owners <= 1) throw badRequest('Không thể xóa Owner cuối cùng');
+    }
+    const person = await tx.user.findUnique({ where: { id: target.user }, select: { email: true, name: true } });
+    await unassignTasks(tx, { workspace: wsId, users: [target.user], actor: req.user.id });
     await tx.membership.delete({ where: { id: target.id } });
-    const ps = await tx.project.findMany({ where: { workspace: wsId, members: { has: target.user } }, select: { id: true, members: true } });
+    const ps = await tx.project.findMany({ where: { workspace: wsId }, select: { id: true, members: true } });
     for (const p of ps) await tx.project.update({ where: { id: p.id }, data: { members: p.members.filter((u) => u !== target.user) } });
+    await tx.project.updateMany({ where: { workspace: wsId, manager: target.user }, data: { manager: null } });
+    await tx.invite.updateMany({ where: { workspace: wsId, email: person.email, acceptedAt: null, revokedAt: null }, data: { revokedAt: new Date() } });
+    if (current.workspace.owner === target.user) {
+      const replacement = await tx.membership.findFirst({ where: { workspace: wsId, role: 'owner' }, orderBy: { createdAt: 'asc' } });
+      await tx.workspace.update({ where: { id: wsId }, data: { owner: replacement.user } });
+    }
+    await tx.activity.create({
+      data: { workspace: wsId, actor: req.user.id, action: 'Gỡ thành viên', entityType: 'member', entityId: target.user, entityLabel: person.name, before: ROLE_VI[target.role] },
+    });
     return ps;
   });
-  for (const p of projects) await kickFromProject(target.user, p.id); // thu hồi có hiệu lực ngay
-  await logActivity({ workspace: wsId, actor: req.user.id, action: 'Gỡ thành viên', entityType: 'member', entityId: target.user, entityLabel: await userName(target.user), before: ROLE_VI[target.role] });
+  await refreshUserAccess(req.params.userId);
+  for (const p of projects) emitProject(p.id, 'board:refresh', {});
   res.json({ ok: true });
 });
 
@@ -169,49 +205,68 @@ router.post('/:wsId/invites', middlewareWorkspace('wsId', 'admin'), async (req, 
     }),
     req.body,
   );
-  if (body.role === 'admin' && req.ws.role !== 'owner') throw forbidden('Chỉ Owner mới mời được Admin');
-  const ws = req.ws.workspace;
-  const projects = await prisma.project.findMany({ where: { id: { in: body.projects.filter(isId) }, workspace: ws.id }, select: { id: true } });
-  const created = [];
-  const skipped = [];
-  for (const email of [...new Set(body.emails)]) {
-    const existingUser = await prisma.user.findUnique({ where: { email }, select: { id: true } });
-    if (existingUser && (await findMember(ws.id, existingUser.id))) {
-      skipped.push({ email, reason: 'Đã là thành viên' });
-      continue;
+  const result = await withWorkspaceLock(req.ws.workspace.id, async (tx) => {
+    const fresh = await workspaceAccess(req.user.id, req.ws.workspace.id, tx);
+    if (!atLeast(fresh.role, 'admin')) throw forbidden();
+    if (body.role === 'admin' && fresh.role !== 'owner') throw forbidden('Chỉ Owner mới mời được Admin');
+    const ws = fresh.workspace;
+    if (body.projects.some((id) => !isId(id))) throw badRequest('Dự án không hợp lệ');
+    const projects = await tx.project.findMany({ where: { id: { in: body.projects }, workspace: ws.id, status: 'active' }, select: { id: true } });
+    if (projects.length !== new Set(body.projects).size) throw badRequest('Dự án không thuộc workspace hoặc đã lưu trữ');
+    const created = [];
+    const skipped = [];
+    for (const email of [...new Set(body.emails)]) {
+      const existingUser = await tx.user.findUnique({ where: { email }, select: { id: true } });
+      if (existingUser && (await tx.membership.findUnique({ where: { workspace_user: { workspace: ws.id, user: existingUser.id } } }))) {
+        skipped.push({ email, reason: 'Đã là thành viên' });
+        continue;
+      }
+      const pending = await tx.invite.findFirst({ where: { workspace: ws.id, email, acceptedAt: null, revokedAt: null, role: 'admin' } });
+      if (pending && fresh.role !== 'owner') throw forbidden('Chỉ Owner được thay đổi lời mời Admin');
+      await tx.invite.updateMany({ where: { workspace: ws.id, email, acceptedAt: null, revokedAt: null }, data: { revokedAt: new Date() } });
+      const raw = randomToken(24);
+      const inv = await tx.invite.create({
+        data: {
+          workspace: ws.id,
+          email,
+          role: body.role,
+          projects: projects.map((p) => p.id),
+          tokenHash: sha256(raw),
+          invitedBy: req.user.id,
+          expiresAt: new Date(Date.now() + config.inviteTtlMs),
+        },
+      });
+      created.push({ inv, raw });
     }
-    await prisma.invite.updateMany({ where: { workspace: ws.id, email, acceptedAt: null, revokedAt: null }, data: { revokedAt: new Date() } });
-    const raw = randomToken(24);
-    const inv = await prisma.invite.create({
-      data: {
-        workspace: ws.id,
-        email,
-        role: body.role,
-        projects: projects.map((p) => p.id),
-        tokenHash: sha256(raw),
-        invitedBy: req.user.id,
-        expiresAt: new Date(Date.now() + config.inviteTtlMs),
-      },
-    });
-    await sendInvite(ws, inv, raw, req.user);
-    created.push({ id: inv.id, email, role: inv.role, expiresAt: inv.expiresAt });
-  }
-  res.status(201).json({ created, skipped });
+    return { ws, created, skipped };
+  });
+  for (const { inv, raw } of result.created) await sendInvite(result.ws, inv, raw, req.user);
+  res.status(201).json({ created: result.created.map(({ inv }) => ({ id: inv.id, email: inv.email, role: inv.role, expiresAt: inv.expiresAt })), skipped: result.skipped });
 });
 
 router.post('/:wsId/invites/:id/resend', middlewareWorkspace('wsId', 'admin'), async (req, res) => {
-  const inv = isId(req.params.id)
-    ? await prisma.invite.findFirst({ where: { id: req.params.id, workspace: req.ws.workspace.id, acceptedAt: null, revokedAt: null } })
-    : null;
-  if (!inv) throw notFound('Không tìm thấy lời mời');
   const raw = randomToken(24);
-  const updated = await prisma.invite.update({ where: { id: inv.id }, data: { tokenHash: sha256(raw), expiresAt: new Date(Date.now() + config.inviteTtlMs) } });
+  const updated = await withWorkspaceLock(req.ws.workspace.id, async (tx) => {
+    const fresh = await workspaceAccess(req.user.id, req.ws.workspace.id, tx);
+    if (!atLeast(fresh.role, 'admin')) throw forbidden();
+    const inv = isId(req.params.id) ? await tx.invite.findFirst({ where: { id: req.params.id, workspace: fresh.workspace.id, acceptedAt: null, revokedAt: null } }) : null;
+    if (!inv) throw notFound('Không tìm thấy lời mời');
+    if (inv.role === 'admin' && fresh.role !== 'owner') throw forbidden('Chỉ Owner được thay đổi lời mời Admin');
+    return tx.invite.update({ where: { id: inv.id }, data: { tokenHash: sha256(raw), expiresAt: new Date(Date.now() + config.inviteTtlMs) } });
+  });
   await sendInvite(req.ws.workspace, updated, raw, req.user);
   res.json({ ok: true, expiresAt: updated.expiresAt });
 });
 
 router.delete('/:wsId/invites/:id', middlewareWorkspace('wsId', 'admin'), async (req, res) => {
-  if (isId(req.params.id)) await prisma.invite.updateMany({ where: { id: req.params.id, workspace: req.ws.workspace.id }, data: { revokedAt: new Date() } });
+  await withWorkspaceLock(req.ws.workspace.id, async (tx) => {
+    const fresh = await workspaceAccess(req.user.id, req.ws.workspace.id, tx);
+    if (!atLeast(fresh.role, 'admin')) throw forbidden();
+    const inv = isId(req.params.id) ? await tx.invite.findFirst({ where: { id: req.params.id, workspace: fresh.workspace.id, acceptedAt: null, revokedAt: null } }) : null;
+    if (!inv) return;
+    if (inv.role === 'admin' && fresh.role !== 'owner') throw forbidden('Chỉ Owner được thay đổi lời mời Admin');
+    await tx.invite.update({ where: { id: inv.id }, data: { revokedAt: new Date() } });
+  });
   res.json({ ok: true });
 });
 
@@ -228,16 +283,16 @@ function activityWhere(req) {
   if (action) and.push({ action: String(action) });
   if (ENTITY_TYPES.includes(entityType)) and.push({ entityType });
   if (isId(project)) and.push({ project });
-  if (from) and.push({ createdAt: { gte: new Date(from) } });
-  if (to) and.push({ createdAt: { lte: new Date(`${to}T23:59:59`) } });
+  if ((from && !isDateInput(from)) || (to && !isDateInput(to))) throw badRequest('Khoảng ngày không hợp lệ');
+  if (from) and.push({ createdAt: { gte: parseDate(from, req.user.timezone) } });
+  if (to) and.push({ createdAt: { lte: parseDate(to, req.user.timezone, true) } });
   if (search) and.push({ entityLabel: ilike(search) });
   return { AND: and };
 }
 
 router.get('/:wsId/activity', middlewareWorkspace(), async (req, res) => {
   const where = activityWhere(req);
-  const page = Math.max(1, Number(req.query.page) || 1);
-  const limit = Math.min(100, Number(req.query.limit) || 20);
+  const { page, limit } = pagination(req.query, 20);
   const [items, total, actions] = await Promise.all([
     prisma.activity.findMany({ where, orderBy: { createdAt: 'desc' }, skip: (page - 1) * limit, take: limit }).then((r) =>
       populateAll(r, [
@@ -277,8 +332,7 @@ router.get('/:wsId/activity.csv', middlewareWorkspace(), async (req, res) => {
 
 // ---------- Cài đặt AI ----------
 router.get('/:wsId/ai', middlewareWorkspace(), async (req, res) => {
-  const start = new Date();
-  start.setHours(0, 0, 0, 0);
+  const start = startOfDay();
   const [today, provider] = await Promise.all([
     prisma.aiCall.findMany({ where: { workspace: req.ws.workspace.id, createdAt: { gte: start }, status: { notIn: ['quota_exceeded', 'disabled'] } } }),
     aiServiceInfo(),
@@ -290,7 +344,7 @@ router.get('/:wsId/ai', middlewareWorkspace(), async (req, res) => {
       used: today.length,
       tokens: today.reduce((s, c) => s + c.inputTokens + c.outputTokens, 0),
       avgLatencyMs: ok.length ? Math.round(ok.reduce((s, c) => s + c.latencyMs, 0) / ok.length) : 0,
-      errors: today.filter((c) => !c.status.includes('success')).length,
+      errors: today.filter((c) => ['error', 'timeout'].includes(c.status)).length,
       total: today.length,
     },
     provider: provider || { type: 'unavailable', model: null }, // null: không kết nối được AIService
@@ -310,6 +364,7 @@ router.patch('/:wsId/ai', middlewareWorkspace('wsId', 'admin'), async (req, res)
   const ws = await prisma.$transaction(async (tx) => {
     // Khóa dòng workspace để hai admin cùng lưu không ghi đè lẫn nhau
     await tx.$queryRaw`SELECT id FROM workspaces WHERE id = ${req.ws.workspace.id}::uuid FOR UPDATE`;
+    if (!atLeast((await workspaceAccess(req.user.id, req.ws.workspace.id, tx)).role, 'admin')) throw forbidden();
     const cur = await tx.workspace.findUnique({ where: { id: req.ws.workspace.id }, select: { ai: true } });
     const ai = { ...cur.ai, ...body, features: { ...cur.ai.features, ...body.features } };
     return tx.workspace.update({ where: { id: req.ws.workspace.id }, data: { ai } });
@@ -318,12 +373,11 @@ router.patch('/:wsId/ai', middlewareWorkspace('wsId', 'admin'), async (req, res)
   res.json({ settings: ws.ai });
 });
 
-const AI_STATUSES = ['success', 'retried_success', 'timeout', 'error', 'quota_exceeded', 'disabled'];
+const AI_STATUSES = ['pending', 'success', 'retried_success', 'timeout', 'error', 'quota_exceeded', 'disabled'];
 const AI_FEATURES = ['planner', 'report', 'qa', 'risk', 'meeting'];
 
 router.get('/:wsId/ai/calls', middlewareWorkspace('wsId', 'admin'), async (req, res) => {
-  const page = Math.max(1, Number(req.query.page) || 1);
-  const limit = Math.min(100, Number(req.query.limit) || 10);
+  const { page, limit } = pagination(req.query, 10);
   const where = { workspace: req.ws.workspace.id };
   if (AI_STATUSES.includes(req.query.status)) where.status = req.query.status;
   if (AI_FEATURES.includes(req.query.feature)) where.feature = req.query.feature;
@@ -349,7 +403,10 @@ router.get('/:wsId/ai/calls.csv', middlewareWorkspace('wsId', 'admin'), async (r
 // ---------- Việc của tôi & tìm kiếm ----------
 const TASK_STATUSES = ['todo', 'in_progress', 'review', 'done'];
 const PRIORITIES = ['low', 'medium', 'high'];
-const listParam = (v, allowed) => String(v).split(',').filter((x) => allowed.includes(x));
+const listParam = (v, allowed) =>
+  String(v)
+    .split(',')
+    .filter((x) => allowed.includes(x));
 
 router.get('/:wsId/my-tasks', middlewareWorkspace(), async (req, res) => {
   const { workspace, role } = req.ws;
@@ -365,19 +422,17 @@ router.get('/:wsId/my-tasks', middlewareWorkspace(), async (req, res) => {
   if (priority) where.priority = { in: listParam(priority, PRIORITIES) };
   if (project) where.project = { in: String(project).split(',').filter(isId) };
   const now = new Date();
-  const sod = new Date(now);
-  sod.setHours(0, 0, 0, 0);
-  const eod = new Date(sod.getTime() + 86400000);
-  const eow = new Date(sod.getTime() + 7 * 86400000);
+  const sod = startOfDay(now, req.user.timezone);
+  const eod = addDays(sod, 1, req.user.timezone);
+  const { end: eow } = weekRange(now, req.user.timezone);
   if (due === 'today') where.dueDate = { gte: sod, lt: eod };
   else if (due === 'week') where.dueDate = { gte: sod, lt: eow };
   else if (due === 'overdue') {
-    where.dueDate = { lt: sod };
-    where.status = { not: 'done' };
+    where.dueDate = { lt: now };
+    where.status = { ...where.status, not: 'done' };
   } else if (due === 'none') where.dueDate = null;
   if (search) where.OR = [{ title: ilike(search) }, { key: ilike(search) }];
-  const page = Math.max(1, Number(req.query.page) || 1);
-  const limit = Math.min(100, Number(req.query.limit) || 20);
+  const { page, limit } = pagination(req.query, 20);
   const mine = { workspace: workspace.id, ...readable, assignee: req.user.id };
   const open = { ...mine, status: { not: 'done' } };
   const weekAgo = new Date(sod.getTime() - 6 * 86400000);
@@ -400,8 +455,8 @@ router.get('/:wsId/my-tasks', middlewareWorkspace(), async (req, res) => {
       }),
     prisma.task.count({ where }),
     prisma.task.count({ where: { ...open, dueDate: { gte: sod, lt: eod } } }),
-    prisma.task.count({ where: { ...open, dueDate: { lt: sod } } }),
-    prisma.task.count({ where: { ...open, dueDate: { gte: sod, lt: eow } } }),
+    prisma.task.count({ where: { ...open, dueDate: { lt: now } } }),
+    prisma.task.count({ where: { ...open, dueDate: { gte: now, lt: eow } } }),
     prisma.task.count({ where: { ...mine, status: 'done', completedAt: { gte: weekAgo } } }),
   ]);
   res.json({
@@ -420,7 +475,11 @@ router.get('/:wsId/search', middlewareWorkspace(), async (req, res) => {
   const readable = readableProjectsWhere(req.user.id, workspace.id, role);
   const [tasks, projects] = await Promise.all([
     prisma.task
-      .findMany({ where: { projectRef: readable, OR: [{ title: ilike(s) }, { key: ilike(s) }] }, select: { id: true, key: true, title: true, status: true, project: true }, take: 8 })
+      .findMany({
+        where: { projectRef: readable, OR: [{ title: ilike(s) }, { key: ilike(s) }] },
+        select: { id: true, key: true, title: true, status: true, project: true },
+        take: 8,
+      })
       .then((r) => populate(r, 'project', 'project', { name: true, color: true })),
     prisma.project.findMany({ where: { ...readable, name: ilike(s) }, select: { id: true, name: true, color: true, status: true }, take: 5 }),
   ]);

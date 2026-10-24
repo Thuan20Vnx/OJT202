@@ -3,7 +3,10 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Avatar, AvatarStack, Dropdown, Empty, ErrorBox, Field, Icon, MenuItem, Modal, PageHeader, PageLoader, Progress, Spinner } from '../components/ui.jsx';
 import { api, qs } from '../lib/api.js';
 import { useApp, useLoad, useToast } from '../lib/app.jsx';
-import { PROJECT_COLOR, fmtDate, isoDate } from '../lib/format.js';
+import { PROJECT_COLOR } from '../lib/format.js';
+import { dates } from '../lib/dates.js';
+const isoDate = (d) => (d ? dates.dateKey(d) : '');
+const fmtDate = (d) => (d ? dates.zoned(d).toLocaleDateString('vi-VN') : '');
 import { invalidateProject } from '../lib/hooks.js';
 
 const COLORS = ['blue', 'purple', 'emerald', 'amber', 'rose'];
@@ -57,7 +60,11 @@ export default function Projects() {
                 ['grid', 'grid_view', 'Lưới'],
                 ['list', 'view_list', 'Danh sách'],
               ].map(([v, icon, l]) => (
-                <button key={v} onClick={() => setView(v)} className={`flex items-center gap-1 rounded-md px-2.5 py-1 text-label-md ${view === v ? 'bg-blue-50 font-semibold text-blue-700' : 'text-slate-500'}`}>
+                <button
+                  key={v}
+                  onClick={() => setView(v)}
+                  className={`flex items-center gap-1 rounded-md px-2.5 py-1 text-label-md ${view === v ? 'bg-blue-50 font-semibold text-blue-700' : 'text-slate-500'}`}
+                >
                   <Icon name={icon} size={16} /> {l}
                 </button>
               ))}
@@ -90,7 +97,17 @@ export default function Projects() {
         <PageLoader />
       ) : !data?.projects.length ? (
         <div className="card">
-          <Empty icon="folder_open" title="Chưa có dự án" action={canCreate && <button className="btn-primary" onClick={() => setEditing('new')}>Tạo dự án</button>} />
+          <Empty
+            icon="folder_open"
+            title="Chưa có dự án"
+            action={
+              canCreate && (
+                <button className="btn-primary" onClick={() => setEditing('new')}>
+                  Tạo dự án
+                </button>
+              )
+            }
+          />
         </div>
       ) : (
         <div className={view === 'grid' ? 'grid gap-4 md:grid-cols-2 xl:grid-cols-3' : 'space-y-2'}>
@@ -108,7 +125,13 @@ export default function Projects() {
                       {archived && <span className="chip border-slate-200 bg-slate-100 text-slate-500">Chỉ đọc</span>}
                     </button>
                     {isManager && (
-                      <Dropdown trigger={<button className="icon-btn h-7 w-7"><Icon name="more_horiz" /></button>}>
+                      <Dropdown
+                        trigger={
+                          <button className="icon-btn h-7 w-7">
+                            <Icon name="more_horiz" />
+                          </button>
+                        }
+                      >
                         {!archived && (
                           <MenuItem icon="edit" onClick={() => setEditing(p)}>
                             Sửa dự án
@@ -187,7 +210,14 @@ function ProjectModal({ open, project, members, meId, wsId, onClose, onSaved }) 
     setErrors({});
     setF(
       project
-        ? { name: project.name, description: project.description, color: project.color, startDate: isoDate(project.startDate), endDate: isoDate(project.endDate), members: project.members.map((m) => m._id) }
+        ? {
+            name: project.name,
+            description: project.description,
+            color: project.color,
+            startDate: isoDate(project.startDate),
+            endDate: isoDate(project.endDate),
+            members: project.members.map((m) => m._id),
+          }
         : { name: '', description: '', color: 'blue', startDate: '', endDate: '', members: meId ? [meId] : [] },
     );
   }, [open, project, meId]);
@@ -234,13 +264,24 @@ function ProjectModal({ open, project, members, meId, wsId, onClose, onSaved }) 
           <input className="input" value={f.name || ''} onChange={(e) => setF({ ...f, name: e.target.value })} placeholder="Hệ thống CRM Khách hàng" />
         </Field>
         <Field label="Mô tả dự án">
-          <textarea className="textarea" rows={2} value={f.description || ''} onChange={(e) => setF({ ...f, description: e.target.value })} placeholder="Mô tả ngắn gọn mục tiêu của dự án..." />
+          <textarea
+            className="textarea"
+            rows={2}
+            value={f.description || ''}
+            onChange={(e) => setF({ ...f, description: e.target.value })}
+            placeholder="Mô tả ngắn gọn mục tiêu của dự án..."
+          />
         </Field>
         <div>
           <span className="label">Màu nhận diện</span>
           <div className="flex gap-2">
             {COLORS.map((c) => (
-              <button key={c} type="button" onClick={() => setF({ ...f, color: c })} className={`flex h-7 w-7 items-center justify-center rounded-full ${PROJECT_COLOR[c]} ${f.color === c ? 'ring-2 ring-slate-900 ring-offset-2' : ''}`}>
+              <button
+                key={c}
+                type="button"
+                onClick={() => setF({ ...f, color: c })}
+                className={`flex h-7 w-7 items-center justify-center rounded-full ${PROJECT_COLOR[c]} ${f.color === c ? 'ring-2 ring-slate-900 ring-offset-2' : ''}`}
+              >
                 {f.color === c && <Icon name="check" size={16} className="text-white" />}
               </button>
             ))}
@@ -271,7 +312,11 @@ function ProjectModal({ open, project, members, meId, wsId, onClose, onSaved }) 
             {q && (
               <div className="mt-1 max-h-40 overflow-y-auto">
                 {options.map((m) => (
-                  <button key={m._id} onClick={() => (toggle(m._id), setQ(''))} className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-body-sm hover:bg-slate-50">
+                  <button
+                    key={m._id}
+                    onClick={() => (toggle(m._id), setQ(''))}
+                    className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-body-sm hover:bg-slate-50"
+                  >
                     <Avatar user={m} size={20} /> {m.name} <span className="text-label-sm text-slate-400">{m.email}</span>
                   </button>
                 ))}

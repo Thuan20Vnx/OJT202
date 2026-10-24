@@ -7,6 +7,12 @@ const cache = new Map();
 /** Thông tin dự án + thành viên (có cache ngắn hạn). */
 export function useProjectInfo(projectId) {
   const [info, setInfo] = useState(() => cache.get(projectId)?.data || null);
+  const [revision, setRevision] = useState(0);
+  useEffect(() => {
+    const refresh = () => { cache.clear(); setInfo(null); setRevision((n) => n + 1); };
+    window.addEventListener('tf:resync', refresh);
+    return () => window.removeEventListener('tf:resync', refresh);
+  }, []);
   useEffect(() => {
     if (!projectId) return setInfo(null);
     const hit = cache.get(projectId);
@@ -22,7 +28,7 @@ export function useProjectInfo(projectId) {
     return () => {
       alive = false;
     };
-  }, [projectId]);
+  }, [projectId, revision]);
   return info;
 }
 export const invalidateProject = (id) => cache.delete(id);

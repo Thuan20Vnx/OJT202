@@ -5,15 +5,16 @@ import { api, qs } from '../lib/api.js';
 import { useApp, useLoad, useToast } from '../lib/app.jsx';
 import { PROJECT_COLOR, STATUS, STATUS_ORDER, dueInfo, sod } from '../lib/format.js';
 import { useSocketEvent } from '../lib/hooks.js';
+import { dates, timeZone } from '../lib/dates.js';
 
 const DEFAULT = { assignee: 'me', status: '', priority: '', due: '', project: '', search: '' };
 
 function group(task) {
   if (!task.dueDate) return 'Không có hạn';
   const days = Math.round((sod(task.dueDate) - sod()) / 86400000);
-  if (days < 0) return 'Quá hạn';
+  if (task.status !== 'done' && new Date(task.dueDate).getTime() < Date.now()) return 'Quá hạn';
   if (days === 0) return 'Hôm nay';
-  if (days < 7) return 'Tuần này';
+  if (days >= 0 && new Date(task.dueDate) < dates.weekRange(new Date(), timeZone()).end) return 'Tuần này';
   return 'Sau này';
 }
 const GROUPS = ['Quá hạn', 'Hôm nay', 'Tuần này', 'Sau này', 'Không có hạn'];
@@ -83,10 +84,42 @@ export default function MyTasks() {
         }
       />
       <div className="mb-5 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard label="Hôm nay" value={s.today ?? '–'} sub="Việc đến hạn trong ngày" icon="today" tone="blue" active={f.due === 'today'} onClick={() => set('due', f.due === 'today' ? '' : 'today')} />
-        <StatCard label="Quá hạn" value={s.overdue ?? '–'} sub="Cần xử lý ngay" icon="error" tone="red" active={f.due === 'overdue'} onClick={() => set('due', f.due === 'overdue' ? '' : 'overdue')} />
-        <StatCard label="Sắp đến hạn" value={s.upcoming ?? '–'} sub="Trong 7 ngày tới" icon="schedule" tone="amber" active={f.due === 'week'} onClick={() => set('due', f.due === 'week' ? '' : 'week')} />
-        <StatCard label="Hoàn thành" value={s.doneWeek ?? '–'} sub="Trong 7 ngày qua" icon="task_alt" tone="green" active={f.status === 'done'} onClick={() => set('status', f.status === 'done' ? '' : 'done')} />
+        <StatCard
+          label="Hôm nay"
+          value={s.today ?? '–'}
+          sub="Việc đến hạn trong ngày"
+          icon="today"
+          tone="blue"
+          active={f.due === 'today'}
+          onClick={() => set('due', f.due === 'today' ? '' : 'today')}
+        />
+        <StatCard
+          label="Quá hạn"
+          value={s.overdue ?? '–'}
+          sub="Cần xử lý ngay"
+          icon="error"
+          tone="red"
+          active={f.due === 'overdue'}
+          onClick={() => set('due', f.due === 'overdue' ? '' : 'overdue')}
+        />
+        <StatCard
+          label="Sắp đến hạn"
+          value={s.upcoming ?? '–'}
+          sub="Trong 7 ngày tới"
+          icon="schedule"
+          tone="amber"
+          active={f.due === 'week'}
+          onClick={() => set('due', f.due === 'week' ? '' : 'week')}
+        />
+        <StatCard
+          label="Hoàn thành"
+          value={s.doneWeek ?? '–'}
+          sub="Trong 7 ngày qua"
+          icon="task_alt"
+          tone="green"
+          active={f.status === 'done'}
+          onClick={() => set('status', f.status === 'done' ? '' : 'done')}
+        />
       </div>
 
       <div className="card mb-4 p-3">
@@ -135,7 +168,8 @@ export default function MyTasks() {
             Đang áp dụng:
             {active.map(([k, v]) => (
               <span key={k} className="chip border-blue-200 bg-blue-50 text-blue-700">
-                {{ assignee: 'Người nhận', status: 'Trạng thái', priority: 'Ưu tiên', due: 'Hạn', project: 'Dự án', search: 'Tìm' }[k]}: {k === 'project' ? projects.find((p) => p._id === v)?.name : k === 'status' ? STATUS[v]?.label : v}
+                {{ assignee: 'Người nhận', status: 'Trạng thái', priority: 'Ưu tiên', due: 'Hạn', project: 'Dự án', search: 'Tìm' }[k]}:{' '}
+                {k === 'project' ? projects.find((p) => p._id === v)?.name : k === 'status' ? STATUS[v]?.label : v}
                 <button onClick={() => set(k, k === 'assignee' ? 'me' : '')}>
                   <Icon name="close" size={12} />
                 </button>
@@ -153,7 +187,15 @@ export default function MyTasks() {
         <PageLoader />
       ) : !items.length ? (
         <div className="card">
-          <Empty icon="filter_alt_off" title="Không có công việc nào khớp bộ lọc" action={<button className="btn-outline" onClick={() => setF(DEFAULT)}>Đặt lại bộ lọc</button>}>
+          <Empty
+            icon="filter_alt_off"
+            title="Không có công việc nào khớp bộ lọc"
+            action={
+              <button className="btn-outline" onClick={() => setF(DEFAULT)}>
+                Đặt lại bộ lọc
+              </button>
+            }
+          >
             Thử bỏ bớt điều kiện lọc hoặc chọn “Giao cho: Tất cả”.
           </Empty>
         </div>
@@ -161,7 +203,10 @@ export default function MyTasks() {
         <div className="space-y-4">
           {byGroup.map(({ g, items: list }) => (
             <div key={g} className="card overflow-hidden">
-              <button onClick={() => setCollapsed((c) => ({ ...c, [g]: !c[g] }))} className="flex w-full items-center gap-2 border-b border-slate-100 bg-slate-50/60 px-4 py-2.5 text-left">
+              <button
+                onClick={() => setCollapsed((c) => ({ ...c, [g]: !c[g] }))}
+                className="flex w-full items-center gap-2 border-b border-slate-100 bg-slate-50/60 px-4 py-2.5 text-left"
+              >
                 <Icon name={collapsed[g] ? 'chevron_right' : 'expand_more'} size={18} className="text-slate-400" />
                 <span className={`text-label-lg font-semibold ${g === 'Quá hạn' ? 'text-rose-600' : 'text-slate-800'}`}>{g}</span>
                 <span className="rounded-full bg-slate-200 px-2 text-label-sm text-slate-600">{list.length}</span>
@@ -173,7 +218,13 @@ export default function MyTasks() {
                     const blocked = (t.blockedBy || []).some((b) => b && b.status !== 'done');
                     return (
                       <div key={t._id} className="group flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50">
-                        <input type="checkbox" className="form-checkbox h-4 w-4 rounded text-blue-600" checked={t.status === 'done'} disabled={role === 'viewer'} onChange={() => toggleDone(t)} />
+                        <input
+                          type="checkbox"
+                          className="form-checkbox h-4 w-4 rounded text-blue-600"
+                          checked={t.status === 'done'}
+                          disabled={role === 'viewer'}
+                          onChange={() => toggleDone(t)}
+                        />
                         <span className="w-16 shrink-0 font-mono text-label-md text-slate-400">{t.key}</span>
                         <button
                           className="min-w-0 flex-1 truncate text-left text-body-md text-slate-900 hover:text-blue-700"
@@ -198,12 +249,28 @@ export default function MyTasks() {
                           <StatusChip status={t.status} />
                         </span>
                         <PriorityChip priority={t.priority} />
-                        <span className={`hidden w-28 whitespace-nowrap text-right text-label-md sm:block ${due?.tone === 'danger' ? 'font-semibold text-rose-600' : 'text-slate-500'}`}>{due ? due.text : 'Không có hạn'}</span>
+                        <span
+                          className={`hidden w-28 whitespace-nowrap text-right text-label-md sm:block ${due?.tone === 'danger' ? 'font-semibold text-rose-600' : 'text-slate-500'}`}
+                        >
+                          {due ? due.text : 'Không có hạn'}
+                        </span>
                         <span className="hidden w-12 text-label-md font-normal text-slate-500 xl:block">{t.subtasks.total ? `${t.subtasks.done}/${t.subtasks.total}` : ''}</span>
-                        <span className="hidden w-8 items-center gap-0.5 text-label-md font-normal text-slate-400 xl:flex">{t.commentCount > 0 && <><Icon name="chat_bubble_outline" size={14} />{t.commentCount}</>}</span>
+                        <span className="hidden w-8 items-center gap-0.5 text-label-md font-normal text-slate-400 xl:flex">
+                          {t.commentCount > 0 && (
+                            <>
+                              <Icon name="chat_bubble_outline" size={14} />
+                              {t.commentCount}
+                            </>
+                          )}
+                        </span>
                         <Avatar user={t.assignee} size={24} />
                         {role !== 'viewer' && (
-                          <Select className="input hidden h-7 w-32 py-0 text-label-md group-hover:inline-flex" value={t.status} onChange={(e) => setStatus(t, e.target.value)} title="Đổi trạng thái nhanh">
+                          <Select
+                            className="input hidden h-7 w-32 py-0 text-label-md group-hover:inline-flex"
+                            value={t.status}
+                            onChange={(e) => setStatus(t, e.target.value)}
+                            title="Đổi trạng thái nhanh"
+                          >
                             {STATUS_ORDER.map((st) => (
                               <option key={st} value={st}>
                                 {STATUS[st].label}

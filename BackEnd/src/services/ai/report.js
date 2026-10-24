@@ -1,9 +1,9 @@
 import { populate, prisma } from '../../db.js';
-import { projectOverview, riskAlerts, startOfDay } from '../metrics.js';
+import { projectOverview, riskAlerts } from '../metrics.js';
+import { BUSINESS_TIMEZONE } from '../../utils/dates.js';
 
 const fmt = (d) => {
-  const x = new Date(d);
-  return `${String(x.getDate()).padStart(2, '0')}/${String(x.getMonth() + 1).padStart(2, '0')}`;
+  return new Date(d).toLocaleDateString('vi-VN', { timeZone: BUSINESS_TIMEZONE, day: '2-digit', month: '2-digit' });
 };
 const line = (t, extra = '') => `${t.key} ${t.title}${extra ? ` – ${extra}` : ''}`;
 
@@ -12,7 +12,7 @@ const line = (t, extra = '') => `${t.key} ${t.title}${extra ? ` – ${extra}` : 
  * Mỗi mục đính kèm refs = công việc nguồn.
  */
 export async function buildReportData(projectId, from, to, project) {
-  const end = new Date(to.getTime() + 86400000 - 1);
+  const end = to; // API supplies an inclusive end instant; never extend a timestamp by 24h.
   const [ov, done, risks] = await Promise.all([
     projectOverview(projectId, { project }),
     prisma.task
@@ -20,9 +20,8 @@ export async function buildReportData(projectId, from, to, project) {
       .then((r) => populate(r, 'assignee', 'user', { name: true })),
     riskAlerts(projectId, { project }),
   ]);
-  const sod = startOfDay();
-  const soon = new Date(Date.now() + 86400000);
-  const late = ov.tasks.filter((t) => t.status !== 'done' && t.dueDate && t.dueDate < soon);
+  const now = new Date();
+  const late = ov.overdue;
   const blocked = ov.blocked;
   const stats = {
     done: done.length,
@@ -36,7 +35,9 @@ export async function buildReportData(projectId, from, to, project) {
     {
       key: 'done',
       title: `Đã hoàn thành (${done.length} việc)`,
-      body: done.length ? done.map((t) => `• ${line(t, `${t.assignee?.name || 'chưa giao'} · xong ${fmt(t.completedAt)}`)}`).join('\n') : 'Chưa có công việc hoàn thành trong khoảng thời gian này.',
+      body: done.length
+        ? done.map((t) => `• ${line(t, `${t.assignee?.name || 'chưa giao'} · xong ${fmt(t.completedAt)}`)}`).join('\n')
+        : 'Chưa có công việc hoàn thành trong khoảng thời gian này.',
       refs: done.map((t) => t.id),
     },
     {
@@ -45,8 +46,8 @@ export async function buildReportData(projectId, from, to, project) {
       body: late.length
         ? late
             .map((t) => {
-              const days = Math.floor((sod - startOfDay(t.dueDate)) / 86400000);
-              return `• ${line(t, days > 0 ? `quá hạn ${days} ngày` : 'đến hạn trong 24 giờ')}`;
+              const hours = Math.max(1, Math.ceil((now - new Date(t.dueDate)) / 3600000));
+              return `• ${line(t, hours >= 24 ? `quá hạn ${Math.floor(hours / 24)} ngày` : `quá hạn dưới 24 giờ`)}`;
             })
             .join('\n')
         : 'Không có công việc chậm.',
@@ -56,7 +57,18 @@ export async function buildReportData(projectId, from, to, project) {
       key: 'blocked',
       title: `Đang bị chặn (${blocked.length} việc)`,
       body: blocked.length
-        ? blocked.map((t) => `• ${line(t, `bị chặn bởi ${(t.blockedBy || []).filter((b) => b.status !== 'done').map((b) => b.key).join(', ')}`)}`).join('\n')
+        ? blocked
+            .map(
+              (t) =>
+                `• ${line(
+                  t,
+                  `bị chặn bởi ${(t.blockedBy || [])
+                    .filter((b) => b.status !== 'done')
+                    .map((b) => b.key)
+                    .join(', ')}`,
+                )}`,
+            )
+            .join('\n')
         : 'Không có công việc bị chặn.',
       refs: blocked.map((t) => t.id),
     },
