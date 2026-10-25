@@ -6,6 +6,7 @@ import { useApp, useLoad, useToast } from '../lib/app.jsx';
 import { PROJECT_COLOR, STATUS, STATUS_ORDER, dueInfo, sod } from '../lib/format.js';
 import { useSocketEvent } from '../lib/hooks.js';
 import { dates, timeZone } from '../lib/dates.js';
+import { taskActions } from '../lib/task-actions.js';
 
 const DEFAULT = { assignee: 'me', status: '', priority: '', due: '', project: '', search: '' };
 
@@ -20,7 +21,7 @@ function group(task) {
 const GROUPS = ['Quá hạn', 'Hôm nay', 'Tuần này', 'Sau này', 'Không có hạn'];
 
 export default function MyTasks() {
-  const { wsId, me, projects, setProjectId, role } = useApp();
+  const { wsId, me, projects, setProjectId } = useApp();
   const toast = useToast();
   const navigate = useNavigate();
   const [f, setF] = useState(DEFAULT);
@@ -42,8 +43,10 @@ export default function MyTasks() {
   const greet = hour < 11 ? 'Chào buổi sáng' : hour < 14 ? 'Chào buổi trưa' : hour < 18 ? 'Chào buổi chiều' : 'Chào buổi tối';
 
   const toggleDone = async (t) => {
+    const { nextStatus } = taskActions(t);
+    if (!nextStatus) return;
     try {
-      await api.patch(`/tasks/${t._id}`, { status: t.status === 'done' ? 'todo' : 'done', version: t.version });
+      await api.patch(`/tasks/${t._id}`, { status: nextStatus, version: t.version });
       reload();
     } catch (e) {
       toast(e.message, 'error');
@@ -69,7 +72,7 @@ export default function MyTasks() {
         title={`${greet}, ${me?.name || ''} 👋`}
         subtitle={
           <>
-            Bạn có <b className="text-blue-700">{(s.today || 0) + (s.overdue || 0)} việc</b> cần xử lý hôm nay.
+            Bạn có <b className="text-blue-700">{s.actionable ?? '–'} việc</b> cần xử lý hôm nay.
           </>
         }
         actions={
@@ -105,7 +108,7 @@ export default function MyTasks() {
         <StatCard
           label="Sắp đến hạn"
           value={s.upcoming ?? '–'}
-          sub="Trong 7 ngày tới"
+          sub="Từ nay đến cuối tuần"
           icon="schedule"
           tone="amber"
           active={f.due === 'week'}
@@ -214,6 +217,7 @@ export default function MyTasks() {
               {!collapsed[g] && (
                 <div className="divide-y divide-slate-100">
                   {list.map((t) => {
+                    const actions = taskActions(t);
                     const due = dueInfo(t.dueDate, t.status);
                     const blocked = (t.blockedBy || []).some((b) => b && b.status !== 'done');
                     return (
@@ -222,7 +226,9 @@ export default function MyTasks() {
                           type="checkbox"
                           className="form-checkbox h-4 w-4 rounded text-blue-600"
                           checked={t.status === 'done'}
-                          disabled={role === 'viewer'}
+                          disabled={!actions.nextStatus}
+                          title={actions.label}
+                          aria-label={`${actions.label}: ${t.title}`}
                           onChange={() => toggleDone(t)}
                         />
                         <span className="w-16 shrink-0 font-mono text-label-md text-slate-400">{t.key}</span>
@@ -264,14 +270,14 @@ export default function MyTasks() {
                           )}
                         </span>
                         <Avatar user={t.assignee} size={24} />
-                        {role !== 'viewer' && (
+                        {actions.canWrite && (
                           <Select
                             className="input hidden h-7 w-32 py-0 text-label-md group-hover:inline-flex"
                             value={t.status}
                             onChange={(e) => setStatus(t, e.target.value)}
                             title="Đổi trạng thái nhanh"
                           >
-                            {STATUS_ORDER.map((st) => (
+                            {actions.statuses.map((st) => (
                               <option key={st} value={st}>
                                 {STATUS[st].label}
                               </option>

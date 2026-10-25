@@ -196,6 +196,8 @@ taskflow/
 
 ## Thay đổi nhánh Loc (23/10/2026)
 
+Cập nhật rà soát ngày 25/10/2026: [lỗi đã sửa và bằng chứng kiểm tra](docs/LOC_REVIEW_2026-10-25.md), gồm phân quyền khi thao tác đồng thời, bảo toàn tài liệu dài/TXT, phiên đăng nhập và màn hình Việc của tôi. Bộ kiểm thử hiện có 102 backend + 16 AIService + 7 frontend.
+
 Xem [báo cáo review](docs/LOC_REVIEW.md) và [kết quả kiểm thử](docs/LOC_TEST_RESULTS.md): 95 backend + 16 AIService, build và audit ba package đều qua.
 
 Giữ thư mục `shared/` khi sao chép dự án. Cài lại dependency và generate Prisma trước khi chạy; có ba migration thêm pending AI, revision nguồn report và lựa chọn ghi nhớ phiên. Dừng backend trước khi generate trên Windows.

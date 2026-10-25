@@ -4,7 +4,7 @@ import { config } from '../config.js';
 import { USER, countBy, ilike, isId, populate, populateAll, prisma, subtaskCounts } from '../db.js';
 import { requireAuth } from '../middleware/auth.js';
 import { atLeast, middlewareWorkspace, readableProjectsWhere, workspaceAccess } from '../middleware/access.js';
-import { logActivity } from '../services/activity.js';
+import { logActivity, logActivityIn } from '../services/activity.js';
 import { aiServiceInfo } from '../services/ai/gateway.js';
 import { sendMail } from '../services/mailer.js';
 import { emitProject, refreshUserAccess } from '../services/realtime.js';
@@ -59,7 +59,17 @@ router.get('/:wsId', middlewareWorkspace(), async (req, res) => {
 
 router.patch('/:wsId', middlewareWorkspace('wsId', 'admin'), async (req, res) => {
   const body = parse(z.object({ name: z.string().trim().min(2).max(80) }).partial(), req.body);
-  const ws = await prisma.workspace.update({ where: { id: req.ws.workspace.id }, data: body });
+  const ws = await withWorkspaceLock(req.ws.workspace.id, async (tx) => {
+    const fresh = await workspaceAccess(req.user.id, req.ws.workspace.id, tx);
+    if (!atLeast(fresh.role, 'admin')) throw forbidden();
+    const updated = await tx.workspace.update({ where: { id: fresh.workspace.id }, data: body });
+    await logActivityIn(tx, {
+      workspace: updated.id, actor: req.user.id, action: 'Cập nhật workspace',
+      entityType: 'workspace', entityId: updated.id, entityLabel: updated.name,
+      before: fresh.workspace.name, after: updated.name,
+    });
+    return updated;
+  });
   res.json({ workspace: ws });
 });
 
@@ -437,7 +447,7 @@ router.get('/:wsId/my-tasks', middlewareWorkspace(), async (req, res) => {
   const open = { ...mine, status: { not: 'done' } };
   const weekAgo = new Date(sod.getTime() - 6 * 86400000);
   // Danh sách (kèm dữ liệu liên quan), tổng số và 4 chỉ số tóm tắt chạy song song
-  const [items, total, today, overdue, upcoming, doneWeek] = await Promise.all([
+  const [items, total, today, overdue, upcoming, doneWeek, actionable] = await Promise.all([
     prisma.task
       .findMany({ where, orderBy: [{ dueDate: { sort: 'asc', nulls: 'last' } }, { priority: 'desc' }, { number: 'asc' }], skip: (page - 1) * limit, take: limit })
       .then(async (rows) => {
@@ -445,26 +455,34 @@ router.get('/:wsId/my-tasks', middlewareWorkspace(), async (req, res) => {
         const [, subs, comments] = await Promise.all([
           populateAll(rows, [
             ['assignee', 'user', USER],
-            ['project', 'project', { name: true, color: true, keyPrefix: true }],
+            ['project', 'project', { name: true, color: true, keyPrefix: true, manager: true, status: true }],
             ['blockedBy', 'task', { key: true, title: true, status: true, dueDate: true }],
           ]),
           subtaskCounts(ids),
           countBy('comment', 'task', { task: { in: ids } }),
         ]);
-        return rows.map((t) => ({ ...t, subtasks: subs[t.id] || { total: 0, done: 0 }, commentCount: comments[t.id] || 0 }));
+        return rows.map((t) => {
+          const canWrite = role !== 'viewer' && t.project.status !== 'archived';
+          return {
+            ...t, subtasks: subs[t.id] || { total: 0, done: 0 }, commentCount: comments[t.id] || 0,
+            access: { canWrite, canManage: canWrite && (atLeast(role, 'admin') || t.project.manager === req.user.id) },
+          };
+        });
       }),
     prisma.task.count({ where }),
     prisma.task.count({ where: { ...open, dueDate: { gte: sod, lt: eod } } }),
     prisma.task.count({ where: { ...open, dueDate: { lt: now } } }),
     prisma.task.count({ where: { ...open, dueDate: { gte: now, lt: eow } } }),
     prisma.task.count({ where: { ...mine, status: 'done', completedAt: { gte: weekAgo } } }),
+    // Union of overdue and due today, so tasks overdue earlier today count once.
+    prisma.task.count({ where: { ...open, dueDate: { lt: eod } } }),
   ]);
   res.json({
     items,
     total,
     page,
     limit,
-    summary: { today, overdue, upcoming, doneWeek },
+    summary: { today, overdue, upcoming, doneWeek, actionable },
   });
 });
 

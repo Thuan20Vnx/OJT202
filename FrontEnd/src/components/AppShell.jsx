@@ -424,7 +424,7 @@ export default function AppShell() {
         </main>
       </div>
       <CreateTaskModal open={creating} onClose={() => setCreating(false)} />
-      {taskId && <TaskDetailModal taskId={taskId} onClose={closeTask} />}
+      {taskId && <TaskDetailModal key={taskId} taskId={taskId} onClose={closeTask} />}
     </div>
   );
 }

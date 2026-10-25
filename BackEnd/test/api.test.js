@@ -3,10 +3,15 @@
 import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
 import { io as connectSocket } from 'socket.io-client';
 
 process.env.NODE_ENV = 'test';
 process.env.DATABASE_URL = '';
+const testUploads = await fs.mkdtemp(path.join(os.tmpdir(), 'taskflow-test-uploads-'));
+process.env.UPLOAD_DIR = testUploads;
 
 // AIService thật (bộ AI nội bộ) trên cổng ngẫu nhiên – BackEnd gọi qua HTTP như khi chạy thật
 process.env.ANTHROPIC_API_KEY = '';
@@ -85,6 +90,7 @@ after(async () => {
   server?.close();
   aiServer.close();
   await db.disconnectDb();
+  if (path.dirname(testUploads) === os.tmpdir() && path.basename(testUploads).startsWith('taskflow-test-uploads-')) await fs.rm(testUploads, { recursive: true, force: true });
 });
 
 describe('Xác thực & phiên (U003, U004, U005)', () => {
@@ -457,6 +463,125 @@ async function socketFor(client, t) {
   return socket;
 }
 const join = (socket, pid) => socket.timeout(5000).emitWithAck('project:join', pid);
+
+describe('Rà soát 25/10: thu hồi quyền và bảo toàn tài liệu', () => {
+  test('My Tasks trả quyền từng dự án và đếm hợp nhất việc cần xử lý', async () => {
+    const { owner, member, pid, ws, create } = await permissionFixture();
+    const task = await create({ assignee: seed.users.nhu.id, dueDate: new Date(Date.now() - 1000).toISOString(), status: 'review' });
+    const list = await member.get(`/workspaces/${ws}/my-tasks`);
+    assert.equal(list.status, 200);
+    assert.equal(list.data.summary.actionable, 1);
+    assert.deepEqual(list.data.items.find((t) => t._id === task._id).access, { canWrite: true, canManage: false });
+    const ownerList = await owner.get(`/workspaces/${ws}/my-tasks?assignee=all`);
+    assert.deepEqual(ownerList.data.items[0].access, { canWrite: true, canManage: true });
+    await owner.patch(`/projects/${pid}`, { manager: seed.users.nhu.id });
+    assert.deepEqual((await member.get(`/workspaces/${ws}/my-tasks`)).data.items[0].access, { canWrite: true, canManage: true });
+    const viewer = await new Client().login('khanh.linh@nhom24.edu.vn');
+    assert.deepEqual((await viewer.get(`/workspaces/${ws}/my-tasks?assignee=all`)).data.items[0].access, { canWrite: false, canManage: false });
+    await owner.post(`/projects/${pid}/archive`);
+    assert.deepEqual((await member.get(`/workspaces/${ws}/my-tasks`)).data.items[0].access, { canWrite: false, canManage: false });
+  });
+
+  test('Admin bị hạ quyền sau middleware không thể đổi tên workspace', { timeout: 15000 }, async (t) => {
+    const { owner, admin, ws } = await permissionFixture();
+    let release;
+    let arrived;
+    const gate = new Promise((resolve) => { release = resolve; });
+    const reached = new Promise((resolve) => { arrived = resolve; });
+    const original = db.prisma.membership.findUnique.bind(db.prisma.membership);
+    let held = false;
+    db.prisma.membership.findUnique = async (args) => {
+      const result = await original(args);
+      if (!held && args.include?.workspaceRef && args.where.workspace_user?.workspace === ws && args.where.workspace_user?.user === seed.users.thuan.id) {
+        held = true;
+        arrived();
+        await gate;
+      }
+      return result;
+    };
+    t.after(() => { db.prisma.membership.findUnique = original; release(); });
+    const pending = admin.patch(`/workspaces/${ws}`, { name: 'Tên không được phép' });
+    await reached;
+    try {
+      assert.equal((await owner.patch(`/workspaces/${ws}/members/${seed.users.thuan.id}`, { role: 'member' })).status, 200);
+    } finally { release(); }
+    assert.equal((await pending).status, 403);
+    assert.notEqual((await db.prisma.workspace.findUnique({ where: { id: ws } })).name, 'Tên không được phép');
+  });
+
+  test('editor nhận đủ nội dung hơn 20.000 ký tự, kiểm quyền và version khi lưu', async () => {
+    const { owner, member, ws, pid } = await permissionFixture();
+    const content = 'Nội dung dài. '.repeat(3000) + 'KẾT THÚC';
+    const created = await owner.post(`/projects/${pid}/documents`, { name: 'Dài', content });
+    assert.equal(created.status, 201);
+    const id = created.data.document._id;
+    const loaded = await member.get(`/documents/${id}/content`);
+    assert.equal(loaded.status, 200);
+    assert.equal(loaded.data.content, content);
+    assert.equal(loaded.data.version, 1);
+    assert.equal((await owner.patch(`/documents/${id}`, { content: loaded.data.content + ' mới', version: loaded.data.version })).status, 200);
+    assert.equal((await owner.get(`/documents/${id}/download`)).data, content + ' mới');
+    assert.equal((await member.patch(`/documents/${id}`, { content: 'bản cũ', version: loaded.data.version })).status, 409);
+    await owner.del(`/workspaces/${ws}/members/${seed.users.nhu.id}`);
+    assert.equal((await member.get(`/documents/${id}/content`)).status, 404);
+  });
+
+  const uploadText = async (owner, pid, content) => {
+    const form = new FormData();
+    form.append('files', new Blob([content], { type: 'text/plain' }), 'source.txt');
+    const res = await fetch(`${base}/projects/${pid}/documents/upload`, {
+      method: 'POST', headers: { 'x-taskflow': '1', cookie: Object.entries(owner.cookies).map(([k, v]) => `${k}=${v}`).join('; ') }, body: form,
+    });
+    assert.equal(res.status, 201);
+    return (await res.json()).documents[0]._id;
+  };
+
+  test('TXT lớn tải nguyên bản, không cho ghi đè từ phần nội dung đã cắt', async () => {
+    const { owner, pid } = await permissionFixture();
+    const content = 'a'.repeat(210000) + 'ĐUÔI TỆP';
+    const id = await uploadText(owner, pid, content);
+    const downloaded = await owner.get(`/documents/${id}/download`);
+    assert.equal(downloaded.data.length, content.length);
+    assert.ok(downloaded.data.endsWith('ĐUÔI TỆP'));
+    assert.equal((await owner.get(`/documents/${id}/content`)).status, 400);
+    assert.equal((await owner.patch(`/documents/${id}`, { content: 'cắt ngắn', version: 1 })).status, 400);
+    assert.equal((await owner.patch(`/documents/${id}`, { name: 'Đổi tên tệp lớn.txt', version: 1 })).status, 200);
+    assert.equal((await owner.get(`/documents/${id}/download`)).data, content);
+  });
+
+  test('TXT upload khôi phục được nguyên văn bản gốc sau chỉnh sửa', async () => {
+    const { owner, pid } = await permissionFixture();
+    const original = 'Nguồn gốc <tag>không phải HTML</tag>\r\nDòng cuối';
+    const id = await uploadText(owner, pid, original);
+    assert.equal((await owner.patch(`/documents/${id}`, { content: 'Đã sửa', version: 1 })).status, 200);
+    assert.equal((await owner.get(`/documents/${id}/revisions/1`)).data.revision?.content, original);
+    assert.equal((await owner.patch(`/documents/${id}`, { restoreVersion: 1, version: 2 })).status, 200);
+    assert.equal((await owner.get(`/documents/${id}/download`)).data, original);
+  });
+
+  test('văn bản giữ nguyên markup và khoảng trắng; NUL bị từ chối rõ ràng', async () => {
+    const { owner, pid } = await permissionFixture();
+    const content = '  <script>alert("không thực thi")</script>\r\n  <T>\t\n';
+    const created = await owner.post(`/projects/${pid}/documents`, { name: 'Văn bản', content });
+    assert.equal(created.status, 201);
+    const id = created.data.document._id;
+    assert.equal((await owner.get(`/documents/${id}/content`)).data.content, content);
+    assert.equal((await owner.patch(`/documents/${id}`, { content, version: 1 })).status, 200);
+    assert.equal((await owner.get(`/documents/${id}/download`)).data, content);
+    assert.equal((await owner.patch(`/documents/${id}`, { content: 'a\u0000b', version: 2 })).status, 400);
+  });
+
+  test('đổi tên tăng version, chặn ghi đè tên cũ; revision sai định dạng trả 404', async () => {
+    const { owner, pid } = await permissionFixture();
+    const created = await owner.post(`/projects/${pid}/documents`, { name: 'Ban đầu', content: 'Nội dung' });
+    const id = created.data.document._id;
+    const renamed = await owner.patch(`/documents/${id}`, { name: 'Tên mới.txt', version: 1 });
+    assert.equal(renamed.status, 200);
+    assert.equal(renamed.data.document.version, 2);
+    assert.equal((await owner.patch(`/documents/${id}`, { name: 'Tên lỗi thời.txt', version: 1 })).status, 409);
+    for (const v of ['1abc', '1.5', '2147483648']) assert.equal((await owner.get(`/documents/${id}/revisions/${v}`)).status, 404);
+  });
+});
 
 describe('Lộc: phân quyền và nghiệp vụ bổ sung', () => {
   test('Member bị chặn Done qua cả create, PATCH và Kanban; PM phải duyệt từ Review', async () => {

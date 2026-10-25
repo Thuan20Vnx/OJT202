@@ -8,6 +8,6 @@
     "build": "npm --prefix FrontEnd run build",
     "start": "npm --prefix BackEnd start",
     "start:ai": "npm --prefix AIService start",
-    "test": "npm --prefix AIService test && npm --prefix BackEnd test"
+    "test": "npm --prefix AIService test && npm --prefix BackEnd test && npm --prefix FrontEnd test"
   }
 }
