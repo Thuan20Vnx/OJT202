@@ -16,6 +16,15 @@ const { createApp } = await import('../BackEnd/src/app.js');
 const { initRealtime } = await import('../BackEnd/src/services/realtime.js');
 await connectDb({ ephemeral: true });
 const seed = await seedDemo();
+const edgeCases = process.argv.includes('--edge-cases');
+if (edgeCases) {
+  await db.prisma.notification.deleteMany({ where: { user: seed.users.maianh.id, workspace: seed.workspace.id } });
+  await db.prisma.notification.createMany({ data: Array.from({ length: 61 }, (_, i) => ({
+    user: seed.users.maianh.id, workspace: seed.workspace.id, project: seed.projects.website.id,
+    type: 'assigned', text: `Phân trang kiểm thử ${String(i + 1).padStart(2, '0')}`,
+    dedupeKey: `review-page-${i}`, createdAt: new Date(),
+  })) });
+}
 await db.prisma.workspace.create({ data: { name: 'Workspace kiểm thử trống', slug: 'review-empty', owner: seed.users.maianh.id, memberships: { create: { user: seed.users.maianh.id, role: 'owner' } } } });
 await db.prisma.task.create({ data: {
   workspace: seed.workspace.id, project: seed.projects.website.id, creator: seed.users.maianh.id,
@@ -28,7 +37,19 @@ const doc = await db.prisma.document.create({ data: {
   revisions: { create: { version: 1, content, author: seed.users.maianh.id } },
 } });
 const app = createApp();
-const server = http.createServer(app);
+const injected = new Set();
+const server = http.createServer((req, res) => {
+  const pathname = new URL(req.url, 'http://localhost').pathname;
+  // Fault injection chỉ có trong fixture DB tạm và chỉ lỗi một lần để kiểm tra thử lại.
+  const fault = pathname.endsWith('/activity.csv') ? 'csv' : pathname.endsWith('/activity') ? 'activity' : null;
+  if (edgeCases && req.method === 'GET' && fault && !injected.has(fault)) {
+    injected.add(fault);
+    res.writeHead(503, { 'content-type': 'application/json' });
+    res.end(JSON.stringify({ error: `Lỗi kiểm thử ${fault}: vui lòng thử lại` }));
+    return;
+  }
+  app(req, res);
+});
 const io = initRealtime(server);
 await new Promise((resolve) => server.listen(4179, '127.0.0.1', resolve));
 console.log(JSON.stringify({ url: 'http://localhost:4179', document: doc.id, characters: content.length }));

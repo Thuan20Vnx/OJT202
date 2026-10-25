@@ -1,0 +1,159 @@
+[seed] Tạo dữ liệu demo Nhóm 24…
+[seed] Xong. Đăng nhập: mai.anh@nhom24.edu.vn / TaskFlow@2026  (System Admin: admin@taskflow.local)
+▶ Rà soát vòng 2: thông báo và dữ liệu đầu vào
+  ✖ phân trang đủ 61 thông báo cùng thời điểm, không lặp và vẫn lọc quyền hiện tại (468.0681ms)
+  ✖ cursor và ngày phân trang sai trả 400 (365.6032ms)
+  ✖ tắt nhắc hạn chặn cả sắp hạn lẫn quá hạn, bật lại gửi được (358.7353ms)
+  ✖ chưa mở cài đặt vẫn áp dụng mặc định không nhận bình luận (339.6744ms)
+[error] PrismaClientUnknownRequestError:
+Invalid `prisma.document.create()` invocation:
+
+
+Error occurred during query execution:
+ConnectorError(ConnectorError { user_facing_error: None, kind: QueryError(PostgresError { code: "22021", message: "invalid byte sequence for encoding \"UTF8\": 0x00", severity: "ERROR", detail: None, column: None, hint: None }), transient: false })
+    at ei.handleRequestError (D:\Desktop\Nhom24\OJT202\BackEnd\node_modules\@prisma\client\runtime\library.js:121:7458)
+    at ei.handleAndLogRequestError (D:\Desktop\Nhom24\OJT202\BackEnd\node_modules\@prisma\client\runtime\library.js:121:6593)
+    at ei.request (D:\Desktop\Nhom24\OJT202\BackEnd\node_modules\@prisma\client\runtime\library.js:121:6300)
+    at async a (D:\Desktop\Nhom24\OJT202\BackEnd\node_modules\@prisma\client\runtime\library.js:130:9551)
+    at async file:///D:/Desktop/Nhom24/OJT202/BackEnd/src/routes/documents.js:105:21
+    at async Proxy._transactionWithCallback (D:\Desktop\Nhom24\OJT202\BackEnd\node_modules\@prisma\client\runtime\library.js:130:8120)
+    at async storeFiles (file:///D:/Desktop/Nhom24/OJT202/BackEnd/src/routes/documents.js:94:12)
+    at async file:///D:/Desktop/Nhom24/OJT202/BackEnd/src/routes/documents.js:177:16 {
+  clientVersion: '6.19.3'
+}
+  ✖ TXT chứa NUL sau 512 byte bị chặn 400 và không lưu dở lô upload (363.3535ms)
+✖ Rà soát vòng 2: thông báo và dữ liệu đầu vào (8968.335ms)
+ℹ tests 5
+ℹ suites 1
+ℹ pass 0
+ℹ fail 5
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 10615.9701
+
+✖ failing tests:
+
+test at test\api.test.js:412:3
+✖ phân trang đủ 61 thông báo cùng thời điểm, không lặp và vẫn lọc quyền hiện tại (468.0681ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + undefined
+  - true
+
+      at TestContext.<anonymous> (file:///D:/Desktop/Nhom24/OJT202/BackEnd/test/api.test.js:421:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Promise.all (index 0)
+      at async Suite.run (node:internal/test_runner/test:1619:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test\api.test.js:434:3
+✖ cursor và ngày phân trang sai trả 400 (365.6032ms)
+  AssertionError [ERR_ASSERTION]: cursor=not-a-cursor
+
+  200 !== 400
+
+      at TestContext.<anonymous> (file:///D:/Desktop/Nhom24/OJT202/BackEnd/test/api.test.js:437:14)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 200,
+    expected: 400,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test\api.test.js:441:3
+✖ tắt nhắc hạn chặn cả sắp hạn lẫn quá hạn, bật lại gửi được (358.7353ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + {
+  +   actor: null,
+  +   createdAt: 2026-10-25T12:05:00.831Z,
+  +   dedupeKey: '785c086e-ca5e-4b5c-97ba-72b8088b2abf',
+  +   excerpt: null,
+  +   id: 'c7499576-2185-4d4e-a520-56479801f42a',
+  +   project: '5f231045-eda1-4ed6-b1d3-5e51a6639b1c',
+  +   readAt: null,
+  +   task: null,
+  +   text: 'Kiểm thử tùy chọn',
+  +   type: 'overdue',
+  +   updatedAt: 2026-10-25T12:05:00.831Z,
+  +   user: '5a172dbd-1d48-4641-9138-cde693a5884a',
+  +   workspace: '785c086e-ca5e-4b5c-97ba-72b8088b2abf'
+  + }
+  - null
+
+      at TestContext.<anonymous> (file:///D:/Desktop/Nhom24/OJT202/BackEnd/test/api.test.js:453:12)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { id: 'c7499576-2185-4d4e-a520-56479801f42a', user: '5a172dbd-1d48-4641-9138-cde693a5884a', workspace: '785c086e-ca5e-4b5c-97ba-72b8088b2abf', project: '5f231045-eda1-4ed6-b1d3-5e51a6639b1c', task: null, actor: null, type: 'overdue', text: 'Kiểm thử tùy chọn', excerpt: null, readAt: null, dedupeKey: '785c086e-ca5e-4b5c-97ba-72b8088b2abf', createdAt: 2026-10-25T12:05:00.831Z, updatedAt: 2026-10-25T12:05:00.831Z },
+    expected: null,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test\api.test.js:459:3
+✖ chưa mở cài đặt vẫn áp dụng mặc định không nhận bình luận (339.6744ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + {
+  +   actor: null,
+  +   createdAt: 2026-10-25T12:05:01.176Z,
+  +   dedupeKey: 'dc8a94b7-fed8-4708-b5ad-e7d0012b4bba:comment',
+  +   excerpt: null,
+  +   id: 'd291736e-1cb8-430e-9a8d-f5b5d652f3d2',
+  +   project: null,
+  +   readAt: null,
+  +   task: null,
+  +   text: 'Mặc định',
+  +   type: 'comment',
+  +   updatedAt: 2026-10-25T12:05:01.176Z,
+  +   user: '5a172dbd-1d48-4641-9138-cde693a5884a',
+  +   workspace: 'dc8a94b7-fed8-4708-b5ad-e7d0012b4bba'
+  + }
+  - null
+
+      at TestContext.<anonymous> (file:///D:/Desktop/Nhom24/OJT202/BackEnd/test/api.test.js:469:12)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { id: 'd291736e-1cb8-430e-9a8d-f5b5d652f3d2', user: '5a172dbd-1d48-4641-9138-cde693a5884a', workspace: 'dc8a94b7-fed8-4708-b5ad-e7d0012b4bba', project: null, task: null, actor: null, type: 'comment', text: 'Mặc định', excerpt: null, readAt: null, dedupeKey: 'dc8a94b7-fed8-4708-b5ad-e7d0012b4bba:comment', createdAt: 2026-10-25T12:05:01.176Z, updatedAt: 2026-10-25T12:05:01.176Z },
+    expected: null,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test\api.test.js:473:3
+✖ TXT chứa NUL sau 512 byte bị chặn 400 và không lưu dở lô upload (363.3535ms)
+  AssertionError [ERR_ASSERTION]: {"error":"Đã có lỗi xảy ra, vui lòng thử lại"}
+
+  500 !== 400
+
+      at TestContext.<anonymous> (file:///D:/Desktop/Nhom24/OJT202/BackEnd/test/api.test.js:482:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 500,
+    expected: 400,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

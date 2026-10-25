@@ -408,6 +408,83 @@ describe('Quản trị hệ thống (U028)', () => {
 });
 
 // Mỗi ca có workspace/project riêng, không dùng trạng thái demo làm bằng chứng đóng góp.
+describe('Rà soát vòng 2: thông báo và dữ liệu đầu vào', () => {
+  test('phân trang đủ 61 thông báo cùng thời điểm, không lặp và vẫn lọc quyền hiện tại', async () => {
+    const { member, ws, pid } = await permissionFixture();
+    const createdAt = new Date('2026-10-25T01:00:00Z');
+    await db.prisma.notification.createMany({ data: Array.from({ length: 61 }, (_, i) => ({
+      user: seed.users.nhu.id, workspace: ws, project: pid, type: 'assigned', text: `Cùng thời điểm ${i}`, createdAt, dedupeKey: `${ws}:${i}`,
+    })) });
+    const first = await member.get(`/notifications?workspace=${ws}&limit=50&tab=assigned`);
+    assert.equal(first.status, 200);
+    assert.equal(first.data.items.length, 50);
+    assert.equal(first.data.hasMore, true);
+    assert.ok(first.data.nextCursor);
+    const url = `/notifications?workspace=${ws}&limit=50&tab=assigned&cursor=${encodeURIComponent(first.data.nextCursor)}`;
+    const second = await member.get(url);
+    assert.equal(second.status, 200);
+    assert.equal(second.data.items.length, 11);
+    assert.equal(second.data.hasMore, false);
+    assert.equal(second.data.nextCursor, null);
+    assert.equal(new Set([...first.data.items, ...second.data.items].map((n) => n._id)).size, 61);
+    await db.prisma.project.update({ where: { id: pid }, data: { members: { set: [seed.users.maianh.id] } } });
+    assert.deepEqual((await member.get(url)).data.items, []);
+  });
+
+  test('cursor và ngày phân trang sai trả 400', async () => {
+    const { member } = await permissionFixture();
+    for (const query of ['cursor=not-a-cursor', 'before=not-a-date', `cursor=${Buffer.from(JSON.stringify({ at: 'bad', id: seed.users.nhu.id })).toString('base64url')}`]) {
+      assert.equal((await member.get(`/notifications?${query}`)).status, 400, query);
+    }
+  });
+
+  test('tắt nhắc hạn chặn cả sắp hạn lẫn quá hạn, bật lại gửi được', async (t) => {
+    const { ws, pid } = await permissionFixture();
+    const { notify } = await import('../src/services/notify.js');
+    const user = seed.users.nhu.id;
+    const previous = await db.prisma.notificationPref.findUnique({ where: { user } });
+    t.after(async () => {
+      await db.prisma.notificationPref.deleteMany({ where: { user } });
+      if (previous) await db.prisma.notificationPref.create({ data: previous });
+    });
+    await db.prisma.notificationPref.upsert({ where: { user }, create: { user, due_soon: false }, update: { due_soon: false } });
+    const input = { user, workspace: ws, project: pid, text: 'Kiểm thử tùy chọn', dedupeKey: ws };
+    assert.equal(await notify({ ...input, type: 'due_soon' }), null);
+    assert.equal(await notify({ ...input, type: 'overdue' }), null);
+    assert.equal(await db.prisma.notification.count({ where: { workspace: ws, user } }), 0);
+    await db.prisma.notificationPref.update({ where: { user }, data: { due_soon: true } });
+    assert.ok(await notify({ ...input, type: 'overdue' }));
+  });
+
+  test('chưa mở cài đặt vẫn áp dụng mặc định không nhận bình luận', async (t) => {
+    const { ws } = await permissionFixture();
+    const { notify } = await import('../src/services/notify.js');
+    const user = seed.users.nhu.id;
+    const previous = await db.prisma.notificationPref.findUnique({ where: { user } });
+    t.after(async () => {
+      await db.prisma.notificationPref.deleteMany({ where: { user } });
+      if (previous) await db.prisma.notificationPref.create({ data: previous });
+    });
+    await db.prisma.notificationPref.deleteMany({ where: { user } });
+    assert.equal(await notify({ user, workspace: ws, type: 'comment', text: 'Mặc định', dedupeKey: `${ws}:comment` }), null);
+    assert.ok(await notify({ user, workspace: ws, type: 'assigned', text: 'Vẫn nhận giao việc', dedupeKey: `${ws}:assigned` }));
+  });
+
+  test('TXT chứa NUL sau 512 byte bị chặn 400 và không lưu dở lô upload', async () => {
+    const { owner, pid } = await permissionFixture();
+    const filesBefore = (await fs.readdir(testUploads)).sort();
+    const form = new FormData();
+    form.append('files', new Blob(['Văn bản hợp lệ'], { type: 'text/plain' }), 'valid.txt');
+    form.append('files', new Blob(['a'.repeat(1024) + '\u0000bad'], { type: 'text/plain' }), 'invalid.txt');
+    const response = await fetch(`${base}/projects/${pid}/documents/upload`, {
+      method: 'POST', headers: { 'x-taskflow': '1', cookie: Object.entries(owner.cookies).map(([k, v]) => `${k}=${v}`).join('; ') }, body: form,
+    });
+    assert.equal(response.status, 400, await response.text());
+    assert.equal(await db.prisma.document.count({ where: { project: pid } }), 0);
+    assert.deepEqual((await fs.readdir(testUploads)).sort(), filesBefore);
+  });
+});
+
 let fixtureNumber = 0;
 async function permissionFixture() {
   const owner = await new Client().login('mai.anh@nhom24.edu.vn');

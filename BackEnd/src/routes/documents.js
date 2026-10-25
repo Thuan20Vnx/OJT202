@@ -59,7 +59,7 @@ const MAGIC = {
   '.png': (b) => b[0] === 0x89 && b.subarray(1, 4).toString() === 'PNG',
   '.jpg': (b) => b[0] === 0xff && b[1] === 0xd8,
   '.jpeg': (b) => b[0] === 0xff && b[1] === 0xd8,
-  '.txt': (b) => !b.subarray(0, 512).includes(0),
+  '.txt': (b) => !b.includes(0),
 };
 
 const upload = multer({
