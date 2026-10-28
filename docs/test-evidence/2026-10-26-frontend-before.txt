@@ -1,0 +1,156 @@
+
+> taskflow-client@1.0.0 test
+> node --import ./test/helpers/register-jsx.js --test test/*.test.js
+
+✔ refresh gặp 503 không đăng xuất người dùng và không xoay token khi /me lỗi server (55.3349ms)
+✔ lỗi mạng trong refresh hoặc retry được chuẩn hóa thành ApiError (30.1ms)
+✔ refresh trả 401 mới phát sự kiện hết phiên (30.915ms)
+✔ nhiều request 401 đồng thời chỉ xoay refresh một lần (31.3377ms)
+Warning: Internal React error: Attempted to capture a commit phase error inside a detached tree. This indicates a bug in React. Likely causes include deleting the same fiber more than once, committing an already-finished tree, or an inconsistent return pointer.
+
+Error message:
+
+TypeError: Cannot read properties of undefined (reading 'removeEventListener')
+    at Probe (file:///D:/Desktop/Nhom24/OJT202/FrontEnd/test/async-ui.test.js:32:20)
+✖ useLoad không giữ dữ liệu dự án trước khi dự án mới tải lỗi (15.2439ms)
+Warning: Internal React error: Attempted to capture a commit phase error inside a detached tree. This indicates a bug in React. Likely causes include deleting the same fiber more than once, committing an already-finished tree, or an inconsistent return pointer.
+
+Error message:
+
+TypeError: Cannot read properties of undefined (reading 'removeEventListener')
+    at Probe (file:///D:/Desktop/Nhom24/OJT202/FrontEnd/test/async-ui.test.js:44:20)
+✖ reload cũ không được thay thế kết quả của phạm vi mới (3.6213ms)
+Warning: Internal React error: Attempted to capture a commit phase error inside a detached tree. This indicates a bug in React. Likely causes include deleting the same fiber more than once, committing an already-finished tree, or an inconsistent return pointer.
+
+Error message:
+
+TypeError: Cannot read properties of undefined (reading 'removeEventListener')
+    at Probe (file:///D:/Desktop/Nhom24/OJT202/FrontEnd/test/async-ui.test.js:55:30)
+✖ quyền dự án không còn lấy từ cache cũ sau khi component đã đóng và resync (3.4762ms)
+Warning: Internal React error: Attempted to capture a commit phase error inside a detached tree. This indicates a bug in React. Likely causes include deleting the same fiber more than once, committing an already-finished tree, or an inconsistent return pointer.
+
+Error message:
+
+TypeError: Cannot read properties of undefined (reading 'removeEventListener')
+    at Planner (file:///D:/Desktop/Nhom24/OJT202/FrontEnd/src/pages/ai/Planner.jsx:44:35)
+    at Router (file:///D:/Desktop/Nhom24/OJT202/FrontEnd/node_modules/react-router/dist/development/chunk-OB3PAWPO.mjs:7134:13)
+    at MemoryRouter (file:///D:/Desktop/Nhom24/OJT202/FrontEnd/node_modules/react-router/dist/development/chunk-OB3PAWPO.mjs:7044:3)
+Warning: Internal React error: Attempted to capture a commit phase error inside a detached tree. This indicates a bug in React. Likely causes include deleting the same fiber more than once, committing an already-finished tree, or an inconsistent return pointer.
+
+Error message:
+
+TypeError: Cannot read properties of undefined (reading 'removeEventListener')
+    at Planner (file:///D:/Desktop/Nhom24/OJT202/FrontEnd/src/pages/ai/Planner.jsx:44:35)
+    at Router (file:///D:/Desktop/Nhom24/OJT202/FrontEnd/node_modules/react-router/dist/development/chunk-OB3PAWPO.mjs:7134:13)
+    at MemoryRouter (file:///D:/Desktop/Nhom24/OJT202/FrontEnd/node_modules/react-router/dist/development/chunk-OB3PAWPO.mjs:7044:3)
+✖ chọn lịch sử sau cùng thắng phản hồi cũ đến muộn (14.0325ms)
+Warning: Internal React error: Attempted to capture a commit phase error inside a detached tree. This indicates a bug in React. Likely causes include deleting the same fiber more than once, committing an already-finished tree, or an inconsistent return pointer.
+
+Error message:
+
+TypeError: Cannot read properties of undefined (reading 'removeEventListener')
+    at Planner (file:///D:/Desktop/Nhom24/OJT202/FrontEnd/src/pages/ai/Planner.jsx:44:35)
+    at Router (file:///D:/Desktop/Nhom24/OJT202/FrontEnd/node_modules/react-router/dist/development/chunk-OB3PAWPO.mjs:7134:13)
+    at MemoryRouter (file:///D:/Desktop/Nhom24/OJT202/FrontEnd/node_modules/react-router/dist/development/chunk-OB3PAWPO.mjs:7044:3)
+Warning: Internal React error: Attempted to capture a commit phase error inside a detached tree. This indicates a bug in React. Likely causes include deleting the same fiber more than once, committing an already-finished tree, or an inconsistent return pointer.
+
+Error message:
+
+TypeError: Cannot read properties of undefined (reading 'removeEventListener')
+    at Planner (file:///D:/Desktop/Nhom24/OJT202/FrontEnd/src/pages/ai/Planner.jsx:44:35)
+    at Router (file:///D:/Desktop/Nhom24/OJT202/FrontEnd/node_modules/react-router/dist/development/chunk-OB3PAWPO.mjs:7134:13)
+    at MemoryRouter (file:///D:/Desktop/Nhom24/OJT202/FrontEnd/node_modules/react-router/dist/development/chunk-OB3PAWPO.mjs:7044:3)
+✖ mở lịch sử thất bại được báo trên giao diện, không reject khỏi handler (4.0509ms)
+✔ Member gửi Review, không thể tự duyệt Done (1.2126ms)
+✔ PM chỉ được duyệt Done từ Review, có thể mở lại Done (0.1737ms)
+✔ Viewer, dự án archived hoặc chưa tải quyền không có thao tác ghi (0.2079ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 7
+ℹ fail 5
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1555.4974
+
+✖ failing tests:
+
+test at test\async-ui.test.js:29:1
+✖ useLoad không giữ dữ liệu dự án trước khi dự án mới tải lỗi (15.2439ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  'A' !== null
+
+      at TestContext.<anonymous> (file:///D:/Desktop/Nhom24/OJT202/FrontEnd/test/async-ui.test.js:36:10)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'A',
+    expected: null,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test\async-ui.test.js:42:1
+✖ reload cũ không được thay thế kết quả của phạm vi mới (3.6213ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  'a' !== 'b'
+
+      at TestContext.<anonymous> (file:///D:/Desktop/Nhom24/OJT202/FrontEnd/test/async-ui.test.js:49:10)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'a',
+    expected: 'b',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test\async-ui.test.js:52:1
+✖ quyền dự án không còn lấy từ cache cũ sau khi component đã đóng và resync (3.4762ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  true !== false
+
+      at TestContext.<anonymous> (file:///D:/Desktop/Nhom24/OJT202/FrontEnd/test/async-ui.test.js:62:10)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: true,
+    expected: false,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test\async-ui.test.js:65:1
+✖ chọn lịch sử sau cùng thắng phản hồi cũ đến muộn (14.0325ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  'a' !== 'b'
+
+      at TestContext.<anonymous> (file:///D:/Desktop/Nhom24/OJT202/FrontEnd/test/async-ui.test.js:79:10)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'a',
+    expected: 'b',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test\async-ui.test.js:82:1
+✖ mở lịch sử thất bại được báo trên giao diện, không reject khỏi handler (4.0509ms)
+  Error: Bản nháp không còn
+      at Object.<anonymous> (file:///D:/Desktop/Nhom24/OJT202/FrontEnd/test/async-ui.test.js:84:45)
+      at Object.apply (node:internal/test_runner/mock/mock:756:20)
+      at Object.open [as onOpen] (file:///D:/Desktop/Nhom24/OJT202/FrontEnd/src/pages/ai/Planner.jsx:72:25)
+      at file:///D:/Desktop/Nhom24/OJT202/FrontEnd/test/async-ui.test.js:88:61
+      at act (D:\Desktop\Nhom24\OJT202\FrontEnd\node_modules\react\cjs\react.development.js:2512:16)
+      at TestContext.<anonymous> (file:///D:/Desktop/Nhom24/OJT202/FrontEnd/test/async-ui.test.js:88:9)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:831:7)

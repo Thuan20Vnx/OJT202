@@ -1,0 +1,30 @@
+✖ P2: a pending realtime reload must preserve edits started while it was loading (63.9393ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 832.9106
+
+✖ failing tests:
+
+test at FrontEnd\test\review-2026-10-28.probe.js:15:1
+✖ P2: a pending realtime reload must preserve edits started while it was loading (63.9393ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + 'Original'
+  - 'My unsaved edit'
+
+      at TestContext.<anonymous> (file:///D:/Desktop/Nhom24/OJT202/FrontEnd/test/review-2026-10-28.probe.js:36:10)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'Original',
+    expected: 'My unsaved edit',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

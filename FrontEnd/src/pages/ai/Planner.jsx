@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { Field, Icon, Notice, Spinner } from '../../components/ui.jsx';
 import { api } from '../../lib/api.js';
 import { useLoad, useToast } from '../../lib/app.jsx';
-import { timeAgo } from '../../lib/format.js';
-import { useProjectInfo } from '../../lib/hooks.js';
+import { isoDate, timeAgo } from '../../lib/format.js';
+import { useLatestRequest, useProjectInfo } from '../../lib/hooks.js';
 import DraftItems from './DraftItems.jsx';
 
 export function History({ items, onOpen, activeId, empty = 'Chưa có lịch sử' }) {
@@ -46,9 +46,11 @@ export default function Planner({ project, onUsage, disabled }) {
   const [draft, setDraft] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
+  const beginRequest = useLatestRequest();
   const history = useLoad(() => api.get(`/projects/${project._id}/ai/drafts?type=plan`), [project._id, draft?._id, draft?.status]);
 
   const generate = async () => {
+    const current = beginRequest();
     setBusy(true);
     setError(null);
     try {
@@ -58,19 +60,30 @@ export default function Planner({ project, onUsage, disabled }) {
         people: f.people ? Number(f.people) : null,
         maxHours: f.maxHours ? Number(f.maxHours) : null,
       });
-      setDraft(d.draft);
+      if (current()) setDraft(d.draft);
       onUsage();
     } catch (e) {
-      setError(e);
+      if (current()) setError(e);
       onUsage();
     } finally {
-      setBusy(false);
+      if (current()) setBusy(false);
     }
   };
   const open = async (id) => {
-    const d = await api.get(`/ai/drafts/${id}`);
-    setDraft(d.draft);
-    setF((s) => ({ ...s, goal: d.draft.input?.goal || s.goal }));
+    const current = beginRequest();
+    setBusy(true);
+    setError(null);
+    try {
+      const d = await api.get(`/ai/drafts/${id}`);
+      if (!current()) return;
+      setDraft(d.draft);
+      const input = d.draft.input || {};
+      setF({ goal: input.goal || '', deadline: input.deadline ? isoDate(input.deadline) : '', people: input.people ?? '', maxHours: input.maxHours ?? '' });
+    } catch (e) {
+      if (current()) setError(e);
+    } finally {
+      if (current()) setBusy(false);
+    }
   };
   const canWrite = !!info?.access?.canManage;
 
@@ -117,6 +130,7 @@ export default function Planner({ project, onUsage, disabled }) {
       <div className="min-w-0">
         {draft ? (
           <DraftItems
+            key={draft._id}
             draft={draft}
             canManage={canWrite}
             setDraft={setDraft}

@@ -4,6 +4,7 @@ import { Avatar, Icon, Notice, Spinner } from '../../components/ui.jsx';
 import { api } from '../../lib/api.js';
 import { useApp, useLoad } from '../../lib/app.jsx';
 import { fmtTime, timeAgo } from '../../lib/format.js';
+import { useLatestRequest } from '../../lib/hooks.js';
 
 const SUGGEST = ['Việc nào sắp đến hạn tuần này?', 'Vì sao TF-103 đang bị chặn và ai đang xử lý?', 'Tóm tắt quyết định trong tài liệu kiến trúc'];
 
@@ -15,6 +16,7 @@ export default function Qa({ project, onUsage, disabled }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const end = useRef(null);
+  const beginRequest = useLatestRequest();
   const list = useLoad(() => api.get(`/projects/${project._id}/ai/conversations`), [project._id, conv?._id, conv?.messages?.length]);
   const scope = useLoad(() => Promise.all([api.get(`/projects/${project._id}/tasks`), api.get(`/projects/${project._id}/documents?kind=doc&limit=1`)]), [project._id]);
 
@@ -23,24 +25,38 @@ export default function Qa({ project, onUsage, disabled }) {
   }, [conv?.messages?.length, busy]);
 
   const ask = async (question = q) => {
-    if (!question.trim()) return;
+    if (busy || disabled || question.trim().length < 3) return;
+    const current = beginRequest();
     setBusy(true);
     setError(null);
     setQ('');
     setConv((c) => ({ ...(c || {}), messages: [...(c?.messages || []), { role: 'user', content: question, createdAt: new Date(), pending: true }] }));
     try {
       const d = await api.post(`/projects/${project._id}/ai/ask`, { question, conversation: conv?._id });
-      setConv(d.conversation);
+      if (current()) setConv(d.conversation);
     } catch (e) {
+      if (!current()) return;
       setError(e);
       setConv((c) => ({ ...c, messages: c.messages.filter((m) => !m.pending) }));
       setQ(question);
     } finally {
-      setBusy(false);
+      if (current()) setBusy(false);
       onUsage();
     }
   };
-  const open = async (id) => setConv((await api.get(`/ai/conversations/${id}`)).conversation);
+  const open = async (id) => {
+    const current = beginRequest();
+    setBusy(true);
+    setError(null);
+    try {
+      const d = await api.get(`/ai/conversations/${id}`);
+      if (current()) { setConv(d.conversation); setQ(''); }
+    } catch (e) {
+      if (current()) setError(e);
+    } finally {
+      if (current()) setBusy(false);
+    }
+  };
   const openSource = (c) => {
     if (c.kind === 'document') navigate('/documents');
     else navigate({ search: `?task=${c.refId}` });
@@ -52,7 +68,7 @@ export default function Qa({ project, onUsage, disabled }) {
   return (
     <div className="grid gap-5 lg:grid-cols-[320px_1fr]">
       <div className="space-y-4">
-        <button className="btn-primary h-10 w-full" onClick={() => (setConv(null), setError(null))}>
+        <button className="btn-primary h-10 w-full" onClick={() => { beginRequest(); setConv(null); setQ(''); setError(null); setBusy(false); }}>
           <Icon name="add" size={18} /> Cuộc hỏi mới
         </button>
         <div className="card p-4">

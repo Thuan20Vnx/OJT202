@@ -1,9 +1,50 @@
 import { beforeEach, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ApiError, onUnauthorized, request } from '../src/lib/api.js';
+import { ApiError, download, onUnauthorized, request } from '../src/lib/api.js';
 
 const response = (status, body = {}) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 beforeEach(() => new Promise((resolve) => setTimeout(resolve, 5)));
+
+test('download: lỗi mạng được chuẩn hóa; hết phiên thật mới phát unauthorized', async (t) => {
+  let loggedOut = 0;
+  t.after(onUnauthorized(() => loggedOut++));
+  const fetch = t.mock.method(globalThis, 'fetch', async () => { throw new TypeError('fetch failed'); });
+  await assert.rejects(download('/documents/a/download', 'a.txt'), (e) => e instanceof ApiError && e.status === 0);
+  assert.equal(loggedOut, 0);
+  fetch.mock.mockImplementation(async () => response(401));
+  await assert.rejects(download('/documents/a/download', 'a.txt'), (e) => e instanceof ApiError && e.status === 401);
+  assert.equal(loggedOut, 1);
+});
+
+test('JSON sai hoặc kết nối đứt khi đọc body được báo bằng ApiError', async (t) => {
+  const fetch = t.mock.method(globalThis, 'fetch', async () => new Response('{', { status: 502, headers: { 'content-type': 'application/json' } }));
+  await assert.rejects(request('GET', '/me'), (e) => e instanceof ApiError && e.status === 502);
+  fetch.mock.mockImplementation(async () => ({ status: 200, ok: true, headers: new Headers({ 'content-type': 'application/json' }), json: async () => { throw new TypeError('terminated'); } }));
+  await assert.rejects(request('GET', '/me'), (e) => e instanceof ApiError && e.status === 0);
+});
+
+test('download làm mới phiên và tải đủ byte; refresh 503 không đăng xuất', async (t) => {
+  let loggedOut = 0, downloads = 0, refreshed = false;
+  t.after(onUnauthorized(() => loggedOut++));
+  const fetch = t.mock.method(globalThis, 'fetch', async (url) => {
+    if (url === '/api/auth/refresh') { refreshed = true; return response(200); }
+    if (!refreshed) return response(401);
+    return new Response('Tệp đầy đủ\nDòng cuối', { headers: { 'content-type': 'text/plain' } });
+  });
+  let downloadedBlob;
+  const previousDocument = globalThis.document;
+  globalThis.document = { createElement: () => ({ click() { downloads++; } }) };
+  t.after(() => { globalThis.document = previousDocument; });
+  t.mock.method(URL, 'createObjectURL', (blob) => { downloadedBlob = blob; return 'blob:test-download'; });
+  await download('/documents/a/download', 'a.txt');
+  assert.equal(downloads, 1);
+  assert.equal(await downloadedBlob.text(), 'Tệp đầy đủ\nDòng cuối');
+  await new Promise((resolve) => setTimeout(resolve, 5));
+  fetch.mock.mockImplementation(async (url) => response(url === '/api/me' ? 503 : 401));
+  await assert.rejects(download('/documents/a/download', 'a.txt'), (e) => e instanceof ApiError && e.status === 503);
+  assert.equal(loggedOut, 0);
+  assert.equal(downloads, 1);
+});
 
 test('refresh gặp 503 không đăng xuất người dùng và không xoay token khi /me lỗi server', async (t) => {
   const calls = [];

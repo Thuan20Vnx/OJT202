@@ -485,6 +485,62 @@ describe('Rà soát vòng 2: thông báo và dữ liệu đầu vào', () => {
   });
 });
 
+describe('Rà soát 26/10: dữ liệu không hợp lệ và nhắc hạn dự án lưu trữ', () => {
+  test('NUL trong tên công việc, JSON checklist và hồ sơ trả 400, không lưu dở', async () => {
+    const { owner, pid } = await permissionFixture();
+    for (const fields of [{ title: 'Tên\u0000lỗi' }, { title: 'Checklist lỗi', checklist: [{ text: 'Bước\u0000lỗi' }] }]) {
+      const r = await owner.post(`/projects/${pid}/tasks`, fields);
+      assert.equal(r.status, 400, JSON.stringify(r.data));
+    }
+    const profile = await owner.patch('/me', { name: 'Tên\u0000lỗi' });
+    assert.equal(profile.status, 400, JSON.stringify(profile.data));
+    assert.equal(await db.prisma.task.count({ where: { project: pid } }), 0);
+  });
+
+  test('dự án lưu trữ không gửi nhắc hạn; khôi phục vẫn gửi đúng một lần', async () => {
+    const { owner, ws, pid, create } = await permissionFixture();
+    const { runDueReminders } = await import('../src/services/jobs.js');
+    const now = new Date();
+    for (const hours of [-1, 1]) await create({ assignee: seed.users.nhu.id, dueDate: new Date(now.getTime() + hours * 3600000).toISOString() });
+    await owner.post(`/projects/${pid}/archive`);
+    const where = { workspace: ws, type: { in: ['due_soon', 'overdue'] } };
+    await runDueReminders(now);
+    assert.equal(await db.prisma.notification.count({ where }), 0);
+    await owner.post(`/projects/${pid}/restore`);
+    await runDueReminders(now);
+    await runDueReminders(now);
+    assert.equal(await db.prisma.notification.count({ where }), 2);
+  });
+});
+
+describe('Rà soát 26/10 vòng 2: phạm vi thông báo và thời gian phiên', () => {
+  test('workspace sai không được biến read-all thành đánh dấu toàn bộ tài khoản', async () => {
+    const { member, ws } = await permissionFixture();
+    const n = await db.prisma.notification.create({ data: { user: seed.users.nhu.id, workspace: ws, type: 'assigned', text: 'Giữ chưa đọc', dedupeKey: `${ws}:invalid-scope` } });
+    const other = await db.prisma.notification.create({ data: { user: seed.users.nhu.id, workspace: seed.workspace.id, type: 'assigned', text: 'Workspace khác', dedupeKey: `${ws}:other-scope` } });
+    for (const workspace of ['bad', '', null, [ws]]) {
+      const r = await member.post('/notifications/read-all', { workspace });
+      assert.equal(r.status, 400, JSON.stringify(r.data));
+    }
+    assert.equal((await db.prisma.notification.findUnique({ where: { id: n.id } })).readAt, null);
+    assert.equal((await member.get('/notifications?workspace=bad')).status, 400);
+    assert.equal((await member.get('/notifications?project=bad')).status, 400);
+    assert.equal((await member.post('/notifications/read-all', { workspace: ws })).status, 200);
+    assert.ok((await db.prisma.notification.findUnique({ where: { id: n.id } })).readAt);
+    assert.equal((await db.prisma.notification.findUnique({ where: { id: other.id } })).readAt, null);
+  });
+
+  test('phiên trả lastUsedAt thực thay vì thời điểm sửa bản ghi', async () => {
+    const c = await new Client().login('mai.anh@nhom24.edu.vn');
+    const { sha256 } = await import('../src/utils/security.js');
+    const session = await db.prisma.session.findFirst({ where: { refreshHash: sha256(c.cookies.tf_rt) } });
+    const lastUsedAt = new Date('2026-01-02T03:04:05Z');
+    await db.prisma.session.update({ where: { id: session.id }, data: { lastUsedAt } });
+    const result = await c.get('/me/sessions');
+    assert.equal(result.data.sessions.find((s) => s._id === session.id).lastUsedAt, lastUsedAt.toISOString());
+  });
+});
+
 let fixtureNumber = 0;
 async function permissionFixture() {
   const owner = await new Client().login('mai.anh@nhom24.edu.vn');

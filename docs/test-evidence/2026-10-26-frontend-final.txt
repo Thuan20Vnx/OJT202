@@ -1,0 +1,30 @@
+
+> taskflow-client@1.0.0 test
+> node --import ./test/helpers/register-jsx.js --test test/*.test.js
+
+✔ refresh gặp 503 không đăng xuất người dùng và không xoay token khi /me lỗi server (53.1019ms)
+✔ lỗi mạng trong refresh hoặc retry được chuẩn hóa thành ApiError (29.9319ms)
+✔ refresh trả 401 mới phát sự kiện hết phiên (30.9565ms)
+✔ nhiều request 401 đồng thời chỉ xoay refresh một lần (31.3296ms)
+✔ useLoad không giữ dữ liệu dự án trước khi dự án mới tải lỗi (14.6506ms)
+✔ reload cũ không được thay thế kết quả của phạm vi mới (2.0526ms)
+✔ quyền bị vô hiệu hóa chỉ tải lại đúng dự án và khóa ghi trong lúc chờ (2.7508ms)
+✔ quyền dự án không còn lấy từ cache cũ sau khi component đã đóng và resync (2.0564ms)
+✔ chọn lịch sử sau cùng thắng phản hồi cũ đến muộn (12.6078ms)
+✔ mở lịch sử thất bại được báo trên giao diện, không reject khỏi handler (5.5683ms)
+✔ đổi dự án xóa kế hoạch đang mở và bỏ phản hồi tạo nháp cũ (9.0471ms)
+✔ báo cáo lưu lỗi giữ nguyên editor và nội dung để thử lại (46.7341ms)
+✔ mở báo cáo khác đóng editor cũ để không lưu nhầm nội dung sang báo cáo mới (20.0057ms)
+✔ hỏi đáp chặn Enter gửi lặp khi đang chờ và bỏ phản hồi sau Cuộc hỏi mới (11.5577ms)
+✔ duyệt nháp phải chờ lưu checkbox và không duyệt khi còn sửa chưa lưu (6.6764ms)
+✔ Member gửi Review, không thể tự duyệt Done (1.0354ms)
+✔ PM chỉ được duyệt Done từ Review, có thể mở lại Done (0.1907ms)
+✔ Viewer, dự án archived hoặc chưa tải quyền không có thao tác ghi (0.1777ms)
+ℹ tests 18
+ℹ suites 0
+ℹ pass 18
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1125.1695

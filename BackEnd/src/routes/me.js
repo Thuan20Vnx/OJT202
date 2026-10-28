@@ -80,7 +80,7 @@ router.get('/sessions', async (req, res) => {
       userAgent: s.userAgent,
       ip: s.ip,
       createdAt: s.createdAt,
-      lastUsedAt: s.updatedAt,
+      lastUsedAt: s.lastUsedAt,
       current: s.family === req.session.family,
     })),
   });

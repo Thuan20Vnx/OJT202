@@ -41,7 +41,7 @@ async function refresh() {
 
 const OFFLINE_MSG = 'Không kết nối được máy chủ, vui lòng thử lại sau giây lát';
 
-export async function request(method, url, body, { isForm = false, noRefresh = false } = {}) {
+async function authenticatedResponse(method, url, body, { isForm = false, noRefresh = false } = {}) {
   let res;
   try {
     res = await raw(method, url, body, isForm);
@@ -53,8 +53,23 @@ export async function request(method, url, body, { isForm = false, noRefresh = f
     throw new ApiError(0, OFFLINE_MSG); // lỗi mạng: server tắt/đang khởi động lại
   }
   if (res.status === 401 && !url.startsWith('/auth/')) listeners.forEach((fn) => fn());
+  return res;
+}
+
+async function readBody(res, type) {
+  try {
+    return await res[type]();
+  } catch (error) {
+    // A successful response can still lose its connection while streaming.
+    // Preserve HTTP errors even when a proxy returns malformed JSON.
+    throw new ApiError(res.ok ? (error instanceof SyntaxError ? 502 : 0) : res.status, OFFLINE_MSG);
+  }
+}
+
+export async function request(method, url, body, options = {}) {
+  const res = await authenticatedResponse(method, url, body, options);
   const type = res.headers.get('content-type') || '';
-  const data = type.includes('application/json') ? await res.json() : await res.text();
+  const data = await readBody(res, type.includes('application/json') ? 'json' : 'text');
   // 5xx không kèm JSON: proxy/reverse proxy không tới được API (API luôn trả lỗi dạng JSON)
   if (res.status >= 500 && !data?.error) throw new ApiError(res.status, OFFLINE_MSG);
   if (!res.ok) throw new ApiError(res.status, data?.error || 'Đã có lỗi xảy ra', data?.details);
@@ -79,10 +94,9 @@ export function qs(params) {
 
 /** Tải tệp qua backend (cookie đi kèm) */
 export async function download(url, filename) {
-  let res = await fetch(`/api${url}`, { credentials: 'include' });
-  if (res.status === 401 && (await refresh())) res = await fetch(`/api${url}`, { credentials: 'include' });
+  const res = await authenticatedResponse('GET', url);
   if (!res.ok) throw new ApiError(res.status, 'Không tải được tệp');
-  const blob = await res.blob();
+  const blob = await readBody(res, 'blob');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = filename;
