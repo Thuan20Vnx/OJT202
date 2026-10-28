@@ -149,3 +149,69 @@ test('U012-T3: register → verify → workspace → project → task → Member
     await member.ctx.close();
   }
 });
+
+test('Như U009/U010: keyboard, API rollback, hai tab xung đột giữ draft và logout', { timeout: 90000 }, async () => {
+  const owner = await context();
+  try {
+    const page = owner.page;
+    await login(page, 'mai.anh@nhom24.edu.vn');
+    const headers = { 'x-taskflow': '1' };
+    const wsResponse = await owner.ctx.request.post('/api/workspaces', { headers, data: { name: 'Như keyboard regression' } });
+    assert.equal(wsResponse.status(), 201);
+    const ws = (await wsResponse.json()).workspace._id;
+    const projectResponse = await owner.ctx.request.post(`/api/workspaces/${ws}/projects`, { headers, data: { name: 'Như Sprint 1' } });
+    assert.equal(projectResponse.status(), 201);
+    const project = (await projectResponse.json()).project;
+    const created = await owner.ctx.request.post(`/api/projects/${project._id}/tasks`, { headers, data: { title: 'Như keyboard task', priority: 'high', dueDate: '2026-10-28' } });
+    assert.equal(created.status(), 201);
+    const task = (await created.json()).task;
+    await page.goto(`/board?task=${task._id}`);
+    await page.getByRole('dialog').getByRole('button', { name: 'Đóng', exact: true }).click();
+    const select = page.getByRole('combobox', { name: `Trạng thái ${task.key}`, exact: true });
+    await expect(select).toHaveValue('todo');
+    await select.focus();
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('Enter');
+    await expect.poll(async () => (await db.prisma.task.findUnique({ where: { id: task._id } })).status).toBe('in_progress');
+    await page.reload();
+    await expect(select).toHaveValue('in_progress');
+
+    // Fault injection is restricted to this test's move endpoint.
+    await page.route(`**/api/tasks/${task._id}/move`, (route) => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'Lỗi move kiểm thử' }) }));
+    await select.selectOption('review');
+    await expect(page.getByText('Lỗi move kiểm thử', { exact: true })).toBeVisible();
+    await expect(select).toHaveValue('in_progress');
+    await page.unroute(`**/api/tasks/${task._id}/move`);
+
+    const open = page.getByRole('button', { name: `Mở ${task.key}: Như keyboard task`, exact: true });
+    await open.focus();
+    await page.keyboard.press('Enter');
+    const dialog = page.getByRole('dialog', { name: 'Chi tiết công việc' });
+    await expect(dialog).toBeVisible();
+    const description = dialog.getByPlaceholder('Chưa có mô tả');
+    await description.fill('Bản nháp Như chưa lưu');
+    const second = await owner.ctx.newPage();
+    await second.goto(`/board?task=${task._id}`);
+    const other = second.getByRole('dialog', { name: 'Chi tiết công việc' });
+    await other.getByPlaceholder('Chưa có mô tả').fill('Nội dung đã lưu từ tab khác');
+    await other.getByRole('button', { name: 'Lưu thay đổi', exact: true }).click();
+    await expect.poll(async () => (await db.prisma.task.findUnique({ where: { id: task._id } })).description).toBe('Nội dung đã lưu từ tab khác');
+    await expect(description).toHaveValue('Bản nháp Như chưa lưu');
+    await dialog.getByRole('button', { name: 'Lưu thay đổi', exact: true }).click();
+    await expect(dialog.getByText(/thay đổi chưa lưu của bạn sẽ mất/)).toBeVisible();
+    await expect(description).toHaveValue('Bản nháp Như chưa lưu');
+    await dialog.getByRole('button', { name: 'Tải lại', exact: true }).click();
+    await expect(description).toHaveValue('Nội dung đã lưu từ tab khác');
+    await page.screenshot({ path: path.join(artifacts, 'nhu-task-detail.png'), fullPage: true });
+    await dialog.getByRole('button', { name: 'Đóng', exact: true }).click();
+    await expect(dialog).not.toBeVisible();
+    await expect(select).toBeVisible();
+    await page.screenshot({ path: path.join(artifacts, 'nhu-keyboard-kanban.png'), fullPage: true });
+    assert.equal((await owner.ctx.request.post('/api/auth/logout', { headers, data: {} })).status(), 200);
+    await page.goto('/board');
+    await expect(page).toHaveURL(/\/login/);
+    assert.deepEqual(errors, []);
+  } finally {
+    await owner.ctx.close();
+  }
+});

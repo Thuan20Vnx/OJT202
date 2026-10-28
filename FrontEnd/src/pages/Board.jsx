@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import CreateTaskModal from '../components/CreateTaskModal.jsx';
 import { Avatar, AvatarStack, Empty, ErrorBox, Icon, PageLoader, PriorityChip, Progress, Select } from '../components/ui.jsx';
@@ -8,7 +8,7 @@ import { STATUS, STATUS_ORDER, dueInfo, fmtDate } from '../lib/format.js';
 import { useProjectInfo, useSocketEvent } from '../lib/hooks.js';
 import { taskActions } from '../lib/task-permissions.js';
 
-export function TaskCard({ task, draggable, onDragStart, onOpen }) {
+export function TaskCard({ task, draggable, onDragStart, onOpen, statuses = [], onMove, busy }) {
   const due = dueInfo(task.dueDate, task.status);
   const done = task.status === 'done';
   return (
@@ -16,6 +16,8 @@ export function TaskCard({ task, draggable, onDragStart, onOpen }) {
       draggable={draggable}
       onDragStart={onDragStart}
       onClick={onOpen}
+      role="group"
+      aria-label={`${task.key} ${task.title}`}
       className={`group cursor-pointer rounded-lg border bg-white p-3 transition-all hover:border-slate-300 hover:shadow-card ${task.isBlocked ? 'border-rose-200' : 'border-slate-200'} ${draggable ? 'active:rotate-1 active:shadow-drag' : ''}`}
     >
       <div className="mb-1.5 flex items-center justify-between gap-2">
@@ -32,7 +34,7 @@ export function TaskCard({ task, draggable, onDragStart, onOpen }) {
           <PriorityChip priority={task.priority} />
         </div>
       </div>
-      <p className={`text-body-md font-medium leading-snug ${done ? 'text-slate-500' : 'text-slate-900'}`}>{task.title}</p>
+      <button type="button" onClick={(e) => { e.stopPropagation(); onOpen(); }} className={`w-full text-left text-body-md font-medium leading-snug focus-visible:outline focus-visible:outline-2 focus-visible:outline-blue-600 ${done ? 'text-slate-500' : 'text-slate-900'}`} aria-label={`Mở ${task.key}: ${task.title}`}>{task.title}</button>
       {task.isBlocked && (
         <p className="mt-1.5 flex items-start gap-1 rounded-md bg-rose-50 px-2 py-1 text-label-md font-normal text-rose-700">
           <Icon name="warning" size={14} className="mt-px" />
@@ -77,6 +79,16 @@ export function TaskCard({ task, draggable, onDragStart, onOpen }) {
           <Avatar user={task.assignee} size={24} />
         </span>
       </div>
+      {statuses.length > 1 && (
+        <div className="mt-3" onClick={(e) => e.stopPropagation()} onDragStart={(e) => e.preventDefault()}>
+          <label className="text-label-md text-slate-500">
+            Đổi trạng thái
+            <select aria-label={`Trạng thái ${task.key}`} className="input mt-1 h-8 text-body-sm" value={task.status} disabled={busy} onChange={(e) => onMove(e.target.value)}>
+              {statuses.map((status) => <option key={status} value={status}>{STATUS[status].label}</option>)}
+            </select>
+          </label>
+        </div>
+      )}
     </div>
   );
 }
@@ -90,6 +102,8 @@ export default function Board() {
   const [over, setOver] = useState(null);
   const [drag, setDrag] = useState(null);
   const [creating, setCreating] = useState(null);
+  const pendingMoves = useRef(new Set());
+  const [moving, setMoving] = useState(new Set());
   const { data, error, loading, reload, setData } = useLoad(() => (project ? api.get(`/projects/${project._id}/tasks`) : Promise.resolve({ tasks: [] })), [project?._id]);
 
   // Realtime đồng bộ giữa các thành viên
@@ -128,30 +142,35 @@ export default function Board() {
   const sprint = info?.project?.sprint;
   const daysLeft = sprint?.end ? Math.max(0, Math.ceil((new Date(sprint.end) - Date.now()) / 86400000)) : null;
 
-  const drop = async (status, index) => {
+  const moveTask = async (taskId, status, index) => {
     setOver(null);
-    if (!drag) return;
-    const task = all.find((t) => t._id === drag);
+    const task = all.find((t) => t._id === taskId);
     setDrag(null);
-    if (!task) return;
+    if (!task || pendingMoves.current.has(taskId)) return;
     if (!taskActions(task, project, me).allowedStatuses.includes(status)) {
       toast('Bạn chỉ chuyển được việc mình nhận đến Review. PM duyệt Done hoặc mở lại.', 'error');
       return;
     }
     const col = cols.find((c) => c.status === status).tasks.filter((t) => t._id !== task._id);
+    index ??= col.length;
     const before = col[index - 1]?.order ?? (col[0] ? col[0].order - 1000 : Date.now());
     const after = col[index]?.order ?? before + 2000;
     const order = (before + after) / 2;
     if (task.status === status && Math.abs(task.order - order) < 0.001) return;
-    const prev = data;
+    pendingMoves.current.add(taskId);
+    setMoving(new Set(pendingMoves.current));
     setData((d) => ({ tasks: d.tasks.map((t) => (t._id === task._id ? { ...t, status, order } : t)) })); // lạc quan
     try {
       const { task: saved } = await api.post(`/tasks/${task._id}/move`, { status, order, version: task.version });
-      setData((d) => ({ tasks: d.tasks.map((t) => (t._id === saved._id ? saved : t)) }));
+      setData((d) => d && ({ tasks: d.tasks.map((t) => (t._id === saved._id && t.version <= saved.version ? saved : t)) }));
     } catch (e) {
-      setData(prev);
+      // Keep other moves and newer realtime versions when rolling back this task.
+      setData((d) => d && ({ tasks: d.tasks.map((t) => t._id === taskId && t.version === task.version ? task : t) }));
       toast(e.message, e.status === 409 ? 'info' : 'error');
-      if (e.status === 409) reload(); // phiên bản cũ => tải lại bảng
+      if ([403, 404, 409].includes(e.status)) reload();
+    } finally {
+      pendingMoves.current.delete(taskId);
+      setMoving(new Set(pendingMoves.current));
     }
   };
 
@@ -253,7 +272,7 @@ export default function Board() {
                 e.preventDefault();
                 const cards = [...e.currentTarget.querySelectorAll('[data-card]')];
                 const idx = cards.findIndex((c) => e.clientY < c.getBoundingClientRect().top + c.offsetHeight / 2);
-                drop(col.status, idx === -1 ? col.tasks.filter((t) => t._id !== drag).length : idx);
+                moveTask(drag, col.status, idx === -1 ? col.tasks.filter((t) => t._id !== drag).length : idx);
               }}
               className={`flex w-[300px] min-w-[280px] shrink-0 flex-col rounded-xl border bg-slate-100/70 p-3 transition-colors ${over === col.status ? 'border-blue-300 bg-blue-50/60' : 'border-slate-200'}`}
             >
@@ -274,7 +293,10 @@ export default function Board() {
                   <div key={t._id} data-card className={drag === t._id ? 'opacity-40' : ''}>
                     <TaskCard
                       task={t}
-                      draggable={taskActions(t, project, me).canUpdateProgress}
+                      draggable={canDrag && !moving.has(t._id) && taskActions(t, project, me).canUpdateProgress}
+                      statuses={canDrag ? taskActions(t, project, me).allowedStatuses : []}
+                      busy={moving.has(t._id)}
+                      onMove={(status) => moveTask(t._id, status)}
                       onDragStart={(e) => {
                         e.dataTransfer.effectAllowed = 'move';
                         setDrag(t._id);

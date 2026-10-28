@@ -111,6 +111,11 @@ export default function TaskDetailModal({ taskId, onClose }) {
   const [error, setError] = useState(null);
   const [form, setForm] = useState(null);
   const [dirty, setDirty] = useState(false);
+  const dirtyRef = useRef(false);
+  const editRevision = useRef(0);
+  const loadSequence = useRef(0);
+  const currentTaskId = useRef(taskId);
+  currentTaskId.current = taskId;
   const [comments, setComments] = useState([]);
   const [tab, setTab] = useState('comments');
   const [saving, setSaving] = useState(false);
@@ -125,10 +130,19 @@ export default function TaskDetailModal({ taskId, onClose }) {
   const info = useProjectInfo(data?.task?.project);
   const members = info?.project?.members || [];
 
-  const load = useCallback(async () => {
+  const load = useCallback(async ({ discard = false } = {}) => {
+    const sequence = ++loadSequence.current;
+    const revision = editRevision.current;
+    const isCurrent = () => sequence === loadSequence.current && currentTaskId.current === taskId;
     try {
       setError(null);
       const d = await api.get(`/tasks/${taskId}`);
+      if (!isCurrent()) return;
+      // Never replace a draft (or its base version) with a background response.
+      if (dirtyRef.current && (!discard || revision !== editRevision.current)) {
+        setStale(true);
+        return;
+      }
       setData(d);
       setForm({
         title: d.task.title,
@@ -143,20 +157,32 @@ export default function TaskDetailModal({ taskId, onClose }) {
         labels: d.task.labels || [],
       });
       setDirty(false);
+      dirtyRef.current = false;
       setStale(false);
       const c = await api.get(`/tasks/${taskId}/comments`);
-      setComments(c.comments);
+      if (isCurrent()) setComments(c.comments);
     } catch (e) {
-      setError(e);
+      if (isCurrent()) {
+        if ([403, 404].includes(e.status)) { setData(null); setForm(null); setComments([]); }
+        setError(e);
+      }
     }
   }, [taskId]);
 
   useEffect(() => {
+    dirtyRef.current = false;
+    setDirty(false);
+    setData(null);
+    setForm(null);
+    setComments([]);
     load();
+    return () => { loadSequence.current++; };
   }, [load]);
   useSocketEvent(
     'access:changed',
     () => {
+      dirtyRef.current = false;
+      editRevision.current++;
       setData(null);
       setForm(null);
       setComments([]);
@@ -193,11 +219,12 @@ export default function TaskDetailModal({ taskId, onClose }) {
       <Shell onClose={onClose}>
         <div className="p-8">
           <Notice tone="danger">{error.status === 404 ? 'Không tìm thấy công việc hoặc bạn không có quyền xem.' : error.message}</Notice>
+          <div className="mt-4 flex gap-2"><button className="btn-outline" onClick={onClose}>Đóng</button><button className="btn-primary" onClick={() => load()}>Thử lại</button></div>
         </div>
       </Shell>
     );
   }
-  if (!data || !form) {
+  if (!data || !form || data.task._id !== taskId) {
     return (
       <Shell onClose={onClose}>
         <PageLoader />
@@ -210,6 +237,8 @@ export default function TaskDetailModal({ taskId, onClose }) {
   const allowedStatuses = access.allowedStatuses || [];
   const due = dueInfo(task.dueDate, task.status);
   const setF = (k, v) => {
+    dirtyRef.current = true;
+    editRevision.current++;
     setForm((f) => ({ ...f, [k]: v }));
     setDirty(true);
   };
@@ -221,8 +250,8 @@ export default function TaskDetailModal({ taskId, onClose }) {
       return t;
     } catch (e) {
       if (e.status === 409) {
-        toast('Công việc vừa được người khác cập nhật – đã tải lại dữ liệu mới nhất', 'info');
-        await load();
+        toast('Công việc vừa được người khác cập nhật. Hãy đối chiếu nội dung trước khi tải lại.', 'info');
+        setStale(true);
       } else toast(e.message, 'error');
       throw e;
     }
@@ -245,6 +274,7 @@ export default function TaskDetailModal({ taskId, onClose }) {
         labels: form.labels,
       });
       setDirty(false);
+      dirtyRef.current = false;
       toast('Đã lưu thay đổi');
     } catch {
       /* đã báo lỗi */
@@ -414,7 +444,7 @@ export default function TaskDetailModal({ taskId, onClose }) {
       {stale && (
         <div className="border-b border-amber-200 bg-amber-50 px-6 py-2 text-body-sm text-amber-800">
           Công việc vừa được người khác cập nhật.{' '}
-          <button className="font-semibold underline" onClick={load}>
+          <button className="font-semibold underline" onClick={() => load({ discard: true })}>
             Tải lại
           </button>{' '}
           (thay đổi chưa lưu của bạn sẽ mất)
@@ -425,6 +455,7 @@ export default function TaskDetailModal({ taskId, onClose }) {
         {/* Cột chính */}
         <div className="scroll-thin space-y-6 overflow-y-auto px-6 py-5">
           <textarea
+            aria-label="Tên công việc"
             value={form.title}
             disabled={!canWrite}
             onChange={(e) => setF('title', e.target.value)}
@@ -434,6 +465,7 @@ export default function TaskDetailModal({ taskId, onClose }) {
 
           <Section icon="notes" title="Mô tả công việc">
             <textarea
+              aria-label="Mô tả công việc"
               disabled={!canWrite}
               className="textarea min-h-[100px] bg-slate-50/60"
               value={form.description}
@@ -856,7 +888,7 @@ export default function TaskDetailModal({ taskId, onClose }) {
         </span>
         {canWrite && (
           <span className="ml-auto flex gap-2">
-            <button className="btn-outline" onClick={load} disabled={!dirty}>
+            <button className="btn-outline" onClick={() => load({ discard: true })} disabled={!dirty}>
               Hủy
             </button>
             <button className="btn-primary" onClick={save} disabled={!dirty || saving}>
