@@ -14,7 +14,7 @@ const mondayOf = (d) => {
 };
 
 export default function Calendar() {
-  const { project, canWriteProject } = useApp();
+  const { project, canManageProject: canWriteProject } = useApp();
   const info = useProjectInfo(project?._id);
   const toast = useToast();
   const navigate = useNavigate();

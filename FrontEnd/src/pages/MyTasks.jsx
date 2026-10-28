@@ -19,7 +19,7 @@ function group(task) {
 const GROUPS = ['Quá hạn', 'Hôm nay', 'Tuần này', 'Sau này', 'Không có hạn'];
 
 export default function MyTasks() {
-  const { wsId, me, projects, setProjectId, role } = useApp();
+  const { wsId, me, projects, setProjectId } = useApp();
   const toast = useToast();
   const navigate = useNavigate();
   const [f, setF] = useState(DEFAULT);
@@ -173,7 +173,7 @@ export default function MyTasks() {
                     const blocked = (t.blockedBy || []).some((b) => b && b.status !== 'done');
                     return (
                       <div key={t._id} className="group flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50">
-                        <input type="checkbox" className="form-checkbox h-4 w-4 rounded text-blue-600" checked={t.status === 'done'} disabled={role === 'viewer'} onChange={() => toggleDone(t)} />
+                        <input type="checkbox" aria-label={`Duyệt hoàn thành ${t.key}`} className="form-checkbox h-4 w-4 rounded text-blue-600" checked={t.status === 'done'} disabled={!t.permissions?.canEdit} onChange={() => toggleDone(t)} />
                         <span className="w-16 shrink-0 font-mono text-label-md text-slate-400">{t.key}</span>
                         <button
                           className="min-w-0 flex-1 truncate text-left text-body-md text-slate-900 hover:text-blue-700"
@@ -202,9 +202,9 @@ export default function MyTasks() {
                         <span className="hidden w-12 text-label-md font-normal text-slate-500 xl:block">{t.subtasks.total ? `${t.subtasks.done}/${t.subtasks.total}` : ''}</span>
                         <span className="hidden w-8 items-center gap-0.5 text-label-md font-normal text-slate-400 xl:flex">{t.commentCount > 0 && <><Icon name="chat_bubble_outline" size={14} />{t.commentCount}</>}</span>
                         <Avatar user={t.assignee} size={24} />
-                        {role !== 'viewer' && (
+                        {t.permissions?.canUpdateProgress && (
                           <Select className="input hidden h-7 w-32 py-0 text-label-md group-hover:inline-flex" value={t.status} onChange={(e) => setStatus(t, e.target.value)} title="Đổi trạng thái nhanh">
-                            {STATUS_ORDER.map((st) => (
+                            {(t.permissions.allowedStatuses || []).map((st) => (
                               <option key={st} value={st}>
                                 {STATUS[st].label}
                               </option>

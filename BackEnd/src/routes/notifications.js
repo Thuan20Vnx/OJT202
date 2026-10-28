@@ -8,7 +8,8 @@ router.use(requireAuth);
 const TAB_TYPES = { assigned: ['assigned'], mentioned: ['mentioned'], due: ['due_soon', 'overdue'] };
 
 router.get('/', async (req, res) => {
-  const where = { user: req.user.id };
+  const permitted = { OR: [{ project: null }, { projectRef: { memberships: { some: { user: req.user.id } }, workspaceRef: { memberships: { some: { user: req.user.id } } } } }] };
+  const where = { user: req.user.id, AND: [permitted] };
   const workspace = isId(req.query.workspace) ? req.query.workspace : undefined;
   if (workspace) where.workspace = workspace;
   if (isId(req.query.project)) where.project = req.query.project;
@@ -25,7 +26,7 @@ router.get('/', async (req, res) => {
         ['project', 'project', { name: true, color: true }],
       ]),
     ),
-    prisma.notification.count({ where: { user: req.user.id, readAt: null, ...(workspace && { workspace }) } }),
+    prisma.notification.count({ where: { user: req.user.id, AND: [permitted], readAt: null, ...(workspace && { workspace }) } }),
   ]);
   res.json({ items, unread });
 });

@@ -19,12 +19,14 @@ const TASK_FIELDS = {
   priority: 'Đổi ưu tiên',
   title: 'Đổi tên',
   estimateHours: 'Đổi ước lượng',
+  remainingHours: 'Cập nhật giờ còn lại',
+  order: 'Sắp xếp công việc',
 };
 
 const comparable = (v) => (v instanceof Date ? v.toISOString() : String(v ?? null));
 
 /** So sánh trước/sau và ghi từng thay đổi chính của công việc. */
-export async function logTaskChanges({ task, actor, before, after, labels = {} }) {
+export function taskChangeEntries({ task, actor, before, after, labels = {} }) {
   const entries = [];
   for (const [field, action] of Object.entries(TASK_FIELDS)) {
     const b = before[field] ?? null;
@@ -43,5 +45,9 @@ export async function logTaskChanges({ task, actor, before, after, labels = {} }
       after: labels[field]?.(a) ?? a,
     });
   }
-  await logActivity(...entries);
+  return entries.map(toRow);
+}
+
+export async function logTaskChanges(change) {
+  await logActivity(...taskChangeEntries(change));
 }

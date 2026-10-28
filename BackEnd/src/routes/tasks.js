@@ -2,10 +2,11 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { USER, countBy, ilike, isId, nextSeq, populate, populateAll, prisma, subtaskCounts } from '../db.js';
 import { requireAuth } from '../middleware/auth.js';
-import { assertWrite, middlewareProject, taskAccess } from '../middleware/access.js';
-import { logActivity, logTaskChanges } from '../services/activity.js';
+import { assertWrite, assertManage, taskPermissions, middlewareProject, taskAccess } from '../middleware/access.js';
+import { logActivity, taskChangeEntries } from '../services/activity.js';
 import { notify } from '../services/notify.js';
 import { emitProject } from '../services/realtime.js';
+import { lockProject } from '../services/project-members.js';
 import { badRequest, conflict, forbidden, notFound, parse } from '../utils/http.js';
 import { plainText } from '../utils/security.js';
 
@@ -30,6 +31,7 @@ const taskFields = {
   dueDate: optDate,
   estimateHours: z.number().min(0).max(1000).nullable(),
   spentHours: z.number().min(0).max(1000),
+  remainingHours: z.number().min(0).max(1000).nullable(),
   labels: z.array(z.string().trim().min(1).max(40)).max(20),
   sprint: z.string().max(60),
   checklist: z.array(z.object({ text: z.string().trim().min(1).max(300), done: z.boolean().default(false) })).max(50),
@@ -38,7 +40,7 @@ const taskFields = {
 const STALE_MSG = 'Công việc vừa được người khác cập nhật. Dữ liệu đã được tải lại.';
 
 /** Nạp người nhận/người tạo/phụ thuộc + đếm việc con, bình luận, tệp – tất cả chạy song song trong một lượt */
-async function enrich(tasks) {
+async function enrich(tasks, access, userId) {
   const ids = tasks.map((t) => t.id);
   const [, subs, comments, files] = await Promise.all([
     populateAll(tasks, [
@@ -56,17 +58,23 @@ async function enrich(tasks) {
     commentCount: comments[t.id] || 0,
     fileCount: files[t.id] || 0,
     isBlocked: (t.blockedBy || []).some((b) => b && b.status !== 'done'),
+    ...(access && { permissions: taskPermissions(access, userId, { ...t, assignee: t.assignee?.id || t.assignee }) }),
   }));
 }
 
 async function loadTask(id) {
   const t = await prisma.task.findUnique({ where: { id } });
+  if (!t) return null;
   return (await enrich([t]))[0];
 }
 
-function assertAssignee(project, assignee) {
+async function assertAssignee(project, assignee, client = prisma) {
   if (assignee && !project.members.includes(assignee)) {
     throw badRequest('Người nhận phải là thành viên của dự án', { fields: { assignee: 'Chỉ thành viên của dự án mới được giao' } });
+  }
+  if (assignee) {
+    const member = await client.projectMember.findUnique({ where: { project_user: { project: project.id, user: assignee } } });
+    if (!member || member.role === 'viewer') throw badRequest('Không thể giao việc cho Project Viewer');
   }
 }
 
@@ -81,7 +89,7 @@ router.get('/projects/:projectId/tasks', middlewareProject(), async (req, res) =
   if (priority) where.priority = { in: listParam(priority, ['low', 'medium', 'high']) };
   if (search) where.OR = [{ title: ilike(search) }, { key: ilike(search) }];
   const tasks = await prisma.task.findMany({ where, orderBy: [{ order: 'asc' }, { number: 'asc' }] });
-  res.json({ tasks: await enrich(tasks) });
+  res.json({ tasks: await enrich(tasks, req.pa, req.user.id) });
 });
 
 router.get('/projects/:projectId/calendar', middlewareProject(), async (req, res) => {
@@ -110,7 +118,7 @@ router.get('/projects/:projectId/calendar', middlewareProject(), async (req, res
 });
 
 router.post('/projects/:projectId/tasks', middlewareProject(), async (req, res) => {
-  assertWrite(req.pa);
+  assertManage(req.pa);
   const body = parse(
     z.object({
       ...Object.fromEntries(Object.entries(taskFields).map(([k, v]) => [k, k === 'title' ? v : v.optional()])),
@@ -120,7 +128,7 @@ router.post('/projects/:projectId/tasks', middlewareProject(), async (req, res) 
     req.body,
   );
   const project = req.pa.project;
-  assertAssignee(project, body.assignee);
+  await assertAssignee(project, body.assignee);
   let parent = null;
   if (body.parent) {
     parent = isId(body.parent) ? await prisma.task.findFirst({ where: { id: body.parent, project: project.id } }) : null;
@@ -133,28 +141,34 @@ router.post('/projects/:projectId/tasks', middlewareProject(), async (req, res) 
   for (const dep of blockedBy || []) await addDependency(deps, dep);
   const number = await nextSeq(`task:${project.id}`);
   // Không tự suy diễn deadline: thiếu ngày thì để trống
-  const task = await prisma.task.create({
-    data: {
-      ...fields,
-      blockedBy: deps.blockedBy,
-      description: plainText(body.description || '', 20000),
-      dueDate: body.dueDate ?? null,
-      workspace: project.workspace,
-      project: project.id,
-      number,
-      key: `${project.keyPrefix}-${number}`,
-      creator: req.user.id,
-      parent: parent?.id ?? null,
-      sprint: body.sprint ?? project.sprint?.name ?? '',
-      order: Date.now(),
-      completedAt: body.status === 'done' ? new Date() : null,
-      reviewSince: body.status === 'review' ? new Date() : null,
-    },
+  const task = await prisma.$transaction(async (tx) => {
+    const current = await lockProject(tx, project.id, req.user.id);
+    await assertAssignee(current, body.assignee, tx);
+    const created = await tx.task.create({
+      data: {
+        ...fields,
+        blockedBy: deps.blockedBy,
+        description: plainText(body.description || '', 20000),
+        dueDate: body.dueDate ?? null,
+        workspace: project.workspace,
+        project: project.id,
+        number,
+        key: `${project.keyPrefix}-${number}`,
+        creator: req.user.id,
+        parent: parent?.id ?? null,
+        sprint: body.sprint ?? project.sprint?.name ?? '',
+        order: Date.now(),
+        completedAt: body.status === 'done' ? new Date() : null,
+        remainingHours: body.status === 'done' ? 0 : body.remainingHours ?? body.estimateHours ?? null,
+        reviewSince: body.status === 'review' ? new Date() : null,
+      },
+    });
+    await tx.activity.create({ data: { workspace: created.workspace, project: created.project, actor: req.user.id, action: 'Tạo công việc', entityType: 'task', entityId: created.id, entityLabel: `${created.key} ${created.title}` } });
+    return created;
   });
   const [full, parentFull] = await Promise.all([
     loadTask(task.id),
     parent && loadTask(parent.id),
-    logActivity({ workspace: task.workspace, project: task.project, actor: req.user.id, action: 'Tạo công việc', entityType: 'task', entityId: task.id, entityLabel: `${task.key} ${task.title}` }),
     task.assignee &&
       notify({
         user: task.assignee,
@@ -174,7 +188,8 @@ router.post('/projects/:projectId/tasks', middlewareProject(), async (req, res) 
 
 // ---------- Chi tiết ----------
 router.get('/tasks/:id', async (req, res) => {
-  const { task, canWrite, role, project } = await taskAccess(req.user.id, req.params.id);
+  const access = await taskAccess(req.user.id, req.params.id);
+  const { task, canWrite, role, project, projectRole, canManage } = access;
   // Mỗi phần tải song song rồi tự nạp dữ liệu liên quan – tổng cộng 2 lượt đi-về tới DB
   const [[full], subtasks, blocking, files, activity, parent] = await Promise.all([
     enrich([{ ...task }]),
@@ -191,7 +206,7 @@ router.get('/tasks/:id', async (req, res) => {
     parent,
     files,
     activity,
-    access: { canWrite, role, archived: project.status === 'archived' },
+    access: { canWrite, role, projectRole, canManage, ...taskPermissions(access, req.user.id), archived: project.status === 'archived' },
   });
 });
 
@@ -206,21 +221,40 @@ const ACTIVITY_LABELS = {
  * hai người cùng sửa thì người sau nhận 409 kèm bản mới để UI tải lại, không ghi đè lẫn nhau.
  */
 async function applyUpdate(req, before, project, patch) {
-  if (patch.assignee !== undefined) assertAssignee(project, patch.assignee);
   if (patch.description !== undefined) patch.description = plainText(patch.description, 20000);
-  if (patch.status && patch.status !== before.status) {
-    patch.completedAt = patch.status === 'done' ? new Date() : null;
-    patch.reviewSince = patch.status === 'review' ? new Date() : null;
-  }
-  // UPDATE … RETURNING: cập nhật và lấy bản mới trong cùng một câu lệnh
-  const [task] = await prisma.task.updateManyAndReturn({ where: { id: before.id, version: before.version }, data: { ...patch, version: { increment: 1 } } });
-  if (!task) throw conflict(STALE_MSG, { task: await loadTask(before.id) });
+  const task = await prisma.$transaction(async (tx) => {
+    // Shared with PM/member changes so a concurrent revoke cannot authorize a stale update.
+    await tx.$queryRaw`SELECT id FROM projects WHERE id = ${project.id}::uuid FOR UPDATE`;
+    const current = await tx.project.findUnique({ where: { id: project.id } });
+    const member = await tx.projectMember.findUnique({ where: { project_user: { project: project.id, user: req.user.id } } });
+    const wsMember = await tx.membership.findUnique({ where: { workspace_user: { workspace: project.workspace, user: req.user.id } } });
+    if (!member || !wsMember) throw notFound('Không tìm thấy công việc');
+    const access = { project: current, projectRole: wsMember.role === 'viewer' ? 'viewer' : member.role, canWrite: current.status !== 'archived' && wsMember.role !== 'viewer' && member.role !== 'viewer' };
+    assertWrite(access);
+    if (patch.assignee !== undefined) await assertAssignee(current, patch.assignee, tx);
+    const permissions = taskPermissions(access, req.user.id, before);
+    if (member.role !== 'pm') {
+      if (!permissions.canUpdateProgress) throw forbidden('Member chỉ cập nhật công việc mình nhận và chưa Done');
+      if (Object.keys(patch).some((k) => !['status', 'order', 'remainingHours'].includes(k))) throw forbidden('Member chỉ được cập nhật trạng thái, thứ tự và giờ còn lại');
+      if (patch.status && !permissions.allowedStatuses.includes(patch.status)) throw forbidden('Chỉ PM được duyệt Done hoặc mở lại công việc');
+    }
+    if (patch.status && patch.status !== before.status) {
+      patch.completedAt = patch.status === 'done' ? new Date() : null;
+      patch.reviewSince = patch.status === 'review' ? new Date() : null;
+    }
+    if (patch.status === 'done') patch.remainingHours = 0;
+    if (before.status === 'done' && patch.status && patch.status !== 'done' && patch.remainingHours === undefined) patch.remainingHours = null;
+    const [updated] = await tx.task.updateManyAndReturn({ where: { id: before.id, version: before.version }, data: { ...patch, version: { increment: 1 } } });
+    if (!updated) throw conflict(STALE_MSG);
+    for (const entry of taskChangeEntries({ task: updated, actor: req.user.id, before, after: updated, labels: ACTIVITY_LABELS })) {
+      await tx.activity.create({ data: entry });
+    }
+    return updated;
+  }).catch(async (e) => {
+    if (e.status === 409) throw conflict(STALE_MSG, { task: await loadTask(before.id) });
+    throw e;
+  });
 
-  const assigneeIds = [before.assignee, task.assignee].filter(Boolean);
-  const names =
-    task.assignee !== before.assignee && assigneeIds.length
-      ? Object.fromEntries((await prisma.user.findMany({ where: { id: { in: assigneeIds } }, select: { id: true, name: true } })).map((u) => [u.id, u.name]))
-      : {};
   const notifications = [];
   if (task.assignee && task.assignee !== before.assignee) {
     notifications.push({
@@ -239,7 +273,6 @@ async function applyUpdate(req, before, project, patch) {
   const [full, parentFull] = await Promise.all([
     loadTask(task.id),
     task.parent && loadTask(task.parent),
-    logTaskChanges({ task, actor: req.user.id, before, after: task, labels: { ...ACTIVITY_LABELS, assignee: (v) => (v ? names[v] : 'Chưa giao') } }),
     ...notifications.map((n) => notify({ ...n, actor: req.user.id, workspace: task.workspace, project: task.project, task: task.id })),
   ]);
   emitProject(task.project, 'task:changed', { task: full });
@@ -250,7 +283,7 @@ async function applyUpdate(req, before, project, patch) {
 router.patch('/tasks/:id', async (req, res) => {
   const access = await taskAccess(req.user.id, req.params.id);
   assertWrite(access);
-  const body = parse(z.object({ ...Object.fromEntries(Object.entries(taskFields).map(([k, v]) => [k, v.optional()])), version: z.number().int().optional() }), req.body);
+  const body = parse(z.object({ ...Object.fromEntries(Object.entries(taskFields).map(([k, v]) => [k, v.optional()])), version: z.number().int() }).strict(), req.body);
   const { version, ...patch } = body;
   if (version !== undefined && version !== access.task.version) throw conflict(STALE_MSG, { task: await loadTask(access.task.id) });
   res.json({ task: await applyUpdate(req, access.task, access.project, patch) });
@@ -269,7 +302,7 @@ router.post('/tasks/:id/move', async (req, res) => {
 
 router.delete('/tasks/:id', async (req, res) => {
   const access = await taskAccess(req.user.id, req.params.id);
-  assertWrite(access);
+  assertManage(access);
   const { task } = access;
   const children = await prisma.task.findMany({ where: { parent: task.id }, select: { id: true } });
   if (children.length && req.query.confirm !== 'true') {
@@ -315,7 +348,7 @@ async function addDependency(task, depId) {
 
 router.post('/tasks/:id/dependencies', async (req, res) => {
   const access = await taskAccess(req.user.id, req.params.id);
-  assertWrite(access);
+  assertManage(access);
   const { blockedBy } = parse(z.object({ blockedBy: z.string() }), req.body);
   const task = { ...access.task };
   const dep = await addDependency(task, blockedBy);
@@ -339,7 +372,7 @@ router.post('/tasks/:id/dependencies', async (req, res) => {
 
 router.delete('/tasks/:id/dependencies/:depId', async (req, res) => {
   const access = await taskAccess(req.user.id, req.params.id);
-  assertWrite(access);
+  assertManage(access);
   const { task } = access;
   await prisma.task.update({ where: { id: task.id }, data: { blockedBy: task.blockedBy.filter((b) => b !== req.params.depId), version: { increment: 1 } } });
   const full = await loadTask(task.id);

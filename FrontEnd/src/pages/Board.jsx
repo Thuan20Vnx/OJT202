@@ -6,6 +6,7 @@ import { api } from '../lib/api.js';
 import { useApp, useLoad, useToast } from '../lib/app.jsx';
 import { STATUS, STATUS_ORDER, dueInfo, fmtDate } from '../lib/format.js';
 import { useProjectInfo, useSocketEvent } from '../lib/hooks.js';
+import { taskActions } from '../lib/task-permissions.js';
 
 export function TaskCard({ task, draggable, onDragStart, onOpen }) {
   const due = dueInfo(task.dueDate, task.status);
@@ -81,7 +82,7 @@ export function TaskCard({ task, draggable, onDragStart, onOpen }) {
 }
 
 export default function Board() {
-  const { project, canWriteProject, role } = useApp();
+  const { project, canWriteProject, canManageProject, role, me } = useApp();
   const info = useProjectInfo(project?._id);
   const toast = useToast();
   const navigate = useNavigate();
@@ -133,6 +134,10 @@ export default function Board() {
     const task = all.find((t) => t._id === drag);
     setDrag(null);
     if (!task) return;
+    if (!taskActions(task, project, me).allowedStatuses.includes(status)) {
+      toast('Bạn chỉ chuyển được việc mình nhận đến Review. PM duyệt Done hoặc mở lại.', 'error');
+      return;
+    }
     const col = cols.find((c) => c.status === status).tasks.filter((t) => t._id !== task._id);
     const before = col[index - 1]?.order ?? (col[0] ? col[0].order - 1000 : Date.now());
     const after = col[index]?.order ?? before + 2000;
@@ -258,7 +263,7 @@ export default function Board() {
                   {STATUS[col.status].label}
                   <span className="rounded-full bg-slate-200 px-2 text-label-sm text-slate-600">{col.tasks.length}</span>
                 </span>
-                {canDrag && (
+                {canManageProject && (
                   <button className="icon-btn h-7 w-7" onClick={() => setCreating(col.status)} title="Thêm công việc">
                     <Icon name="add" size={18} />
                   </button>
@@ -269,7 +274,7 @@ export default function Board() {
                   <div key={t._id} data-card className={drag === t._id ? 'opacity-40' : ''}>
                     <TaskCard
                       task={t}
-                      draggable={canDrag}
+                      draggable={taskActions(t, project, me).canUpdateProgress}
                       onDragStart={(e) => {
                         e.dataTransfer.effectAllowed = 'move';
                         setDrag(t._id);
@@ -280,7 +285,7 @@ export default function Board() {
                 ))}
                 {!col.tasks.length && <p className="rounded-lg border border-dashed border-slate-300 py-6 text-center text-body-sm text-slate-400">Kéo thẻ vào đây</p>}
               </div>
-              {canDrag && (
+              {canManageProject && (
                 <button onClick={() => setCreating(col.status)} className="mt-2 flex items-center justify-center gap-1 rounded-lg py-1.5 text-label-md text-slate-500 hover:bg-white hover:text-slate-800">
                   <Icon name="add" size={16} /> Thêm công việc
                 </button>

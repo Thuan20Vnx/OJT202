@@ -109,7 +109,7 @@ function SearchBox() {
 }
 
 function TopBar({ onToggleSidebar, onCreate, sidebarOpen }) {
-  const { me, ws, role, unread, logout, theme, toggleTheme, project } = useApp();
+  const { me, ws, role, unread, logout, theme, toggleTheme, project, canManageProject } = useApp();
   const [lang, setLang] = useState(me?.language || 'vi');
   const loc = useLocation();
   const navigate = useNavigate();
@@ -178,7 +178,7 @@ function TopBar({ onToggleSidebar, onCreate, sidebarOpen }) {
           <Icon name="notifications" />
           {unread > 0 && <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" />}
         </button>
-        <button className="btn-primary hidden sm:inline-flex" onClick={onCreate} disabled={!project || project.status !== 'active' || role === 'viewer'}>
+        <button className="btn-primary hidden sm:inline-flex" onClick={onCreate} disabled={!canManageProject}>
           <Icon name="add" size={16} />
           Tạo công việc
         </button>

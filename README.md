@@ -79,7 +79,7 @@ Bảng, khóa ngoại, enum và chỉ mục được tạo bằng migration tron
 
 ### Lược đồ dữ liệu
 
-`BackEnd/prisma/schema.prisma` gồm 21 bảng: `users`, `sessions`, `tokens`, `workspaces`, `memberships`, `invites`, `projects`, `tasks`, `comments`, `documents`, `document_revisions`, `notifications`, `notification_prefs`, `activities`, `ai_calls`, `ai_drafts`, `ai_reports`, `ai_conversations`, `risk_resolutions`, `admin_audits`, `outbox` (+ `counters` đánh số công việc).
+`BackEnd/prisma/schema.prisma` gồm 23 bảng: `users`, `sessions`, `tokens`, `workspaces`, `memberships`, `invites`, `projects`, `project_members`, `tasks`, `comments`, `documents`, `document_revisions`, `notifications`, `notification_prefs`, `activities`, `ai_calls`, `ai_drafts`, `ai_reports`, `ai_conversations`, `risk_resolutions`, `admin_audits`, `outbox`, `counters` (đánh số công việc).
 
 - Khóa chính `uuid` (`gen_random_uuid()`), khóa ngoại có `ON DELETE CASCADE / SET NULL` phù hợp (xóa công việc ⇒ xóa bình luận, tệp đính kèm giữ lại).
 - Ràng buộc UNIQUE thay cho kiểm tra trong code: email, `(workspace, user)`, `(project, number)`, `(user, dedupeKey)` chống gửi trùng thông báo, `(project, aiDraftItem)` chống tạo trùng việc khi duyệt AI nhiều lần, `(document, version)`.
@@ -94,7 +94,8 @@ Xem/sửa dữ liệu trực quan: `npm --prefix BackEnd run db:studio` (Prisma 
 | Lệnh | Mô tả |
 |---|---|
 | `npm run dev` | Chạy AIService + BackEnd + FrontEnd (hot reload) |
-| `npm test` | Test AIService + 31 test tích hợp BackEnd theo tiêu chí nghiệm thu (PostgreSQL nhúng tạm thời + AIService chạy cùng tiến trình, không đụng dữ liệu dev) |
+| `npm test` | Test AIService, API/phân quyền và migration nâng dữ liệu cũ (PostgreSQL nhúng tạm thời, không đụng dữ liệu dev) |
+| `npm run test:e2e` | Build và kiểm thử Sprint 1 trên trình duyệt: đăng ký, tạo nhóm/dự án, giao việc, Member gửi Review, PM duyệt/mở lại/chuyển giao |
 | `npm --prefix BackEnd run db:migrate` | Áp dụng migration vào DB đang cấu hình |
 | `npm --prefix BackEnd run db:studio` | Mở Prisma Studio xem dữ liệu |
 | `npm run build` | Build frontend vào `FrontEnd/dist` |
@@ -134,6 +135,9 @@ Xem/sửa dữ liệu trực quan: `npm --prefix BackEnd run db:studio` (Prisma 
 - **CSRF**: mọi request ghi phải có header `x-taskflow: 1`; CORS chỉ cho `CLIENT_URL`.
 - **Cách ly dữ liệu**: mọi truy vấn đi qua `workspaceAccess` / `projectAccess`; người ngoài nhóm nhận 404 (không lộ sự tồn tại). Viewer không ghi, không kéo thả; dự án lưu trữ chỉ đọc; phòng Socket.io chỉ vào được sau khi kiểm quyền; thu hồi quyền đẩy user khỏi phòng ngay.
 - **Kanban**: mỗi công việc có `version`; bản cũ ⇒ **409** kèm dữ liệu mới để UI tải lại.
+- **Quyền dự án**: Owner/Admin tạo dự án và trở thành PM. Mỗi dự án có bảng `project_members` với vai trò PM/Member/Viewer; Owner/Admin ngoài membership không đọc được project private. PM quản thành viên, chuyển giao trước khi rời dự án; Workspace Viewer không được nâng thành Project Member/PM. Gỡ thành viên bỏ gán các task của người đó.
+- **Workflow**: Member chỉ đổi trạng thái công việc mình nhận theo To do → In progress → Review và cập nhật giờ còn lại. PM duyệt Done/mở lại; Done ghi `completedAt`, mở lại xóa thời điểm hoàn thành. PATCH task phải có `version`. Giao diện Kanban/My Tasks/chi tiết dùng cùng chính sách quyền.
+- **Workspace**: cho phép cùng tên; ID/slug phân biệt các workspace.
 - **Phụ thuộc**: chặn tự liên kết, khác dự án và chu trình.
 - **Tệp**: chỉ PDF/TXT/PNG/JPG ≤ 10MB, kiểm tra cả MIME lẫn chữ ký đầu tệp; tải xuống qua backend proxy kiểm membership mỗi lần; ảnh/scan không dùng cho AI.
 - **Bình luận**: loại bỏ HTML, chỉ sửa/xóa bình luận của mình, @mention chỉ người trong dự án.

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, download } from '../lib/api.js';
 import { useApp, useToast } from '../lib/app.jsx';
-import { PRIORITY, STATUS, STATUS_ORDER, dueInfo, fileIcon, fileSize, fmtDate, fmtDateTime, isoDate, timeAgo } from '../lib/format.js';
+import { PRIORITY, STATUS, dueInfo, fileIcon, fileSize, fmtDate, fmtDateTime, isoDate, timeAgo } from '../lib/format.js';
 import { useProjectInfo, useSocketEvent } from '../lib/hooks.js';
 import { MemberPicker } from './CreateTaskModal.jsx';
 import { Avatar, Confirm, Dropdown, Icon, MenuItem, Notice, PageLoader, Progress, Spinner, StatusChip } from './ui.jsx';
@@ -101,7 +101,7 @@ const renderBody = (body) =>
   );
 
 export default function TaskDetailModal({ taskId, onClose }) {
-  const { me, setProjectId } = useApp();
+  const { me, wsId, setWsId, setProjectId } = useApp();
   const toast = useToast();
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
@@ -134,6 +134,7 @@ export default function TaskDetailModal({ taskId, onClose }) {
         priority: d.task.priority,
         estimateHours: d.task.estimateHours ?? '',
         spentHours: d.task.spentHours ?? 0,
+        remainingHours: d.task.remainingHours ?? '',
         labels: d.task.labels || [],
       });
       setDirty(false);
@@ -149,8 +150,11 @@ export default function TaskDetailModal({ taskId, onClose }) {
     load();
   }, [load]);
   useEffect(() => {
-    if (data?.task?.project) setProjectId(data.task.project);
-  }, [data?.task?.project, setProjectId]);
+    if (data?.task?.project) {
+      if (data.task.workspace !== wsId) setWsId(data.task.workspace);
+      setProjectId(data.task.project);
+    }
+  }, [data?.task?.project, data?.task?.workspace, wsId, setWsId, setProjectId]);
 
   // Realtime: người khác sửa => tải lại (hoặc báo nếu mình đang sửa dở)
   useSocketEvent(
@@ -186,7 +190,8 @@ export default function TaskDetailModal({ taskId, onClose }) {
   }
 
   const { task, subtasks, blocking, files, activity, access, parent } = data;
-  const canWrite = access.canWrite;
+  const canWrite = access.canEdit;
+  const allowedStatuses = access.allowedStatuses || [];
   const due = dueInfo(task.dueDate, task.status);
   const setF = (k, v) => {
     setForm((f) => ({ ...f, [k]: v }));
@@ -220,6 +225,7 @@ export default function TaskDetailModal({ taskId, onClose }) {
         priority: form.priority,
         estimateHours: form.estimateHours === '' ? null : Number(form.estimateHours),
         spentHours: Number(form.spentHours) || 0,
+        remainingHours: form.remainingHours === '' ? null : Number(form.remainingHours),
         labels: form.labels,
       });
       setDirty(false);
@@ -232,7 +238,7 @@ export default function TaskDetailModal({ taskId, onClose }) {
   };
 
   const changeStatus = async (status) => {
-    await patch({ status }).catch(() => {});
+    try { await patch({ status }); await load(); } catch { /* patch hiển thị lỗi */ }
   };
 
   const addSub = async () => {
@@ -338,14 +344,14 @@ export default function TaskDetailModal({ taskId, onClose }) {
         <Dropdown
           align="left"
           trigger={
-            <button disabled={!canWrite} className={`chip h-7 cursor-pointer px-2.5 ${STATUS[task.status].chip}`}>
+            <button disabled={!allowedStatuses.length} aria-label="Đổi trạng thái công việc" className={`chip h-7 cursor-pointer px-2.5 ${STATUS[task.status].chip}`}>
               <span className={`h-1.5 w-1.5 rounded-full ${STATUS[task.status].dot}`} />
               {STATUS[task.status].label}
-              {canWrite && <Icon name="expand_more" size={14} />}
+              {!!allowedStatuses.length && <Icon name="expand_more" size={14} />}
             </button>
           }
         >
-          {STATUS_ORDER.map((s) => (
+          {allowedStatuses.map((s) => (
             <MenuItem key={s} onClick={() => changeStatus(s)}>
               <span className={`h-2 w-2 rounded-full ${STATUS[s].dot}`} />
               {STATUS[s].label}
@@ -358,7 +364,7 @@ export default function TaskDetailModal({ taskId, onClose }) {
             Đang bị chặn
           </span>
         )}
-        {!canWrite && <span className="chip h-7 border-slate-200 bg-slate-50 text-slate-500">{access.archived ? 'Dự án đã lưu trữ – chỉ xem' : 'Chỉ xem'}</span>}
+        {!canWrite && <span className="chip h-7 border-slate-200 bg-slate-50 text-slate-500">{access.archived ? 'Dự án đã lưu trữ – chỉ xem' : access.canUpdateProgress ? 'Cập nhật trạng thái và giờ còn lại' : 'Chỉ xem'}</span>}
         <div className="ml-auto flex items-center gap-1">
           <button
             className="btn-ghost btn-sm"
@@ -642,7 +648,7 @@ export default function TaskDetailModal({ taskId, onClose }) {
                     </div>
                   </div>
                 ))}
-                {!access.archived && <CommentBox members={members} onSend={sendComment} />}
+                {access.canWrite && <CommentBox members={members} onSend={sendComment} />}
               </div>
             ) : (
               <div className="space-y-3">
@@ -696,6 +702,15 @@ export default function TaskDetailModal({ taskId, onClose }) {
             </div>
             {Number(form.estimateHours) > 0 && <Progress value={(Number(form.spentHours) / Number(form.estimateHours)) * 100} className="mt-2" />}
             <p className="mt-1 text-label-md font-normal text-slate-400">Ước lượng / Đã làm (giờ)</p>
+          </Prop>
+          <Prop label="Giờ còn lại">
+            <input aria-label="Giờ còn lại" type="number" min="0" max="1000" disabled={!access.canUpdateProgress} className="input h-9" value={form.remainingHours} onChange={(e) => setF('remainingHours', e.target.value)} placeholder="Chưa ước lượng" />
+            {!canWrite && access.canUpdateProgress && <button className="btn-outline btn-sm mt-2" disabled={saving || !dirty} onClick={async () => {
+              setSaving(true);
+              try { await patch({ remainingHours: form.remainingHours === '' ? null : Number(form.remainingHours) }); await load(); toast('Đã cập nhật giờ còn lại'); }
+              catch { /* patch hiển thị lỗi */ }
+              finally { setSaving(false); }
+            }}>Lưu giờ còn lại</button>}
           </Prop>
           <Prop label="Nhãn">
             <div className="flex flex-wrap gap-1.5">
@@ -793,7 +808,7 @@ function Shell({ children, onClose }) {
   }, [onClose]);
   return (
     <div className="fixed inset-0 z-[55] flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-[2px]" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="animate-slide-in flex h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-pop">{children}</div>
+      <div role="dialog" aria-modal="true" aria-label="Chi tiết công việc" className="animate-slide-in flex h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-pop">{children}</div>
     </div>
   );
 }

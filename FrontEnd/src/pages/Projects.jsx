@@ -43,7 +43,7 @@ export default function Projects() {
     navigate('/overview');
   };
   const c = data?.counts || {};
-  const canCreate = role && role !== 'viewer';
+  const canCreate = ['owner', 'admin'].includes(role);
 
   return (
     <div className="mx-auto max-w-7xl p-6">
@@ -97,7 +97,7 @@ export default function Projects() {
           {data.projects.map((p) => {
             const pct = p.stats.total ? Math.round((p.stats.done / p.stats.total) * 100) : 0;
             const archived = p.status === 'archived';
-            const isManager = p.manager?._id === me?._id || ['owner', 'admin'].includes(role);
+            const isManager = p.projectRole === 'pm' && role !== 'viewer';
             return (
               <div key={p._id} className={`card p-4 transition-shadow hover:shadow-card ${archived ? 'opacity-75' : ''} ${view === 'list' ? 'flex items-center gap-4' : ''}`}>
                 <div className={view === 'list' ? 'min-w-0 flex-1' : ''}>
@@ -108,7 +108,7 @@ export default function Projects() {
                       {archived && <span className="chip border-slate-200 bg-slate-100 text-slate-500">Chỉ đọc</span>}
                     </button>
                     {isManager && (
-                      <Dropdown trigger={<button className="icon-btn h-7 w-7"><Icon name="more_horiz" /></button>}>
+                      <Dropdown trigger={<button aria-label={`Thao tác dự án ${p.name}`} className="icon-btn h-7 w-7"><Icon name="more_horiz" /></button>}>
                         {!archived && (
                           <MenuItem icon="edit" onClick={() => setEditing(p)}>
                             Sửa dự án
@@ -187,8 +187,8 @@ function ProjectModal({ open, project, members, meId, wsId, onClose, onSaved }) 
     setErrors({});
     setF(
       project
-        ? { name: project.name, description: project.description, color: project.color, startDate: isoDate(project.startDate), endDate: isoDate(project.endDate), members: project.members.map((m) => m._id) }
-        : { name: '', description: '', color: 'blue', startDate: '', endDate: '', members: meId ? [meId] : [] },
+        ? { name: project.name, description: project.description, color: project.color, startDate: isoDate(project.startDate), endDate: isoDate(project.endDate), members: project.members.map((m) => m._id), manager: project.manager?._id, memberRoles: project.memberRoles || {} }
+        : { name: '', description: '', color: 'blue', startDate: '', endDate: '', members: meId ? [meId] : [], memberRoles: {} },
     );
   }, [open, project, meId]);
   const dateError = f.startDate && f.endDate && f.endDate < f.startDate ? 'Ngày kết thúc không được trước ngày bắt đầu' : '';
@@ -254,14 +254,25 @@ function ProjectModal({ open, project, members, meId, wsId, onClose, onSaved }) 
             <input type="date" className={`input ${dateError ? 'input-error' : ''}`} value={f.endDate || ''} onChange={(e) => setF({ ...f, endDate: e.target.value })} />
           </Field>
         </div>
+        {project && (
+          <Field label="Chuyển giao PM" error={errors.manager}>
+            <select className="input" value={f.manager || ''} onChange={(e) => setF({ ...f, manager: e.target.value })}>
+              {sel.filter((m) => m.role !== 'viewer').map((m) => <option key={m._id} value={m._id}>{m.name}</option>)}
+            </select>
+            <p className="mt-1 text-body-sm text-slate-500">Chọn PM thay thế trước khi gỡ PM hiện tại. PM cũ trở thành Member sau khi lưu.</p>
+          </Field>
+        )}
         <div>
           <span className="label">Thành viên được gán</span>
           <div className="rounded-lg border border-slate-200 p-2">
             <div className="mb-2 flex flex-wrap gap-1.5">
               {sel.map((m) => (
-                <span key={m._id} className="chip h-7 border-slate-200 bg-slate-50 pl-1 text-slate-700">
+                <span key={m._id} className="chip min-h-7 h-auto border-slate-200 bg-slate-50 pl-1 text-slate-700">
                   <Avatar user={m} size={20} /> {m.name}
-                  <button onClick={() => toggle(m._id)}>
+                  <select aria-label={`Vai trò dự án của ${m.name}`} className="rounded border-slate-200 py-0 pl-1 pr-6 text-label-sm" disabled={m.role === 'viewer' || m._id === (f.manager || meId)} value={m._id === (f.manager || meId) ? 'pm' : f.memberRoles?.[m._id] || (m.role === 'viewer' ? 'viewer' : 'member')} onChange={(e) => setF({ ...f, memberRoles: { ...f.memberRoles, [m._id]: e.target.value } })}>
+                    <option value="pm">PM</option><option value="member">Member</option><option value="viewer">Viewer</option>
+                  </select>
+                  <button aria-label={`Gỡ ${m.name} khỏi dự án`} onClick={() => toggle(m._id)}>
                     <Icon name="close" size={12} />
                   </button>
                 </span>

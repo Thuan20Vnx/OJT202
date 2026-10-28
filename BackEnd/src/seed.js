@@ -50,7 +50,10 @@ export async function seedDemo() {
   for (const p of PEOPLE) await prisma.membership.create({ data: { workspace: ws.id, user: u[p.key].id, role: p.role, title: p.title, weeklyHours: 20 } });
 
   const all = PEOPLE.filter((p) => p.key !== 'linh').map((p) => u[p.key].id);
-  const project = (data) => prisma.project.create({ data: { workspace: ws.id, createdBy: u.maianh.id, ...data } });
+  const project = (data) => prisma.project.create({ data: {
+    workspace: ws.id, createdBy: u.maianh.id, ...data,
+    memberships: { create: data.members.map((user) => ({ user, role: user === data.manager ? 'pm' : user === u.linh.id ? 'viewer' : 'member' })) },
+  } });
   const website = await project({
     name: 'Dự án Website',
     description: 'Nền tảng web TaskFlow: Kanban, cộng tác thời gian thực và Trợ lý AI.',

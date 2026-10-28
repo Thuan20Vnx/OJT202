@@ -38,6 +38,12 @@ enum ProjectStatus {
   archived
 }
 
+enum ProjectRole {
+  pm
+  member
+  viewer
+}
+
 enum TaskStatus {
   todo
   in_progress
@@ -144,6 +150,7 @@ model User {
   invitesSent        Invite[]
   projectsManaged    Project[]          @relation("ProjectManager")
   projectsCreated    Project[]          @relation("ProjectCreator")
+  projectMemberships ProjectMember[]
   tasksAssigned      Task[]             @relation("TaskAssignee")
   tasksCreated       Task[]             @relation("TaskCreator")
   comments           Comment[]
@@ -304,10 +311,25 @@ model Project {
   aiReports       AiReport[]
   aiConversations AiConversation[]
   riskResolutions RiskResolution[]
+  memberships     ProjectMember[]
 
   @@index([workspace])
   @@index([members], type: Gin)
   @@map("projects")
+}
+
+// members/manager trong Project được giữ để tương thích API; cập nhật cùng transaction với bảng này.
+model ProjectMember {
+  project String      @map("project_id") @db.Uuid
+  user    String      @map("user_id") @db.Uuid
+  role    ProjectRole @default(member)
+
+  projectRef Project @relation(fields: [project], references: [id], onDelete: Cascade)
+  userRef    User    @relation(fields: [user], references: [id], onDelete: Cascade)
+
+  @@id([project, user])
+  @@index([user])
+  @@map("project_members")
 }
 
 model Task {
@@ -326,6 +348,7 @@ model Task {
   dueDate            DateTime?
   estimateHours      Float?
   spentHours         Float      @default(0)
+  remainingHours     Float?
   labels             String[]   @default([])
   sprint             String     @default("")
   parent             String?    @map("parent_id") @db.Uuid

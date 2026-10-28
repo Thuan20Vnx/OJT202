@@ -30,10 +30,10 @@ export function MemberPicker({ members = [], value, onChange, placeholder = 'Ch�
     return () => document.removeEventListener('mousedown', close);
   }, [open]);
   const sel = members.find((m) => m._id === value);
-  const list = members.filter((m) => m.role !== 'viewer' && m.name.toLowerCase().includes(q.toLowerCase()));
+  const list = members.filter((m) => m.role !== 'viewer' && m.projectRole !== 'viewer' && m.name.toLowerCase().includes(q.toLowerCase()));
   return (
     <div className="relative" ref={ref}>
-      <button type="button" onClick={() => setOpen((o) => !o)} className="input flex items-center justify-between gap-2 text-left">
+      <button type="button" aria-label="Chọn người nhận" onClick={() => setOpen((o) => !o)} className="input flex items-center justify-between gap-2 text-left">
         <span className="flex min-w-0 items-center gap-2">
           <Avatar user={sel} size={22} />
           <span className={`truncate ${sel ? 'text-slate-800' : 'text-slate-400'}`}>{sel ? sel.name : placeholder}</span>

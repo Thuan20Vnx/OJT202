@@ -8,6 +8,10 @@
     "build": "npm --prefix FrontEnd run build",
     "start": "npm --prefix BackEnd start",
     "start:ai": "npm --prefix AIService start",
-    "test": "npm --prefix AIService test && npm --prefix BackEnd test"
+    "test": "npm --prefix AIService test && npm --prefix BackEnd test",
+    "test:e2e": "npm run build && node --test --test-concurrency=1 test/e2e/sprint1.test.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.64.1"
   }
 }

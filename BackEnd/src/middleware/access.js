@@ -5,7 +5,10 @@ export const ROLE_RANK = { viewer: 0, member: 1, admin: 2, owner: 3 };
 export const atLeast = (role, min) => ROLE_RANK[role] >= ROLE_RANK[min];
 
 // Kèm membership của user trong workspace của dự án – lấy cùng dự án bằng một câu JOIN
-const withMembership = (userId) => ({ workspaceRef: { select: { memberships: { where: { user: userId }, take: 1 } } } });
+const withMembership = (userId) => ({
+  workspaceRef: { select: { memberships: { where: { user: userId }, take: 1 } } },
+  memberships: { where: { user: userId }, take: 1 },
+});
 
 /** Trả về membership của user trong workspace, hoặc ném 404 (không lộ sự tồn tại của workspace khác). */
 export async function workspaceAccess(userId, workspaceId) {
@@ -17,19 +20,19 @@ export async function workspaceAccess(userId, workspaceId) {
 }
 
 /**
- * Quyền đọc dự án: thành viên workspace VÀ (được gán vào dự án HOẶC là Owner/Admin).
+ * Dự án private: phải có cả workspace membership và project membership.
  * Trả thêm canWrite: Viewer không ghi; dự án lưu trữ chỉ đọc.
  */
 function checkProject(found, userId) {
   if (!found) throw notFound('Không tìm thấy dự án');
-  const { workspaceRef, ...project } = found;
+  const { workspaceRef, memberships, ...project } = found;
   const membership = workspaceRef.memberships[0];
   if (!membership) throw notFound('Không tìm thấy dự án');
-  const assigned = project.members.includes(userId);
-  if (!assigned && !atLeast(membership.role, 'admin')) throw notFound('Không tìm thấy dự án');
-  const canWrite = membership.role !== 'viewer' && project.status !== 'archived';
-  const canManage = project.status !== 'archived' && (atLeast(membership.role, 'admin') || project.manager === userId);
-  return { project, membership, role: membership.role, canWrite, canManage };
+  if (!memberships.length) throw notFound('Không tìm thấy dự án');
+  const projectRole = membership.role === 'viewer' ? 'viewer' : memberships[0].role;
+  const canWrite = projectRole !== 'viewer' && project.status !== 'archived';
+  const canManage = project.status !== 'archived' && projectRole === 'pm';
+  return { project, membership, projectRole, role: projectRole === 'viewer' ? 'viewer' : membership.role, canWrite, canManage };
 }
 
 export async function projectAccess(userId, projectId) {
@@ -60,11 +63,22 @@ export function assertWrite(access, msg) {
   }
 }
 
+export function assertManage(access) {
+  if (!access.canManage) throw forbidden(access.project.status === 'archived' ? 'Dự án đã lưu trữ, chỉ được xem' : 'Chỉ PM được thực hiện thao tác này');
+}
+
+// Dùng chung cho API và các view Kanban/list/detail; quyền ghi nội dung khác quyền đổi trạng thái.
+export function taskPermissions(access, userId, task = access.task) {
+  const canUpdate = access.canWrite && (access.projectRole === 'pm' || (task.assignee === userId && task.status !== 'done'));
+  const allowedStatuses = !canUpdate ? [] : access.projectRole === 'pm'
+    ? ['todo', 'in_progress', 'review', 'done']
+    : ({ todo: ['todo', 'in_progress'], in_progress: ['todo', 'in_progress', 'review'], review: ['in_progress', 'review'] }[task.status] || []);
+  return { canEdit: access.canManage, canUpdateProgress: canUpdate, allowedStatuses };
+}
+
 /** Điều kiện lọc dự án user được đọc trong một workspace (dùng lồng vào truy vấn khác, không tốn thêm lượt). */
 export function readableProjectsWhere(userId, workspaceId, role) {
-  const where = { workspace: workspaceId };
-  if (!atLeast(role, 'admin')) where.members = { has: userId };
-  return where;
+  return { workspace: workspaceId, memberships: { some: { user: userId } } };
 }
 
 /** Danh sách id dự án user được đọc trong một workspace. */

@@ -114,8 +114,17 @@ router.post('/invites/:token/accept', async (req, res) => {
       update: {},
     });
     // Thêm vào các dự án được chỉ định (không trùng)
-    const projects = await tx.project.findMany({ where: { id: { in: inv.projects }, workspace: inv.workspace, NOT: { members: { has: userId } } }, select: { id: true } });
-    for (const p of projects) await tx.project.update({ where: { id: p.id }, data: { members: { push: userId } } });
+    const projects = await tx.project.findMany({ where: { id: { in: inv.projects }, workspace: inv.workspace }, orderBy: { id: 'asc' }, select: { id: true } });
+    const membership = await tx.membership.findUnique({ where: { workspace_user: { workspace: inv.workspace, user: userId } } });
+    for (const p of projects) {
+      await tx.$queryRaw`SELECT id FROM projects WHERE id = ${p.id}::uuid FOR UPDATE`;
+      const current = await tx.project.findUnique({ where: { id: p.id } });
+      const inviter = await tx.projectMember.findUnique({ where: { project_user: { project: p.id, user: inv.invitedBy } } });
+      if (current.status === 'archived' || inviter?.role !== 'pm') throw badRequest('Lời mời dự án không còn hiệu lực');
+      if (current.members.includes(userId)) continue;
+      await tx.project.update({ where: { id: p.id }, data: { members: { push: userId } } });
+      await tx.projectMember.create({ data: { project: p.id, user: userId, role: membership.role === 'viewer' ? 'viewer' : 'member' } });
+    }
     await tx.invite.update({ where: { id: inv.id }, data: { acceptedAt: new Date() } });
   });
   await logActivity({

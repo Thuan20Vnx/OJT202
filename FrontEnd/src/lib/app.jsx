@@ -178,6 +178,12 @@ export function AppProvider({ children }) {
     setWs(null);
   }, []);
 
+  const setWorkspaceId = useCallback((id) => {
+    setWsId(id);
+    store.set('tf_ws', id);
+    setProjectId(null);
+  }, [setProjectId]);
+
   const value = {
     me,
     setMe,
@@ -185,11 +191,7 @@ export function AppProvider({ children }) {
     offline,
     workspaces,
     wsId: activeWsId,
-    setWsId: (id) => {
-      setWsId(id);
-      store.set('tf_ws', id);
-      setProjectId(null);
-    },
+    setWsId: setWorkspaceId,
     ws,
     role: ws?.role,
     projects,
@@ -204,7 +206,8 @@ export function AppProvider({ children }) {
     logout,
     theme,
     toggleTheme: () => setTheme((t) => (t === 'dark' ? 'light' : 'dark')),
-    canWriteProject: project && project.status === 'active' && ws?.role !== 'viewer',
+    canWriteProject: project && project.status === 'active' && project.projectRole !== 'viewer' && ws?.role !== 'viewer',
+    canManageProject: project && project.status === 'active' && project.projectRole === 'pm' && ws?.role !== 'viewer',
   };
   return <AppCtx.Provider value={value}>{children}</AppCtx.Provider>;
 }
