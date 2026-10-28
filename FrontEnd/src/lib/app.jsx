@@ -3,7 +3,7 @@ import { api, onUnauthorized } from './api.js';
 import { closeSocket, getSocket, joinProject } from './socket.js';
 import { setTimeZone } from './dates.js';
 
-const AppCtx = createContext(null);
+export const AppCtx = createContext(null);
 const ToastCtx = createContext(() => {});
 
 const store = {
@@ -258,28 +258,50 @@ export const useApp = () => useContext(AppCtx);
 
 /** Hook tải dữ liệu đơn giản: trả { data, error, loading, reload, setData } */
 export function useLoad(fn, deps) {
-  const [state, setState] = useState({ data: null, error: null, loading: true });
+  const scope = useMemo(() => ({}), deps);
+  const currentScope = useRef(scope);
+  currentScope.current = scope;
+  const mounted = useRef(false);
+  const initial = { scope, data: null, error: null, loading: true };
+  const [state, setState] = useState(initial);
   const seq = useRef(0);
   const run = useCallback(async () => {
+    if (!mounted.current || currentScope.current !== scope) return null;
     const id = ++seq.current;
-    setState((s) => ({ ...s, loading: true }));
+    const isCurrent = () => mounted.current && currentScope.current === scope && id === seq.current;
+    setState((s) => ({ ...(s.scope === scope ? s : initial), error: null, loading: true }));
     try {
       const data = await fn();
-      if (id === seq.current) setState({ data, error: null, loading: false });
+      if (isCurrent()) setState({ scope, data, error: null, loading: false });
       return data;
     } catch (error) {
-      if (id === seq.current) setState((s) => ({ ...s, error, loading: false }));
+      if (isCurrent()) setState((s) => ({ ...s, error, loading: false }));
       return null;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, deps);
+  }, [scope]);
   useEffect(() => {
+    mounted.current = true;
     run();
+    return () => { mounted.current = false; seq.current++; };
   }, [run]);
   useEffect(() => {
     const onResync = () => run();
     window.addEventListener('tf:resync', onResync);
     return () => window.removeEventListener('tf:resync', onResync);
   }, [run]);
-  return { ...state, reload: run, setData: (d) => setState((s) => ({ ...s, data: typeof d === 'function' ? d(s.data) : d })) };
+  const visible = state.scope === scope ? state : initial;
+  return {
+    data: visible.data,
+    error: visible.error,
+    loading: visible.loading,
+    reload: run,
+    setData: (d) => {
+      if (!mounted.current || currentScope.current !== scope) return;
+      setState((s) => {
+        const current = s.scope === scope ? s : initial;
+        return { ...current, data: typeof d === 'function' ? d(current.data) : d };
+      });
+    },
+  };
 }

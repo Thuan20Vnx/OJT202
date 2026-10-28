@@ -50,10 +50,10 @@ export default function Ai() {
       {u && !u.enabled && (
         <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-body-sm text-amber-800">Trợ lý AI đang tắt cho workspace này. Owner/Admin có thể bật lại trong Cài đặt Workspace › Trợ lý AI.</div>
       )}
-      {tab === 'planner' && <Planner {...props} />}
-      {tab === 'report' && <Report {...props} />}
-      {tab === 'qa' && <Qa {...props} />}
-      {tab === 'meeting' && <Meeting {...props} />}
+      {tab === 'planner' && <Planner key={project._id} {...props} />}
+      {tab === 'report' && <Report key={project._id} {...props} />}
+      {tab === 'qa' && <Qa key={project._id} {...props} />}
+      {tab === 'meeting' && <Meeting key={project._id} {...props} />}
     </div>
   );
 }

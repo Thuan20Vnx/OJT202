@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { MemberPicker } from '../../components/CreateTaskModal.jsx';
 import { Avatar, Icon, PriorityChip, Select, Spinner } from '../../components/ui.jsx';
 import { api } from '../../lib/api.js';
@@ -11,19 +11,26 @@ export default function DraftItems({ draft, setDraft, members, title, onApproved
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({});
   const [busy, setBusy] = useState(false);
+  const pending = useRef(false);
   const readOnly = draft.status !== 'draft' || !canManage;
   const items = draft.items;
   const selected = items.filter((i) => i.selected);
   const hours = selected.reduce((s, i) => s + (i.estimateHours || 0), 0);
 
   const patch = async (body) => {
+    if (pending.current || readOnly || regenerating) return false;
+    pending.current = true;
+    setBusy(true);
     try {
       const d = await api.patch(`/ai/drafts/${draft._id}`, body);
-      setDraft(d.draft);
+      setDraft((current) => current?._id === draft._id ? d.draft : current);
       return true;
     } catch (e) {
       toast(e.message, 'error');
       return false;
+    } finally {
+      pending.current = false;
+      setBusy(false);
     }
   };
   const startEdit = (it) => {
@@ -59,25 +66,38 @@ export default function DraftItems({ draft, setDraft, members, title, onApproved
     if (saved) setEditing(null);
   };
   const approve = async () => {
+    if (pending.current || readOnly || regenerating || editing) return;
+    pending.current = true;
     setBusy(true);
     try {
       const d = await api.post(`/ai/drafts/${draft._id}/approve`);
       toast(`Đã tạo ${d.created.length} công việc vào dự án`);
-      setDraft({ ...draft, status: 'approved' });
+      setDraft((current) => current?._id === draft._id ? { ...current, status: 'approved' } : current);
       onApproved?.(d.created);
     } catch (e) {
       toast(e.message, 'error');
     } finally {
+      pending.current = false;
       setBusy(false);
     }
   };
   const discard = async () => {
-    await api.post(`/ai/drafts/${draft._id}/discard`);
-    setDraft(null);
+    if (pending.current || readOnly || regenerating) return;
+    pending.current = true;
+    setBusy(true);
+    try {
+      await api.post(`/ai/drafts/${draft._id}/discard`);
+      setDraft((current) => current?._id === draft._id ? null : current);
+    } catch (e) {
+      toast(e.message, 'error');
+    } finally {
+      pending.current = false;
+      setBusy(false);
+    }
   };
 
   return (
-    <div className="flex min-h-0 flex-col">
+    <fieldset disabled={busy || regenerating} className="flex min-h-0 min-w-0 flex-col">
       <div className="card mb-3 flex flex-wrap items-center gap-3 px-4 py-3">
         <h2 className="text-headline-sm text-slate-900">
           {title} ({items.length} việc)
@@ -115,7 +135,7 @@ export default function DraftItems({ draft, setDraft, members, title, onApproved
       </div>
       <div className="space-y-3 pb-24">
         {items.map((it) =>
-          editing === it.key ? (
+          editing === it.key && !readOnly ? (
             <div key={it.key} className="card border-blue-300 p-4 ring-2 ring-blue-100">
               <div className="mb-3 flex items-center justify-between">
                 <span className="flex items-center gap-1.5 text-label-sm uppercase tracking-wider text-blue-700">
@@ -248,12 +268,12 @@ export default function DraftItems({ draft, setDraft, members, title, onApproved
               {regenerating ? <Spinner /> : <Icon name="refresh" size={16} />} Tạo lại
             </button>
           )}
-          <button className="btn-primary" onClick={approve} disabled={busy || !selected.length}>
+          <button className="btn-primary" onClick={approve} disabled={busy || !!editing || !selected.length} title={editing ? 'Lưu hoặc hủy chỉnh sửa trước khi duyệt' : undefined}>
             {busy ? <Spinner /> : <Icon name="check_circle" size={16} />}
             Duyệt & tạo {selected.length} công việc
           </button>
         </div>
       )}
-    </div>
+    </fieldset>
   );
 }

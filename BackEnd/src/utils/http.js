@@ -29,7 +29,21 @@ export function pagination(query, defaultLimit = 20) {
 /** Validate body/query bằng zod, trả lỗi 400 với thông điệp tiếng Việt từng trường. */
 export function parse(schema, data) {
   try {
-    return schema.parse(data);
+    const parsed = schema.parse(data);
+    // PostgreSQL text and JSONB cannot store NUL. Check accepted fields before
+    // any database work, including nested arrays such as task checklists.
+    const pending = [[parsed, '']];
+    while (pending.length) {
+      const [value, path] = pending.pop();
+      if (typeof value === 'string' && value.includes('\u0000')) {
+        const message = 'Văn bản không được chứa ký tự NUL';
+        throw badRequest(message, { fields: { [path || '_']: message } });
+      }
+      if (value && typeof value === 'object') {
+        for (const [key, child] of Object.entries(value)) pending.push([child, path ? `${path}.${key}` : key]);
+      }
+    }
+    return parsed;
   } catch (e) {
     if (e instanceof ZodError) {
       const fields = {};

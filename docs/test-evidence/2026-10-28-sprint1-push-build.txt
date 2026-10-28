@@ -1,0 +1,29 @@
+
+> build
+> npm --prefix FrontEnd run build
+
+
+> taskflow-client@1.0.0 build
+> vite build
+
+vite v6.4.5 building for production...
+transforming...
+✓ 124 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                                          0.78 kB │ gzip:   0.50 kB
+dist/assets/inter-vietnamese-wght-normal-CBcvBZtf.woff2                 10.25 kB
+dist/assets/inter-greek-ext-wght-normal-DlzME5K_.woff2                  11.23 kB
+dist/assets/inter-cyrillic-wght-normal-DqGufNeO.woff2                   18.75 kB
+dist/assets/inter-greek-wght-normal-CkhJZR-_.woff2                      19.00 kB
+dist/assets/inter-cyrillic-ext-wght-normal-BOeWTOD4.woff2               25.96 kB
+dist/assets/inter-latin-wght-normal-Dx4kXJAl.woff2                      48.26 kB
+dist/assets/inter-latin-ext-wght-normal-DO1Apj_S.woff2                  85.07 kB
+dist/assets/material-symbols-outlined-latin-400-normal-BhEvR8fk.woff2  323.33 kB
+dist/assets/material-symbols-outlined-latin-400-normal-QdgSk6Ss.woff   379.56 kB
+dist/assets/index-DneLsJtB.css                                          68.74 kB │ gzip:  11.83 kB
+dist/assets/Admin-RrpQLiT3.js                                            9.83 kB │ gzip:   3.36 kB
+dist/assets/Documents-hYMS6fDT.js                                       13.66 kB │ gzip:   4.71 kB
+dist/assets/Ai-CipVk9_8.js                                              38.24 kB │ gzip:  10.32 kB
+dist/assets/index-DyYjUXJl.js                                          464.72 kB │ gzip: 136.41 kB
+✓ built in 2.25s

@@ -1,0 +1,57 @@
+[seed] Tạo dữ liệu demo Nhóm 24…
+[seed] Xong. Đăng nhập: mai.anh@nhom24.edu.vn / TaskFlow@2026  (System Admin: admin@taskflow.local)
+▶ Rà soát 26/10 vòng 2: phạm vi thông báo và thời gian phiên
+  ✖ workspace sai không được biến read-all thành đánh dấu toàn bộ tài khoản (472.8366ms)
+  ✖ phiên trả lastUsedAt thực thay vì thời điểm sửa bản ghi (99.7186ms)
+✖ Rà soát 26/10 vòng 2: phạm vi thông báo và thời gian phiên (5209.4427ms)
+ℹ tests 2
+ℹ suites 1
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6619.1376
+
+✖ failing tests:
+
+test at test\api.test.js:517:3
+✖ workspace sai không được biến read-all thành đánh dấu toàn bộ tài khoản (472.8366ms)
+  AssertionError [ERR_ASSERTION]: {"ok":true,"updated":1}
+
+  200 !== 400
+
+      at TestContext.<anonymous> (file:///D:/Desktop/Nhom24/OJT202/BackEnd/test/api.test.js:522:14)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Promise.all (index 0)
+      at async Suite.run (node:internal/test_runner/test:1619:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 200,
+    expected: 400,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test\api.test.js:531:3
+✖ phiên trả lastUsedAt thực thay vì thời điểm sửa bản ghi (99.7186ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + '2026-10-26T02:33:03.796Z'
+  - '2026-01-02T03:04:05.000Z'
+          ^
+
+      at TestContext.<anonymous> (file:///D:/Desktop/Nhom24/OJT202/BackEnd/test/api.test.js:538:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '2026-10-26T02:33:03.796Z',
+    expected: '2026-01-02T03:04:05.000Z',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

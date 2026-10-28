@@ -5,7 +5,7 @@ import { api } from '../../lib/api.js';
 import { useApp, useLoad, useToast } from '../../lib/app.jsx';
 import { dates } from '../../lib/dates.js';
 import { History } from './Planner.jsx';
-import { useProjectInfo } from '../../lib/hooks.js';
+import { useLatestRequest, useProjectInfo } from '../../lib/hooks.js';
 
 const DAY = 86400000;
 
@@ -22,37 +22,57 @@ export default function Report({ project, onUsage, disabled }) {
   const [error, setError] = useState(null);
   const [editing, setEditing] = useState(null);
   const [text, setText] = useState('');
+  const beginRequest = useLatestRequest();
   const history = useLoad(() => api.get(`/projects/${project._id}/ai/reports`), [project._id, report?._id, report?.status]);
 
   const generate = async () => {
+    const current = beginRequest();
     setBusy(true);
+    setSaving(false);
     setError(null);
     try {
       const d = await api.post(`/projects/${project._id}/ai/reports`, f);
-      setReport(d.report);
+      if (current()) { setReport(d.report); setEditing(null); }
     } catch (e) {
-      setError(e);
+      if (current()) setError(e);
     } finally {
-      setBusy(false);
+      if (current()) setBusy(false);
       onUsage();
     }
   };
-  const open = async (id) => setReport((await api.get(`/ai/reports/${id}`)).report);
+  const open = async (id) => {
+    const current = beginRequest();
+    setBusy(true);
+    setSaving(false);
+    setError(null);
+    try {
+      const d = await api.get(`/ai/reports/${id}`);
+      if (current()) { setReport(d.report); setEditing(null); }
+    } catch (e) {
+      if (current()) setError(e);
+    } finally {
+      if (current()) setBusy(false);
+    }
+  };
   const save = async (body, msg) => {
+    if (busy || saving) return false;
+    const current = beginRequest();
     setSaving(true);
     try {
       const d = await api.patch(`/ai/reports/${report._id}`, body);
+      if (!current()) return false;
       setReport(d.report);
       if (msg) toast(msg);
+      return true;
     } catch (e) {
-      toast(e.message, 'error');
+      if (current()) toast(e.message, 'error');
+      return false;
     } finally {
-      setSaving(false);
+      if (current()) setSaving(false);
     }
   };
   const saveSection = async (key) => {
-    await save({ sections: [{ key, body: text }] });
-    setEditing(null);
+    if (await save({ sections: [{ key, body: text }] })) setEditing(null);
   };
   const exportTxt = () => {
     const body = `${report.title}\n\n${report.sections.map((s) => `## ${s.title}\n${s.body}`).join('\n\n')}`;
@@ -60,6 +80,7 @@ export default function Report({ project, onUsage, disabled }) {
     a.href = URL.createObjectURL(new Blob([body], { type: 'text/plain;charset=utf-8' }));
     a.download = `${report.title}.txt`;
     a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   };
   const s = report?.stats;
   const mine = report && (report.user?._id || report.user) === me?._id;
@@ -146,7 +167,7 @@ export default function Report({ project, onUsage, disabled }) {
             <div className="card mb-3 flex flex-wrap items-center gap-3 px-4 py-3">
               <input
                 key={report._id}
-                readOnly={!canManage || !mine}
+                readOnly={!canManage || !mine || busy || saving}
                 className="min-w-0 flex-1 border-0 bg-transparent p-0 text-headline-sm text-slate-900 focus:ring-0"
                 defaultValue={report.title}
                 onBlur={(e) => canManage && mine && e.target.value !== report.title && save({ title: e.target.value })}
@@ -168,19 +189,19 @@ export default function Report({ project, onUsage, disabled }) {
                       {sec.aiSuggested && <span className="chip border-purple-200 bg-purple-50 text-purple-700">Gợi ý AI</span>}
                     </h3>
                     {canManage && mine && editing !== sec.key && (
-                      <button className="icon-btn h-7 w-7" onClick={() => (setEditing(sec.key), setText(sec.body))} title="Sửa">
+                      <button className="icon-btn h-7 w-7" disabled={busy || saving} onClick={() => (setEditing(sec.key), setText(sec.body))} title="Sửa">
                         <Icon name="edit" size={16} />
                       </button>
                     )}
                   </div>
                   {editing === sec.key ? (
                     <>
-                      <textarea className="textarea min-h-[120px]" value={text} onChange={(e) => setText(e.target.value)} />
+                      <textarea className="textarea min-h-[120px]" disabled={busy || saving} value={text} onChange={(e) => setText(e.target.value)} />
                       <div className="mt-2 flex justify-end gap-2">
-                        <button className="btn-outline btn-sm" onClick={() => setEditing(null)}>
+                        <button className="btn-outline btn-sm" disabled={saving} onClick={() => setEditing(null)}>
                           Hủy
                         </button>
-                        <button className="btn-primary btn-sm" onClick={() => saveSection(sec.key)} disabled={saving}>
+                        <button className="btn-primary btn-sm" onClick={() => saveSection(sec.key)} disabled={saving || busy}>
                           Lưu sửa
                         </button>
                       </div>
@@ -216,7 +237,7 @@ export default function Report({ project, onUsage, disabled }) {
                 <Icon name="refresh" size={16} /> Tạo lại
               </button>
               {report.status !== 'shared' && mine && canManage && (
-                <button className="btn-primary" onClick={() => save({ share: true }, 'Đã lưu & chia sẻ báo cáo trong dự án')} disabled={saving}>
+                <button className="btn-primary" onClick={() => save({ share: true }, 'Đã lưu & chia sẻ báo cáo trong dự án')} disabled={saving || busy}>
                   {saving ? <Spinner /> : <Icon name="share" size={16} />} Lưu & chia sẻ nội bộ
                 </button>
               )}

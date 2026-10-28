@@ -2,8 +2,6 @@
 
 Đồ án Nhóm 24 (Hoàng Anh, Thuận, Như, Lộc, Đạt, Hiệp). Giao diện dựng theo 23 màn hình thiết kế trên Stitch (dự án *TaskFlow Kanban Interface*), nghiệp vụ theo Product Backlog trong `DN26_CPL_Mock_Project_Nhom24.xlsx`.
 
-| Thành phần | Công nghệ |
-|---|---|
 | Thư mục | Thành phần | Công nghệ |
 |---|---|---|
 | `FrontEnd/` | Giao diện web | React 18 + Vite + Tailwind CSS (Inter, Material Symbols – đúng design system Stitch v2) |
@@ -200,7 +198,13 @@ taskflow/
 
 ## Thay đổi nhánh Loc (23/10/2026)
 
-Cập nhật rà soát ngày 25/10/2026: [lỗi đã sửa và bằng chứng kiểm tra](docs/LOC_REVIEW_2026-10-25.md), gồm phân quyền khi thao tác đồng thời, bảo toàn tài liệu dài/TXT, phiên đăng nhập và màn hình Việc của tôi. Bộ kiểm thử hiện có 102 backend + 16 AIService + 7 frontend.
+Đối chiếu Sprint 1 ngày 28/10/2026 theo workbook mới `(1).xlsx`: [trạng thái phần Lộc và điều kiện đưa vào main](docs/LOC_SPRINT1_READINESS_2026-10-28.md). Test chuẩn và build đạt, nhưng còn lỗi tái hiện và yêu cầu chưa triển khai nên chưa xác nhận Sprint 1 hoàn tất.
+
+Cập nhật rà soát ngày 26/10/2026, vòng 2: [lỗi đã sửa và bằng chứng kiểm tra](docs/REVIEW_2026-10-26_ROUND2.md), gồm cài đặt AI, lời mời, phản hồi lỗi bảo mật, tải tệp và phạm vi thông báo. Bộ kiểm thử hiện có **111 backend + 16 AIService + 30 frontend = 157 ca**.
+
+Rà soát ngày 26/10/2026, vòng 1: [lỗi đã sửa và bằng chứng kiểm tra](docs/REVIEW_2026-10-26.md), gồm dữ liệu và quyền cũ trên giao diện, thao tác AI bất đồng bộ, lưu/duyệt nháp, dữ liệu NUL và nhắc hạn dự án lưu trữ. Kết quả đợt đó: 109 backend + 16 AIService + 18 frontend.
+
+Rà soát ngày 25/10/2026: [lỗi đã sửa và bằng chứng kiểm tra](docs/LOC_REVIEW_2026-10-25.md), gồm phân quyền khi thao tác đồng thời, bảo toàn tài liệu dài/TXT, phiên đăng nhập và màn hình Việc của tôi. Kết quả đợt đó: 102 backend + 16 AIService + 7 frontend.
 
 Xem [báo cáo review](docs/LOC_REVIEW.md) và [kết quả kiểm thử](docs/LOC_TEST_RESULTS.md): 95 backend + 16 AIService, build và audit ba package đều qua.
 

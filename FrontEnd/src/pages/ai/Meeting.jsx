@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Field, Icon, Notice, Spinner } from '../../components/ui.jsx';
 import { api } from '../../lib/api.js';
 import { useLoad } from '../../lib/app.jsx';
-import { useProjectInfo } from '../../lib/hooks.js';
+import { useLatestRequest, useProjectInfo } from '../../lib/hooks.js';
 import DraftItems from './DraftItems.jsx';
 import { History } from './Planner.jsx';
 
@@ -17,25 +17,37 @@ export default function Meeting({ project, onUsage, disabled }) {
   const [draft, setDraft] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
+  const beginRequest = useLatestRequest();
   const history = useLoad(() => api.get(`/projects/${project._id}/ai/drafts?type=meeting`), [project._id, draft?._id, draft?.status]);
 
   const extract = async () => {
+    const current = beginRequest();
     setBusy(true);
     setError(null);
     try {
       const d = await api.post(`/projects/${project._id}/ai/meeting`, f);
-      setDraft(d.draft);
+      if (current()) setDraft(d.draft);
     } catch (e) {
-      setError(e);
+      if (current()) setError(e);
     } finally {
-      setBusy(false);
+      if (current()) setBusy(false);
       onUsage();
     }
   };
   const open = async (id) => {
-    const d = await api.get(`/ai/drafts/${id}`);
-    setDraft(d.draft);
-    setF({ title: d.draft.input?.title || '', text: d.draft.input?.text || '' });
+    const current = beginRequest();
+    setBusy(true);
+    setError(null);
+    try {
+      const d = await api.get(`/ai/drafts/${id}`);
+      if (!current()) return;
+      setDraft(d.draft);
+      setF({ title: d.draft.input?.title || '', text: d.draft.input?.text || '' });
+    } catch (e) {
+      if (current()) setError(e);
+    } finally {
+      if (current()) setBusy(false);
+    }
   };
 
   return (
@@ -69,6 +81,7 @@ export default function Meeting({ project, onUsage, disabled }) {
       <div className="min-w-0">
         {draft ? (
           <DraftItems
+            key={draft._id}
             draft={draft}
             canManage={!!info?.access?.canManage}
             setDraft={setDraft}

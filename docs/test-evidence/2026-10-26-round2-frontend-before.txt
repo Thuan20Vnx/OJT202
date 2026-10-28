@@ -1,0 +1,214 @@
+
+> taskflow-client@1.0.0 test
+> node --import ./test/helpers/register-jsx.js --test test/*.test.js
+
+✖ download: lỗi mạng được chuẩn hóa; hết phiên thật mới phát unauthorized (20.5647ms)
+✖ JSON sai hoặc kết nối đứt khi đọc body được báo bằng ApiError (37.4849ms)
+✔ refresh gặp 503 không đăng xuất người dùng và không xoay token khi /me lỗi server (35.0225ms)
+✔ lỗi mạng trong refresh hoặc retry được chuẩn hóa thành ApiError (29.6271ms)
+✔ refresh trả 401 mới phát sự kiện hết phiên (31.3163ms)
+✔ nhiều request 401 đồng thời chỉ xoay refresh một lần (31.7472ms)
+✔ useLoad không giữ dữ liệu dự án trước khi dự án mới tải lỗi (13.8084ms)
+✔ reload cũ không được thay thế kết quả của phạm vi mới (2.1616ms)
+✔ quyền bị vô hiệu hóa chỉ tải lại đúng dự án và khóa ghi trong lúc chờ (2.3537ms)
+✔ quyền dự án không còn lấy từ cache cũ sau khi component đã đóng và resync (1.8408ms)
+✔ chọn lịch sử sau cùng thắng phản hồi cũ đến muộn (12.3956ms)
+✔ mở lịch sử thất bại được báo trên giao diện, không reject khỏi handler (4.9428ms)
+✔ đổi dự án xóa kế hoạch đang mở và bỏ phản hồi tạo nháp cũ (9.7314ms)
+✔ báo cáo lưu lỗi giữ nguyên editor và nội dung để thử lại (39.0841ms)
+✔ mở báo cáo khác đóng editor cũ để không lưu nhầm nội dung sang báo cáo mới (15.6926ms)
+✔ hỏi đáp chặn Enter gửi lặp khi đang chờ và bỏ phản hồi sau Cuộc hỏi mới (8.5802ms)
+✔ duyệt nháp phải chờ lưu checkbox và không duyệt khi còn sửa chưa lưu (3.7692ms)
+The above error occurred in the <AiSettings> component:
+
+    at AiSettings (file:///D:/Desktop/Nhom24/OJT202/FrontEnd/src/pages/settings/AiSettings.jsx:25:24)
+    at Router (file:///D:/Desktop/Nhom24/OJT202/FrontEnd/node_modules/react-router/dist/development/chunk-OB3PAWPO.mjs:7134:13)
+    at MemoryRouter (file:///D:/Desktop/Nhom24/OJT202/FrontEnd/node_modules/react-router/dist/development/chunk-OB3PAWPO.mjs:7044:3)
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://reactjs.org/link/error-boundaries to learn more about error boundaries.
+The above error occurred in the <Invites> component:
+
+    at Invites (file:///D:/Desktop/Nhom24/OJT202/FrontEnd/src/pages/settings/Invites.jsx:10:24)
+    at Router (file:///D:/Desktop/Nhom24/OJT202/FrontEnd/node_modules/react-router/dist/development/chunk-OB3PAWPO.mjs:7134:13)
+    at MemoryRouter (file:///D:/Desktop/Nhom24/OJT202/FrontEnd/node_modules/react-router/dist/development/chunk-OB3PAWPO.mjs:7044:3)
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://reactjs.org/link/error-boundaries to learn more about error boundaries.
+✖ Cài đặt AI: tải lần đầu thất bại có lỗi và Thử lại, không crash (18.7918ms)
+✖ Lời mời: tải lần đầu thất bại có lỗi và Thử lại, không crash (4.8279ms)
+✖ Cài đặt AI: bật tính năng và resync không xóa hạn mức/timeout đang nhập (21.8757ms)
+✖ Cài đặt AI: hạn mức trống không được lưu thành 0 (9.0541ms)
+✖ Lời mời: gửi lại và hủy lỗi được xử lý, giữ mục để thử lại (5.1352ms)
+✖ Hồ sơ: lỗi đổi mật khẩu không có fields vẫn được hiển thị (10.9191ms)
+✖ Hồ sơ: lỗi tải phiên có Thử lại, lỗi thu hồi phiên không thoát khỏi handler (5.7882ms)
+✔ Member gửi Review, không thể tự duyệt Done (1.6832ms)
+✔ PM chỉ được duyệt Done từ Review, có thể mở lại Done (0.222ms)
+✔ Viewer, dự án archived hoặc chưa tải quyền không có thao tác ghi (0.2087ms)
+ℹ tests 27
+ℹ suites 0
+ℹ pass 18
+ℹ fail 9
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1057.9309
+
+✖ failing tests:
+
+test at test\api.test.js:8:1
+✖ download: lỗi mạng được chuẩn hóa; hết phiên thật mới phát unauthorized (20.5647ms)
+  AssertionError [ERR_ASSERTION]: The validation function is expected to return "true". Received false
+
+  Caught error:
+
+  TypeError: fetch failed
+      at async TestContext.<anonymous> (file:///D:/Desktop/Nhom24/OJT202/FrontEnd/test/api.test.js:12:3)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: TypeError: fetch failed
+        at file:///D:/Desktop/Nhom24/OJT202/FrontEnd/test/api.test.js:11:72
+        at Object.apply (node:internal/test_runner/mock/mock:756:20)
+        at download (file:///D:/Desktop/Nhom24/OJT202/FrontEnd/src/lib/api.js:82:19)
+        at TestContext.<anonymous> (file:///D:/Desktop/Nhom24/OJT202/FrontEnd/test/api.test.js:12:24)
+        at Test.runInAsyncScope (node:async_hooks:227:14)
+        at Test.run (node:internal/test_runner/test:1201:25)
+        at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3),
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at test\api.test.js:19:1
+✖ JSON sai hoặc kết nối đứt khi đọc body được báo bằng ApiError (37.4849ms)
+  AssertionError [ERR_ASSERTION]: The validation function is expected to return "true". Received false
+
+  Caught error:
+
+  SyntaxError: Expected property name or '}' in JSON at position 1 (line 1 column 2)
+      at async TestContext.<anonymous> (file:///D:/Desktop/Nhom24/OJT202/FrontEnd/test/api.test.js:21:3)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: SyntaxError: Expected property name or '}' in JSON at position 1 (line 1 column 2)
+        at JSON.parse (<anonymous>)
+        at parseJSONFromBytes (node:internal/deps/undici/undici:4319:19)
+        at successSteps (node:internal/deps/undici/undici:6967:27)
+        at readAllBytes (node:internal/deps/undici/undici:5890:13),
+    operator: 'rejects',
+    diff: 'simple'
+  }
+
+test at test\settings.test.js:27:3
+✖ Cài đặt AI: tải lần đầu thất bại có lỗi và Thử lại, không crash (18.7918ms)
+  TypeError: Cannot read properties of null (reading 'settings')
+      at AiSettings (file:///D:/Desktop/Nhom24/OJT202/FrontEnd/src/pages/settings/AiSettings.jsx:43:18)
+      at renderWithHooks (D:\Desktop\Nhom24\OJT202\FrontEnd\node_modules\react-test-renderer\cjs\react-test-renderer.development.js:5608:18)
+      at updateFunctionComponent (D:\Desktop\Nhom24\OJT202\FrontEnd\node_modules\react-test-renderer\cjs\react-test-renderer.development.js:9512:20)
+      at beginWork (D:\Desktop\Nhom24\OJT202\FrontEnd\node_modules\react-test-renderer\cjs\react-test-renderer.development.js:11365:16)
+      at performUnitOfWork (D:\Desktop\Nhom24\OJT202\FrontEnd\node_modules\react-test-renderer\cjs\react-test-renderer.development.js:15850:12)
+      at workLoopSync (D:\Desktop\Nhom24\OJT202\FrontEnd\node_modules\react-test-renderer\cjs\react-test-renderer.development.js:15784:5)
+      at renderRootSync (D:\Desktop\Nhom24\OJT202\FrontEnd\node_modules\react-test-renderer\cjs\react-test-renderer.development.js:15756:7)
+      at performSyncWorkOnRoot (D:\Desktop\Nhom24\OJT202\FrontEnd\node_modules\react-test-renderer\cjs\react-test-renderer.development.js:15461:20)
+      at flushSyncCallbacks (D:\Desktop\Nhom24\OJT202\FrontEnd\node_modules\react-test-renderer\cjs\react-test-renderer.development.js:2597:22)
+      at flushSyncCallbacksOnlyInLegacyMode (D:\Desktop\Nhom24\OJT202\FrontEnd\node_modules\react-test-renderer\cjs\react-test-renderer.development.js:2576:5)
+
+test at test\settings.test.js:27:3
+✖ Lời mời: tải lần đầu thất bại có lỗi và Thử lại, không crash (4.8279ms)
+  TypeError: Cannot read properties of null (reading 'invites')
+      at Invites (file:///D:/Desktop/Nhom24/OJT202/FrontEnd/src/pages/settings/Invites.jsx:28:14)
+      at renderWithHooks (D:\Desktop\Nhom24\OJT202\FrontEnd\node_modules\react-test-renderer\cjs\react-test-renderer.development.js:5608:18)
+      at updateFunctionComponent (D:\Desktop\Nhom24\OJT202\FrontEnd\node_modules\react-test-renderer\cjs\react-test-renderer.development.js:9512:20)
+      at beginWork (D:\Desktop\Nhom24\OJT202\FrontEnd\node_modules\react-test-renderer\cjs\react-test-renderer.development.js:11365:16)
+      at performUnitOfWork (D:\Desktop\Nhom24\OJT202\FrontEnd\node_modules\react-test-renderer\cjs\react-test-renderer.development.js:15850:12)
+      at workLoopSync (D:\Desktop\Nhom24\OJT202\FrontEnd\node_modules\react-test-renderer\cjs\react-test-renderer.development.js:15784:5)
+      at renderRootSync (D:\Desktop\Nhom24\OJT202\FrontEnd\node_modules\react-test-renderer\cjs\react-test-renderer.development.js:15756:7)
+      at performSyncWorkOnRoot (D:\Desktop\Nhom24\OJT202\FrontEnd\node_modules\react-test-renderer\cjs\react-test-renderer.development.js:15461:20)
+      at flushSyncCallbacks (D:\Desktop\Nhom24\OJT202\FrontEnd\node_modules\react-test-renderer\cjs\react-test-renderer.development.js:2597:22)
+      at flushSyncCallbacksOnlyInLegacyMode (D:\Desktop\Nhom24\OJT202\FrontEnd\node_modules\react-test-renderer\cjs\react-test-renderer.development.js:2576:5)
+
+test at test\settings.test.js:42:1
+✖ Cài đặt AI: bật tính năng và resync không xóa hạn mức/timeout đang nhập (21.8757ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  '100' !== '245'
+
+      at TestContext.<anonymous> (file:///D:/Desktop/Nhom24/OJT202/FrontEnd/test/settings.test.js:51:10)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '100',
+    expected: '245',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test\settings.test.js:55:1
+✖ Cài đặt AI: hạn mức trống không được lưu thành 0 (9.0541ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  1 !== 0
+
+      at TestContext.<anonymous> (file:///D:/Desktop/Nhom24/OJT202/FrontEnd/test/settings.test.js:61:10)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test\settings.test.js:65:1
+✖ Lời mời: gửi lại và hủy lỗi được xử lý, giữ mục để thử lại (5.1352ms)
+  Error: Gửi lại thất bại
+      at Object.<anonymous> (file:///D:/Desktop/Nhom24/OJT202/FrontEnd/test/settings.test.js:67:50)
+      at Object.apply (node:internal/test_runner/mock/mock:756:20)
+      at resend (file:///D:/Desktop/Nhom24/OJT202/FrontEnd/src/pages/settings/Invites.jsx:16:15)
+      at Object.onClick (file:///D:/Desktop/Nhom24/OJT202/FrontEnd/src/pages/settings/Invites.jsx:60:139)
+      at file:///D:/Desktop/Nhom24/OJT202/FrontEnd/test/settings.test.js:70:55
+      at act (D:\Desktop\Nhom24\OJT202\FrontEnd\node_modules\react\cjs\react.development.js:2512:16)
+      at TestContext.<anonymous> (file:///D:/Desktop/Nhom24/OJT202/FrontEnd/test/settings.test.js:70:9)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    status: 503,
+    details: {}
+  }
+
+test at test\settings.test.js:77:1
+✖ Hồ sơ: lỗi đổi mật khẩu không có fields vẫn được hiển thị (10.9191ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /Chưa đổi được mật khẩu/. Input:
+
+  'Hồ sơ cá nhânQuản lý thông tin và bảo mật tài khoản của bạnpersonThông tin cá nhânshieldBảo mậtChi tiết tài khoảnThông tin định danh hiển thị trên toàn workspace.NDẢnh đại diện được tạo từ chữ cái đầu của tên.Họ và tên *Chức danh hiển thịĐịa chỉ emailEmail đăng nhập không thể tự thay đổi.Múi giờ(GMT+07:00) Hà Nội, Bangkok(GMT+08:00) Singapore(GMT+09:00) Tokyo(GMT+00:00) London(GMT-05:00) New York(GMT+07:00) Hà Nội, Bangkokexpand_moreNgôn ngữ hiển thịTiếng ViệtEnglishTiếng Việtexpand_moreVai trò trong workspacelockVai trò do Owner/Admin của workspace quản lý, không thể tự thay đổi.HủyLưu thay đổiĐổi mật khẩuBảo vệ tài khoản bằng mật khẩu mạnh.Mật khẩu hiện tạilockvisibilityMật khẩu mớilockvisibilityĐộ mạnh mật khẩuMạnhcheck_circleÍt nhất 8 ký tựcheck_circleCó chữ hoacheck_circleCó sốXác nhận mật khẩu mớilockvisibilitywarningSau khi đổi mật khẩu, bạn sẽ được đăng xuất khỏi tất cả thiết bị khác.lock_resetCập nhật mật khẩu'
+
+      at TestContext.<anonymous> (file:///D:/Desktop/Nhom24/OJT202/FrontEnd/test/settings.test.js:84:10)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'Hồ sơ cá nhânQuản lý thông tin và bảo mật tài khoản của bạnpersonThông tin cá nhânshieldBảo mậtChi tiết tài khoảnThông tin định danh hiển thị trên toàn workspace.NDẢnh đại diện được tạo từ chữ cái đầu của tên.Họ và tên *Chức danh hiển thịĐịa chỉ emailEmail đăng nhập không thể tự thay đổi.Múi giờ(GMT+07:00) Hà Nội, Bangkok(GMT+08:00) Singapore(GMT+09:00) Tokyo(GMT+00:00) London(GMT-05:00) New York(GMT+07:00) Hà Nội, Bangkokexpand_moreNgôn ngữ hiển thịTiếng ViệtEnglishTiếng Việtexpand_moreVai trò trong workspacelockVai trò do Owner/Admin của workspace quản lý, không thể tự thay đổi.HủyLưu thay đổiĐổi mật khẩuBảo vệ tài khoản bằng mật khẩu mạnh.Mật khẩu hiện tạilockvisibilityMật khẩu mớilockvisibilityĐộ mạnh mật khẩuMạnhcheck_circleÍt nhất 8 ký tựcheck_circleCó chữ hoacheck_circleCó sốXác nhận mật khẩu mớilockvisibilitywarningSau khi đổi mật khẩu, bạn sẽ được đăng xuất khỏi tất cả thiết bị khác.lock_resetCập nhật mật khẩu',
+    expected: /Chưa đổi được mật khẩu/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at test\settings.test.js:87:1
+✖ Hồ sơ: lỗi tải phiên có Thử lại, lỗi thu hồi phiên không thoát khỏi handler (5.7882ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /Không tải được phiên/. Input:
+
+  'Hồ sơ cá nhânQuản lý thông tin và bảo mật tài khoản của bạnpersonThông tin cá nhânshieldBảo mậtĐổi mật khẩuBảo vệ tài khoản bằng mật khẩu mạnh.Mật khẩu hiện tạilockvisibilityMật khẩu mớilockvisibilityĐộ mạnh mật khẩuradio_button_uncheckedÍt nhất 8 ký tựradio_button_uncheckedCó chữ hoaradio_button_uncheckedCó sốXác nhận mật khẩu mớilockvisibilitywarningSau khi đổi mật khẩu, bạn sẽ được đăng xuất khỏi tất cả thiết bị khác.lock_resetCập nhật mật khẩuPhiên đăng nhập đang hoạt độngDanh sách thiết bị đang đăng nhập tài khoản của bạn.logout Đăng xuất khỏi tất cả thiết bị khác'
+
+      at TestContext.<anonymous> (file:///D:/Desktop/Nhom24/OJT202/FrontEnd/test/settings.test.js:96:10)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'Hồ sơ cá nhânQuản lý thông tin và bảo mật tài khoản của bạnpersonThông tin cá nhânshieldBảo mậtĐổi mật khẩuBảo vệ tài khoản bằng mật khẩu mạnh.Mật khẩu hiện tạilockvisibilityMật khẩu mớilockvisibilityĐộ mạnh mật khẩuradio_button_uncheckedÍt nhất 8 ký tựradio_button_uncheckedCó chữ hoaradio_button_uncheckedCó sốXác nhận mật khẩu mớilockvisibilitywarningSau khi đổi mật khẩu, bạn sẽ được đăng xuất khỏi tất cả thiết bị khác.lock_resetCập nhật mật khẩuPhiên đăng nhập đang hoạt độngDanh sách thiết bị đang đăng nhập tài khoản của bạn.logout Đăng xuất khỏi tất cả thiết bị khác',
+    expected: /Không tải được phiên/,
+    operator: 'match',
+    diff: 'simple'
+  }

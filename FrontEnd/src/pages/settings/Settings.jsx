@@ -45,11 +45,11 @@ export default function Settings() {
           { value: 'activity', label: 'Nhật ký hoạt động' },
         ]}
       />
-      {tab === 'general' && <General />}
-      {tab === 'members' && <Members />}
-      {tab === 'invites' && isAdmin && <Invites />}
-      {tab === 'ai' && <AiSettings />}
-      {tab === 'activity' && <Activity />}
+      {tab === 'general' && <General key={ws.workspace._id} />}
+      {tab === 'members' && <Members key={ws.workspace._id} />}
+      {tab === 'invites' && isAdmin && <Invites key={ws.workspace._id} />}
+      {tab === 'ai' && <AiSettings key={ws.workspace._id} />}
+      {tab === 'activity' && <Activity key={ws.workspace._id} />}
     </div>
   );
 }

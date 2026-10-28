@@ -1,0 +1,45 @@
+✖ P2: explicit cancellation must not create a meeting action item (20.5472ms)
+✖ P2: provider excerpts must actually occur in the meeting source (2.2946ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 140.3624
+
+✖ failing tests:
+
+test at test\review-2026-10-28.probe.js:6:1
+✖ P2: explicit cancellation must not create a meeting action item (20.5472ms)
+  AssertionError [ERR_ASSERTION]: [{"title":"Không cần triển khai API thanh toán nữa, hủy công việc này","excerpt":"Lộc: Không cần triển khai API thanh toán nữa, hủy công việc này.","assignee":"loc","dueDate":null,"priority":"medium"}]
+
+  1 !== 0
+
+      at TestContext.<anonymous> (file:///D:/Desktop/Nhom24/OJT202/AIService/test/review-2026-10-28.probe.js:8:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1201:25)
+      at Test.start (node:internal/test_runner/test:1096:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:385:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test\review-2026-10-28.probe.js:11:1
+✖ P2: provider excerpts must actually occur in the meeting source (2.2946ms)
+  AssertionError [ERR_ASSERTION]: Missing expected rejection.
+      at async TestContext.<anonymous> (file:///D:/Desktop/Nhom24/OJT202/AIService/test/review-2026-10-28.probe.js:13:3)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'rejects',
+    diff: 'simple'
+  }

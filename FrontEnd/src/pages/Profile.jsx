@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Avatar, Field, Icon, Notice, PageHeader, Select, Spinner, Tabs } from '../components/ui.jsx';
+import { useEffect, useRef, useState } from 'react';
+import { Avatar, ErrorBox, Field, Icon, Notice, PageHeader, PageLoader, Select, Spinner, Tabs } from '../components/ui.jsx';
 import { PasswordInput, PasswordStrength } from './auth/Login.jsx';
 import { api } from '../lib/api.js';
 import { useApp, useLoad, useToast } from '../lib/app.jsx';
@@ -25,6 +25,9 @@ export default function Profile() {
   const [pwErr, setPwErr] = useState({});
   const [pwBusy, setPwBusy] = useState(false);
   const sessions = useLoad(() => api.get('/me/sessions'), []);
+  const [sessionError, setSessionError] = useState(null);
+  const [sessionBusy, setSessionBusy] = useState(false);
+  const sessionPending = useRef(false);
   useEffect(() => {
     setF({ name: me.name, title: me.title || '', timezone: me.timezone, language: me.language });
   }, [me]);
@@ -51,22 +54,44 @@ export default function Profile() {
       setPw({ currentPassword: '', newPassword: '', confirm: '' });
       sessions.reload();
     } catch (e) {
-      setPwErr(e.fields || { currentPassword: e.message });
+      setPwErr(Object.keys(e.fields || {}).length ? e.fields : { _form: e.message });
     } finally {
       setPwBusy(false);
     }
   };
   const revoke = async (s) => {
-    const d = await api.del(`/me/sessions/${s._id}`);
-    if (d.current) {
-      await logout();
-      navigate('/login');
-    } else sessions.reload();
+    if (sessionPending.current) return;
+    sessionPending.current = true;
+    setSessionBusy(true);
+    setSessionError(null);
+    try {
+      const d = await api.del(`/me/sessions/${s._id}`);
+      if (d.current) {
+        await logout();
+        navigate('/login');
+      } else await sessions.reload();
+    } catch (e) {
+      setSessionError(e);
+    } finally {
+      sessionPending.current = false;
+      setSessionBusy(false);
+    }
   };
   const revokeOthers = async () => {
-    const d = await api.post('/me/sessions/revoke-others');
-    toast(`Đã đăng xuất ${d.revoked} phiên khác`);
-    sessions.reload();
+    if (sessionPending.current) return;
+    sessionPending.current = true;
+    setSessionBusy(true);
+    setSessionError(null);
+    try {
+      const d = await api.post('/me/sessions/revoke-others');
+      toast(`Đã đăng xuất ${d.revoked} phiên khác`);
+      await sessions.reload();
+    } catch (e) {
+      setSessionError(e);
+    } finally {
+      sessionPending.current = false;
+      setSessionBusy(false);
+    }
   };
 
   return (
@@ -153,11 +178,13 @@ export default function Profile() {
                 <h2 className="text-headline-sm text-slate-900">Phiên đăng nhập đang hoạt động</h2>
                 <p className="text-body-sm text-slate-500">Danh sách thiết bị đang đăng nhập tài khoản của bạn.</p>
               </div>
-              <button className="btn border border-rose-200 text-rose-600 hover:bg-rose-50" onClick={revokeOthers}>
+              <button className="btn border border-rose-200 text-rose-600 hover:bg-rose-50" disabled={sessionBusy} onClick={revokeOthers}>
                 <Icon name="logout" size={16} /> Đăng xuất khỏi tất cả thiết bị khác
               </button>
             </div>
             <div className="space-y-2">
+              <ErrorBox error={sessionError} />
+              {sessions.loading && !sessions.data ? <PageLoader /> : <ErrorBox error={sessions.error} onRetry={sessions.reload} />}
               {(sessions.data?.sessions || []).map((s) => {
                 const ua = parseUA(s.userAgent);
                 return (
@@ -174,7 +201,7 @@ export default function Profile() {
                         IP {s.ip || '—'} · {s.current ? 'Đang hoạt động' : timeAgo(s.lastUsedAt)}
                       </p>
                     </div>
-                    <button className="btn-outline btn-sm" onClick={() => revoke(s)}>
+                    <button className="btn-outline btn-sm" disabled={sessionBusy} onClick={() => revoke(s)}>
                       Đăng xuất
                     </button>
                   </div>
@@ -195,6 +222,7 @@ function PasswordCard({ pw, setPw, pwErr, busy, onSubmit }) {
         <h2 className="text-headline-sm text-slate-900">Đổi mật khẩu</h2>
         <p className="text-body-sm text-slate-500">Bảo vệ tài khoản bằng mật khẩu mạnh.</p>
       </div>
+      {pwErr._form && <Notice tone="danger">{pwErr._form}</Notice>}
       <Field label="Mật khẩu hiện tại" error={pwErr.currentPassword}>
         <PasswordInput value={pw.currentPassword} onChange={(e) => setPw({ ...pw, currentPassword: e.target.value })} autoComplete="current-password" />
       </Field>

@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Avatar, Icon, Notice, PageLoader, Pagination, Progress, Select, Spinner, StatCard, Toggle } from '../../components/ui.jsx';
+import { useRef, useState } from 'react';
+import { Avatar, ErrorBox, Icon, Notice, PageLoader, Pagination, Progress, Select, Spinner, StatCard, Toggle } from '../../components/ui.jsx';
 import { api, download, qs } from '../../lib/api.js';
 import { useApp, useLoad, useToast } from '../../lib/app.jsx';
 import { fmtTime, fmtDate } from '../../lib/format.js';
@@ -27,39 +27,74 @@ export default function AiSettings() {
   const toast = useToast();
   const isAdmin = ['owner', 'admin'].includes(role);
   const wsId = ws.workspace._id;
-  const { data, loading, setData } = useLoad(() => api.get(`/workspaces/${wsId}/ai`), [wsId]);
+  const { data, loading, error, reload, setData } = useLoad(() => api.get(`/workspaces/${wsId}/ai`), [wsId]);
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState('');
   const calls = useLoad(() => (isAdmin ? api.get(`/workspaces/${wsId}/ai/calls${qs({ page, status, limit: 10 })}`) : Promise.resolve(null)), [wsId, page, status, isAdmin]);
-  const [limit, setLimit] = useState('');
-  const [timeout, setTimeoutSec] = useState('');
+  const [draft, setDraft] = useState({ limit: null, timeout: null });
   const [saving, setSaving] = useState(false);
-  useEffect(() => {
-    if (data) {
-      setLimit(data.settings.dailyLimit);
-      setTimeoutSec(data.settings.timeoutSec);
-    }
-  }, [data]);
+  const [actionError, setActionError] = useState(null);
+  const [exporting, setExporting] = useState(false);
+  const pending = useRef(false);
+  const exportPending = useRef(false);
 
   if (loading && !data) return <PageLoader />;
+  if (error) return <ErrorBox error={error} onRetry={reload} />;
+  if (!data) return null;
   const s = data.settings;
   const t = data.today;
+  const limit = draft.limit ?? s.dailyLimit;
+  const timeout = draft.timeout ?? s.timeoutSec;
 
   const patch = async (body, msg = 'Đã lưu cài đặt AI') => {
+    if (pending.current || !isAdmin) return;
+    pending.current = true;
     setSaving(true);
+    setActionError(null);
     try {
       const d = await api.patch(`/workspaces/${wsId}/ai`, body);
       setData((x) => ({ ...x, settings: d.settings }));
+      setDraft((current) => ({
+        limit: body.dailyLimit === undefined ? current.limit : null,
+        timeout: body.timeoutSec === undefined ? current.timeout : null,
+      }));
       toast(msg);
     } catch (e) {
-      toast(e.message, 'error');
+      setActionError(e);
     } finally {
+      pending.current = false;
       setSaving(false);
+    }
+  };
+  const saveLimits = () => {
+    if (String(limit).trim() === '' || !Number.isInteger(Number(limit)) || Number(limit) < 0 || Number(limit) > 10000) {
+      setActionError(new Error('Nhập hạn mức nguyên từ 0 đến 10.000 lượt/ngày'));
+      return;
+    }
+    if (String(timeout).trim() === '' || !Number.isInteger(Number(timeout)) || Number(timeout) < 5 || Number(timeout) > 120) {
+      setActionError(new Error('Nhập thời gian chờ nguyên từ 5 đến 120 giây'));
+      return;
+    }
+    return patch({ dailyLimit: Number(limit), timeoutSec: Number(timeout) });
+  };
+  const exportCsv = async () => {
+    if (exportPending.current) return;
+    exportPending.current = true;
+    setExporting(true);
+    setActionError(null);
+    try {
+      await download(`/workspaces/${wsId}/ai/calls.csv`, 'nhat-ky-ai.csv');
+    } catch (e) {
+      setActionError(e);
+    } finally {
+      exportPending.current = false;
+      setExporting(false);
     }
   };
 
   return (
     <div className="space-y-5">
+      <ErrorBox error={actionError} />
       <div className="card flex flex-wrap items-center gap-3 p-4">
         <span className={`chip ${s.enabled ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-slate-100 text-slate-600'}`}>
           <span className={`h-1.5 w-1.5 rounded-full ${s.enabled ? 'bg-emerald-500' : 'bg-slate-400'}`} />
@@ -99,7 +134,7 @@ export default function AiSettings() {
             <label className="block">
               <span className="label">Số lượt tối đa mỗi ngày</span>
               <div className="flex gap-2">
-                <input type="number" min="0" className="input" value={limit} disabled={!isAdmin} onChange={(e) => setLimit(e.target.value)} />
+                <input type="number" min="0" max="10000" className="input" value={limit} disabled={!isAdmin || saving} onChange={(e) => setDraft((d) => ({ ...d, limit: e.target.value }))} />
                 <span className="flex items-center text-body-sm text-slate-500">lượt/ngày</span>
               </div>
             </label>
@@ -119,7 +154,7 @@ export default function AiSettings() {
             <label className="block">
               <span className="label">Thời gian chờ tối đa</span>
               <div className="flex gap-2">
-                <input type="number" min="5" max="120" className="input" value={timeout} disabled={!isAdmin} onChange={(e) => setTimeoutSec(e.target.value)} />
+                <input type="number" min="5" max="120" className="input" value={timeout} disabled={!isAdmin || saving} onChange={(e) => setDraft((d) => ({ ...d, timeout: e.target.value }))} />
                 <span className="flex items-center text-body-sm text-slate-500">giây</span>
               </div>
             </label>
@@ -129,7 +164,7 @@ export default function AiSettings() {
             </div>
             <Notice tone="info">Khi AI lỗi, các chức năng tạo/sửa công việc vẫn hoạt động bình thường.</Notice>
             {isAdmin && (
-              <button className="btn-primary w-full" disabled={saving} onClick={() => patch({ dailyLimit: Number(limit), timeoutSec: Number(timeout) })}>
+              <button className="btn-primary w-full" disabled={saving} onClick={saveLimits}>
                 {saving && <Spinner />}Lưu thay đổi
               </button>
             )}
@@ -151,7 +186,7 @@ export default function AiSettings() {
                     </option>
                   ))}
                 </Select>
-                <button className="btn-outline btn-sm" onClick={() => download(`/workspaces/${wsId}/ai/calls.csv`, 'nhat-ky-ai.csv')}>
+                <button className="btn-outline btn-sm" disabled={exporting} onClick={exportCsv}>
                   <Icon name="download" size={16} /> Xuất CSV
                 </button>
               </>
@@ -159,6 +194,10 @@ export default function AiSettings() {
           </div>
           {!isAdmin ? (
             <p className="p-6 text-center text-body-sm text-slate-500">Chỉ Owner/Admin xem được nhật ký gọi AI.</p>
+          ) : calls.loading && !calls.data ? (
+            <PageLoader />
+          ) : calls.error ? (
+            <div className="p-4"><ErrorBox error={calls.error} onRetry={calls.reload} /></div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">

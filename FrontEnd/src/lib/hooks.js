@@ -1,37 +1,33 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { api } from './api.js';
+import { useLoad } from './app.jsx';
 import { getSocket } from './socket.js';
 
-const cache = new Map();
-
-/** Thông tin dự án + thành viên (có cache ngắn hạn). */
+/** Quyền luôn được tải lại khi mở dự án hoặc nhận sự kiện resync. */
 export function useProjectInfo(projectId) {
-  const [info, setInfo] = useState(() => cache.get(projectId)?.data || null);
-  const [revision, setRevision] = useState(0);
+  const { data, loading, error, reload } = useLoad(() => projectId ? api.get(`/projects/${projectId}`) : Promise.resolve(null), [projectId]);
   useEffect(() => {
-    const refresh = () => { cache.clear(); setInfo(null); setRevision((n) => n + 1); };
-    window.addEventListener('tf:resync', refresh);
-    return () => window.removeEventListener('tf:resync', refresh);
-  }, []);
-  useEffect(() => {
-    if (!projectId) return setInfo(null);
-    const hit = cache.get(projectId);
-    if (hit && Date.now() - hit.at < 30000) return setInfo(hit.data);
-    let alive = true;
-    api
-      .get(`/projects/${projectId}`)
-      .then((d) => {
-        cache.set(projectId, { data: d, at: Date.now() });
-        if (alive) setInfo(d);
-      })
-      .catch(() => alive && setInfo(null));
-    return () => {
-      alive = false;
-    };
-  }, [projectId, revision]);
-  return info;
+    const invalidate = (event) => { if (event.detail === projectId) reload(); };
+    window.addEventListener('tf:project-invalidated', invalidate);
+    return () => window.removeEventListener('tf:project-invalidated', invalidate);
+  }, [projectId, reload]);
+  return loading || error ? null : data;
 }
-export const invalidateProject = (id) => cache.delete(id);
+export const invalidateProject = (id) => window.dispatchEvent(new CustomEvent('tf:project-invalidated', { detail: id }));
+
+/** Chỉ thao tác mới nhất trên component còn mở được cập nhật giao diện. */
+export function useLatestRequest() {
+  const sequence = useRef(0);
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; sequence.current++; };
+  }, []);
+  return useCallback(() => {
+    const id = ++sequence.current;
+    return () => mounted.current && sequence.current === id;
+  }, []);
+}
 
 /** Lắng nghe sự kiện realtime trong lúc component còn hiển thị */
 export function useSocketEvent(event, handler, deps = []) {
