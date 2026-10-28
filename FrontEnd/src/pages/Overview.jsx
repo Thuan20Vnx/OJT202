@@ -1,6 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { Burndown, Donut } from '../components/charts.jsx';
-import { Avatar, Empty, ErrorBox, Icon, PageHeader, PageLoader, Progress, StatCard } from '../components/ui.jsx';
+import { Avatar, Empty, ErrorBox, Icon, PageHeader, PageLoader, PriorityChip, Progress, StatCard, StatusChip } from '../components/ui.jsx';
 import { api, download } from '../lib/api.js';
 import { useApp, useLoad } from '../lib/app.jsx';
 import { fmtProjectDate as fmtDate, timeAgo } from '../lib/format.js';
@@ -40,6 +40,8 @@ export default function Overview() {
   const k = data.kpis;
   const sprint = data.sprint;
   const trend = k.velocity.last7 - k.velocity.prev7;
+  const activeWorkload = data.workload.filter((w) => w.role !== 'viewer');
+  const overloadedCount = activeWorkload.filter((w) => w.overloaded).length;
 
   return (
     <div className="mx-auto max-w-7xl p-6">
@@ -61,7 +63,14 @@ export default function Overview() {
         <StatCard label="Tiến độ" value={`${k.done}/${k.total}`} sub={`${k.progressPct}% công việc hoàn thành`} icon="donut_large" tone="blue">
           <Progress value={k.progressPct} className="mt-2" />
         </StatCard>
-        <StatCard label="Quá hạn" value={k.overdue} sub={k.overdue ? 'Cần xử lý ngay' : 'Không có việc quá hạn'} icon="event_busy" tone="red" onClick={() => navigate('/risks')} />
+        <StatCard
+          label="Quá hạn"
+          value={k.overdue}
+          sub={k.overdue ? 'Xem danh sách cần xử lý' : 'Không có việc quá hạn'}
+          icon="event_busy"
+          tone="red"
+          onClick={() => document.getElementById('overdue-tasks')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+        />
         <StatCard label="Đang bị chặn" value={k.blocked} sub="Chờ công việc khác" icon="block" tone="amber" onClick={() => navigate('/risks')} />
         <StatCard
           label="Tốc độ hoàn thành"
@@ -111,14 +120,62 @@ export default function Overview() {
         </div>
       </div>
 
+      <section id="overdue-tasks" className="card mb-5 scroll-mt-4 p-5">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h2 className="text-headline-sm text-slate-900">Công việc quá hạn</h2>
+            <p className="text-label-md font-normal text-slate-500">Các công việc chưa hoàn thành và đã qua hạn chót</p>
+          </div>
+          <span className={`chip ${k.overdue ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}>
+            {k.overdue} công việc
+          </span>
+        </div>
+        {data.overdue.length ? (
+          <div className="max-h-80 divide-y divide-slate-100 overflow-y-auto">
+            {data.overdue.map((task) => (
+              <button
+                key={task._id}
+                onClick={() => navigate({ search: `?task=${task._id}` })}
+                className="flex w-full flex-wrap items-center gap-3 py-3 text-left transition-colors hover:bg-rose-50/50"
+              >
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-body-sm font-semibold text-slate-900">
+                    <span className="mr-2 font-mono text-rose-700">{task.key}</span>
+                    {task.title}
+                  </span>
+                  <span className="mt-1 flex flex-wrap items-center gap-2 text-label-md text-slate-500">
+                    <span>Hạn {fmtDate(task.dueDate, { year: true })}</span>
+                    <span>·</span>
+                    <span>{task.assignee?.name || 'Chưa giao'}</span>
+                  </span>
+                </span>
+                <div className="flex shrink-0 items-center gap-2">
+                  <PriorityChip priority={task.priority} />
+                  <StatusChip status={task.status} />
+                  <Icon name="chevron_right" size={18} className="text-slate-400" />
+                </div>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <Empty icon="event_available" title="Không có công việc quá hạn">
+            Các công việc chưa hoàn thành đều còn trong hạn.
+          </Empty>
+        )}
+      </section>
+
       <div className="mb-5 grid gap-4 lg:grid-cols-2">
         <div className="card p-5">
-          <h2 className="text-headline-sm text-slate-900">Tải công việc tuần này</h2>
-          <p className="mb-4 text-label-md font-normal text-slate-500">Giờ ước lượng chưa xong (đến hạn trong tuần) / giờ khả dụng</p>
+          <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-headline-sm text-slate-900">Tải công việc tuần này</h2>
+            <span className={`chip ${overloadedCount ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-slate-200 bg-slate-50 text-slate-600'}`}>
+              {overloadedCount} người quá tải
+            </span>
+          </div>
+          <p className="mb-4 text-label-md font-normal text-slate-500">Giờ ước lượng chưa xong (đến hạn trong tuần hoặc đã quá hạn) / giờ khả dụng</p>
           <div className="space-y-3">
-            {data.workload
-              .filter((w) => w.role !== 'viewer')
-              .map((w) => {
+            {activeWorkload.length ? (
+              activeWorkload.map((w) => {
                 const over = w.overloaded;
                 return (
                   <div key={w.user._id} className="flex items-center gap-3">
@@ -138,11 +195,14 @@ export default function Overview() {
                     </div>
                   </div>
                 );
-              })}
+              })
+            ) : (
+              <p className="py-4 text-center text-body-sm text-slate-400">Chưa có thành viên được phân công trong dự án.</p>
+            )}
           </div>
           <p className="mt-4 flex items-start gap-1.5 rounded-lg bg-slate-50 px-3 py-2 text-label-md font-normal text-slate-500">
             <Icon name="info" size={14} className="mt-px" />
-            Tải = giờ ước lượng chưa xong trong tuần / giờ khả dụng. Không dùng để xếp hạng cá nhân.
+            Tải = giờ ước lượng chưa xong đến hạn trong tuần hoặc đã quá hạn / giờ khả dụng. Không dùng để xếp hạng cá nhân.
           </p>
         </div>
         <div className="card p-5">

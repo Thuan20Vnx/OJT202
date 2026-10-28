@@ -1244,6 +1244,11 @@ describe('Lộc: phân quyền và nghiệp vụ bổ sung', () => {
     assert.equal(empty.kpis.total, 0);
     assert.equal(empty.kpis.progressPct, 0);
     assert.equal(empty.riskCount, 0);
+    await create({ assignee: seed.users.nhu.id, dueDate: new Date(Date.now() - 1000).toISOString() });
+    const overview = (await owner.get(`/projects/${pid}/overview`)).data;
+    assert.equal(overview.kpis.overdue, 1);
+    assert.equal(overview.overdue[0].assignee._id, seed.users.nhu.id);
+    assert.equal(overview.overdue[0].assignee.name, seed.users.nhu.name);
     const parent = await create({ checklist: [{ text: 'Bước 1', done: false }] });
     const child = await create({ parent: parent._id, status: 'review' });
     assert.equal((await owner.patch(`/tasks/${child._id}`, { status: 'done', version: child.version })).status, 200);
