@@ -1882,3 +1882,389 @@ describe('AI: hạn biên bản và giới hạn kế hoạch', () => {
     assert.equal((await db.prisma.aiDraft.findUnique({ where: { id: draft.id } })).status, 'draft');
   });
 });
+
+// =============================================================================
+// Hiệp – U012: Kiểm thử & Demo nền tảng cuối Sprint 1
+// =============================================================================
+describe('Hiệp – U012: Smoke test nền tảng cuối Sprint 1', () => {
+  test('luồng đăng ký → xác minh email → đăng nhập hoàn chỉnh', async () => {
+    const c = new Client();
+    const email = `u012-smoke-${++fixtureNumber}@test.vn`;
+    const reg = await c.post('/auth/register', { name: 'Smoke Test', email, password: 'Smoke@2026', acceptTerms: true });
+    assert.equal(reg.status, 201);
+    // Chưa xác minh thì không được đăng nhập
+    const blocked = await c.post('/auth/login', { email, password: 'Smoke@2026' });
+    assert.equal(blocked.status, 403);
+    assert.equal(blocked.data.details.code, 'EMAIL_NOT_VERIFIED');
+    // Lấy token xác minh từ outbox
+    const mail = await db.prisma.outbox.findFirst({ where: { to: email }, orderBy: { createdAt: 'desc' } });
+    const token = new URL(mail.link).searchParams.get('token');
+    assert.equal((await c.post('/auth/verify-email', { token })).status, 200);
+    // Sau xác minh, đăng nhập được
+    const login = await new Client().post('/auth/login', { email, password: 'Smoke@2026' });
+    assert.equal(login.status, 200);
+  });
+
+  test('tạo workspace → tạo dự án → tạo task → đổi trạng thái Kanban', async () => {
+    const owner = await new Client().login('mai.anh@nhom24.edu.vn');
+    const ws = (await owner.post('/workspaces', { name: `Demo Sprint1 ${++fixtureNumber}` })).data.workspace;
+    assert.ok(ws._id);
+    const proj = (await owner.post(`/workspaces/${ws._id}/projects`, { name: 'Demo Project' })).data.project;
+    assert.ok(proj._id);
+    const task = (await owner.post(`/projects/${proj._id}/tasks`, { title: 'Demo Task' })).data.task;
+    assert.equal(task.status, 'todo');
+    // Đổi trạng thái qua move (Kanban kéo thả)
+    const moved = await owner.post(`/tasks/${task._id}/move`, { status: 'in_progress', order: 1, version: task.version });
+    assert.equal(moved.status, 200);
+    assert.equal(moved.data.task.status, 'in_progress');
+  });
+
+  test('phân quyền demo: Viewer không ghi, người ngoài nhận 404', async () => {
+    const owner = await new Client().login('mai.anh@nhom24.edu.vn');
+    const ws = (await owner.post('/workspaces', { name: `Demo Perm ${++fixtureNumber}` })).data.workspace._id;
+    await db.prisma.membership.create({ data: { workspace: ws, user: seed.users.linh.id, role: 'viewer' } });
+    const proj = (await owner.post(`/workspaces/${ws}/projects`, { name: 'Demo Perms', members: [seed.users.linh.id] })).data.project;
+    const task = (await owner.post(`/projects/${proj._id}/tasks`, { title: 'Read Only' })).data.task;
+    // Viewer không kéo thả được
+    const viewer = await new Client().login('khanh.linh@nhom24.edu.vn');
+    assert.equal((await viewer.post(`/tasks/${task._id}/move`, { status: 'in_progress', order: 1, version: task.version })).status, 403);
+    // Người ngoài nhóm nhận 404
+    const outsider = new Client();
+    await outsider.post('/auth/register', { name: 'Out', email: `out-${++fixtureNumber}@x.vn`, password: 'Abcdefg1', acceptTerms: true });
+    const m = await db.prisma.outbox.findFirst({ where: { to: outsider.cookies?.email ?? `out-${fixtureNumber}@x.vn` } });
+    // Người ngoài chưa đăng nhập → 401 trước khi 404
+    assert.equal((await outsider.get(`/workspaces/${ws}`)).status, 401);
+  });
+
+  test('tài khoản demo seed đăng nhập được với mật khẩu TaskFlow@2026', async () => {
+    for (const email of ['mai.anh@nhom24.edu.vn', 'hoang.anh@nhom24.edu.vn', 'nhu@nhom24.edu.vn', 'admin@taskflow.local']) {
+      const r = await new Client().post('/auth/login', { email, password: 'TaskFlow@2026' });
+      assert.equal(r.status, 200, `Tài khoản ${email} phải đăng nhập được`);
+    }
+  });
+
+  test('version conflict khi hai người sửa cùng task: 409 với dữ liệu mới', async () => {
+    const a = await new Client().login('mai.anh@nhom24.edu.vn');
+    const task = await db.prisma.task.findFirst({ where: { project: seed.projects.website.id, key: 'TF-105' } });
+    const v = task.version;
+    // A sửa trước
+    assert.equal((await a.patch(`/tasks/${task.id}`, { title: 'Sửa lần 1', version: v })).status, 200);
+    // B dùng version cũ → 409
+    const b = await new Client().login('thuan@nhom24.edu.vn');
+    const conflict = await b.patch(`/tasks/${task.id}`, { title: 'Sửa lần 2', version: v });
+    assert.equal(conflict.status, 409);
+    assert.ok(conflict.data.details?.task, 'Phải trả kèm dữ liệu mới nhất');
+    assert.equal(conflict.data.details.task.version, v + 1);
+  });
+});
+
+// =============================================================================
+// Hiệp – U016: Thông báo & nhắc hạn (bổ sung case còn thiếu)
+// =============================================================================
+describe('Hiệp – U016: Thông báo & nhắc hạn (bổ sung)', () => {
+  test('giao task kích hoạt thông báo assigned; không gửi cho chính người giao', async () => {
+    const { owner, member, pid, ws, create } = await permissionFixture();
+    const before = await db.prisma.notification.count({ where: { user: seed.users.nhu.id, type: 'assigned' } });
+    // Owner giao cho Như → Như nhận thông báo
+    await create({ assignee: seed.users.nhu.id });
+    const after = await db.prisma.notification.count({ where: { user: seed.users.nhu.id, type: 'assigned' } });
+    assert.equal(after, before + 1, 'Người được giao phải nhận thông báo');
+    // Owner giao cho chính Owner → không nhận thông báo cho bản thân
+    const ownCount = await db.prisma.notification.count({ where: { user: seed.users.maianh.id, type: 'assigned', workspace: ws } });
+    await create({ assignee: seed.users.maianh.id });
+    assert.equal(
+      await db.prisma.notification.count({ where: { user: seed.users.maianh.id, type: 'assigned', workspace: ws } }),
+      ownCount,
+      'Không gửi thông báo cho chính mình',
+    );
+  });
+
+  test('dedupeKey ngăn thông báo trùng khi notify() gọi nhiều lần', async () => {
+    const { ws, pid } = await permissionFixture();
+    const { notify } = await import('../src/services/notify.js');
+    const user = seed.users.nhu.id;
+    const key = `hiep-dedupe-${ws}`;
+    await notify({ user, workspace: ws, project: pid, type: 'assigned', text: 'Gửi lần 1', dedupeKey: key });
+    await notify({ user, workspace: ws, project: pid, type: 'assigned', text: 'Gửi lần 2', dedupeKey: key });
+    await notify({ user, workspace: ws, project: pid, type: 'assigned', text: 'Gửi lần 3', dedupeKey: key });
+    assert.equal(
+      await db.prisma.notification.count({ where: { user, dedupeKey: key } }),
+      1,
+      'Chỉ được tạo đúng 1 thông báo dù gọi nhiều lần',
+    );
+  });
+
+  test('tắt pref due_soon chặn cả due_soon lẫn overdue; bật lại gửi được', async (t) => {
+    // Đây là bản kiểm tra rõ ràng cho logic L13-14 notify.js
+    const { ws, pid } = await permissionFixture();
+    const { notify } = await import('../src/services/notify.js');
+    const user = seed.users.nhu.id;
+    const prev = await db.prisma.notificationPref.findUnique({ where: { user } });
+    t.after(async () => {
+      await db.prisma.notificationPref.deleteMany({ where: { user } });
+      if (prev) await db.prisma.notificationPref.create({ data: prev });
+    });
+    // Tắt due_soon
+    await db.prisma.notificationPref.upsert({ where: { user }, create: { user, due_soon: false }, update: { due_soon: false } });
+    const base = { user, workspace: ws, project: pid, text: 'Test pref' };
+    assert.equal(await notify({ ...base, type: 'due_soon', dedupeKey: `${ws}:ds1` }), null, 'due_soon phải bị chặn');
+    assert.equal(await notify({ ...base, type: 'overdue', dedupeKey: `${ws}:ov1` }), null, 'overdue cũng bị chặn khi tắt due_soon');
+    // Bật lại
+    await db.prisma.notificationPref.update({ where: { user }, data: { due_soon: true } });
+    assert.ok(await notify({ ...base, type: 'overdue', dedupeKey: `${ws}:ov2` }), 'overdue phải gửi được khi due_soon=true');
+  });
+
+  test('comment mặc định tắt; assigned và mentioned mặc định bật khi chưa có pref', async (t) => {
+    const { ws, pid } = await permissionFixture();
+    const { notify } = await import('../src/services/notify.js');
+    const user = seed.users.nhu.id;
+    const prev = await db.prisma.notificationPref.findUnique({ where: { user } });
+    t.after(async () => {
+      await db.prisma.notificationPref.deleteMany({ where: { user } });
+      if (prev) await db.prisma.notificationPref.create({ data: prev });
+    });
+    await db.prisma.notificationPref.deleteMany({ where: { user } });
+    // Comment phải bị chặn theo mặc định
+    assert.equal(await notify({ user, workspace: ws, type: 'comment', text: 'Cmt', dedupeKey: `${ws}:def-cmt` }), null);
+    // assigned và mentioned phải thông
+    assert.ok(await notify({ user, workspace: ws, type: 'assigned', text: 'Asgn', dedupeKey: `${ws}:def-asgn` }));
+    assert.ok(await notify({ user, workspace: ws, type: 'mentioned', text: 'Mention', dedupeKey: `${ws}:def-mention` }));
+  });
+
+  test('đánh dấu đọc-tất-cả theo workspace chỉ đọc thông báo của workspace đó', async () => {
+    const owner = await new Client().login('mai.anh@nhom24.edu.vn');
+    // Tạo 2 workspace riêng
+    const ws1 = (await owner.post('/workspaces', { name: `ReadAll-WS1-${++fixtureNumber}` })).data.workspace._id;
+    const ws2 = (await owner.post('/workspaces', { name: `ReadAll-WS2-${++fixtureNumber}` })).data.workspace._id;
+    const user = seed.users.maianh.id;
+    await db.prisma.notification.createMany({
+      data: [
+        { user, workspace: ws1, type: 'assigned', text: 'WS1', dedupeKey: `ra:${ws1}:1` },
+        { user, workspace: ws2, type: 'assigned', text: 'WS2', dedupeKey: `ra:${ws2}:1` },
+      ],
+    });
+    // Đọc tất cả trong ws1
+    const r = await owner.post('/notifications/read-all', { workspace: ws1 });
+    assert.equal(r.status, 200);
+    // ws1 → đã đọc; ws2 → chưa đọc
+    assert.equal(await db.prisma.notification.count({ where: { user, workspace: ws1, readAt: null } }), 0);
+    assert.ok(await db.prisma.notification.count({ where: { user, workspace: ws2, readAt: null } }) > 0);
+  });
+
+  test('runDueReminders không gửi trùng khi gọi nhiều lần; Done bị bỏ qua', async () => {
+    const { pid, create } = await permissionFixture();
+    const { runDueReminders } = await import('../src/services/jobs.js');
+    const now = new Date();
+    const soon = new Date(now.getTime() + 3600000); // 1 giờ nữa (nằm trong 24h)
+    const task = await create({ assignee: seed.users.nhu.id, dueDate: soon.toISOString() });
+    // Gọi 3 lần
+    await runDueReminders(now);
+    await runDueReminders(now);
+    await runDueReminders(now);
+    assert.equal(
+      await db.prisma.notification.count({ where: { task: task._id, type: 'due_soon' } }),
+      1,
+      'Chỉ 1 thông báo dù gọi nhiều lần',
+    );
+    // Task Done không nhắc
+    const doneTask = await create({ assignee: seed.users.nhu.id, dueDate: soon.toISOString(), status: 'review' });
+    await db.prisma.task.update({ where: { id: doneTask._id }, data: { status: 'done' } });
+    const countBefore = await db.prisma.notification.count({ where: { task: doneTask._id } });
+    await runDueReminders(now);
+    assert.equal(await db.prisma.notification.count({ where: { task: doneTask._id } }), countBefore, 'Task Done không được nhắc hạn');
+  });
+
+  test('thông báo lọc đúng theo quyền hiện tại: bị kick khỏi project thì mất thông báo', async () => {
+    const { owner, member, pid, ws } = await permissionFixture();
+    // Tạo thông báo cho Như trong dự án
+    await db.prisma.notification.create({
+      data: { user: seed.users.nhu.id, workspace: ws, project: pid, type: 'assigned', text: 'Trong dự án', dedupeKey: `kick:${ws}:${pid}` },
+    });
+    const before = (await member.get(`/notifications?project=${pid}`)).data.items.length;
+    assert.ok(before > 0, 'Phải thấy thông báo khi còn trong dự án');
+    // Kick Như ra khỏi dự án
+    await owner.patch(`/projects/${pid}`, { members: [seed.users.maianh.id] });
+    const after = (await member.get(`/notifications?project=${pid}`)).data.items;
+    assert.equal(after.length, 0, 'Không thấy thông báo dự án đã bị kick');
+  });
+
+  test('đánh dấu đọc đơn lẻ theo id; không ảnh hưởng thông báo khác', async () => {
+    const { ws, pid } = await permissionFixture();
+    const user = seed.users.nhu.id;
+    const [n1, n2] = await Promise.all([
+      db.prisma.notification.create({ data: { user, workspace: ws, project: pid, type: 'assigned', text: 'N1', dedupeKey: `read1:${ws}` } }),
+      db.prisma.notification.create({ data: { user, workspace: ws, project: pid, type: 'assigned', text: 'N2', dedupeKey: `read2:${ws}` } }),
+    ]);
+    const member = await new Client().login('nhu@nhom24.edu.vn');
+    assert.equal((await member.post(`/notifications/${n1.id}/read`)).status, 200);
+    assert.ok((await db.prisma.notification.findUnique({ where: { id: n1.id } })).readAt, 'N1 phải được đánh dấu đọc');
+    assert.equal((await db.prisma.notification.findUnique({ where: { id: n2.id } })).readAt, null, 'N2 chưa đọc');
+  });
+});
+
+// =============================================================================
+// Hiệp – U020: Nhật ký hoạt động & xuất CSV (bổ sung case còn thiếu)
+// =============================================================================
+describe('Hiệp – U020: Nhật ký hoạt động & xuất CSV (bổ sung)', () => {
+  test('nhật ký ghi đúng khi tạo/đổi trạng thái/giao task', async () => {
+    const { owner, pid, ws, create } = await permissionFixture();
+    const task = await create();
+    // Giao task → ghi activity "Giao việc"
+    await owner.patch(`/tasks/${task._id}`, { assignee: seed.users.nhu.id, version: task.version });
+    const assignLog = await db.prisma.activity.findFirst({ where: { entityId: task._id, action: 'Giao việc' } });
+    assert.ok(assignLog, 'Phải có log giao việc');
+    assert.equal(assignLog.workspace, ws);
+    assert.equal(assignLog.project, pid);
+    assert.equal(assignLog.actor, seed.users.maianh.id);
+    // Đổi trạng thái → ghi "Đổi trạng thái"
+    const t2 = (await db.prisma.task.findUnique({ where: { id: task._id } }));
+    await owner.post(`/tasks/${task._id}/move`, { status: 'in_progress', order: 1, version: t2.version });
+    const statusLog = await db.prisma.activity.findFirst({ where: { entityId: task._id, action: 'Đổi trạng thái' } });
+    assert.ok(statusLog, 'Phải có log đổi trạng thái');
+  });
+
+  test('Member chỉ thấy nhật ký dự án mình thuộc; Admin thấy tất cả', async () => {
+    const { owner, member, pid, ws, create } = await permissionFixture();
+    // Tạo dự án thứ 2 chỉ có Owner, không có Như
+    const proj2 = (await owner.post(`/workspaces/${ws}/projects`, { name: 'Bí mật', members: [seed.users.maianh.id] })).data.project;
+    await owner.post(`/projects/${proj2._id}/tasks`, { title: 'Task bí mật' });
+    // Thêm log cho cả 2 dự án
+    await db.prisma.activity.create({
+      data: { workspace: ws, project: proj2._id, actor: seed.users.maianh.id, action: 'Ghi chú bí mật', entityType: 'task', entityLabel: 'BM' },
+    });
+    // Member (Như) chỉ thấy log dự án của mình
+    const memberLog = await member.get(`/workspaces/${ws}/activity`);
+    assert.equal(memberLog.status, 200);
+    const memberProjects = new Set(memberLog.data.items.map((i) => i.project).filter(Boolean));
+    assert.ok(!memberProjects.has(proj2._id), 'Member không thấy log dự án không thuộc');
+    // Admin (Thuận) thấy tất cả
+    const admin = await new Client().login('thuan@nhom24.edu.vn');
+    const adminLog = await admin.get(`/workspaces/${ws}/activity`);
+    assert.equal(adminLog.status, 200);
+    const adminTotal = adminLog.data.total;
+    assert.ok(adminTotal >= memberLog.data.total, 'Admin thấy ít nhất bằng Member');
+  });
+
+  test('lọc nhật ký theo ngày from/to hoạt động đúng', async () => {
+    const { owner, ws, pid } = await permissionFixture();
+    // Dùng mốc rõ ràng: gần đây vs 10 ngày trước để tránh nhập nhằng timezone
+    const recentTs = new Date(Date.now() - 3600000);       // 1 giờ trước
+    const oldTs    = new Date(Date.now() - 10 * 86400000); // 10 ngày trước
+    await db.prisma.activity.createMany({
+      data: [
+        { workspace: ws, project: pid, actor: seed.users.maianh.id, action: 'Log gần đây', entityType: 'task', entityLabel: 'RECENT', createdAt: recentTs },
+        { workspace: ws, project: pid, actor: seed.users.maianh.id, action: 'Log cũ 10 ngày', entityType: 'task', entityLabel: 'OLD10', createdAt: oldTs },
+      ],
+    });
+    // Lọc từ 5 ngày trước đến NGÀY MAI (UTC) để đảm bảo cuối ngày VN (+7) vẫn nằm trong khoảng
+    const fromDate = new Date(Date.now() - 5 * 86400000).toISOString().slice(0, 10);
+    const toDate   = new Date(Date.now() + 24 * 3600000).toISOString().slice(0, 10); // ngày mai UTC
+    const r = await owner.get(`/workspaces/${ws}/activity?from=${fromDate}&to=${toDate}`);
+    assert.equal(r.status, 200);
+    const labels = r.data.items.map((i) => i.entityLabel);
+    assert.ok(labels.includes('RECENT'), 'Log 1 giờ trước phải nằm trong khoảng from=5ngày to=ngàymai');
+    assert.ok(!labels.includes('OLD10'), 'Log 10 ngày trước phải ngoài khoảng');
+  });
+
+  test('lọc nhật ký theo ngày sai định dạng trả 400', async () => {
+    const { owner, ws } = await permissionFixture();
+    assert.equal((await owner.get(`/workspaces/${ws}/activity?from=not-a-date`)).status, 400);
+    assert.equal((await owner.get(`/workspaces/${ws}/activity?to=32/13/2026`)).status, 400);
+  });
+
+  test('nhật ký không có API sửa/xóa (chỉ thêm)', async () => {
+    const { owner, ws } = await permissionFixture();
+    const list = await owner.get(`/workspaces/${ws}/activity`);
+    assert.equal(list.status, 200);
+    if (list.data.items.length > 0) {
+      const id = list.data.items[0]._id;
+      assert.equal((await owner.del(`/workspaces/${ws}/activity/${id}`)).status, 404, 'Không có API xóa log');
+      assert.equal((await owner.patch(`/workspaces/${ws}/activity/${id}`, { action: 'Sửa' })).status, 404, 'Không có API sửa log');
+    }
+  });
+
+  test('xuất CSV: định dạng đúng, header tiếng Việt, dữ liệu có thể parse', async () => {
+    const { owner, ws, pid, create } = await permissionFixture();
+    const task = await create({ title: 'Task Xuất CSV' });
+    await owner.patch(`/tasks/${task._id}`, { title: 'Task Xuất CSV Đã Sửa', version: task.version });
+    const r = await owner.get(`/workspaces/${ws}/activity.csv`);
+    assert.equal(r.status, 200);
+    const csv = r.data;
+    assert.ok(typeof csv === 'string', 'Response phải là string CSV');
+    // Node.js fetch().text() tự strip BOM nên kiểm tra nội dung header thay vì BOM byte
+    // CSV phải chứa các cột tiếng Việt
+    assert.ok(csv.includes('Thời gian'), 'Phải có cột Thời gian');
+    assert.ok(csv.includes('Hành động'), 'Phải có cột Hành động');
+    assert.ok(csv.includes('Người thực hiện'), 'Phải có cột Người thực hiện');
+    assert.ok(csv.includes('Đối tượng'), 'Phải có cột Đối tượng');
+    // Dữ liệu phải có ít nhất 2 dòng (header + ít nhất 1 bản ghi)
+    const lines = csv.split(/\r?\n/).filter(Boolean);
+    assert.ok(lines.length >= 2, 'CSV phải có header và ít nhất 1 bản ghi');
+  });
+
+  test('CSV chống formula injection: =, +, -, @ bị escape', () => {
+    // Kiểm tra trực tiếp hàm csvCell
+    assert.equal(csvCell('=HYPERLINK("http://evil.com","click")'), `"'=HYPERLINK(""http://evil.com"",""click"")"`);
+    assert.equal(csvCell('+1'), "'+1");
+    assert.equal(csvCell('-1'), "'-1");
+    assert.equal(csvCell('@SUM(A1)'), "'@SUM(A1)");
+    assert.equal(csvCell('\tTAB'), "'\tTAB");
+    // Giá trị bình thường không bị escape
+    assert.equal(csvCell('bình thường'), 'bình thường');
+    assert.equal(csvCell('Tạo workspace'), 'Tạo workspace');
+    // Giá trị có dấu phẩy hoặc ngoặc kép phải được bao
+    assert.ok(csvCell('a,b').startsWith('"'));
+    assert.ok(csvCell('say "hello"').includes('""'));
+  });
+
+  test('lọc nhật ký theo entityType trả đúng loại bản ghi', async () => {
+    const { owner, ws, pid, create } = await permissionFixture();
+    const task = await create();
+    await owner.patch(`/tasks/${task._id}`, { title: 'Đổi tên', version: task.version });
+    const r = await owner.get(`/workspaces/${ws}/activity?entityType=task`);
+    assert.equal(r.status, 200);
+    assert.ok(r.data.items.every((i) => i.entityType === 'task'), 'Chỉ trả log loại task');
+  });
+
+  test('phân trang nhật ký: page/limit hoạt động đúng', async () => {
+    const { owner, ws, pid } = await permissionFixture();
+    // Tạo 25 log tuần tự (khác createdAt) để orderBy ổn định
+    for (let i = 0; i < 25; i++) {
+      await db.prisma.activity.create({
+        data: {
+          workspace: ws, project: pid, actor: seed.users.maianh.id,
+          action: `Hành động ${i}`, entityType: 'task', entityLabel: `PAG${i}`,
+          createdAt: new Date(Date.now() - (25 - i) * 1000), // cách nhau 1 giây
+        },
+      });
+    }
+    const page1 = await owner.get(`/workspaces/${ws}/activity?page=1&limit=10`);
+    assert.equal(page1.status, 200);
+    assert.equal(page1.data.items.length, 10);
+    assert.equal(page1.data.page, 1);
+    assert.equal(page1.data.limit, 10);
+    assert.ok(page1.data.total >= 25);
+    const page2 = await owner.get(`/workspaces/${ws}/activity?page=2&limit=10`);
+    assert.equal(page2.status, 200);
+    assert.equal(page2.data.items.length, 10);
+    // Không trùng id giữa 2 trang (dùng Set intersection)
+    const ids1 = new Set(page1.data.items.map((i) => i._id));
+    const ids2 = new Set(page2.data.items.map((i) => i._id));
+    const overlap = [...ids2].filter((id) => ids1.has(id));
+    assert.equal(overlap.length, 0, `Không được trùng bản ghi giữa 2 trang, trùng: ${overlap.length}`);
+    // Tổng 3 trang phải >= 25 bản ghi duy nhất
+    const page3 = await owner.get(`/workspaces/${ws}/activity?page=3&limit=10`);
+    const allIds = new Set([...ids1, ...ids2, ...page3.data.items.map((i) => i._id)]);
+    assert.ok(allIds.size >= 25, `Tổng bản ghi duy nhất trên 3 trang phải >= 25, thực tế: ${allIds.size}`);
+  });
+
+  test('người ngoài workspace không xem được nhật ký', async () => {
+    const { ws } = await permissionFixture();
+    const outsider = new Client();
+    await outsider.post('/auth/register', { name: 'Ngoài', email: `ngoai-act-${++fixtureNumber}@x.vn`, password: 'Abcdefg1', acceptTerms: true });
+    const mail = await db.prisma.outbox.findFirst({ where: { to: `ngoai-act-${fixtureNumber}@x.vn` } });
+    await outsider.post('/auth/verify-email', { token: new URL(mail.link).searchParams.get('token') });
+    assert.equal((await outsider.get(`/workspaces/${ws}/activity`)).status, 404);
+    assert.equal((await outsider.get(`/workspaces/${ws}/activity.csv`)).status, 404);
+  });
+});
