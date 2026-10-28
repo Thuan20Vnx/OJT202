@@ -2,6 +2,7 @@ import { config } from '../../config.js';
 import { prisma } from '../../db.js';
 import { HttpError } from '../../utils/http.js';
 import { startOfDay } from '../metrics.js';
+import { withWorkspaceLock } from '../membership.js';
 
 const headers = () => ({ 'content-type': 'application/json', ...(config.ai.serviceKey && { 'x-ai-service-key': config.ai.serviceKey }) });
 
@@ -52,15 +53,19 @@ export async function usageToday(workspaceId) {
  * feature: planner | meeting | qa | report | risk; payload: dữ liệu đã lọc quyền gửi sang AIService.
  */
 export async function runAi({ workspaceId, userId, feature, payload }) {
-  const ws = await prisma.workspace.findUnique({ where: { id: workspaceId } });
-  const log = (data) => prisma.aiCall.create({ data: { workspace: workspaceId, user: userId, feature, ...data } });
-  if (!ws.ai?.enabled || ws.ai?.features?.[feature] === false) {
-    await log({ status: 'disabled', model: '-' });
+  // Giữ chỗ trong transaction ngắn; không giữ khóa trong lúc đợi dịch vụ AI.
+  const { ws, call } = await withWorkspaceLock(workspaceId, async (tx) => {
+    const ws = await tx.workspace.findUniqueOrThrow({ where: { id: workspaceId } });
+    const used = await tx.aiCall.count({ where: { workspace: workspaceId, createdAt: { gte: startOfDay() }, status: { notIn: ['quota_exceeded', 'disabled'] } } });
+    const status = !ws.ai?.enabled || ws.ai?.features?.[feature] === false ? 'disabled' : used >= (ws.ai?.dailyLimit ?? 50) ? 'quota_exceeded' : 'pending';
+    const call = await tx.aiCall.create({ data: { workspace: workspaceId, user: userId, feature, status, model: '-' } });
+    return { ws, call };
+  });
+  const log = (data) => prisma.aiCall.update({ where: { id: call.id }, data });
+  if (call.status === 'disabled') {
     throw new HttpError(403, `Tính năng "${FEATURE_VI[feature]}" đang tắt trong cài đặt workspace`, { code: 'AI_DISABLED' });
   }
-  const used = await usageToday(workspaceId);
-  if (used >= (ws.ai?.dailyLimit ?? 50)) {
-    await log({ status: 'quota_exceeded', model: '-' });
+  if (call.status === 'quota_exceeded') {
     throw new HttpError(429, `Đã dùng hết ${ws.ai.dailyLimit} lượt AI hôm nay. Hạn mức đặt lại lúc 00:00.`, { code: 'AI_QUOTA' });
   }
 

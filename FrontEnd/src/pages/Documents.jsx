@@ -9,6 +9,11 @@ import { useProjectInfo, useSocketEvent } from '../lib/hooks.js';
 const ALLOWED = /\.(pdf|txt|png|jpe?g)$/i;
 
 export default function Documents() {
+  const { project } = useApp();
+  return <DocumentsPage key={project?._id || 'none'} />;
+}
+
+function DocumentsPage() {
   const { project, canWriteProject, me } = useApp();
   const info = useProjectInfo(project?._id);
   const toast = useToast();
@@ -191,7 +196,7 @@ export default function Documents() {
             <Icon name="lock" size={14} /> Chỉ thành viên dự án mới tải xuống được tệp.
           </p>
         </div>
-        {selected && <Preview id={selected} onDeleted={() => (setSelected(null), reload())} me={me} />}
+        {selected && <Preview key={selected} id={selected} onDeleted={() => (setSelected(null), reload())} me={me} />}
       </div>
       <NewDocModal open={newDoc} onClose={() => setNewDoc(false)} projectId={project._id} onCreated={(d) => (setSelected(d._id), reload())} />
     </div>
@@ -202,25 +207,39 @@ function Preview({ id, onDeleted, me }) {
   const toast = useToast();
   const [editing, setEditing] = useState(false);
   const [content, setContent] = useState('');
+  const [editVersion, setEditVersion] = useState(null);
   const [viewRev, setViewRev] = useState(null);
   const [confirm, setConfirm] = useState(false);
   const [busy, setBusy] = useState(false);
-  const { data, loading, reload } = useLoad(() => api.get(`/documents/${id}`), [id]);
+  const { data, error, loading, reload } = useLoad(() => api.get(`/documents/${id}`), [id]);
   useEffect(() => {
     setEditing(false);
     setViewRev(null);
   }, [id]);
   if (loading && !data) return <div className="card"><PageLoader /></div>;
+  if (error) return <div className="card p-4"><ErrorBox error={error} onRetry={reload} /></div>;
   if (!data) return null;
   const d = data.document;
   const ic = fileIcon(d.name);
   const canWrite = data.access.canWrite;
   const isText = d.kind === 'doc' || d.mime === 'text/plain';
 
+  const startEditing = async () => {
+    setBusy(true);
+    try {
+      const loaded = await api.get(`/documents/${d._id}/content`);
+      setContent(loaded.content);
+      setEditVersion(loaded.version);
+      setEditing(true);
+      setViewRev(null);
+    } catch (e) { toast(e.message, 'error'); }
+    finally { setBusy(false); }
+  };
+
   const save = async (body) => {
     setBusy(true);
     try {
-      await api.patch(`/documents/${d._id}`, body);
+      await api.patch(`/documents/${d._id}`, { ...body, version: body.content !== undefined ? editVersion : d.version });
       toast(body.restoreVersion ? `Đã khôi phục v${body.restoreVersion}` : 'Đã lưu phiên bản mới');
       setEditing(false);
       setViewRev(null);
@@ -232,8 +251,10 @@ function Preview({ id, onDeleted, me }) {
     }
   };
   const showRev = async (v) => {
-    const r = await api.get(`/documents/${d._id}/revisions/${v}`);
-    setViewRev(r.revision);
+    try {
+      const r = await api.get(`/documents/${d._id}/revisions/${v}`);
+      setViewRev(r.revision);
+    } catch (e) { toast(e.message, 'error'); }
   };
 
   return (
@@ -249,11 +270,11 @@ function Preview({ id, onDeleted, me }) {
       </div>
       <div className="mt-3 grid grid-cols-2 gap-2">
         {isText && canWrite && (
-          <button className="btn-outline btn-sm" onClick={() => (setEditing(true), setContent(d.preview || ''))}>
+          <button className="btn-outline btn-sm" disabled={busy || editing} onClick={startEditing}>
             <Icon name="edit" size={16} /> Chỉnh sửa
           </button>
         )}
-        <button className="btn-primary btn-sm" onClick={() => download(`/documents/${d._id}/download`, d.name)}>
+        <button className="btn-primary btn-sm" onClick={() => download(`/documents/${d._id}/download`, d.name).catch((e) => toast(e.message, 'error'))}>
           <Icon name="download" size={16} /> Tải xuống
         </button>
       </div>
@@ -296,7 +317,7 @@ function Preview({ id, onDeleted, me }) {
           {d.isScan ? 'Ảnh/scan được lưu nhưng không được đọc (OCR) cho Trợ lý AI.' : 'Tệp PDF – tải xuống để xem nội dung.'}
         </Notice>
       )}
-      {d.kind === 'doc' && d.revisions?.length > 0 && (
+      {isText && d.revisions?.length > 0 && (
         <div className="mt-4">
           <p className="section-label mb-2">Lịch sử phiên bản ({d.revisions.length})</p>
           <div className="space-y-1.5">
@@ -314,7 +335,7 @@ function Preview({ id, onDeleted, me }) {
                       Xem
                     </button>
                     {canWrite && (
-                      <button className="text-label-md text-slate-500 hover:text-slate-800" onClick={() => save({ restoreVersion: r.version })}>
+                      <button disabled={busy || editing} className="text-label-md text-slate-500 hover:text-slate-800" onClick={() => save({ restoreVersion: r.version })}>
                         Khôi phục
                       </button>
                     )}

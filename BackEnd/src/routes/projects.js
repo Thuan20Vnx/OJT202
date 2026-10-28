@@ -1,9 +1,11 @@
+import { withWorkspaceLock } from '../services/membership.js';
+import { isDateInput, parseDate } from '../utils/dates.js';
 import { Router } from 'express';
 import { z } from 'zod';
 import { USER, ilike, isId, populate, populateAll, prisma } from '../db.js';
 import { requireAuth } from '../middleware/auth.js';
 import { middlewareProject, middlewareWorkspace, readableProjectsWhere } from '../middleware/access.js';
-import { emitProject, kickFromProject } from '../services/realtime.js';
+import { emitProject, refreshUserAccess } from '../services/realtime.js';
 import { lockProject, saveProjectMembers, projectAudit } from '../services/project-members.js';
 import { badRequest, forbidden, parse } from '../utils/http.js';
 
@@ -14,8 +16,7 @@ const COLORS = ['blue', 'purple', 'emerald', 'amber', 'rose', 'slate', 'cyan'];
 
 const dateStr = z
   .string()
-  .refine((s) => !Number.isNaN(Date.parse(s)), 'Ngày không hợp lệ')
-  .transform((s) => new Date(s));
+  .refine(isDateInput, 'Ngày không hợp lệ; thời điểm phải có múi giờ');
 
 const projectBody = z
   .object({
@@ -36,10 +37,21 @@ const projectBody = z
     sprint: z.object({ name: z.string().max(60), goal: z.string().max(300), start: dateStr.nullable(), end: dateStr.nullable() }).partial().optional(),
   })
   .superRefine((v, ctx) => {
-    if (v.startDate && v.endDate && v.endDate < v.startDate) {
+    if (v.startDate && v.endDate && new Date(v.endDate) < new Date(v.startDate)) {
       ctx.addIssue({ code: 'custom', path: ['endDate'], message: 'Ngày kết thúc không được trước ngày bắt đầu' });
     }
   });
+
+function validateSprint(sprint) {
+  if (sprint?.start && sprint?.end && new Date(sprint.end) < new Date(sprint.start)) throw badRequest('Ngày kết thúc sprint không được trước ngày bắt đầu');
+}
+function normalizeDates(body, timezone) {
+  for (const field of ['startDate', 'endDate']) if (body[field]) body[field] = parseDate(body[field], timezone, field === 'endDate');
+  if (body.sprint) {
+    for (const field of ['start', 'end']) if (body.sprint[field]) body.sprint[field] = parseDate(body.sprint[field], timezone, field === 'end');
+    validateSprint(body.sprint);
+  }
+}
 
 const SPRINT_DEFAULT = { name: '', goal: '', start: null, end: null };
 /** Sprint lưu JSONB: gộp với giá trị cũ, ngày lưu dạng ISO */
@@ -92,17 +104,18 @@ router.get('/workspaces/:wsId/projects', middlewareWorkspace(), async (req, res)
 
 router.post('/workspaces/:wsId/projects', middlewareWorkspace('wsId', 'admin'), async (req, res) => {
   const body = parse(projectBody, req.body);
+  normalizeDates(body, req.user.timezone);
   const wsId = req.ws.workspace.id;
   if (body.manager && body.manager !== req.user.id) throw badRequest('Người tạo dự án phải là PM; hãy chuyển giao sau khi tạo');
   const { members: requested, memberRoles = {}, manager, ...fields } = body;
-  const project = await prisma.$transaction(async (tx) => {
+  const project = await withWorkspaceLock(wsId, async (tx) => {
     const members = [...new Set([...requested, req.user.id])];
     const wsMembers = await tx.membership.findMany({ where: { workspace: wsId, user: { in: members } } });
     const current = wsMembers.find((m) => m.user === req.user.id);
     if (!current || !['owner', 'admin'].includes(current.role)) throw forbidden('Chỉ Owner/Admin được tạo dự án');
     const p = await tx.project.create({ data: { ...fields, sprint: mergeSprint({}, fields.sprint || {}), keyPrefix: fields.keyPrefix || 'TF', workspace: wsId, members: [], manager: req.user.id, createdBy: req.user.id } });
     const roster = members.map((user) => ({ user, role: user === req.user.id ? 'pm' : memberRoles[user] || (wsMembers.find((m) => m.user === user)?.role === 'viewer' ? 'viewer' : 'member') }));
-    const result = await saveProjectMembers(tx, { ...p, memberships: [] }, roster);
+    const result = await saveProjectMembers(tx, { ...p, memberships: [] }, roster, req.user.id, req.user.id);
     await projectAudit(tx, result, req.user.id, 'Tạo dự án', {}, { members, manager: req.user.id });
     return result;
   });
@@ -133,8 +146,9 @@ router.get('/projects/:projectId', middlewareProject(), async (req, res) => {
 router.patch('/projects/:projectId', middlewareProject(), async (req, res) => {
   if (!req.pa.canManage) throw forbidden(req.pa.project.status === 'archived' ? 'Dự án đã lưu trữ, chỉ được xem' : 'Chỉ PM được sửa dự án');
   const body = parse(projectBody.innerType().partial(), req.body);
+  normalizeDates(body, req.user.timezone);
   const removed = [];
-  const project = await prisma.$transaction(async (tx) => {
+  const project = await withWorkspaceLock(req.pa.project.workspace, async (tx) => {
     const cur = await lockProject(tx, req.pa.project.id, req.user.id);
     const start = body.startDate !== undefined ? body.startDate : cur.startDate;
     const end = body.endDate !== undefined ? body.endDate : cur.endDate;
@@ -150,16 +164,18 @@ router.patch('/projects/:projectId', middlewareProject(), async (req, res) => {
           else if (row.user === cur.manager) row.role = 'member';
         }
       }
-      await saveProjectMembers(tx, cur, roster, manager || cur.manager);
+      await saveProjectMembers(tx, cur, roster, manager || cur.manager, req.user.id);
       removed.push(...cur.members.filter((u) => !ids.includes(u)));
     }
     if (body.sprint) data.sprint = mergeSprint(cur.sprint, body.sprint);
+    validateSprint(data.sprint);
     const result = await tx.project.update({ where: { id: cur.id }, data });
     await projectAudit(tx, result, req.user.id, 'Cập nhật dự án', { members: cur.members, manager: cur.manager }, { fields: Object.keys(body), members: result.members, manager: result.manager });
     return result;
   });
-  for (const u of removed) await kickFromProject(u, project.id);
-  emitProject(project.id, 'board:refresh', {});
+  for (const user of removed) await refreshUserAccess(user);
+  for (const user of project.members) await refreshUserAccess(user);
+  await emitProject(project.id, 'board:refresh', {});
   res.json({ project });
 });
 
@@ -180,17 +196,25 @@ router.put('/projects/:projectId/risk-rules', middlewareProject(), async (req, r
       .partial(),
     req.body,
   );
-  const project = await prisma.project.update({ where: { id: req.pa.project.id }, data: { riskRules: { ...req.pa.project.riskRules, ...body } } });
+  const project = await withWorkspaceLock(req.pa.project.workspace, async (tx) => {
+    const cur = await lockProject(tx, req.pa.project.id, req.user.id);
+    const result = await tx.project.update({ where: { id: cur.id }, data: { riskRules: { ...cur.riskRules, ...body } } });
+    await projectAudit(tx, result, req.user.id, 'Cập nhật quy tắc rủi ro', cur.riskRules, result.riskRules);
+    return result;
+  });
+  await emitProject(project.id, 'risks:changed', {});
   res.json({ riskRules: project.riskRules });
 });
 
 async function setStatus(req, res, status) {
-  const project = await prisma.$transaction(async (tx) => {
+  const project = await withWorkspaceLock(req.pa.project.workspace, async (tx) => {
     const cur = await lockProject(tx, req.pa.project.id, req.user.id, { allowArchived: true });
     const result = await tx.project.update({ where: { id: cur.id }, data: { status } });
     await projectAudit(tx, result, req.user.id, status === 'archived' ? 'Lưu trữ dự án' : 'Khôi phục dự án', { status: cur.status }, { status });
     return result;
   });
+  for (const user of project.members) await refreshUserAccess(user);
+  await emitProject(project.id, 'board:refresh', {});
   res.json({ project });
 }
 router.post('/projects/:projectId/archive', middlewareProject(), (req, res) => setStatus(req, res, 'archived'));
@@ -203,16 +227,17 @@ router.get('/projects/:projectId/members', middlewareProject(), async (req, res)
 
 async function changeMembers(req, res, change) {
   const removed = [];
-  const project = await prisma.$transaction(async (tx) => {
+  const project = await withWorkspaceLock(req.pa.project.workspace, async (tx) => {
     const cur = await lockProject(tx, req.pa.project.id, req.user.id);
     const { roster, manager = cur.manager } = change(cur);
-    const result = await saveProjectMembers(tx, cur, roster, manager);
+    const result = await saveProjectMembers(tx, cur, roster, manager, req.user.id);
     removed.push(...cur.members.filter((u) => !result.members.includes(u)));
     await projectAudit(tx, result, req.user.id, 'Cập nhật thành viên dự án', { members: cur.memberships }, { members: roster, manager: result.manager });
     return result;
   });
-  for (const u of removed) await kickFromProject(u, project.id);
-  emitProject(project.id, 'board:refresh', {});
+  for (const user of removed) await refreshUserAccess(user);
+  for (const user of project.members) await refreshUserAccess(user);
+  await emitProject(project.id, 'board:refresh', {});
   res.json({ project });
 }
 

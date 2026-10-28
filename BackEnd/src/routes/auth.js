@@ -7,6 +7,7 @@ import { prisma } from '../db.js';
 import { REFRESH_COOKIE, clearAuthCookies, setAuthCookies, signAccess, startSession } from '../middleware/auth.js';
 import { sendMail } from '../services/mailer.js';
 import { disconnectUser } from '../services/realtime.js';
+import { withUserLock } from '../services/sessions.js';
 import { HttpError, badRequest, forbidden, parse, unauthorized } from '../utils/http.js';
 import { passwordIssues, randomToken, sha256 } from '../utils/security.js';
 
@@ -27,21 +28,11 @@ async function issueToken(user, type, ttlMs) {
   return raw;
 }
 
-/** Dùng token một lần: kiểm tra hạn + chưa dùng, đánh dấu đã dùng nguyên tử (UPDATE có điều kiện). */
-async function consumeToken(raw, type) {
-  if (!raw) return null;
-  const hash = sha256(String(raw));
-  const { count } = await prisma.token.updateMany({ where: { hash, type, usedAt: null, expiresAt: { gt: new Date() } }, data: { usedAt: new Date() } });
-  return count ? prisma.token.findUnique({ where: { hash } }) : null;
-}
-
 async function sendVerification(user) {
   const raw = await issueToken(user, 'verify', config.verifyTtlMs);
   const link = `${config.clientUrl}/verify-email?token=${raw}`;
   await sendMail({ to: user.email, subject: 'Xác minh email TaskFlow', text: `Chào ${user.name}, bấm liên kết để xác minh (hiệu lực 24 giờ).`, link });
 }
-
-const revokeWhere = (where) => prisma.session.updateMany({ where: { ...where, revokedAt: null }, data: { revokedAt: new Date() } });
 
 router.post('/register', async (req, res) => {
   const body = parse(
@@ -61,9 +52,18 @@ router.post('/register', async (req, res) => {
 });
 
 router.post('/verify-email', async (req, res) => {
-  const token = await consumeToken(req.body?.token, 'verify');
-  if (!token) throw badRequest('Liên kết đã hết hạn hoặc đã được sử dụng');
-  const user = await prisma.user.update({ where: { id: token.user }, data: { emailVerified: true } });
+  const body = parse(z.object({ token: z.string().min(1).max(200) }), req.body);
+  const token = await prisma.token.findUnique({ where: { hash: sha256(body.token) } });
+  if (!token || token.type !== 'verify') throw badRequest('Liên kết đã hết hạn hoặc đã được sử dụng');
+  const user = await withUserLock(token.user, async (tx) => {
+    const current = await tx.user.findUnique({ where: { id: token.user }, omit: { passwordHash: false } });
+    if (!current || current.emailVerified || current.isLocked) return null;
+    const used = await tx.token.updateMany({ where: { id: token.id, type: 'verify', usedAt: null, expiresAt: { gt: new Date() } }, data: { usedAt: new Date() } });
+    if (!used.count) return null;
+    await tx.token.updateMany({ where: { user: current.id, type: 'verify', usedAt: null }, data: { usedAt: new Date() } });
+    return tx.user.update({ where: { id: current.id }, data: { emailVerified: true }, omit: { passwordHash: false } });
+  });
+  if (!user) throw badRequest('Liên kết đã hết hạn hoặc đã được sử dụng');
   await startSession(res, req, user);
   res.json({ ok: true });
 });
@@ -76,10 +76,11 @@ router.post('/resend-verification', async (req, res) => {
 });
 
 const GENERIC_LOGIN_ERROR = 'Email hoặc mật khẩu không đúng';
-const DUMMY_HASH = bcrypt.hashSync('taskflow-dummy-password', 10);
+const DUMMY_HASH = bcrypt.hashSync('taskflow-dummy-password', 12);
 
 router.post('/login', async (req, res) => {
   const body = parse(z.object({ email, password: z.string().min(1, 'Vui lòng nhập mật khẩu'), remember: z.boolean().optional() }), req.body);
+  if (Buffer.byteLength(body.password, 'utf8') > 72) throw unauthorized(GENERIC_LOGIN_ERROR);
   const user = await prisma.user.findUnique({ where: { email: body.email }, omit: { passwordHash: false } });
   // So sánh với hash giả khi không có user để thời gian phản hồi như nhau
   const ok = await bcrypt.compare(body.password, user ? user.passwordHash : DUMMY_HASH);
@@ -87,7 +88,7 @@ router.post('/login', async (req, res) => {
   if (user.isLocked) throw forbidden('Tài khoản đã bị khóa. Vui lòng liên hệ quản trị viên.');
   if (!user.emailVerified) throw new HttpError(403, 'Vui lòng xác minh email trước khi đăng nhập', { code: 'EMAIL_NOT_VERIFIED' });
   await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
-  await startSession(res, req, user);
+  await startSession(res, req, user, { remember: body.remember === true });
   res.json({ ok: true });
 });
 
@@ -95,31 +96,43 @@ router.post('/login', async (req, res) => {
 router.post('/refresh', async (req, res) => {
   const raw = req.cookies?.[REFRESH_COOKIE];
   if (!raw) throw unauthorized();
-  const session = await prisma.session.findFirst({ where: { refreshHash: sha256(raw) } });
-  if (!session) throw unauthorized();
-  if (session.revokedAt) {
-    if (session.replacedBy) await revokeWhere({ family: session.family });
+  const nextRaw = randomToken(48);
+  const result = await prisma.$transaction(async (tx) => {
+    const hash = sha256(raw);
+    // Khóa người dùng để các thế hệ token trong cùng họ cũng tuần tự hóa.
+    const found = await tx.session.findFirst({ where: { refreshHash: hash } });
+    if (!found) return null;
+    await tx.$queryRaw`SELECT id FROM users WHERE id = ${found.user}::uuid FOR UPDATE`;
+    const session = await tx.session.findUnique({ where: { id: found.id } });
+    if (session.revokedAt) {
+      if (session.replacedBy) await tx.session.updateMany({ where: { family: session.family, revokedAt: null }, data: { revokedAt: new Date() } });
+      // Trả kết quả, không throw trong transaction: phải commit việc thu hồi họ phiên.
+      return { revokedUser: session.user };
+    }
+    if (session.expiresAt <= new Date()) return null;
+    const user = await tx.user.findUnique({ where: { id: session.user } });
+    if (!user || user.isLocked) return null;
+    const next = await tx.session.create({
+      data: {
+        user: user.id,
+        refreshHash: sha256(nextRaw),
+        family: session.family,
+        remember: session.remember,
+        userAgent: session.userAgent,
+        ip: req.ip,
+        expiresAt: session.expiresAt,
+        createdAt: session.createdAt,
+      },
+    });
+    await tx.session.update({ where: { id: session.id }, data: { revokedAt: new Date(), replacedBy: next.id } });
+    return { user, next };
+  });
+  if (!result?.next) {
+    if (result?.revokedUser) await disconnectUser(result.revokedUser);
     clearAuthCookies(res);
     throw unauthorized('Phiên đăng nhập không còn hiệu lực');
   }
-  if (session.expiresAt < new Date()) throw unauthorized('Phiên đăng nhập đã hết hạn');
-  const user = await prisma.user.findUnique({ where: { id: session.user } });
-  if (!user || user.isLocked) throw unauthorized();
-
-  const nextRaw = randomToken(48);
-  const next = await prisma.session.create({
-    data: {
-      user: user.id,
-      refreshHash: sha256(nextRaw),
-      family: session.family,
-      userAgent: session.userAgent,
-      ip: req.ip,
-      expiresAt: session.expiresAt,
-      createdAt: session.createdAt,
-    },
-  });
-  await prisma.session.update({ where: { id: session.id }, data: { revokedAt: new Date(), replacedBy: next.id } });
-  setAuthCookies(res, signAccess(user.id, next.id), nextRaw);
+  setAuthCookies(res, signAccess(result.user.id, result.next.id), nextRaw, result.next);
   res.json({ ok: true });
 });
 
@@ -127,7 +140,13 @@ router.post('/logout', async (req, res) => {
   const raw = req.cookies?.[REFRESH_COOKIE];
   if (raw) {
     const s = await prisma.session.findFirst({ where: { refreshHash: sha256(raw) } });
-    if (s) await revokeWhere({ family: s.family });
+    if (s) {
+      await prisma.$transaction(async (tx) => {
+        await tx.$queryRaw`SELECT id FROM users WHERE id = ${s.user}::uuid FOR UPDATE`;
+        await tx.session.updateMany({ where: { family: s.family, revokedAt: null }, data: { revokedAt: new Date() } });
+      });
+      await disconnectUser(s.user);
+    }
   }
   clearAuthCookies(res);
   res.json({ ok: true });
@@ -155,11 +174,16 @@ router.get('/reset-password/check', async (req, res) => {
 
 router.post('/reset-password', async (req, res) => {
   const body = parse(z.object({ token: z.string().min(1), password: strongPassword }), req.body);
-  const token = await consumeToken(body.token, 'reset');
+  const token = await prisma.token.findUnique({ where: { hash: sha256(body.token) } });
   if (!token) throw badRequest('Liên kết đã hết hạn hoặc đã được sử dụng', { code: 'TOKEN_INVALID' });
-  await prisma.user.update({ where: { id: token.user }, data: { passwordHash: await bcrypt.hash(body.password, 12), emailVerified: true } });
-  // Đổi mật khẩu => thu hồi mọi phiên cũ
-  await revokeWhere({ user: token.user });
+  const passwordHash = await bcrypt.hash(body.password, 12);
+  await withUserLock(token.user, async (tx) => {
+    const { count } = await tx.token.updateMany({ where: { id: token.id, type: 'reset', usedAt: null, expiresAt: { gt: new Date() } }, data: { usedAt: new Date() } });
+    if (!count) throw badRequest('Liên kết đã hết hạn hoặc đã được sử dụng', { code: 'TOKEN_INVALID' });
+    await tx.user.update({ where: { id: token.user }, data: { passwordHash, emailVerified: true } });
+    await tx.token.updateMany({ where: { user: token.user, type: { in: ['reset', 'verify'] }, usedAt: null }, data: { usedAt: new Date() } });
+    await tx.session.updateMany({ where: { user: token.user, revokedAt: null }, data: { revokedAt: new Date() } });
+  });
   await disconnectUser(token.user);
   clearAuthCookies(res);
   res.json({ ok: true });

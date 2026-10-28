@@ -1,4 +1,5 @@
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { lazy, Suspense } from 'react';
 import { useApp } from './lib/app.jsx';
 import AppShell from './components/AppShell.jsx';
 import { ErrorBox, PageLoader } from './components/ui.jsx';
@@ -11,14 +12,14 @@ import Overview from './pages/Overview.jsx';
 import Board from './pages/Board.jsx';
 import MyTasks from './pages/MyTasks.jsx';
 import Calendar from './pages/Calendar.jsx';
-import Documents from './pages/Documents.jsx';
-import Ai from './pages/Ai.jsx';
+const Documents = lazy(() => import('./pages/Documents.jsx'));
+const Ai = lazy(() => import('./pages/Ai.jsx'));
 import Notifications from './pages/Notifications.jsx';
 import Projects from './pages/Projects.jsx';
 import Risks from './pages/Risks.jsx';
 import Settings from './pages/settings/Settings.jsx';
 import Profile from './pages/Profile.jsx';
-import Admin from './pages/Admin.jsx';
+const Admin = lazy(() => import('./pages/Admin.jsx'));
 import DevOutbox from './pages/DevOutbox.jsx';
 
 // Chưa biết đã đăng nhập hay chưa vì server không phản hồi: báo rõ và tự thử lại
@@ -67,39 +68,139 @@ function WorkspaceGate({ children }) {
 
 export default function App() {
   return (
-    <Routes>
-      <Route path="/login" element={<PublicOnly><Login /></PublicOnly>} />
-      <Route path="/register" element={<PublicOnly><Login initialTab="register" /></PublicOnly>} />
-      <Route path="/forgot-password" element={<ForgotPassword />} />
-      <Route path="/reset-password" element={<ForgotPassword />} />
-      <Route path="/verify-email" element={<VerifyEmail />} />
-      <Route path="/invite/:token" element={<Invite />} />
-      <Route path="/dev/outbox" element={<DevOutbox />} />
-      <Route path="/onboarding" element={<RequireAuth needWorkspace={false}><Onboarding /></RequireAuth>} />
-      <Route
-        element={
-          <RequireAuth>
-            <AppShell />
-          </RequireAuth>
-        }
-      >
-        <Route path="/admin" element={<Admin />} />
-        <Route path="/profile" element={<Profile />} />
-        <Route path="/overview" element={<WorkspaceGate><Overview /></WorkspaceGate>} />
-        <Route path="/board" element={<WorkspaceGate><Board /></WorkspaceGate>} />
-        <Route path="/my-tasks" element={<WorkspaceGate><MyTasks /></WorkspaceGate>} />
-        <Route path="/calendar" element={<WorkspaceGate><Calendar /></WorkspaceGate>} />
-        <Route path="/documents" element={<WorkspaceGate><Documents /></WorkspaceGate>} />
-        <Route path="/ai" element={<WorkspaceGate><Ai /></WorkspaceGate>} />
-        <Route path="/ai/:tab" element={<WorkspaceGate><Ai /></WorkspaceGate>} />
-        <Route path="/reports" element={<Navigate to="/ai/report" replace />} />
-        <Route path="/notifications" element={<WorkspaceGate><Notifications /></WorkspaceGate>} />
-        <Route path="/projects" element={<WorkspaceGate><Projects /></WorkspaceGate>} />
-        <Route path="/risks" element={<WorkspaceGate><Risks /></WorkspaceGate>} />
-        <Route path="/settings" element={<Navigate to="/settings/members" replace />} />
-        <Route path="/settings/:tab" element={<WorkspaceGate><Settings /></WorkspaceGate>} />
-      </Route>
-      <Route path="*" element={<Navigate to="/overview" replace />} />
-    </Routes>
+    <Suspense fallback={<PageLoader />}>
+      <Routes>
+        <Route
+          path="/login"
+          element={
+            <PublicOnly>
+              <Login />
+            </PublicOnly>
+          }
+        />
+        <Route
+          path="/register"
+          element={
+            <PublicOnly>
+              <Login initialTab="register" />
+            </PublicOnly>
+          }
+        />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ForgotPassword />} />
+        <Route path="/verify-email" element={<VerifyEmail />} />
+        <Route path="/invite/:token" element={<Invite />} />
+        <Route path="/dev/outbox" element={<DevOutbox />} />
+        <Route
+          path="/onboarding"
+          element={
+            <RequireAuth needWorkspace={false}>
+              <Onboarding />
+            </RequireAuth>
+          }
+        />
+        <Route
+          element={
+            <RequireAuth>
+              <AppShell />
+            </RequireAuth>
+          }
+        >
+          <Route path="/admin" element={<Admin />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route
+            path="/overview"
+            element={
+              <WorkspaceGate>
+                <Overview />
+              </WorkspaceGate>
+            }
+          />
+          <Route
+            path="/board"
+            element={
+              <WorkspaceGate>
+                <Board />
+              </WorkspaceGate>
+            }
+          />
+          <Route
+            path="/my-tasks"
+            element={
+              <WorkspaceGate>
+                <MyTasks />
+              </WorkspaceGate>
+            }
+          />
+          <Route
+            path="/calendar"
+            element={
+              <WorkspaceGate>
+                <Calendar />
+              </WorkspaceGate>
+            }
+          />
+          <Route
+            path="/documents"
+            element={
+              <WorkspaceGate>
+                <Documents />
+              </WorkspaceGate>
+            }
+          />
+          <Route
+            path="/ai"
+            element={
+              <WorkspaceGate>
+                <Ai />
+              </WorkspaceGate>
+            }
+          />
+          <Route
+            path="/ai/:tab"
+            element={
+              <WorkspaceGate>
+                <Ai />
+              </WorkspaceGate>
+            }
+          />
+          <Route path="/reports" element={<Navigate to="/ai/report" replace />} />
+          <Route
+            path="/notifications"
+            element={
+              <WorkspaceGate>
+                <Notifications />
+              </WorkspaceGate>
+            }
+          />
+          <Route
+            path="/projects"
+            element={
+              <WorkspaceGate>
+                <Projects />
+              </WorkspaceGate>
+            }
+          />
+          <Route
+            path="/risks"
+            element={
+              <WorkspaceGate>
+                <Risks />
+              </WorkspaceGate>
+            }
+          />
+          <Route path="/settings" element={<Navigate to="/settings/members" replace />} />
+          <Route
+            path="/settings/:tab"
+            element={
+              <WorkspaceGate>
+                <Settings />
+              </WorkspaceGate>
+            }
+          />
+        </Route>
+        <Route path="*" element={<Navigate to="/overview" replace />} />
+      </Routes>
+    </Suspense>
   );
 }

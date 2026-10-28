@@ -5,13 +5,14 @@ import { useApp, useToast } from '../lib/app.jsx';
 import { PRIORITY, STATUS, STATUS_ORDER } from '../lib/format.js';
 import { useProjectInfo } from '../lib/hooks.js';
 import { Avatar, Field, Icon, Modal, Select, Spinner } from './ui.jsx';
+import { timeZone } from '../lib/dates.js';
 
 const empty = (status = 'todo') => ({
   title: '',
   description: '',
   acceptanceCriteria: [],
   subtasks: [],
-  status,
+  status: status === 'done' ? 'review' : status,
   assignee: '',
   dueDate: '',
   priority: 'medium',
@@ -48,7 +49,11 @@ export function MemberPicker({ members = [], value, onChange, placeholder = 'Ch�
           </div>
           <div className="scroll-thin max-h-56 overflow-y-auto">
             {allowEmpty && (
-              <button type="button" onClick={() => (onChange(''), setOpen(false))} className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-body-sm text-slate-500 hover:bg-slate-50">
+              <button
+                type="button"
+                onClick={() => (onChange(''), setOpen(false))}
+                className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-body-sm text-slate-500 hover:bg-slate-50"
+              >
                 <Avatar user={null} size={22} /> Chưa giao
               </button>
             )}
@@ -166,10 +171,22 @@ export default function CreateTaskModal({ open, onClose, defaultStatus, projectI
       <div className="grid md:grid-cols-[1fr_320px]">
         <div className="space-y-5 p-5">
           <Field label="Tên công việc" required error={errors.title}>
-            <input autoFocus className={`input ${errors.title ? 'input-error' : ''}`} value={f.title} onChange={set('title')} placeholder="Ví dụ: Thiết kế màn hình Thông báo" maxLength={200} />
+            <input
+              autoFocus
+              className={`input ${errors.title ? 'input-error' : ''}`}
+              value={f.title}
+              onChange={set('title')}
+              placeholder="Ví dụ: Thiết kế màn hình Thông báo"
+              maxLength={200}
+            />
           </Field>
           <Field label="Mô tả">
-            <textarea className="textarea min-h-[110px]" value={f.description} onChange={set('description')} placeholder="Nhập mô tả chi tiết yêu cầu, ngữ cảnh kỹ thuật hoặc mục tiêu công việc..." />
+            <textarea
+              className="textarea min-h-[110px]"
+              value={f.description}
+              onChange={set('description')}
+              placeholder="Nhập mô tả chi tiết yêu cầu, ngữ cảnh kỹ thuật hoặc mục tiêu công việc..."
+            />
           </Field>
           <div>
             <div className="mb-2 flex items-center justify-between">
@@ -189,12 +206,18 @@ export default function CreateTaskModal({ open, onClose, defaultStatus, projectI
                 </div>
               ))}
               <div className="flex gap-2">
-                <input className="input h-9" placeholder="Thêm tiêu chí rồi nhấn Enter" value={newCrit} onChange={(e) => setNewCrit(e.target.value)} onKeyDown={(e) => {
-                  if (e.key === 'Enter' && newCrit.trim()) {
-                    set('acceptanceCriteria')([...f.acceptanceCriteria, newCrit.trim()]);
-                    setNewCrit('');
-                  }
-                }} />
+                <input
+                  className="input h-9"
+                  placeholder="Thêm tiêu chí rồi nhấn Enter"
+                  value={newCrit}
+                  onChange={(e) => setNewCrit(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && newCrit.trim()) {
+                      set('acceptanceCriteria')([...f.acceptanceCriteria, newCrit.trim()]);
+                      setNewCrit('');
+                    }
+                  }}
+                />
               </div>
             </div>
           </div>
@@ -213,12 +236,18 @@ export default function CreateTaskModal({ open, onClose, defaultStatus, projectI
                   </button>
                 </div>
               ))}
-              <input className="input h-9" placeholder="+ Thêm công việc con rồi nhấn Enter" value={newSub} onChange={(e) => setNewSub(e.target.value)} onKeyDown={(e) => {
-                if (e.key === 'Enter' && newSub.trim()) {
-                  set('subtasks')([...f.subtasks, newSub.trim()]);
-                  setNewSub('');
-                }
-              }} />
+              <input
+                className="input h-9"
+                placeholder="+ Thêm công việc con rồi nhấn Enter"
+                value={newSub}
+                onChange={(e) => setNewSub(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && newSub.trim()) {
+                    set('subtasks')([...f.subtasks, newSub.trim()]);
+                    setNewSub('');
+                  }
+                }}
+              />
             </div>
           </div>
           <div>
@@ -226,7 +255,11 @@ export default function CreateTaskModal({ open, onClose, defaultStatus, projectI
               <Icon name="attach_file" size={16} />
               Tệp đính kèm
             </span>
-            <button type="button" onClick={() => files.current?.click()} className="flex w-full flex-col items-center rounded-xl border-2 border-dashed border-slate-200 px-4 py-5 text-body-sm text-slate-500 hover:border-blue-300 hover:bg-blue-50/40">
+            <button
+              type="button"
+              onClick={() => files.current?.click()}
+              className="flex w-full flex-col items-center rounded-xl border-2 border-dashed border-slate-200 px-4 py-5 text-body-sm text-slate-500 hover:border-blue-300 hover:bg-blue-50/40"
+            >
               <Icon name="cloud_upload" size={26} className="text-slate-400" />
               <span>
                 Kéo thả hoặc <span className="font-semibold text-blue-600">duyệt tệp</span> từ máy tính
@@ -245,24 +278,30 @@ export default function CreateTaskModal({ open, onClose, defaultStatus, projectI
           <p className="section-label">Chi tiết thuộc tính</p>
           <Field label="Trạng thái">
             <Select className="input" value={f.status} onChange={set('status')}>
-              {STATUS_ORDER.map((s) => (
+              {STATUS_ORDER.filter((s) => s !== 'done').map((s) => (
                 <option key={s} value={s}>
                   {STATUS[s].label}
                 </option>
               ))}
             </Select>
+            <p className="mt-1 text-label-md text-slate-500">Công việc cần được PM, Owner hoặc Admin duyệt từ Đang kiểm duyệt trước khi hoàn thành.</p>
           </Field>
           <Field label="Người nhận" error={errors.assignee}>
             <MemberPicker members={members} value={f.assignee} onChange={set('assignee')} />
           </Field>
-          <Field label="Hạn chót" hint="Không đặt hạn thì công việc sẽ không có hạn chót">
+          <Field label="Hạn chót" hint={`Hết ngày (23:59:59), ${timeZone()}. Để trống nếu không có hạn.`}>
             <input type="date" className="input" value={f.dueDate} onChange={set('dueDate')} />
           </Field>
           <div>
             <span className="label">Mức độ ưu tiên</span>
             <div className="grid grid-cols-3 rounded-lg bg-slate-100 p-0.5">
               {['low', 'medium', 'high'].map((p) => (
-                <button key={p} type="button" onClick={() => set('priority')(p)} className={`rounded-md py-1.5 text-label-md ${f.priority === p ? 'bg-white font-semibold text-slate-900 shadow-sm' : 'text-slate-500'}`}>
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => set('priority')(p)}
+                  className={`rounded-md py-1.5 text-label-md ${f.priority === p ? 'bg-white font-semibold text-slate-900 shadow-sm' : 'text-slate-500'}`}
+                >
                   {PRIORITY[p].label}
                 </button>
               ))}
@@ -282,12 +321,18 @@ export default function CreateTaskModal({ open, onClose, defaultStatus, projectI
                   </button>
                 </span>
               ))}
-              <input className="input h-[22px] w-28 rounded-md px-2 text-label-md" placeholder="+ Thêm nhãn" value={newLabel} onChange={(e) => setNewLabel(e.target.value)} onKeyDown={(e) => {
-                if (e.key === 'Enter' && newLabel.trim()) {
-                  if (!f.labels.includes(newLabel.trim())) set('labels')([...f.labels, newLabel.trim()]);
-                  setNewLabel('');
-                }
-              }} />
+              <input
+                className="input h-[22px] w-28 rounded-md px-2 text-label-md"
+                placeholder="+ Thêm nhãn"
+                value={newLabel}
+                onChange={(e) => setNewLabel(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && newLabel.trim()) {
+                    if (!f.labels.includes(newLabel.trim())) set('labels')([...f.labels, newLabel.trim()]);
+                    setNewLabel('');
+                  }
+                }}
+              />
             </div>
           </div>
           {info?.project?.sprint?.name && (

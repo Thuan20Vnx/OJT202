@@ -17,11 +17,31 @@ export default function Risks() {
   const [explaining, setExplaining] = useState(null);
   const [rulesOpen, setRulesOpen] = useState(false);
   const { data, error, loading, reload, setData } = useLoad(() => (project ? api.get(`/projects/${project._id}/risks`) : Promise.resolve(null)), [project?._id]);
-  useSocketEvent('task:changed', () => reload(), [reload]);
+  useSocketEvent(
+    'task:changed',
+    () => {
+      setAi({});
+      reload();
+    },
+    [reload],
+  );
+  useSocketEvent(
+    'risks:changed',
+    () => {
+      setAi({});
+      reload();
+    },
+    [reload],
+  );
 
   if (!project) return <Empty icon="folder_off" title="Chưa có dự án" />;
   if (loading && !data) return <PageLoader />;
-  if (error) return <div className="p-6"><ErrorBox error={error} onRetry={reload} /></div>;
+  if (error)
+    return (
+      <div className="p-6">
+        <ErrorBox error={error} onRetry={reload} />
+      </div>
+    );
 
   const open = data.open;
   const counts = {
@@ -36,13 +56,21 @@ export default function Risks() {
   const canManage = data.access.canManage;
 
   const resolve = async (a) => {
-    await api.post(`/projects/${project._id}/risks/resolve`, { key: a.key, title: a.title });
-    toast('Đã đánh dấu cảnh báo là đã xử lý');
-    reload();
+    try {
+      await api.post(`/projects/${project._id}/risks/resolve`, { key: a.key, title: a.title });
+      toast('Đã đánh dấu cảnh báo là đã xử lý');
+      reload();
+    } catch (e) {
+      toast(e.message, 'error');
+    }
   };
   const unresolve = async (r) => {
-    await api.del(`/projects/${project._id}/risks/resolve?key=${encodeURIComponent(r.key)}`);
-    reload();
+    try {
+      await api.del(`/projects/${project._id}/risks/resolve?key=${encodeURIComponent(r.key)}`);
+      reload();
+    } catch (e) {
+      toast(e.message, 'error');
+    }
   };
   const explain = async (a) => {
     setExplaining(a.key);
@@ -67,7 +95,7 @@ export default function Risks() {
 
   const r = data.rules;
   const RULES = [
-    ['overdue', `Quá hạn ≥ ${r.overdueDays || 1} ngày`, 'overdueDays', 'ngày'],
+    ['overdue', `Quá hạn ≥ ${r.overdueDays ?? 1} ngày`, 'overdueDays', 'ngày'],
     ['blockedByOverdue', 'Bị chặn bởi việc quá hạn'],
     ['overload', `Tải tuần > ${r.overloadPct}% giờ khả dụng`, 'overloadPct', '%'],
     ['dueSoon', `Đến hạn trong 24 giờ và tiến độ < ${r.dueSoonProgressPct}%`, 'dueSoonProgressPct', '%'],
@@ -95,9 +123,30 @@ export default function Risks() {
         }
       />
       <div className="mb-5 grid gap-4 sm:grid-cols-3">
-        <StatCard label="Quá hạn" value={`${counts.overdue} việc`} icon="event_busy" tone="red" active={type === 'overdue'} onClick={() => setType(type === 'overdue' ? '' : 'overdue')} />
-        <StatCard label="Bị chặn" value={`${counts.blocked} chuỗi`} icon="block" tone="amber" active={type === 'blocked'} onClick={() => setType(type === 'blocked' ? '' : 'blocked')} />
-        <StatCard label="Thành viên quá tải" value={`${counts.overload} người`} icon="person_alert" tone="purple" active={type === 'overload'} onClick={() => setType(type === 'overload' ? '' : 'overload')} />
+        <StatCard
+          label="Quá hạn"
+          value={`${counts.overdue} việc`}
+          icon="event_busy"
+          tone="red"
+          active={type === 'overdue'}
+          onClick={() => setType(type === 'overdue' ? '' : 'overdue')}
+        />
+        <StatCard
+          label="Bị chặn"
+          value={`${counts.blocked} chuỗi`}
+          icon="block"
+          tone="amber"
+          active={type === 'blocked'}
+          onClick={() => setType(type === 'blocked' ? '' : 'blocked')}
+        />
+        <StatCard
+          label="Thành viên quá tải"
+          value={`${counts.overload} người`}
+          icon="person_alert"
+          tone="purple"
+          active={type === 'overload'}
+          onClick={() => setType(type === 'overload' ? '' : 'overload')}
+        />
       </div>
       <div className="grid gap-5 lg:grid-cols-[1fr_340px]">
         <div>
@@ -138,7 +187,12 @@ export default function Risks() {
                 </div>
                 <div className="mt-3 flex flex-wrap items-center gap-1.5">
                   {a.tasks.map((t) => (
-                    <button key={t._id} onClick={() => navigate({ search: `?task=${t._id}` })} className="chip border-slate-200 bg-white font-mono text-blue-700 hover:border-blue-300" title={t.title}>
+                    <button
+                      key={t._id}
+                      onClick={() => navigate({ search: `?task=${t._id}` })}
+                      className="chip border-slate-200 bg-white font-mono text-blue-700 hover:border-blue-300"
+                      title={t.title}
+                    >
                       {t.key}
                     </button>
                   ))}
@@ -187,7 +241,12 @@ export default function Risks() {
                   {rulesOpen && numKey && (
                     <label className="mt-2 flex items-center gap-2 text-label-md font-normal text-slate-500">
                       Ngưỡng
-                      <input type="number" className="input h-7 w-20 py-0 text-body-sm" defaultValue={r[numKey]} onBlur={(e) => Number(e.target.value) !== r[numKey] && setRule(numKey, Number(e.target.value))} />
+                      <input
+                        type="number"
+                        className="input h-7 w-20 py-0 text-body-sm"
+                        defaultValue={r[numKey]}
+                        onBlur={(e) => Number(e.target.value) !== r[numKey] && setRule(numKey, Number(e.target.value))}
+                      />
                       {unit}
                     </label>
                   )}

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { fmtDate } from '../lib/format.js';
+import { fmtProjectDate as fmtDate } from '../lib/format.js';
 
 /** Burndown: đường thực tế (xanh, liền) + lý tưởng (xám, nét đứt), có crosshair + tooltip khi rê chuột. */
 export function Burndown({ days = [], height = 220 }) {
@@ -9,7 +9,9 @@ export function Burndown({ days = [], height = 220 }) {
   const H = height;
   const pad = { l: 32, r: 12, t: 12, b: 26 };
   const max = Math.max(1, ...days.map((d) => Math.max(d.ideal, d.actual ?? 0)));
-  const x = (i) => pad.l + (i * (W - pad.l - pad.r)) / Math.max(1, days.length - 1);
+  const span = new Date(days.at(-1).date) - new Date(days[0].date);
+  const x = (i) => pad.l + ((new Date(days[i].date) - new Date(days[0].date)) * (W - pad.l - pad.r)) / Math.max(1, span);
+  const selected = hover == null ? null : days[hover];
   const y = (v) => pad.t + (1 - v / max) * (H - pad.t - pad.b);
   const ideal = days.map((d, i) => `${x(i)},${y(d.ideal)}`).join(' ');
   const actualPts = days.map((d, i) => (d.actual == null ? null : [x(i), y(d.actual)])).filter(Boolean);
@@ -41,13 +43,24 @@ export function Burndown({ days = [], height = 220 }) {
             <circle cx={x(todayIdx)} cy={y(days[todayIdx].actual)} r="4.5" fill="#2563eb" stroke="#fff" strokeWidth="2" />
           </g>
         )}
-        {hover != null && <line x1={x(hover)} x2={x(hover)} y1={pad.t} y2={H - pad.b} stroke="#cbd5e1" strokeWidth="1" />}
+        {selected && <line x1={x(hover)} x2={x(hover)} y1={pad.t} y2={H - pad.b} stroke="#cbd5e1" strokeWidth="1" />}
         {days.map((_, i) => (
-          <rect key={i} x={x(i) - (W - pad.l - pad.r) / days.length / 2} y={0} width={(W - pad.l - pad.r) / days.length} height={H} fill="transparent" onMouseEnter={() => setHover(i)} />
+          <rect
+            key={i}
+            x={x(i) - (W - pad.l - pad.r) / days.length / 2}
+            y={0}
+            width={(W - pad.l - pad.r) / days.length}
+            height={H}
+            fill="transparent"
+            onMouseEnter={() => setHover(i)}
+          />
         ))}
       </svg>
-      {hover != null && (
-        <div className="pointer-events-none absolute top-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-label-md shadow-pop" style={{ left: `${Math.min(80, (x(hover) / W) * 100)}%` }}>
+      {selected && (
+        <div
+          className="pointer-events-none absolute top-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-label-md shadow-pop"
+          style={{ left: `${Math.min(80, (x(hover) / W) * 100)}%` }}
+        >
           <p className="font-semibold text-slate-800">{fmtDate(days[hover].date)}</p>
           <p className="font-normal text-slate-600">Thực tế: {days[hover].actual ?? '–'} việc</p>
           <p className="font-normal text-slate-600">Lý tưởng: {days[hover].ideal} việc</p>
@@ -118,7 +131,12 @@ export function Donut({ segments, size = 168, center }) {
       </div>
       <ul className="min-w-[160px] flex-1 space-y-2">
         {segments.map((s, i) => (
-          <li key={s.label} className={`flex items-center justify-between gap-3 text-body-sm ${hover === i ? 'font-semibold' : ''}`} onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)}>
+          <li
+            key={s.label}
+            className={`flex items-center justify-between gap-3 text-body-sm ${hover === i ? 'font-semibold' : ''}`}
+            onMouseEnter={() => setHover(i)}
+            onMouseLeave={() => setHover(null)}
+          >
             <span className="flex items-center gap-2 text-slate-700">
               <span className="h-2.5 w-2.5 rounded-sm" style={{ background: s.color }} />
               {s.label}

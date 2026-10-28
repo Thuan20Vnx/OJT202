@@ -6,12 +6,12 @@ import { useToast } from '../../lib/app.jsx';
 import { PRIORITY, fmtDate, isoDate } from '../../lib/format.js';
 
 /** Danh sách mục nháp dùng chung cho Lập kế hoạch & Ghi chú họp: sửa, chọn, xóa, duyệt. */
-export default function DraftItems({ draft, setDraft, members, title, onApproved, onRegenerate, regenerating, showExcerpt }) {
+export default function DraftItems({ draft, setDraft, members, title, onApproved, onRegenerate, regenerating, showExcerpt, canManage = false }) {
   const toast = useToast();
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({});
   const [busy, setBusy] = useState(false);
-  const readOnly = draft.status !== 'draft';
+  const readOnly = draft.status !== 'draft' || !canManage;
   const items = draft.items;
   const selected = items.filter((i) => i.selected);
   const hours = selected.reduce((s, i) => s + (i.estimateHours || 0), 0);
@@ -20,16 +20,26 @@ export default function DraftItems({ draft, setDraft, members, title, onApproved
     try {
       const d = await api.patch(`/ai/drafts/${draft._id}`, body);
       setDraft(d.draft);
+      return true;
     } catch (e) {
       toast(e.message, 'error');
+      return false;
     }
   };
   const startEdit = (it) => {
     setEditing(it.key);
-    setForm({ title: it.title, description: it.description || '', estimateHours: it.estimateHours ?? '', priority: it.priority, assignee: it.assignee?._id || '', dueDate: isoDate(it.dueDate), acceptanceCriteria: (it.acceptanceCriteria || []).join('\n') });
+    setForm({
+      title: it.title,
+      description: it.description || '',
+      estimateHours: it.estimateHours ?? '',
+      priority: it.priority,
+      assignee: it.assignee?._id || '',
+      dueDate: isoDate(it.dueDate),
+      acceptanceCriteria: (it.acceptanceCriteria || []).join('\n'),
+    });
   };
   const saveEdit = async (key) => {
-    await patch({
+    const saved = await patch({
       items: [
         {
           key,
@@ -38,12 +48,15 @@ export default function DraftItems({ draft, setDraft, members, title, onApproved
           estimateHours: form.estimateHours === '' ? null : Number(form.estimateHours),
           priority: form.priority,
           assignee: form.assignee || null,
-          dueDate: form.dueDate || null,
-          acceptanceCriteria: form.acceptanceCriteria.split('\n').map((x) => x.trim()).filter(Boolean),
+          dueDate: form.dueDate === isoDate(items.find((it) => it.key === key)?.dueDate) ? (items.find((it) => it.key === key)?.dueDate ?? null) : form.dueDate || null,
+          acceptanceCriteria: form.acceptanceCriteria
+            .split('\n')
+            .map((x) => x.trim())
+            .filter(Boolean),
         },
       ],
     });
-    setEditing(null);
+    if (saved) setEditing(null);
   };
   const approve = async () => {
     setBusy(true);
@@ -70,19 +83,34 @@ export default function DraftItems({ draft, setDraft, members, title, onApproved
           {title} ({items.length} việc)
         </h2>
         {readOnly ? (
-          <span className="chip border-emerald-200 bg-emerald-50 text-emerald-700">{draft.status === 'approved' ? 'Đã duyệt – đã tạo công việc' : 'Đã hủy'}</span>
+          <span className="chip border-emerald-200 bg-emerald-50 text-emerald-700">
+            {draft.status === 'approved' ? 'Đã duyệt – đã tạo công việc' : draft.status === 'discarded' ? 'Đã hủy' : 'Chỉ xem'}
+          </span>
         ) : (
           <span className="chip border-amber-200 bg-amber-50 text-amber-700">● Nháp – chưa lưu vào dự án</span>
         )}
         {!readOnly && (
           <label className="ml-auto flex items-center gap-2 text-body-sm text-slate-600">
-            <input type="checkbox" className="form-checkbox rounded text-blue-600" checked={selected.length === items.length && items.length > 0} onChange={(e) => patch({ items: items.map((i) => ({ key: i.key, selected: e.target.checked })) })} />
+            <input
+              type="checkbox"
+              className="form-checkbox rounded text-blue-600"
+              checked={selected.length === items.length && items.length > 0}
+              onChange={(e) => patch({ items: items.map((i) => ({ key: i.key, selected: e.target.checked })) })}
+            />
             Chọn tất cả
           </label>
         )}
         <span className="text-body-sm text-slate-600">
-          Đã chọn <b>{selected.length}/{items.length}</b>
-          {hours > 0 && <> · <b className="text-blue-700">{hours} giờ</b> ước lượng</>}
+          Đã chọn{' '}
+          <b>
+            {selected.length}/{items.length}
+          </b>
+          {hours > 0 && (
+            <>
+              {' '}
+              · <b className="text-blue-700">{Number(hours.toFixed(2))} giờ</b> ước lượng
+            </>
+          )}
         </span>
       </div>
       <div className="space-y-3 pb-24">

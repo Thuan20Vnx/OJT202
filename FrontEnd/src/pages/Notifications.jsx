@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Avatar, Empty, ErrorBox, Icon, PageHeader, PageLoader, Select, Toggle } from '../components/ui.jsx';
 import { api, qs } from '../lib/api.js';
@@ -17,26 +17,51 @@ const TYPE = {
 };
 
 export default function Notifications() {
-  const { wsId, projects, setProjectId, setUnread, refreshUnread } = useApp();
+  const { wsId } = useApp();
+  return <NotificationPage key={wsId} />;
+}
+
+function NotificationPage() {
+  const { wsId, projects, setProjectId, refreshUnread } = useApp();
   const toast = useToast();
   const navigate = useNavigate();
   const [tab, setTab] = useState('all');
   const [project, setProject] = useState('');
-  const { data, error, loading, reload, setData } = useLoad(() => api.get(`/notifications${qs({ tab, project, workspace: wsId, limit: 50 })}`), [tab, project, wsId]);
+  const scope = JSON.stringify([wsId, tab, project]);
+  const activeScope = useRef(scope);
+  activeScope.current = scope;
+  const pendingReads = useRef(new Set());
+  const moreRequest = useRef(null);
+  const [moreScope, setMoreScope] = useState(null);
+  const { data: loaded, error, loading, reload, setData } = useLoad(async () => ({
+    ...await api.get(`/notifications${qs({ tab, project, workspace: wsId, limit: 50 })}`), scope,
+  }), [scope]);
+  const data = loaded?.scope === scope ? loaded : null;
   const prefs = useLoad(() => api.get('/me/notification-prefs'), []);
   useSocketEvent('notification:new', () => reload(), [reload]);
 
   const markRead = async (n) => {
-    if (n.readAt) return;
-    await api.post(`/notifications/${n._id}/read`);
-    setData((d) => ({ ...d, unread: Math.max(0, d.unread - 1), items: d.items.map((x) => (x._id === n._id ? { ...x, readAt: new Date() } : x)) }));
-    setUnread((u) => Math.max(0, u - 1));
+    if (n.readAt || pendingReads.current.has(n._id)) return;
+    pendingReads.current.add(n._id);
+    try {
+      await api.post(`/notifications/${n._id}/read`);
+      setData((d) => {
+        if (d?.scope !== scope || !d.items.some((x) => x._id === n._id && !x.readAt)) return d;
+        return { ...d, unread: Math.max(0, d.unread - 1), items: tab === 'unread'
+          ? d.items.filter((x) => x._id !== n._id)
+          : d.items.map((x) => (x._id === n._id ? { ...x, readAt: new Date() } : x)) };
+      });
+      refreshUnread();
+    } catch (e) { toast(e.message, 'error'); }
+    finally { pendingReads.current.delete(n._id); }
   };
   const readAll = async () => {
-    await api.post('/notifications/read-all', { workspace: wsId });
-    toast('Đã đánh dấu tất cả là đã đọc');
-    reload();
-    refreshUnread();
+    try {
+      await api.post('/notifications/read-all', { workspace: wsId });
+      toast('Đã đánh dấu tất cả là đã đọc');
+      if (activeScope.current === scope) reload();
+      refreshUnread();
+    } catch (e) { toast(e.message, 'error'); }
   };
   const openTask = (n) => {
     markRead(n);
@@ -44,8 +69,29 @@ export default function Notifications() {
     if (n.task) navigate({ pathname: '/board', search: `?task=${n.task._id}` });
   };
   const setPref = async (k, v) => {
-    const d = await api.patch('/me/notification-prefs', { [k]: v });
-    prefs.setData(d);
+    try {
+      const d = await api.patch('/me/notification-prefs', { [k]: v });
+      prefs.setData(d);
+    } catch (e) { toast(e.message, 'error'); }
+  };
+  const loadMore = async () => {
+    if (!data?.nextCursor || loading || moreRequest.current?.scope === scope) return;
+    const request = { scope, cursor: data.nextCursor };
+    moreRequest.current = request;
+    setMoreScope(scope);
+    try {
+      const page = await api.get(`/notifications${qs({ tab, project, workspace: wsId, limit: 50, cursor: request.cursor })}`);
+      if (activeScope.current !== scope) return;
+      setData((d) => {
+        // Không ghép trang cũ vào danh sách vừa đổi bộ lọc hoặc được realtime tải lại.
+        if (d !== data) return d;
+        const ids = new Set(d.items.map((n) => n._id));
+        return { ...d, ...page, items: [...d.items, ...page.items.filter((n) => !ids.has(n._id))] };
+      });
+    } catch (e) { if (activeScope.current === scope) toast(e.message, 'error'); }
+    finally {
+      if (moreRequest.current === request) { moreRequest.current = null; setMoreScope(null); }
+    }
   };
 
   const items = data?.items || [];
@@ -93,10 +139,10 @@ export default function Notifications() {
           <ErrorBox error={error} onRetry={reload} />
           {loading && !data ? (
             <PageLoader />
-          ) : !items.length ? (
+          ) : error && !data ? null : !items.length ? (
             <div className="card">
-              <Empty icon="notifications_off" title="Bạn đã xem hết thông báo">
-                Không còn thông báo nào trong mục này.
+              <Empty icon="notifications_off" title={data?.nextCursor ? 'Không còn thông báo trên trang này' : 'Bạn đã xem hết thông báo'}>
+                {data?.nextCursor ? 'Tải thêm để xem những thông báo trước đó.' : 'Không còn thông báo nào trong mục này.'}
               </Empty>
             </div>
           ) : (
@@ -155,13 +201,21 @@ export default function Notifications() {
                   </div>
                 </div>
               ))}
-              <p className="py-2 text-center text-body-sm text-slate-400">
+              {!data?.nextCursor && <p className="py-2 text-center text-body-sm text-slate-400">
                 <Icon name="check_circle" size={16} className="text-emerald-500" /> Bạn đã xem hết thông báo
-              </p>
+              </p>}
+            </div>
+          )}
+          {data?.nextCursor && (
+            <div className="py-4 text-center">
+              <button className="btn-outline" disabled={loading || moreScope === scope} onClick={loadMore}>
+                {moreScope === scope ? 'Đang tải…' : 'Tải thêm thông báo'}
+              </button>
             </div>
           )}
         </div>
         <div className="card h-fit p-4">
+          <ErrorBox error={prefs.error} onRetry={prefs.reload} />
           <p className="mb-3 flex items-center gap-1.5 text-label-lg font-semibold text-slate-900">
             <Icon name="tune" size={18} className="text-blue-600" /> Cài đặt thông báo
           </p>

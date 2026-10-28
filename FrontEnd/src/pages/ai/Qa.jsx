@@ -123,6 +123,13 @@ export default function Qa({ project, onUsage, disabled }) {
                   <Icon name="auto_awesome" size={16} />
                 </span>
                 <div className="min-w-0 max-w-[85%] flex-1">
+                  {m.sourceState && m.sourceState !== 'current' && (
+                    <Notice tone="warn" className="mb-2">
+                      {m.sourceState === 'changed'
+                        ? 'Nguồn dự án đã thay đổi từ lúc trả lời. Hãy hỏi lại để có dữ liệu mới nhất.'
+                        : 'Câu trả lời cũ chưa có thông tin phiên bản nguồn. Hãy hỏi lại trước khi sử dụng.'}
+                    </Notice>
+                  )}
                   {m.refused ? (
                     <div className="rounded-2xl rounded-tl-md border border-amber-200 bg-amber-50 px-4 py-3 text-body-md text-amber-900">
                       <p className="flex items-start gap-2">
@@ -151,10 +158,18 @@ export default function Qa({ project, onUsage, disabled }) {
                           </p>
                           <div className="grid gap-2 sm:grid-cols-3">
                             {m.citations.map((c) => (
-                              <button key={c.n} onClick={() => openSource(c)} className="rounded-lg border border-slate-200 p-2.5 text-left transition-colors hover:border-blue-300 hover:bg-blue-50/40">
+                              <button
+                                key={c.n}
+                                disabled={c.available === false}
+                                onClick={() => openSource(c)}
+                                className="rounded-lg border border-slate-200 p-2.5 text-left transition-colors hover:border-blue-300 hover:bg-blue-50/40 disabled:cursor-not-allowed disabled:opacity-60"
+                              >
                                 <p className="flex items-center gap-1.5 text-label-md text-blue-700">
                                   <span className="rounded bg-blue-100 px-1 text-[10px] font-bold">{c.n}</span>
-                                  <span className="truncate">{c.label}</span>
+                                  <span className="truncate">
+                                    {c.label}
+                                    {c.available === false ? ' · Nguồn không còn' : ''}
+                                  </span>
                                   <Icon name="open_in_new" size={12} className="ml-auto shrink-0" />
                                 </p>
                                 <p className="mt-1 line-clamp-2 text-label-md font-normal italic text-slate-500">“{c.excerpt}”</p>
@@ -182,7 +197,12 @@ export default function Qa({ project, onUsage, disabled }) {
           <div className="mb-2 flex flex-wrap gap-1.5">
             <span className="text-label-md font-normal text-slate-400">Gợi ý:</span>
             {SUGGEST.map((s) => (
-              <button key={s} onClick={() => ask(s)} disabled={busy || disabled} className="rounded-full border border-slate-200 px-2.5 py-0.5 text-label-md text-slate-600 hover:border-blue-300 hover:text-blue-700">
+              <button
+                key={s}
+                onClick={() => ask(s)}
+                disabled={busy || disabled}
+                className="rounded-full border border-slate-200 px-2.5 py-0.5 text-label-md text-slate-600 hover:border-blue-300 hover:text-blue-700"
+              >
                 {s}
               </button>
             ))}

@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { api, onUnauthorized } from './api.js';
 import { closeSocket, getSocket, joinProject } from './socket.js';
+import { setTimeZone } from './dates.js';
 
 const AppCtx = createContext(null);
 const ToastCtx = createContext(() => {});
@@ -40,9 +41,7 @@ export function ToastProvider({ children }) {
               t.tone === 'error' ? 'border-rose-200' : t.tone === 'info' ? 'border-blue-200' : 'border-emerald-200'
             }`}
           >
-            <span
-              className={`material-symbols-outlined icon-fill !text-[18px] ${t.tone === 'error' ? 'text-rose-500' : t.tone === 'info' ? 'text-blue-600' : 'text-emerald-500'}`}
-            >
+            <span className={`material-symbols-outlined icon-fill !text-[18px] ${t.tone === 'error' ? 'text-rose-500' : t.tone === 'info' ? 'text-blue-600' : 'text-emerald-500'}`}>
               {t.tone === 'error' ? 'error' : t.tone === 'info' ? 'info' : 'check_circle'}
             </span>
             <span className="text-slate-700">{t.message}</span>
@@ -55,14 +54,21 @@ export function ToastProvider({ children }) {
 export const useToast = () => useContext(ToastCtx);
 
 export function AppProvider({ children }) {
-  const [me, setMe] = useState(undefined); // undefined = đang tải, null = chưa đăng nhập
+  const [me, setMeState] = useState(undefined); // undefined = đang tải, null = chưa đăng nhập
+  const setMe = useCallback((user) => {
+    setTimeZone(user?.timezone);
+    setMeState(user);
+  }, []);
   const [workspaces, setWorkspaces] = useState([]);
   const [wsId, setWsId] = useState(store.get('tf_ws'));
-  const [ws, setWs] = useState(null); // { workspace, role, projects }
+  const [wsSnapshot, setWs] = useState(null); // { userId, workspace, role, projects }
   const [projectId, setProjectIdState] = useState(store.get('tf_project'));
   const [unread, setUnread] = useState(0);
   const [theme, setTheme] = useState(store.get('tf_theme') || 'light');
   const loadingWs = useRef(null);
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent('tf:resync'));
+  }, [me?.timezone]);
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', theme === 'dark');
@@ -72,15 +78,19 @@ export function AppProvider({ children }) {
   // offline = không gọi được /me vì server tạm lỗi/đang khởi động lại (không phải hết phiên)
   const [offline, setOffline] = useState(false);
   const retryTimer = useRef(null);
+  const identityRequest = useRef(0);
   const loadMe = useCallback(async () => {
+    const requestId = ++identityRequest.current;
     clearTimeout(retryTimer.current);
     try {
       const data = await api.get('/me');
+      if (requestId !== identityRequest.current) return null;
       setOffline(false);
       setMe(data.user);
       setWorkspaces(data.workspaces);
       return data;
     } catch (e) {
+      if (requestId !== identityRequest.current) return null;
       if (e.status === 401) {
         setOffline(false);
         setMe(null);
@@ -98,7 +108,16 @@ export function AppProvider({ children }) {
 
   useEffect(() => {
     loadMe();
-    return onUnauthorized(() => setMe(null));
+    const unsubscribe = onUnauthorized(() => {
+      identityRequest.current++;
+      clearTimeout(retryTimer.current);
+      setOffline(false);
+      setMe(null);
+      setWorkspaces([]);
+      setWs(null);
+      setUnread(0);
+    });
+    return () => { unsubscribe(); clearTimeout(retryTimer.current); };
   }, [loadMe]);
 
   const activeWsId = useMemo(() => {
@@ -106,14 +125,21 @@ export function AppProvider({ children }) {
     return workspaces.some((w) => w._id === wsId) ? wsId : workspaces[0]._id;
   }, [workspaces, wsId]);
 
+  // Hide the previous workspace immediately, before the next request completes.
+  // A response from the previous account/workspace must not restore its data.
+  const wsScope = `${me?._id || ''}:${activeWsId || ''}`;
+  const currentWsScope = useRef(wsScope);
+  currentWsScope.current = wsScope;
+  const ws = me && wsSnapshot?.userId === me._id && wsSnapshot?.workspace?._id === activeWsId ? wsSnapshot : null;
+
   const reloadWorkspace = useCallback(async () => {
-    if (!activeWsId) return setWs(null);
+    if (!me?._id || !activeWsId) { loadingWs.current = null; return setWs(null); }
     const req = api.get(`/workspaces/${activeWsId}`);
     loadingWs.current = req;
     const data = await req;
-    if (loadingWs.current === req) setWs(data);
+    if (loadingWs.current === req && currentWsScope.current === wsScope) setWs({ ...data, userId: me._id });
     return data;
-  }, [activeWsId]);
+  }, [activeWsId, me?._id, wsScope]);
 
   const [wsError, setWsError] = useState(null);
   const safeReloadWs = useCallback(async () => {
@@ -121,10 +147,10 @@ export function AppProvider({ children }) {
       setWsError(null);
       return await reloadWorkspace();
     } catch (e) {
-      setWsError(e);
+      if (currentWsScope.current === wsScope) setWsError(e);
       return null;
     }
-  }, [reloadWorkspace]);
+  }, [reloadWorkspace, wsScope]);
   useEffect(() => {
     if (me && activeWsId) safeReloadWs();
     if (activeWsId) store.set('tf_ws', activeWsId);
@@ -155,9 +181,19 @@ export function AppProvider({ children }) {
     if (!me) return closeSocket();
     const s = getSocket();
     const onNotif = () => setUnread((n) => n + 1);
+    const onAccess = async () => {
+      setWs(null);
+      await loadMe();
+      await safeReloadWs();
+      window.dispatchEvent(new CustomEvent('tf:resync'));
+    };
     s.on('notification:new', onNotif);
-    return () => s.off('notification:new', onNotif);
-  }, [me]);
+    s.on('access:changed', onAccess);
+    return () => {
+      s.off('notification:new', onNotif);
+      s.off('access:changed', onAccess);
+    };
+  }, [me, loadMe, safeReloadWs]);
   useEffect(() => {
     if (me && project?._id) joinProject(project._id);
   }, [me, project?._id]);
@@ -172,10 +208,16 @@ export function AppProvider({ children }) {
   }, [me, refreshUnread]);
 
   const logout = useCallback(async () => {
+    identityRequest.current++;
+    clearTimeout(retryTimer.current);
     await api.post('/auth/logout').catch(() => {});
+    identityRequest.current++;
+    clearTimeout(retryTimer.current);
     closeSocket();
     setMe(null);
     setWs(null);
+    setWorkspaces([]);
+    setUnread(0);
   }, []);
 
   const setWorkspaceId = useCallback((id) => {

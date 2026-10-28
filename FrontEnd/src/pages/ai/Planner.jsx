@@ -14,10 +14,16 @@ export function History({ items, onOpen, activeId, empty = 'Chưa có lịch s�
       </p>
       <div className="space-y-1.5">
         {items.map((d) => (
-          <button key={d._id} onClick={() => onOpen(d._id)} className={`w-full rounded-lg border px-3 py-2 text-left transition-colors hover:bg-slate-50 ${activeId === d._id ? 'border-blue-300 bg-blue-50/50' : 'border-slate-100'}`}>
+          <button
+            key={d._id}
+            onClick={() => onOpen(d._id)}
+            className={`w-full rounded-lg border px-3 py-2 text-left transition-colors hover:bg-slate-50 ${activeId === d._id ? 'border-blue-300 bg-blue-50/50' : 'border-slate-100'}`}
+          >
             <div className="flex items-start justify-between gap-2">
               <span className="line-clamp-2 text-body-sm font-medium text-slate-800">{d.title}</span>
-              <span className={`chip shrink-0 ${d.status === 'approved' || d.status === 'shared' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : d.status === 'discarded' ? 'border-slate-200 bg-slate-50 text-slate-500' : 'border-amber-200 bg-amber-50 text-amber-700'}`}>
+              <span
+                className={`chip shrink-0 ${d.status === 'approved' || d.status === 'shared' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : d.status === 'discarded' ? 'border-slate-200 bg-slate-50 text-slate-500' : 'border-amber-200 bg-amber-50 text-amber-700'}`}
+              >
                 {{ approved: 'Đã duyệt', shared: 'Đã chia sẻ', discarded: 'Đã hủy', draft: 'Nháp' }[d.status]}
               </span>
             </div>
@@ -66,7 +72,7 @@ export default function Planner({ project, onUsage, disabled }) {
     setDraft(d.draft);
     setF((s) => ({ ...s, goal: d.draft.input?.goal || s.goal }));
   };
-  const canWrite = project.status === 'active';
+  const canWrite = !!info?.access?.canManage;
 
   return (
     <div className="grid gap-5 lg:grid-cols-[360px_1fr]">
@@ -78,7 +84,12 @@ export default function Planner({ project, onUsage, disabled }) {
             </span>
             {info?.project?.sprint?.name && <span className="text-label-md font-normal text-slate-400">{info.project.sprint.name}</span>}
           </div>
-          <textarea className="textarea min-h-[96px]" value={f.goal} onChange={(e) => setF({ ...f, goal: e.target.value })} placeholder="Ví dụ: Hoàn thiện luồng thanh toán VNPay & Momo cho bản Beta v1.2" />
+          <textarea
+            className="textarea min-h-[96px]"
+            value={f.goal}
+            onChange={(e) => setF({ ...f, goal: e.target.value })}
+            placeholder="Ví dụ: Hoàn thiện luồng thanh toán VNPay & Momo cho bản Beta v1.2"
+          />
           <div className="grid grid-cols-2 gap-3">
             <Field label="Hạn hoàn thành">
               <input type="date" className="input" value={f.deadline} onChange={(e) => setF({ ...f, deadline: e.target.value })} />
@@ -98,7 +109,7 @@ export default function Planner({ project, onUsage, disabled }) {
             {busy ? <Spinner /> : <Icon name="auto_awesome" size={18} />}
             Tạo kế hoạch nháp
           </button>
-          {!canWrite && <p className="text-label-md font-normal text-slate-500">Dự án đã lưu trữ – không thể tạo kế hoạch.</p>}
+          {!canWrite && <p className="text-label-md font-normal text-slate-500">Chỉ PM, Owner hoặc Admin của dự án đang hoạt động được lập và duyệt kế hoạch.</p>}
         </div>
         {error && <Notice tone={error.status === 429 ? 'warn' : 'danger'}>{error.message}</Notice>}
         <History items={history.data?.drafts || []} onOpen={open} activeId={draft?._id} />
@@ -107,6 +118,7 @@ export default function Planner({ project, onUsage, disabled }) {
         {draft ? (
           <DraftItems
             draft={draft}
+            canManage={canWrite}
             setDraft={setDraft}
             members={info?.project?.members || []}
             title="Kế hoạch nháp"
@@ -120,7 +132,9 @@ export default function Planner({ project, onUsage, disabled }) {
               <Icon name="auto_awesome" size={30} />
             </span>
             <p className="text-headline-sm text-slate-900">Nhập mục tiêu để AI phân rã thành 5–15 công việc</p>
-            <p className="mt-1 max-w-md text-body-sm text-slate-500">Mỗi việc có mô tả, tiêu chí nghiệm thu, ước lượng giờ và gợi ý người nhận. Bạn sửa, chọn rồi bấm duyệt thì mới tạo vào dự án.</p>
+            <p className="mt-1 max-w-md text-body-sm text-slate-500">
+              Mỗi việc có mô tả, tiêu chí nghiệm thu, ước lượng giờ và gợi ý người nhận. Bạn sửa, chọn rồi bấm duyệt thì mới tạo vào dự án.
+            </p>
           </div>
         )}
       </div>

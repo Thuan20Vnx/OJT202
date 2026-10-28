@@ -12,6 +12,7 @@ const FEATURES = [
   ['meeting', 'Ghi chú họp → action items'],
 ];
 const STATUS = {
+  pending: ['Đang xử lý', 'border-sky-200 bg-sky-50 text-sky-700', 'Đã tính vào hạn mức hôm nay'],
   success: ['Thành công', 'border-emerald-200 bg-emerald-50 text-emerald-700'],
   retried_success: ['Thành công', 'border-emerald-200 bg-emerald-50 text-emerald-700', 'Đã thử lại 1 lần sau khi quá thời gian'],
   timeout: ['Quá thời gian', 'border-amber-200 bg-amber-50 text-amber-700', 'Đã thử lại 1 lần'],

@@ -57,7 +57,8 @@ export default function Meeting({ project, onUsage, disabled }) {
             </button>
           )}
           <Notice tone="warn">Không rõ người hoặc hạn thì AI sẽ để trống, không tự đoán.</Notice>
-          <button className="btn-primary h-10 w-full" onClick={extract} disabled={busy || f.text.trim().length < 10 || disabled || project.status !== 'active'}>
+          {!info?.access?.canManage && <Notice>Chỉ PM, Owner hoặc Admin của dự án đang hoạt động được tạo và duyệt việc từ biên bản.</Notice>}
+          <button className="btn-primary h-10 w-full" onClick={extract} disabled={busy || f.text.trim().length < 10 || disabled || !info?.access?.canManage}>
             {busy ? <Spinner /> : <Icon name="auto_awesome" size={18} />}
             Trích action items
           </button>
@@ -67,7 +68,17 @@ export default function Meeting({ project, onUsage, disabled }) {
       </div>
       <div className="min-w-0">
         {draft ? (
-          <DraftItems draft={draft} setDraft={setDraft} members={info?.project?.members || []} title="Action items nháp" showExcerpt onRegenerate={extract} regenerating={busy} onApproved={() => history.reload()} />
+          <DraftItems
+            draft={draft}
+            canManage={!!info?.access?.canManage}
+            setDraft={setDraft}
+            members={info?.project?.members || []}
+            title="Action items nháp"
+            showExcerpt
+            onRegenerate={extract}
+            regenerating={busy}
+            onApproved={() => history.reload()}
+          />
         ) : (
           <div className="card flex flex-col items-center justify-center px-6 py-16 text-center">
             <span className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-purple-50 text-purple-500">

@@ -1,3 +1,5 @@
+import { BUSINESS_TIMEZONE, dates, timeZone, zoned } from './dates.js';
+
 export const STATUS = {
   todo: { label: 'Cần làm', short: 'To Do', dot: 'bg-slate-400', chip: 'bg-slate-100 text-slate-600 border-slate-200' },
   in_progress: { label: 'Đang thực hiện', short: 'In Progress', dot: 'bg-blue-500', chip: 'bg-blue-50 text-blue-700 border-blue-200' },
@@ -25,31 +27,27 @@ export const PROJECT_COLOR = {
 };
 
 const DAY = 86400000;
-export const sod = (d = new Date()) => {
-  const x = new Date(d);
-  x.setHours(0, 0, 0, 0);
-  return x;
-};
+export const sod = (d = new Date()) => dates.startOfDay(d, timeZone());
 
 export function fmtDate(d, opts = {}) {
   if (!d) return '';
-  const date = new Date(d);
+  const date = opts.timeZone ? dates.zoned(d, opts.timeZone) : zoned(d);
   return `${String(date.getDate()).padStart(2, '0')} Th${String(date.getMonth() + 1).padStart(2, '0')}${opts.year ? ` ${date.getFullYear()}` : ''}`;
 }
-export const fmtDateTime = (d) => (d ? `${fmtDate(d)} ${new Date(d).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}` : '');
-export const fmtTime = (d) => (d ? new Date(d).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '');
+export const fmtProjectDate = (d, opts = {}) => fmtDate(d, { ...opts, timeZone: BUSINESS_TIMEZONE });
+export const fmtDateTime = (d) => (d ? `${fmtDate(d)} ${fmtTime(d)}` : '');
+export const fmtTime = (d) => (d ? new Date(d).toLocaleTimeString('vi-VN', { timeZone: timeZone(), hour: '2-digit', minute: '2-digit' }) : '');
 export const isoDate = (d) => {
   if (!d) return '';
-  const x = new Date(d);
-  return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
+  return dates.dateKey(d, timeZone());
 };
 
 export function dueInfo(dueDate, status) {
   if (!dueDate) return null;
   const days = Math.round((sod(dueDate) - sod()) / DAY);
   if (status === 'done') return { text: fmtDate(dueDate), tone: 'muted', days };
-  if (days < 0) return { text: `Quá hạn ${-days} ngày`, tone: 'danger', days };
-  if (days === 0) return { text: `${fmtDate(dueDate)} (Hôm nay)`, tone: 'danger', days };
+  if (new Date(dueDate).getTime() < Date.now()) return { text: days < 0 ? `Quá hạn ${-days} ngày` : 'Đã quá hạn hôm nay', tone: 'danger', days };
+  if (days === 0) return { text: `${fmtDate(dueDate)} (Hôm nay)`, tone: 'warn', days };
   if (days === 1) return { text: 'Ngày mai', tone: 'warn', days };
   return { text: fmtDate(dueDate), tone: 'normal', days };
 }
@@ -93,6 +91,16 @@ export function fileIcon(name = '') {
 
 export function parseUA(ua = '') {
   const browser = /Edg\//.test(ua) ? 'Edge' : /Chrome\//.test(ua) ? 'Chrome' : /Firefox\//.test(ua) ? 'Firefox' : /Safari\//.test(ua) ? 'Safari' : 'Trình duyệt';
-  const os = /iPhone|iPad/.test(ua) ? 'iPhone' : /Android/.test(ua) ? 'Android' : /Windows/.test(ua) ? 'Windows' : /Mac OS/.test(ua) ? 'macOS' : /Linux/.test(ua) ? 'Linux' : 'thiết bị';
+  const os = /iPhone|iPad/.test(ua)
+    ? 'iPhone'
+    : /Android/.test(ua)
+      ? 'Android'
+      : /Windows/.test(ua)
+        ? 'Windows'
+        : /Mac OS/.test(ua)
+          ? 'macOS'
+          : /Linux/.test(ua)
+            ? 'Linux'
+            : 'thiết bị';
   return { browser, os, icon: /iPhone|Android/.test(ua) ? 'smartphone' : 'computer' };
 }

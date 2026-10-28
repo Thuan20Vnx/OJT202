@@ -7,6 +7,10 @@ import { logActivity } from '../services/activity.js';
 import { meUser } from '../services/serialize.js';
 import { badRequest, forbidden, notFound, parse } from '../utils/http.js';
 import { passwordIssues, sha256 } from '../utils/security.js';
+import { withWorkspaceLock } from '../services/membership.js';
+import { disconnectUser, refreshUserAccess } from '../services/realtime.js';
+import { withUserLock } from '../services/sessions.js';
+import { isTimeZone } from '../utils/dates.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -30,7 +34,7 @@ router.patch('/', async (req, res) => {
       .object({
         name: z.string().trim().min(1, 'Vui lòng nhập họ tên').max(80),
         title: z.string().trim().max(60),
-        timezone: z.string().min(1).max(60),
+        timezone: z.string().min(1).max(60).refine(isTimeZone, 'Múi giờ IANA không hợp lệ'),
         language: z.enum(['vi', 'en']),
       })
       .partial()
@@ -41,20 +45,27 @@ router.patch('/', async (req, res) => {
   res.json({ user: meUser(user) });
 });
 
-const revokeOthers = (req) =>
-  prisma.session.updateMany({ where: { user: req.user.id, revokedAt: null, family: { not: req.session.family } }, data: { revokedAt: new Date() } });
+const revokeOthers = (req, db) => db.session.updateMany({ where: { user: req.user.id, revokedAt: null, family: { not: req.session.family } }, data: { revokedAt: new Date() } });
 
 router.post('/password', async (req, res) => {
   const body = parse(z.object({ currentPassword: z.string().min(1, 'Nhập mật khẩu hiện tại'), newPassword: z.string() }), req.body);
   const issues = passwordIssues(body.newPassword);
   if (issues.length) throw badRequest(`Mật khẩu cần ${issues.join(', ')}`, { fields: { newPassword: issues.join(', ') } });
+  if (Buffer.byteLength(body.currentPassword, 'utf8') > 72) throw badRequest('Mật khẩu hiện tại không đúng');
   const user = await prisma.user.findUnique({ where: { id: req.user.id }, omit: { passwordHash: false } });
   if (!(await bcrypt.compare(body.currentPassword, user.passwordHash))) {
     throw badRequest('Mật khẩu hiện tại không đúng', { fields: { currentPassword: 'Mật khẩu hiện tại không đúng' } });
   }
-  await prisma.user.update({ where: { id: user.id }, data: { passwordHash: await bcrypt.hash(body.newPassword, 12) } });
-  // Thu hồi mọi phiên khác, giữ phiên hiện tại
-  const { count } = await revokeOthers(req);
+  const passwordHash = await bcrypt.hash(body.newPassword, 12);
+  const { count } = await withUserLock(user.id, async (tx) => {
+    const current = await tx.user.findUnique({ where: { id: user.id }, omit: { passwordHash: false } });
+    const session = await tx.session.findUnique({ where: { id: req.session.id } });
+    if (current.passwordHash !== user.passwordHash || !session || session.revokedAt || current.isLocked) throw forbidden('Thông tin đăng nhập đã thay đổi, vui lòng đăng nhập lại');
+    await tx.user.update({ where: { id: user.id }, data: { passwordHash } });
+    await tx.token.updateMany({ where: { user: user.id, type: { in: ['reset', 'verify'] }, usedAt: null }, data: { usedAt: new Date() } });
+    return revokeOthers(req, tx);
+  });
+  await disconnectUser(req.user.id);
   res.json({ ok: true, revokedSessions: count });
 });
 
@@ -78,12 +89,14 @@ router.get('/sessions', async (req, res) => {
 router.delete('/sessions/:id', async (req, res) => {
   const s = isId(req.params.id) ? await prisma.session.findFirst({ where: { id: req.params.id, user: req.user.id } }) : null;
   if (!s) throw notFound('Không tìm thấy phiên');
-  await prisma.session.updateMany({ where: { family: s.family, revokedAt: null }, data: { revokedAt: new Date() } });
+  await withUserLock(req.user.id, (tx) => tx.session.updateMany({ where: { family: s.family, revokedAt: null }, data: { revokedAt: new Date() } }));
+  await disconnectUser(req.user.id);
   res.json({ ok: true, current: s.family === req.session.family });
 });
 
 router.post('/sessions/revoke-others', async (req, res) => {
-  const { count } = await revokeOthers(req);
+  const { count } = await withUserLock(req.user.id, (tx) => revokeOthers(req, tx));
+  await disconnectUser(req.user.id);
   res.json({ ok: true, revoked: count });
 });
 
@@ -107,26 +120,28 @@ router.post('/invites/:token/accept', async (req, res) => {
   if (!inv || inv.revokedAt || inv.acceptedAt || inv.expiresAt < new Date()) throw badRequest('Lời mời đã hết hạn hoặc không còn hiệu lực');
   if (inv.email !== req.user.email) throw forbidden(`Lời mời này dành cho ${inv.email}`);
   const userId = req.user.id;
-  await prisma.$transaction(async (tx) => {
-    await tx.membership.upsert({
+  await withWorkspaceLock(inv.workspace, async (tx) => {
+    const { count } = await tx.invite.updateMany({
+      where: { id: inv.id, tokenHash: sha256(req.params.token), acceptedAt: null, revokedAt: null, expiresAt: { gt: new Date() } },
+      data: { acceptedAt: new Date() },
+    });
+    if (!count) throw badRequest('Lời mời đã hết hạn hoặc không còn hiệu lực');
+    const membership = await tx.membership.upsert({
       where: { workspace_user: { workspace: inv.workspace, user: userId } },
       create: { workspace: inv.workspace, user: userId, role: inv.role },
       update: {},
     });
     // Thêm vào các dự án được chỉ định (không trùng)
-    const projects = await tx.project.findMany({ where: { id: { in: inv.projects }, workspace: inv.workspace }, orderBy: { id: 'asc' }, select: { id: true } });
-    const membership = await tx.membership.findUnique({ where: { workspace_user: { workspace: inv.workspace, user: userId } } });
+    const projects = await tx.project.findMany({
+      where: { id: { in: inv.projects }, workspace: inv.workspace, status: 'active', memberships: { some: { user: inv.invitedBy, role: 'pm' }, none: { user: userId } }, workspaceRef: { memberships: { some: { user: inv.invitedBy, role: { not: 'viewer' } } } } },
+      select: { id: true },
+    });
     for (const p of projects) {
-      await tx.$queryRaw`SELECT id FROM projects WHERE id = ${p.id}::uuid FOR UPDATE`;
-      const current = await tx.project.findUnique({ where: { id: p.id } });
-      const inviter = await tx.projectMember.findUnique({ where: { project_user: { project: p.id, user: inv.invitedBy } } });
-      if (current.status === 'archived' || inviter?.role !== 'pm') throw badRequest('Lời mời dự án không còn hiệu lực');
-      if (current.members.includes(userId)) continue;
-      await tx.project.update({ where: { id: p.id }, data: { members: { push: userId } } });
       await tx.projectMember.create({ data: { project: p.id, user: userId, role: membership.role === 'viewer' ? 'viewer' : 'member' } });
+      await tx.project.update({ where: { id: p.id }, data: { members: { push: userId } } });
     }
-    await tx.invite.update({ where: { id: inv.id }, data: { acceptedAt: new Date() } });
   });
+  await refreshUserAccess(userId);
   await logActivity({
     workspace: inv.workspace,
     actor: userId,

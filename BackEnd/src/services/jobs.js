@@ -17,9 +17,7 @@ export async function runDueReminders(now = new Date()) {
       dedupeKey: `due:${t.id}:${t.dueDate.toISOString()}`,
     });
   }
-  const sod = new Date(now);
-  sod.setHours(0, 0, 0, 0);
-  const overdue = await prisma.task.findMany({ where: { status: { not: 'done' }, assignee: { not: null }, dueDate: { lt: sod } }, select });
+  const overdue = await prisma.task.findMany({ where: { status: { not: 'done' }, assignee: { not: null }, dueDate: { lt: now } }, select });
   for (const t of overdue) {
     await notify({
       user: t.assignee,

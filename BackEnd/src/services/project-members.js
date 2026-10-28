@@ -1,3 +1,4 @@
+import { unassignTasks } from './membership.js';
 import { badRequest, forbidden, notFound } from '../utils/http.js';
 
 /** Serialize project/PM/member changes on the project row, including competing PM removals. */
@@ -14,7 +15,7 @@ export async function lockProject(tx, projectId, actor, { allowArchived = false 
 }
 
 /** Replace a project's roster atomically; compatibility fields and audit never diverge. */
-export async function saveProjectMembers(tx, project, roster, manager = project.manager) {
+export async function saveProjectMembers(tx, project, roster, manager = project.manager, actor = project.createdBy) {
   const ids = roster.map((m) => m.user);
   if (new Set(ids).size !== ids.length) throw badRequest('Thành viên dự án bị trùng');
   const memberships = await tx.membership.findMany({ where: { workspace: project.workspace, user: { in: ids } }, include: { userRef: { select: { isLocked: true } } } });
@@ -31,7 +32,7 @@ export async function saveProjectMembers(tx, project, roster, manager = project.
   const viewers = roster.filter((m) => m.role === 'viewer').map((m) => m.user);
   await tx.projectMember.deleteMany({ where: { project: project.id } });
   await tx.projectMember.createMany({ data: roster.map((m) => ({ project: project.id, ...m })) });
-  await tx.task.updateMany({ where: { project: project.id, assignee: { in: [...removed, ...viewers] } }, data: { assignee: null, version: { increment: 1 } } });
+  await unassignTasks(tx, { workspace: project.workspace, project: project.id, users: [...removed, ...viewers], actor });
   return tx.project.update({ where: { id: project.id }, data: { members: ids, manager: primary } });
 }
 

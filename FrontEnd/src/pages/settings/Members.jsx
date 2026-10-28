@@ -17,7 +17,7 @@ const MATRIX = [
   ['Tạo dự án', [1, 1, 1, 0]],
   ['Tạo & giao việc', [1, 1, 1, 0]],
   ['Kéo thả Kanban', [1, 1, 1, 0]],
-  ['Bình luận', [1, 1, 1, 1]],
+  ['Bình luận', [1, 1, 1, 0]],
   ['Chỉ xem', [1, 1, 1, 1]],
 ];
 
@@ -261,7 +261,7 @@ export default function Members() {
                       <td className="table-td whitespace-nowrap text-slate-500">{m.lastActiveAt ? timeAgo(m.lastActiveAt) : 'Chưa đăng nhập'}</td>
                       {isAdmin && (
                         <td className="table-td text-right">
-                          {lastOwner ? (
+                          {lastOwner || !canEditRole ? (
                             <span className="text-label-md font-normal text-slate-400" title="Không thể xóa Owner cuối cùng">
                               <Icon name="lock" size={16} />
                             </span>
@@ -317,7 +317,7 @@ export default function Members() {
       </div>
       <InviteModal open={inviting} onClose={() => setInviting(false)} onDone={reload} />
       <Confirm open={!!removing} danger title="Thu hồi quyền truy cập?" confirmText="Thu hồi quyền" onClose={() => setRemoving(null)} onConfirm={remove}>
-        {removing?.user.name} sẽ bị gỡ khỏi workspace và mọi dự án, mất quyền truy cập ngay lập tức.
+        {removing?.user.name} sẽ bị gỡ khỏi workspace và mọi dự án, mất quyền truy cập ngay lập tức. Các công việc đang giao sẽ chuyển về Chưa giao; lịch sử được giữ lại. Nếu là PM, người này cũng được gỡ khỏi vai trò PM.
       </Confirm>
     </div>
   );

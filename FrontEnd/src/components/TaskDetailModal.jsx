@@ -66,7 +66,11 @@ function CommentBox({ members, onSend, initial = '', onCancel, autoFocus }) {
       {list.length > 0 && (
         <div className="absolute bottom-full left-2 z-10 mb-1 w-60 rounded-xl border border-slate-200 bg-white p-1 shadow-pop">
           {list.map((m) => (
-            <button key={m._id} onMouseDown={(e) => (e.preventDefault(), pick(m))} className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-body-sm hover:bg-slate-50">
+            <button
+              key={m._id}
+              onMouseDown={(e) => (e.preventDefault(), pick(m))}
+              className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-body-sm hover:bg-slate-50"
+            >
               <Avatar user={m} size={20} />
               {m.name}
             </button>
@@ -123,6 +127,7 @@ export default function TaskDetailModal({ taskId, onClose }) {
 
   const load = useCallback(async () => {
     try {
+      setError(null);
       const d = await api.get(`/tasks/${taskId}`);
       setData(d);
       setForm({
@@ -149,6 +154,17 @@ export default function TaskDetailModal({ taskId, onClose }) {
   useEffect(() => {
     load();
   }, [load]);
+  useSocketEvent(
+    'access:changed',
+    () => {
+      setData(null);
+      setForm(null);
+      setComments([]);
+      setDepOptions([]);
+      load();
+    },
+    [load],
+  );
   useEffect(() => {
     if (data?.task?.project) {
       if (data.task.workspace !== wsId) setWsId(data.task.workspace);
@@ -221,7 +237,7 @@ export default function TaskDetailModal({ taskId, onClose }) {
         description: form.description,
         acceptanceCriteria: form.acceptanceCriteria.filter((x) => x.trim()),
         assignee: form.assignee || null,
-        dueDate: form.dueDate || null,
+        dueDate: form.dueDate === isoDate(task.dueDate) ? task.dueDate : form.dueDate || null,
         priority: form.priority,
         estimateHours: form.estimateHours === '' ? null : Number(form.estimateHours),
         spentHours: Number(form.spentHours) || 0,
@@ -253,7 +269,8 @@ export default function TaskDetailModal({ taskId, onClose }) {
   };
   const toggleSub = async (s) => {
     try {
-      await api.patch(`/tasks/${s._id}`, { status: s.status === 'done' ? 'todo' : 'done', version: s.version });
+      const next = s.status === 'done' ? 'todo' : s.status === 'review' && access.canManage ? 'done' : 'review';
+      await api.patch(`/tasks/${s._id}`, { status: next, version: s.version });
       load();
     } catch (e) {
       toast(e.message, 'error');
@@ -377,7 +394,13 @@ export default function TaskDetailModal({ taskId, onClose }) {
             Sao chép liên kết
           </button>
           {canWrite && (
-            <Dropdown trigger={<button className="icon-btn"><Icon name="more_horiz" /></button>}>
+            <Dropdown
+              trigger={
+                <button className="icon-btn">
+                  <Icon name="more_horiz" />
+                </button>
+              }
+            >
               <MenuItem icon="delete" danger onClick={() => remove(false)}>
                 Xóa công việc
               </MenuItem>
@@ -426,10 +449,23 @@ export default function TaskDetailModal({ taskId, onClose }) {
                     disabled={!canWrite}
                     className="flex-1 border-0 bg-transparent p-0 text-body-sm focus:ring-0"
                     value={c}
-                    onChange={(e) => setF('acceptanceCriteria', form.acceptanceCriteria.map((x, j) => (j === i ? e.target.value : x)))}
+                    onChange={(e) =>
+                      setF(
+                        'acceptanceCriteria',
+                        form.acceptanceCriteria.map((x, j) => (j === i ? e.target.value : x)),
+                      )
+                    }
                   />
                   {canWrite && (
-                    <button className="text-slate-300 hover:text-rose-500" onClick={() => setF('acceptanceCriteria', form.acceptanceCriteria.filter((_, j) => j !== i))}>
+                    <button
+                      className="text-slate-300 hover:text-rose-500"
+                      onClick={() =>
+                        setF(
+                          'acceptanceCriteria',
+                          form.acceptanceCriteria.filter((_, j) => j !== i),
+                        )
+                      }
+                    >
                       <Icon name="close" size={14} />
                     </button>
                   )}
@@ -458,7 +494,11 @@ export default function TaskDetailModal({ taskId, onClose }) {
                       <div className="absolute right-0 z-20 mt-1 max-h-64 w-80 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-pop">
                         <p className="px-2 py-1 text-label-md font-normal text-slate-400">Công việc này bị chặn bởi…</p>
                         {depOptions.map((t) => (
-                          <button key={t._id} onClick={() => addDep(t._id)} className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-body-sm hover:bg-slate-50">
+                          <button
+                            key={t._id}
+                            onClick={() => addDep(t._id)}
+                            className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-body-sm hover:bg-slate-50"
+                          >
                             <span className="font-mono text-label-md text-slate-400">{t.key}</span>
                             <span className="truncate">{t.title}</span>
                           </button>
@@ -471,7 +511,10 @@ export default function TaskDetailModal({ taskId, onClose }) {
             >
               <div className="space-y-1.5">
                 {blockers.map((b) => (
-                  <div key={b._id} className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-body-sm ${b.status !== 'done' ? 'border-rose-200 bg-rose-50/60' : 'border-slate-200'}`}>
+                  <div
+                    key={b._id}
+                    className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-body-sm ${b.status !== 'done' ? 'border-rose-200 bg-rose-50/60' : 'border-slate-200'}`}
+                  >
                     <span className="chip border-rose-200 bg-white text-rose-600">Bị chặn bởi</span>
                     <Link to={`?task=${b._id}`} className="font-semibold text-slate-800 hover:text-blue-600">
                       {b.key}
@@ -501,12 +544,23 @@ export default function TaskDetailModal({ taskId, onClose }) {
           )}
 
           {!task.parent && (
-            <Section icon="account_tree" title={`Công việc con (${subDone}/${subtasks.length} hoàn thành)`} tone="text-blue-700" right={subtasks.length > 0 && <span className="text-label-md text-blue-600">{Math.round((subDone / subtasks.length) * 100)}%</span>}>
+            <Section
+              icon="account_tree"
+              title={`Công việc con (${subDone}/${subtasks.length} hoàn thành)`}
+              tone="text-blue-700"
+              right={subtasks.length > 0 && <span className="text-label-md text-blue-600">{Math.round((subDone / subtasks.length) * 100)}%</span>}
+            >
               {subtasks.length > 0 && <Progress value={(subDone / subtasks.length) * 100} className="mb-2" />}
               <div className="space-y-1.5">
                 {subtasks.map((s) => (
                   <div key={s._id} className="flex items-center gap-3 rounded-lg border border-slate-200 px-3 py-2 text-body-sm">
-                    <input type="checkbox" disabled={!canWrite} className="form-checkbox h-4 w-4 rounded text-blue-600" checked={s.status === 'done'} onChange={() => toggleSub(s)} />
+                    <input
+                      type="checkbox"
+                      disabled={!canWrite}
+                      className="form-checkbox h-4 w-4 rounded text-blue-600"
+                      checked={s.status === 'done'}
+                      onChange={() => toggleSub(s)}
+                    />
                     <Link to={`?task=${s._id}`} className={`flex-1 truncate ${s.status === 'done' ? 'text-slate-400 line-through' : 'text-slate-800'}`}>
                       {s.title}
                     </Link>
@@ -515,7 +569,13 @@ export default function TaskDetailModal({ taskId, onClose }) {
                   </div>
                 ))}
                 {canWrite && (
-                  <input className="input h-9" placeholder="+ Thêm công việc con rồi nhấn Enter (tối đa 1 cấp)" value={newSub} onChange={(e) => setNewSub(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addSub()} />
+                  <input
+                    className="input h-9"
+                    placeholder="+ Thêm công việc con rồi nhấn Enter (tối đa 1 cấp)"
+                    value={newSub}
+                    onChange={(e) => setNewSub(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && addSub()}
+                  />
                 )}
               </div>
             </Section>
@@ -534,7 +594,11 @@ export default function TaskDetailModal({ taskId, onClose }) {
                   />
                   <span className={`flex-1 ${c.done ? 'text-slate-400 line-through' : ''}`}>{c.text}</span>
                   {canWrite && (
-                    <button type="button" className="text-slate-300 hover:text-rose-500" onClick={() => saveChecklist(task.checklist.filter((_, j) => j !== i).map(({ text, done }) => ({ text, done })))}>
+                    <button
+                      type="button"
+                      className="text-slate-300 hover:text-rose-500"
+                      onClick={() => saveChecklist(task.checklist.filter((_, j) => j !== i).map(({ text, done }) => ({ text, done })))}
+                    >
                       <Icon name="close" size={14} />
                     </button>
                   )}
@@ -561,7 +625,7 @@ export default function TaskDetailModal({ taskId, onClose }) {
             icon="attach_file"
             title={`Tệp đính kèm (${files.length})`}
             right={
-              canWrite && (
+              access.canWrite && (
                 <button className="text-label-md text-blue-600 hover:underline" onClick={() => fileInput.current?.click()}>
                   + Tải tệp
                 </button>
@@ -574,7 +638,7 @@ export default function TaskDetailModal({ taskId, onClose }) {
               onDragOver={(e) => e.preventDefault()}
               onDrop={(e) => {
                 e.preventDefault();
-                if (canWrite) upload(e.dataTransfer.files);
+                if (access.canWrite) upload(e.dataTransfer.files);
               }}
             >
               {files.map((f) => {
@@ -621,7 +685,7 @@ export default function TaskDetailModal({ taskId, onClose }) {
                           {timeAgo(c.createdAt)}
                           {c.editedAt && ' · đã sửa'}
                         </span>
-                        {c.author?._id === me?._id && editing !== c._id && (
+                        {access.canWrite && c.author?._id === me?._id && editing !== c._id && (
                           <span className="ml-auto flex gap-2 text-label-md">
                             <button className="text-slate-400 hover:text-blue-600" onClick={() => setEditing(c._id)}>
                               Sửa
@@ -638,7 +702,7 @@ export default function TaskDetailModal({ taskId, onClose }) {
                           </span>
                         )}
                       </div>
-                      {editing === c._id ? (
+                      {access.canWrite && editing === c._id ? (
                         <div className="mt-1">
                           <CommentBox members={members} initial={c.body} autoFocus onCancel={() => setEditing(null)} onSend={(b) => updateComment(c._id, b)} />
                         </div>
@@ -682,13 +746,23 @@ export default function TaskDetailModal({ taskId, onClose }) {
             <PersonLine user={task.creator} />
           </Prop>
           <Prop label="Hạn chót">
-            {canWrite ? <input type="date" className="input h-9" value={form.dueDate} onChange={(e) => setF('dueDate', e.target.value)} /> : <span>{task.dueDate ? fmtDate(task.dueDate, { year: true }) : 'Chưa đặt hạn'}</span>}
+            <span className="mb-1 block text-label-sm text-slate-500">{task.dueDate ? `Hạn hiện tại: ${fmtDateTime(task.dueDate)}` : ''}</span>
+            {canWrite ? (
+              <input type="date" className="input h-9" value={form.dueDate} onChange={(e) => setF('dueDate', e.target.value)} />
+            ) : (
+              <span>{task.dueDate ? fmtDate(task.dueDate, { year: true }) : 'Chưa đặt hạn'}</span>
+            )}
             {due && due.tone === 'danger' && <span className="mt-1 inline-block rounded-md bg-rose-100 px-2 py-0.5 text-label-sm text-rose-700">{due.text}</span>}
           </Prop>
           <Prop label="Độ ưu tiên">
             <div className="grid grid-cols-3 rounded-lg bg-slate-100 p-0.5">
               {['low', 'medium', 'high'].map((p) => (
-                <button key={p} disabled={!canWrite} onClick={() => setF('priority', p)} className={`rounded-md py-1 text-label-md ${form.priority === p ? 'bg-white font-semibold text-slate-900 shadow-sm' : 'text-slate-500'}`}>
+                <button
+                  key={p}
+                  disabled={!canWrite}
+                  onClick={() => setF('priority', p)}
+                  className={`rounded-md py-1 text-label-md ${form.priority === p ? 'bg-white font-semibold text-slate-900 shadow-sm' : 'text-slate-500'}`}
+                >
                   {PRIORITY[p].label}
                 </button>
               ))}
@@ -696,7 +770,15 @@ export default function TaskDetailModal({ taskId, onClose }) {
           </Prop>
           <Prop label="Ước lượng thời gian">
             <div className="flex items-center gap-2">
-              <input type="number" min="0" disabled={!canWrite} className="input h-9" value={form.estimateHours} onChange={(e) => setF('estimateHours', e.target.value)} placeholder="Giờ" />
+              <input
+                type="number"
+                min="0"
+                disabled={!canWrite}
+                className="input h-9"
+                value={form.estimateHours}
+                onChange={(e) => setF('estimateHours', e.target.value)}
+                placeholder="Giờ"
+              />
               <span className="text-body-sm text-slate-400">/</span>
               <input type="number" min="0" disabled={!canWrite} className="input h-9" value={form.spentHours} onChange={(e) => setF('spentHours', e.target.value)} title="Đã làm" />
             </div>
@@ -718,7 +800,14 @@ export default function TaskDetailModal({ taskId, onClose }) {
                 <span key={l} className="chip border-slate-200 bg-white text-slate-600">
                   {l}
                   {canWrite && (
-                    <button onClick={() => setF('labels', form.labels.filter((x) => x !== l))}>
+                    <button
+                      onClick={() =>
+                        setF(
+                          'labels',
+                          form.labels.filter((x) => x !== l),
+                        )
+                      }
+                    >
                       <Icon name="close" size={12} />
                     </button>
                   )}
@@ -752,9 +841,7 @@ export default function TaskDetailModal({ taskId, onClose }) {
               <p className="flex items-center gap-1.5 text-label-md font-semibold text-purple-700">
                 <Icon name="auto_awesome" size={16} /> Gợi ý từ Trợ lý AI
               </p>
-              <p className="mt-1 text-body-sm text-purple-800">
-                Công việc có nguy cơ trễ vì đang bị chặn bởi {openBlockers.map((b) => b.key).join(', ')}.
-              </p>
+              <p className="mt-1 text-body-sm text-purple-800">Công việc có nguy cơ trễ vì đang bị chặn bởi {openBlockers.map((b) => b.key).join(', ')}.</p>
               <Link to="/risks" onClick={onClose} className="mt-1 inline-block text-label-md font-semibold text-purple-700 underline">
                 Xem giải thích chi tiết
               </Link>
@@ -779,7 +866,14 @@ export default function TaskDetailModal({ taskId, onClose }) {
           </span>
         )}
       </div>
-      <Confirm open={!!confirmDel} title="Xóa công việc cha?" danger confirmText="Xóa tất cả" onClose={() => setConfirmDel(null)} onConfirm={() => (setConfirmDel(null), remove(true))}>
+      <Confirm
+        open={!!confirmDel}
+        title="Xóa công việc cha?"
+        danger
+        confirmText="Xóa tất cả"
+        onClose={() => setConfirmDel(null)}
+        onConfirm={() => (setConfirmDel(null), remove(true))}
+      >
         {confirmDel}
       </Confirm>
     </Shell>

@@ -12,10 +12,13 @@ export async function notify({ user, actor, type, dedupeKey, ...rest }) {
     if (!permitted) return null;
   }
   const pref = await prisma.notificationPref.findUnique({ where: { user } });
-  if (pref && pref[type] === false) return null;
+  // Một tùy chọn nhắc hạn điều khiển cả sắp hạn và quá hạn.
+  // Giữ mặc định của NotificationPref ngay cả khi người dùng chưa mở cài đặt.
+  const preference = type === 'overdue' ? 'due_soon' : type;
+  if ((pref?.[preference] ?? (preference !== 'comment')) === false) return null;
   try {
     const n = await prisma.notification.create({ data: { user, actor, type, dedupeKey, ...rest } });
-    emitUser(user, 'notification:new', { id: n.id, type, text: n.text });
+    emitUser(user, 'notification:new', { id: n.id, type, text: n.text }, rest.project);
     return n;
   } catch (e) {
     if (isUniqueError(e)) return null; // đã gửi trước đó

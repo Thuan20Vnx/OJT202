@@ -1,5 +1,5 @@
 import { Fragment, useState } from 'react';
-import { Avatar, Empty, Icon, Modal, Notice, PageLoader, Pagination, Select } from '../../components/ui.jsx';
+import { Avatar, Empty, ErrorBox, Icon, Modal, Notice, PageLoader, Pagination, Select } from '../../components/ui.jsx';
 import { api, download, qs } from '../../lib/api.js';
 import { useApp, useLoad } from '../../lib/app.jsx';
 import { fmtDate, fmtTime, isoDate } from '../../lib/format.js';
@@ -35,7 +35,7 @@ export default function Activity() {
   const [open, setOpen] = useState(null);
   const [exporting, setExporting] = useState(false);
   const members = useLoad(() => api.get(`/workspaces/${wsId}/members`), [wsId]);
-  const { data, loading } = useLoad(() => api.get(`/workspaces/${wsId}/activity${qs({ ...f, page, limit })}`), [wsId, JSON.stringify(f), page, limit]);
+  const { data, loading, error, reload } = useLoad(() => api.get(`/workspaces/${wsId}/activity${qs({ ...f, page, limit })}`), [wsId, JSON.stringify(f), page, limit]);
   const set = (k, v) => (setF((s) => ({ ...s, [k]: v })), setPage(1));
   const active = Object.values(f).some(Boolean);
 
@@ -85,7 +85,7 @@ export default function Activity() {
         <input type="date" className="input h-9 w-auto text-body-sm" value={f.from} onChange={(e) => set('from', e.target.value)} title="Từ ngày" />
         <input type="date" className="input h-9 w-auto text-body-sm" value={f.to} onChange={(e) => set('to', e.target.value)} title="Đến ngày" />
         {active && (
-          <button className="btn-ghost btn-sm" onClick={() => setF({ search: '', actor: '', action: '', entityType: '', project: '', from: '', to: '' })}>
+          <button className="btn-ghost btn-sm" onClick={() => { setF({ search: '', actor: '', action: '', entityType: '', project: '', from: '', to: '' }); setPage(1); }}>
             Đặt lại
           </button>
         )}
@@ -93,9 +93,10 @@ export default function Activity() {
           <Icon name="download" size={16} /> Xuất CSV
         </button>
       </div>
+      <ErrorBox error={error} onRetry={reload} />
       {loading && !data ? (
         <PageLoader />
-      ) : !data.items.length ? (
+      ) : error && !data ? null : !data?.items?.length ? (
         <Empty icon="history" title="Không có bản ghi" />
       ) : (
         <div className="overflow-x-auto">
@@ -156,7 +157,7 @@ export default function Activity() {
           <Pagination page={page} total={data.total} limit={limit} onPage={setPage} onLimit={(n) => (setLimit(n), setPage(1))} />
         </div>
       )}
-      <ExportModal open={exporting} onClose={() => setExporting(false)} wsId={wsId} filters={f} total={data?.total} />
+      {exporting && <ExportModal open onClose={() => setExporting(false)} wsId={wsId} filters={f} total={data?.total} />}
     </div>
   );
 }
@@ -165,29 +166,39 @@ function ExportModal({ open, onClose, wsId, filters, total }) {
   const [from, setFrom] = useState(filters.from || isoDate(new Date(Date.now() - 30 * 86400000)));
   const [to, setTo] = useState(filters.to || isoDate(new Date()));
   const [cols, setCols] = useState(COLS.map((c) => c[0]));
-  const go = () => {
-    download(`/workspaces/${wsId}/activity.csv${qs({ ...filters, from, to, columns: cols.join(',') })}`, `nhat-ky-${from}-${to}.csv`);
-    onClose();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+  const go = async () => {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await download(`/workspaces/${wsId}/activity.csv${qs({ ...filters, from, to, columns: cols.join(',') })}`, `nhat-ky-${from}-${to}.csv`);
+      onClose();
+    } catch (e) { setError(e); }
+    finally { setBusy(false); }
   };
   return (
     <Modal
       open={open}
-      onClose={onClose}
+      onClose={() => { if (!busy) onClose(); }}
       title="Xuất nhật ký ra CSV"
       subtitle="Tải nhật ký truy vết để báo cáo tiến độ và nghiệm thu"
       icon="download"
       footer={
         <>
-          <button className="btn-outline" onClick={onClose}>
+          <button className="btn-outline" onClick={onClose} disabled={busy}>
             Hủy
           </button>
-          <button className="btn-primary" onClick={go} disabled={!cols.length}>
-            <Icon name="download" size={16} /> Xuất CSV{total != null ? ` (${total} dòng)` : ''}
+          <button className="btn-primary" onClick={go} disabled={busy || !cols.length || !from || !to || from > to}>
+            <Icon name="download" size={16} /> {busy ? 'Đang xuất…' : 'Xuất CSV'}{total != null ? ` (${total} dòng)` : ''}
           </button>
         </>
       }
     >
       <div className="space-y-4">
+        <ErrorBox error={error} />
+        {from && to && from > to && <Notice tone="warn">Ngày kết thúc phải từ ngày bắt đầu trở đi.</Notice>}
         <div className="grid grid-cols-2 gap-3">
           <label>
             <span className="label">Từ ngày</span>

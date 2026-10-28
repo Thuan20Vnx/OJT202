@@ -26,8 +26,16 @@ async function raw(method, url, body, isForm) {
 }
 
 async function refresh() {
-  refreshing ||= raw('POST', '/auth/refresh').finally(() => setTimeout(() => (refreshing = null), 0));
+  // Nhiều tab dùng chung cookie: tab sau kiểm tra cookie mới trước khi xoay token.
+  const rotate = async () => {
+    const current = await raw('GET', '/me');
+    if (current.ok) return current;
+    if (current.status !== 401) throw new ApiError(current.status, OFFLINE_MSG);
+    return raw('POST', '/auth/refresh');
+  };
+  refreshing ||= (globalThis.navigator?.locks ? navigator.locks.request('taskflow-refresh', rotate) : rotate()).finally(() => setTimeout(() => (refreshing = null), 0));
   const res = await refreshing;
+  if (!res.ok && res.status !== 401) throw new ApiError(res.status, OFFLINE_MSG);
   return res.ok;
 }
 
@@ -37,11 +45,12 @@ export async function request(method, url, body, { isForm = false, noRefresh = f
   let res;
   try {
     res = await raw(method, url, body, isForm);
-  } catch {
+    if (res.status === 401 && !noRefresh && !url.startsWith('/auth/')) {
+      if (await refresh()) res = await raw(method, url, body, isForm);
+    }
+  } catch (error) {
+    if (error instanceof ApiError) throw error;
     throw new ApiError(0, OFFLINE_MSG); // lỗi mạng: server tắt/đang khởi động lại
-  }
-  if (res.status === 401 && !noRefresh && !url.startsWith('/auth/')) {
-    if (await refresh()) res = await raw(method, url, body, isForm);
   }
   if (res.status === 401 && !url.startsWith('/auth/')) listeners.forEach((fn) => fn());
   const type = res.headers.get('content-type') || '';

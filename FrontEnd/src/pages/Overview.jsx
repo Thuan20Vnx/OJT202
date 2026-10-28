@@ -3,7 +3,7 @@ import { Burndown, Donut } from '../components/charts.jsx';
 import { Avatar, Empty, ErrorBox, Icon, PageHeader, PageLoader, Progress, StatCard } from '../components/ui.jsx';
 import { api, download } from '../lib/api.js';
 import { useApp, useLoad } from '../lib/app.jsx';
-import { fmtDate, timeAgo } from '../lib/format.js';
+import { fmtProjectDate as fmtDate, timeAgo } from '../lib/format.js';
 import { useSocketEvent } from '../lib/hooks.js';
 
 export const SEVERITY = {
@@ -16,10 +16,27 @@ export default function Overview() {
   const navigate = useNavigate();
   const { data, error, loading, reload } = useLoad(() => (project ? api.get(`/projects/${project._id}/overview`) : Promise.resolve(null)), [project?._id]);
   useSocketEvent('task:changed', () => reload(), [reload]);
+  useSocketEvent('risks:changed', () => reload(), [reload]);
 
-  if (!project) return <Empty icon="folder_off" title="Chưa có dự án" action={<button className="btn-primary" onClick={() => navigate('/projects?new=1')}>Tạo dự án</button>} />;
+  if (!project)
+    return (
+      <Empty
+        icon="folder_off"
+        title="Chưa có dự án"
+        action={
+          <button className="btn-primary" onClick={() => navigate('/projects?new=1')}>
+            Tạo dự án
+          </button>
+        }
+      />
+    );
   if (loading && !data) return <PageLoader />;
-  if (error) return <div className="p-6"><ErrorBox error={error} onRetry={reload} /></div>;
+  if (error)
+    return (
+      <div className="p-6">
+        <ErrorBox error={error} onRetry={reload} />
+      </div>
+    );
   const k = data.kpis;
   const sprint = data.sprint;
   const trend = k.velocity.last7 - k.velocity.prev7;
@@ -72,6 +89,7 @@ export default function Overview() {
             </div>
           </div>
           <Burndown days={data.burndown?.days || []} />
+          {data.burndown?.sampled && <p className="mt-2 text-label-sm text-slate-500">Khoảng Sprint dài: biểu đồ hiển thị các mốc lấy mẫu, giữ đủ ngày đầu và ngày cuối.</p>}
         </div>
         <div className="card p-5">
           <h2 className="mb-1 text-headline-sm text-slate-900">Phân bố trạng thái</h2>
@@ -101,7 +119,7 @@ export default function Overview() {
             {data.workload
               .filter((w) => w.role !== 'viewer')
               .map((w) => {
-                const over = w.pct > 100;
+                const over = w.overloaded;
                 return (
                   <div key={w.user._id} className="flex items-center gap-3">
                     <Avatar user={w.user} size={28} />
@@ -111,10 +129,12 @@ export default function Overview() {
                           {w.user.name} <span className="font-normal text-slate-400">{w.jobTitle}</span>
                         </span>
                         <span className={`whitespace-nowrap ${over ? 'font-semibold text-rose-600' : 'text-slate-600'}`}>
-                          {w.hours}/{w.available} giờ · {w.pct}%{over && ' · Quá tải'}
+                          {Math.round(w.hours * 10) / 10}/{w.available} giờ · {w.pct == null ? 'Không có giờ khả dụng' : `${w.pct}%`}
+                          {over && ' · Quá tải'}
                         </span>
                       </div>
-                      <Progress value={Math.min(100, w.pct)} tone={over ? 'bg-rose-500' : w.pct >= 80 ? 'bg-amber-500' : 'bg-blue-600'} height="h-2" />
+                      <Progress value={w.pct == null ? 100 : Math.min(100, w.pct)} tone={over ? 'bg-rose-500' : w.pct >= 80 ? 'bg-amber-500' : 'bg-blue-600'} height="h-2" />
+                      {w.missingEstimates > 0 && <p className="mt-1 text-label-md text-amber-700">{w.missingEstimates} công việc chưa có ước lượng, chưa tính đủ tải.</p>}
                     </div>
                   </div>
                 );
@@ -143,7 +163,11 @@ export default function Overview() {
                 <p className="mt-1.5 text-body-sm text-slate-600">{r.explanation}</p>
                 <div className="mt-2 flex flex-wrap items-center gap-1.5">
                   {r.tasks.slice(0, 4).map((t) => (
-                    <button key={t._id} onClick={() => navigate({ search: `?task=${t._id}` })} className="chip border-slate-200 bg-white font-mono text-blue-700 hover:border-blue-300">
+                    <button
+                      key={t._id}
+                      onClick={() => navigate({ search: `?task=${t._id}` })}
+                      className="chip border-slate-200 bg-white font-mono text-blue-700 hover:border-blue-300"
+                    >
                       {t.key}
                     </button>
                   ))}
@@ -153,7 +177,11 @@ export default function Overview() {
                 </div>
               </div>
             ))}
-            {!data.risks.length && <Empty icon="verified" title="Chưa phát hiện rủi ro">Các quy tắc cảnh báo chưa bị kích hoạt.</Empty>}
+            {!data.risks.length && (
+              <Empty icon="verified" title="Chưa phát hiện rủi ro">
+                Các quy tắc cảnh báo chưa bị kích hoạt.
+              </Empty>
+            )}
           </div>
         </div>
       </div>

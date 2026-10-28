@@ -3,7 +3,8 @@ import { z } from 'zod';
 import { USER, countBy, ilike, isId, populate, populateAll, prisma } from '../db.js';
 import { requireAuth, requireSystemAdmin } from '../middleware/auth.js';
 import { disconnectUser } from '../services/realtime.js';
-import { badRequest, notFound, parse } from '../utils/http.js';
+import { badRequest, forbidden, notFound, parse } from '../utils/http.js';
+import { pagination } from '../utils/http.js';
 
 /**
  * Quản trị hệ thống: quản lý TÀI KHOẢN toàn nền tảng.
@@ -19,7 +20,19 @@ const findUser = async (id) => {
   if (!user) throw notFound('Không tìm thấy người dùng');
   return user;
 };
-const revokeAll = (user) => prisma.session.updateMany({ where: { user, revokedAt: null }, data: { revokedAt: new Date() } });
+const revokeAll = (tx, user) => tx.session.updateMany({ where: { user, revokedAt: null }, data: { revokedAt: new Date() } });
+
+const adminMutation = (req, userId, action) =>
+  prisma.$transaction(
+    async (tx) => {
+      // Khóa theo cùng thứ tự: hai System Admin không thể khóa lẫn nhau rồi mất toàn bộ quyền quản trị.
+      await tx.$queryRaw`SELECT id FROM users WHERE "isSystemAdmin" = true OR id = ${userId}::uuid ORDER BY id FOR UPDATE`;
+      const actor = await tx.user.findUnique({ where: { id: req.user.id } });
+      if (!actor?.isSystemAdmin || actor.isLocked) throw forbidden('Quyền quản trị không còn hiệu lực');
+      return action(tx);
+    },
+    { maxWait: 10000, timeout: 15000 },
+  );
 
 router.get('/stats', async (_req, res) => {
   const [users, locked, workspaces] = await Promise.all([prisma.user.count(), prisma.user.count({ where: { isLocked: true } }), prisma.workspace.count()]);
@@ -31,12 +44,8 @@ router.get('/users', async (req, res) => {
   if (req.query.status === 'locked') where.isLocked = true;
   if (req.query.status === 'active') where.isLocked = false;
   if (req.query.search) where.OR = [{ name: ilike(req.query.search) }, { email: ilike(req.query.search) }];
-  const page = Math.max(1, Number(req.query.page) || 1);
-  const limit = Math.min(100, Number(req.query.limit) || 20);
-  const [users, total] = await Promise.all([
-    prisma.user.findMany({ where, orderBy: { createdAt: 'desc' }, skip: (page - 1) * limit, take: limit }),
-    prisma.user.count({ where }),
-  ]);
+  const { page, limit } = pagination(req.query, 20);
+  const [users, total] = await Promise.all([prisma.user.findMany({ where, orderBy: { createdAt: 'desc' }, skip: (page - 1) * limit, take: limit }), prisma.user.count({ where })]);
   const wsCount = await countBy('membership', 'user', { user: { in: users.map((u) => u.id) } });
   res.json({
     users: users.map((u) => ({
@@ -61,35 +70,43 @@ router.post('/users/:id/lock', async (req, res) => {
   const body = parse(z.object({ reason: z.enum(REASONS, { errorMap: () => ({ message: 'Vui lòng chọn lý do khóa' }) }), note: z.string().max(500).default('') }), req.body);
   if (req.params.id === req.user.id) throw badRequest('Không thể tự khóa tài khoản của mình');
   const user = await findUser(req.params.id);
-  await prisma.user.update({
-    where: { id: user.id },
-    data: { isLocked: true, lockReason: body.reason, lockNote: body.note, lockedAt: new Date(), lockedBy: req.user.id },
+  await adminMutation(req, user.id, async (tx) => {
+    await tx.user.update({
+      where: { id: user.id },
+      data: { isLocked: true, lockReason: body.reason, lockNote: body.note, lockedAt: new Date(), lockedBy: req.user.id },
+    });
+    // Chặn mọi phiên đăng nhập ngay lập tức
+    await revokeAll(tx, user.id);
+    await tx.adminAudit.create({ data: { admin: req.user.id, action: 'lock', targetUser: user.id, reason: body.reason, note: body.note } });
   });
-  // Chặn mọi phiên đăng nhập ngay lập tức
-  await revokeAll(user.id);
   await disconnectUser(user.id);
-  await prisma.adminAudit.create({ data: { admin: req.user.id, action: 'lock', targetUser: user.id, reason: body.reason, note: body.note } });
   res.json({ ok: true });
 });
 
 router.post('/users/:id/unlock', async (req, res) => {
   const user = await findUser(req.params.id);
-  await prisma.user.update({ where: { id: user.id }, data: { isLocked: false, lockReason: null, lockNote: null, lockedAt: null, lockedBy: null } });
-  await prisma.adminAudit.create({ data: { admin: req.user.id, action: 'unlock', targetUser: user.id } });
+  await adminMutation(req, user.id, async (tx) => {
+    await tx.user.update({ where: { id: user.id }, data: { isLocked: false, lockReason: null, lockNote: null, lockedAt: null, lockedBy: null } });
+    await tx.adminAudit.create({ data: { admin: req.user.id, action: 'unlock', targetUser: user.id } });
+  });
   res.json({ ok: true });
 });
 
 router.post('/users/:id/logout', async (req, res) => {
   const user = await findUser(req.params.id);
-  await revokeAll(user.id);
+  await adminMutation(req, user.id, async (tx) => {
+    await revokeAll(tx, user.id);
+    await tx.adminAudit.create({ data: { admin: req.user.id, action: 'force_logout', targetUser: user.id } });
+  });
   await disconnectUser(user.id);
-  await prisma.adminAudit.create({ data: { admin: req.user.id, action: 'force_logout', targetUser: user.id } });
   res.json({ ok: true });
 });
 
 router.get('/workspaces', async (_req, res) => {
   const [ws, members] = await Promise.all([
-    prisma.workspace.findMany({ select: { id: true, name: true, slug: true, plan: true, createdAt: true, owner: true }, orderBy: { createdAt: 'desc' } }).then((r) => populate(r, 'owner', 'user', USER)),
+    prisma.workspace
+      .findMany({ select: { id: true, name: true, slug: true, plan: true, createdAt: true, owner: true }, orderBy: { createdAt: 'desc' } })
+      .then((r) => populate(r, 'owner', 'user', USER)),
     countBy('membership', 'workspace', {}),
   ]);
   res.json({ workspaces: ws.map((w) => ({ ...w, members: members[w.id] || 0 })) });

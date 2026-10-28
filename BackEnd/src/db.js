@@ -158,8 +158,8 @@ export async function populateAll(rows, specs) {
 }
 
 /** Số thứ tự tăng dần nguyên tử (INSERT … ON CONFLICT) */
-export async function nextSeq(name) {
-  const [row] = await prisma.$queryRaw`
+export async function nextSeq(name, db = prisma) {
+  const [row] = await db.$queryRaw`
     INSERT INTO counters (name, seq) VALUES (${name}, 1)
     ON CONFLICT (name) DO UPDATE SET seq = counters.seq + 1
     RETURNING seq`;

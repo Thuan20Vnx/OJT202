@@ -7,10 +7,12 @@ import { generatePlan } from './features/planner.js';
 import { answer } from './features/qa.js';
 import { writeNarrative } from './features/report.js';
 import { explainRisk } from './features/risk.js';
+import { BUSINESS_TIMEZONE, isDateInput, isTimeZone, parseDate } from './dates.js';
 
 const member = z.object({ id: z.string(), name: z.string(), jobTitle: z.string().nullish(), title: z.string().nullish() }).passthrough();
 const members = z.array(member).max(500);
-const isoDate = z.string().refine((s) => !Number.isNaN(Date.parse(s)), 'Ngày không hợp lệ');
+const isoDate = z.string().refine(isDateInput, 'Ngày không hợp lệ');
+const timezone = z.string().refine(isTimeZone, 'Múi giờ không hợp lệ').default(BUSINESS_TIMEZONE);
 
 /**
  * Mỗi tính năng: schema đầu vào + hàm chạy (llm = null => bộ AI nội bộ).
@@ -21,17 +23,18 @@ const FEATURES = {
     schema: z.object({
       goal: z.string().min(1).max(2000),
       deadline: isoDate.nullish(),
-      people: z.number().int().positive().nullish(),
-      maxHours: z.number().positive().nullish(),
+      people: z.number().int().min(1).max(50).nullish(),
+      maxHours: z.number().min(1).max(5000).nullish(),
+      timezone,
       members,
     }),
     run: async (llm, b, signal) => {
-      const r = await generatePlan(llm, { ...b, deadline: b.deadline ? new Date(b.deadline) : null }, signal);
+      const r = await generatePlan(llm, { ...b, deadline: b.deadline ? parseDate(b.deadline, b.timezone, true) : null }, signal);
       return { result: { items: r.items }, inputTokens: r.inputTokens, outputTokens: r.outputTokens };
     },
   },
   meeting: {
-    schema: z.object({ text: z.string().min(1).max(30000), members }),
+    schema: z.object({ text: z.string().min(1).max(30000), members, timezone }),
     run: async (llm, b, signal) => {
       const r = await extractActions(llm, b, signal);
       return { result: { items: r.items }, inputTokens: r.inputTokens, outputTokens: r.outputTokens };
@@ -96,6 +99,8 @@ export function createApp() {
     app.post(`/v1/${name}`, async (req, res) => {
       const parsed = feature.schema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ error: 'Dữ liệu gửi AI không hợp lệ', details: parsed.error.issues.slice(0, 5) });
+      if (name === 'planner' && parsed.data.deadline && parseDate(parsed.data.deadline, parsed.data.timezone, true).getTime() < Date.now())
+        return res.status(400).json({ error: 'Hạn hoàn thành kế hoạch đã qua' });
       // BackEnd hết thời gian chờ và ngắt kết nối => hủy luôn lời gọi LLM đang chạy
       const ctrl = new AbortController();
       res.on('close', () => !res.writableEnded && ctrl.abort());

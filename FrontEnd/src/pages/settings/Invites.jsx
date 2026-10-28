@@ -8,7 +8,7 @@ import { InviteModal } from './Members.jsx';
 const hoursLeft = (d) => Math.max(0, Math.round((new Date(d) - Date.now()) / 3600000));
 
 export default function Invites() {
-  const { ws } = useApp();
+  const { ws, role } = useApp();
   const toast = useToast();
   const [inviting, setInviting] = useState(false);
   const { data, loading, reload } = useLoad(() => api.get(`/workspaces/${ws.workspace._id}/invites`), [ws.workspace._id]);
@@ -58,10 +58,10 @@ export default function Invites() {
                   <span className={`chip ${hoursLeft(i.expiresAt) < 12 ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-amber-200 bg-amber-50 text-amber-700'}`}>Hết hạn sau {hoursLeft(i.expiresAt)} giờ</span>
                 </td>
                 <td className="table-td text-right">
-                  <button className="btn-ghost btn-sm" onClick={() => resend(i)}>
+                  <button className="btn-ghost btn-sm" disabled={i.role === 'admin' && role !== 'owner'} onClick={() => resend(i)}>
                     Gửi lại
                   </button>
-                  <button className="btn-ghost btn-sm text-rose-600" onClick={() => revoke(i)}>
+                  <button className="btn-ghost btn-sm text-rose-600" disabled={i.role === 'admin' && role !== 'owner'} onClick={() => revoke(i)}>
                     Hủy lời mời
                   </button>
                 </td>

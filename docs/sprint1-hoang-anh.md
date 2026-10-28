@@ -8,8 +8,8 @@ Phạm vi: U006-T1 (workspace/membership/tenant), U008-T1 (project và quyền P
 - Chỉ Workspace Owner/Admin tạo project; người tạo được cấp PM trong cùng transaction.
 - Project private: cần cả workspace membership và project membership. Owner/Admin không có project membership nhận 404 trên project/task/file/metrics và không thấy chúng trong tìm kiếm/nhật ký.
 - Bảng `project_members` lưu PM/Member/Viewer. Workspace Viewer chỉ có thể là Project Viewer. Danh sách `Project.members` và `manager` được giữ tương thích với API, đồng bộ cùng transaction.
-- PM quản lý roster, chuyển giao và archive/restore. Khóa dòng project bảo vệ các thao tác đồng thời; dự án luôn còn PM. Gỡ thành viên bỏ gán task và loại khỏi phòng realtime.
-- Member chỉ cập nhật trạng thái/thứ tự/giờ còn lại của task mình nhận, chưa Done. To do → In progress → Review; có thể trả Review về In progress. PM duyệt Done và reopen.
+- PM quản lý roster, chuyển giao và archive/restore. Khóa workspace trước khi sửa roster/giao việc, sau đó khóa project để bảo vệ các thao tác đồng thời; dự án luôn còn PM. Gỡ thành viên bỏ gán task và loại khỏi phòng realtime.
+- Member chỉ cập nhật trạng thái/thứ tự/giờ còn lại của task mình nhận, chưa Done. To do → In progress → Review; có thể trả Review về In progress. PM duyệt Review → Done và reopen.
 - Done đặt `completedAt` và giờ còn lại = 0; reopen xóa `completedAt`, nhận giờ còn lại mới hoặc để thiếu ước lượng.
 - PATCH task bắt buộc `version`; bản cũ trả 409 kèm task mới. Thay đổi task và nhật ký được commit cùng transaction; realtime phát sau commit.
 
