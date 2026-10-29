@@ -46,7 +46,27 @@ Mật khẩu chung: `TaskFlow@2026` (định nghĩa trong `BackEnd/src/seed.js`)
 | khanh.linh@nhom24.edu.vn | Viewer (chỉ xem) |
 | admin@taskflow.local | System Admin (trang Quản trị hệ thống) |
 
-Email xác minh / đặt lại mật khẩu / lời mời: khi chưa cấu hình SMTP, hệ thống lưu vào **hộp thư dev** – mở http://localhost:5173/dev/outbox (endpoint chỉ bật khi không chạy production).
+Email xác minh / đặt lại mật khẩu / lời mời: `MAIL_MODE=outbox` lưu vào **hộp thư dev** – mở http://localhost:5173/dev/outbox (chỉ ngoài production). Đặt `MAIL_MODE=smtp` để gửi email thật; không tự chuyển sang outbox nếu SMTP lỗi.
+
+### Gửi email bằng Gmail SMTP
+
+Trong `BackEnd/.env`, cấu hình riêng trên máy triển khai:
+
+```env
+MAIL_MODE=smtp
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=465
+SMTP_SECURE=true
+SMTP_REQUIRE_TLS=true
+SMTP_USER=your-account@gmail.com
+SMTP_PASS=your-google-app-password
+MAIL_FROM="TaskFlow <your-account@gmail.com>"
+CLIENT_URL=https://your-taskflow-domain.example
+```
+
+Dùng [App Password của Google](https://support.google.com/accounts/answer/185833?hl=en) sau khi bật xác minh hai bước; không dùng mật khẩu đăng nhập Gmail. Thay các giá trị mẫu, không commit `.env` hay gửi mật khẩu vào chat. Khi chạy local, giữ `CLIENT_URL=http://localhost:5173`. Khởi động lại backend sau khi đổi cấu hình. Port 465 dùng TLS ngay từ đầu; port 587 cần `SMTP_SECURE=false`, `SMTP_REQUIRE_TLS=true` ([tài liệu Nodemailer](https://nodemailer.com/smtp)).
+
+Kiểm chứng sau cấu hình: đăng ký một tài khoản kiểm thử có hộp thư bạn quản lý, nhận thư thật và mở liên kết xác minh; thử gửi lại thư và lời mời. Nếu gửi thư đăng ký lỗi, tài khoản vẫn chờ xác minh và giao diện cho gửi lại, không cần đăng ký lại. Các API khôi phục công khai trả thông báo chung để không tiết lộ email có tài khoản hay không. Production bắt buộc SMTP có TLS; outbox không được chấp nhận.
 
 ## Kết nối PostgreSQL thật
 
@@ -194,15 +214,17 @@ taskflow/
 ## Giới hạn hiện tại
 
 - Nút "Tiếp tục với Google" cần cấu hình OAuth Client ID khi triển khai (bản này dùng email + mật khẩu).
-- Gửi email thật cần nối nhà cung cấp SMTP trong `BackEnd/src/services/mailer.js`.
+- SMTP adapter đã có; cần cấu hình tài khoản Gmail/App Password và kiểm chứng nhận thư thật khi triển khai.
 - Chuyển ngôn ngữ EN mới áp dụng cho menu điều hướng; nội dung còn lại tiếng Việt.
 - Chế độ tối là lớp ghi đè màu cơ bản, chưa tinh chỉnh từng màn hình.
 
 ## Thay đổi nhánh Loc (23/10/2026)
 
-Đối chiếu Sprint 1 ngày 28/10/2026 theo workbook mới `(1).xlsx`: [trạng thái phần Lộc và điều kiện đưa vào main](docs/LOC_SPRINT1_READINESS_2026-10-28.md). Test chuẩn và build đạt, nhưng còn lỗi tái hiện và yêu cầu chưa triển khai nên chưa xác nhận Sprint 1 hoàn tất.
+**Cập nhật 29/10/2026:** [bàn giao code U003/U007/U009 của Lộc](docs/LOC_SPRINT1_COMPLETION_2026-10-29.md). Hoàn thiện SMTP, xóa mềm, giờ còn lại và giữ bản nháp khi realtime/xung đột phiên bản. Đạt 129 backend + 16 AIService + 36 frontend và 2 kịch bản browser. Người dùng chọn cấu hình Gmail sau; chưa xác nhận gửi Gmail thật hoặc nghiệm thu của nhóm.
 
-Cập nhật rà soát ngày 26/10/2026, vòng 2: [lỗi đã sửa và bằng chứng kiểm tra](docs/REVIEW_2026-10-26_ROUND2.md), gồm cài đặt AI, lời mời, phản hồi lỗi bảo mật, tải tệp và phạm vi thông báo. Bộ kiểm thử hiện có **111 backend + 16 AIService + 30 frontend = 157 ca**.
+Đối chiếu ngày 28/10/2026 theo workbook `(1).xlsx`: [báo cáo lịch sử trước khi sửa](docs/LOC_SPRINT1_READINESS_2026-10-28.md).
+
+Cập nhật rà soát ngày 26/10/2026, vòng 2: [lỗi đã sửa và bằng chứng kiểm tra](docs/REVIEW_2026-10-26_ROUND2.md), gồm cài đặt AI, lời mời, phản hồi lỗi bảo mật, tải tệp và phạm vi thông báo. Bộ kiểm thử tại thời điểm đó có **111 backend + 16 AIService + 30 frontend = 157 ca**.
 
 Rà soát ngày 26/10/2026, vòng 1: [lỗi đã sửa và bằng chứng kiểm tra](docs/REVIEW_2026-10-26.md), gồm dữ liệu và quyền cũ trên giao diện, thao tác AI bất đồng bộ, lưu/duyệt nháp, dữ liệu NUL và nhắc hạn dự án lưu trữ. Kết quả đợt đó: 109 backend + 16 AIService + 18 frontend.
 
@@ -212,6 +234,6 @@ Xem [báo cáo review](docs/LOC_REVIEW.md) và [kết quả kiểm thử](docs/L
 
 Giữ thư mục `shared/` khi sao chép dự án. Cài lại dependency và generate Prisma trước khi chạy; có ba migration thêm pending AI, revision nguồn report và lựa chọn ghi nhớ phiên. Dừng backend trước khi generate trên Windows.
 
-Production cần `NODE_ENV=production`, `SEED_DEMO=false`, JWT_SECRET ít nhất 32 ký tự ngẫu nhiên và AI_SERVICE_KEY. Mặc định không tin header proxy; đặt `TRUST_PROXY` thành IP/CIDR của reverse proxy thực tế (ví dụ `loopback` nếu proxy cùng máy), không bật tin mọi địa chỉ. `npm start` tự nó không đặt NODE_ENV. Mailer vẫn cần kết nối nhà cung cấp SMTP thật; không coi outbox demo là email đã gửi.
+Production cần `NODE_ENV=production`, `SEED_DEMO=false`, JWT_SECRET ít nhất 32 ký tự ngẫu nhiên, AI_SERVICE_KEY và cấu hình SMTP ở trên. Mặc định không tin header proxy; đặt `TRUST_PROXY` thành IP/CIDR của reverse proxy thực tế (ví dụ `loopback` nếu proxy cùng máy), không bật tin mọi địa chỉ. `npm start` tự nó không đặt NODE_ENV. Không coi outbox demo là email đã gửi.
 
 Ngày chót chỉ nhập ngày được hiểu hết ngày theo timezone hồ sơ; báo cáo, quota và số liệu chung dùng giờ Việt Nam. Không thay đổi ngầm timestamp các deadline cũ.

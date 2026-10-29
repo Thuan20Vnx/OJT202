@@ -6,7 +6,7 @@ export async function runDueReminders(now = new Date()) {
   const soon = new Date(now.getTime() + 24 * 3600 * 1000);
   const select = { id: true, key: true, title: true, assignee: true, dueDate: true, workspace: true, project: true };
   const active = { status: { not: 'done' }, assignee: { not: null }, projectRef: { status: 'active' } };
-  const dueSoon = await prisma.task.findMany({ where: { ...active, dueDate: { gt: now, lte: soon } }, select });
+  const dueSoon = await prisma.task.findMany({ where: { deletedAt: null, ...active, dueDate: { gt: now, lte: soon } }, select });
   for (const t of dueSoon) {
     await notify({
       user: t.assignee,
@@ -18,7 +18,7 @@ export async function runDueReminders(now = new Date()) {
       dedupeKey: `due:${t.id}:${t.dueDate.toISOString()}`,
     });
   }
-  const overdue = await prisma.task.findMany({ where: { ...active, dueDate: { lt: now } }, select });
+  const overdue = await prisma.task.findMany({ where: { deletedAt: null, ...active, dueDate: { lt: now } }, select });
   for (const t of overdue) {
     await notify({
       user: t.assignee,

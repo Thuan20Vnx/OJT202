@@ -4,7 +4,7 @@ export { startOfDay, weekRange } from '../utils/dates.js';
 
 const DAY = 86400000;
 
-const remaining = (t) => Math.max(0, (t.estimateHours || 0) - (t.spentHours || 0));
+const remaining = (t) => t.remainingHours ?? Math.max(0, (t.estimateHours || 0) - (t.spentHours || 0));
 
 const loadProject = (projectId, project) => project ?? prisma.project.findUnique({ where: { id: projectId } });
 
@@ -14,7 +14,7 @@ export async function projectOverview(projectId, { from, to, project: given, now
   const [project, top] = await Promise.all([
     loadProject(projectId, given),
     prisma.task
-      .findMany({ where: { project: projectId, parent: null }, orderBy: { number: 'asc' } })
+      .findMany({ where: { deletedAt: null, project: projectId, parent: null }, orderBy: { number: 'asc' } })
       .then((r) => populate(r, 'blockedBy', 'task', { status: true, dueDate: true, key: true, title: true })),
   ]);
   const total = top.length;
@@ -80,7 +80,7 @@ export async function workload(projectId, given, now = new Date()) {
   const project = await loadProject(projectId, given);
   const { end } = weekRange(now);
   const [tasks, memberships, users] = await Promise.all([
-    prisma.task.findMany({ where: { project: projectId, status: { not: 'done' }, assignee: { not: null }, dueDate: { lt: end } } }),
+    prisma.task.findMany({ where: { deletedAt: null, project: projectId, status: { not: 'done' }, assignee: { not: null }, dueDate: { lt: end } } }),
     prisma.membership.findMany({ where: { workspace: project.workspace, user: { in: project.members } } }),
     prisma.user.findMany({ where: { id: { in: project.members } }, select: { id: true, name: true, email: true, title: true } }),
   ]);
@@ -99,7 +99,7 @@ export async function workload(projectId, given, now = new Date()) {
         // Không có mẫu số thì tỷ lệ không xác định, tuyệt đối không ghi 0% khi còn việc.
         pct: available > 0 ? Math.round((hours / available) * 100) : hours > 0 ? null : 0,
         overloaded: hours > available,
-        missingEstimates: mine.filter((t) => t.estimateHours == null).length,
+        missingEstimates: mine.filter((t) => t.remainingHours == null && t.estimateHours == null).length,
         taskIds: mine.map((t) => t.id),
         tasks: mine.map((t) => ({ id: t.id, key: t.key, title: t.title })),
       };
@@ -116,7 +116,7 @@ export async function riskAlerts(projectId, { project: given, load: givenLoad, n
   const rules = project.riskRules || {};
   // Việc chưa xong + tải tuần + danh sách đã xử lý: chạy song song
   const [tasks, load, resolved] = await Promise.all([
-    prisma.task.findMany({ where: { project: projectId, status: { not: 'done' } }, orderBy: { number: 'asc' } }),
+    prisma.task.findMany({ where: { deletedAt: null, project: projectId, status: { not: 'done' } }, orderBy: { number: 'asc' } }),
     rules.overload !== false ? (givenLoad ?? workload(projectId, project, now)) : null,
     prisma.riskResolution.findMany({ where: { project: projectId }, orderBy: { updatedAt: 'desc' } }).then((r) => populate(r, 'resolvedBy', 'user', { name: true })),
   ]);

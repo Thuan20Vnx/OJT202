@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { config } from '../config.js';
 import { prisma } from '../db.js';
 import { REFRESH_COOKIE, clearAuthCookies, setAuthCookies, signAccess, startSession } from '../middleware/auth.js';
-import { sendMail } from '../services/mailer.js';
+import { sendMail, privateMailAttempt } from '../services/mailer.js';
 import { disconnectUser } from '../services/realtime.js';
 import { withUserLock } from '../services/sessions.js';
 import { HttpError, badRequest, forbidden, parse, unauthorized } from '../utils/http.js';
@@ -71,7 +71,7 @@ router.post('/verify-email', async (req, res) => {
 router.post('/resend-verification', async (req, res) => {
   const { email: mail } = parse(z.object({ email }), req.body);
   const user = await prisma.user.findUnique({ where: { email: mail } });
-  if (user && !user.emailVerified) await sendVerification(user);
+  if (user && !user.emailVerified) await privateMailAttempt(() => sendVerification(user));
   res.json({ ok: true }); // luôn trả ok để không lộ email nào tồn tại
 });
 
@@ -157,12 +157,12 @@ router.post('/forgot-password', async (req, res) => {
   const user = await prisma.user.findUnique({ where: { email: mail } });
   if (user && !user.isLocked) {
     const raw = await issueToken(user, 'reset', config.resetTtlMs);
-    await sendMail({
+    await privateMailAttempt(() => sendMail({
       to: user.email,
       subject: 'Đặt lại mật khẩu TaskFlow',
       text: 'Liên kết chỉ dùng được một lần và hết hạn sau 30 phút.',
       link: `${config.clientUrl}/reset-password?token=${raw}`,
-    });
+    }));
   }
   res.json({ ok: true }); // không tiết lộ email có tồn tại hay không
 });

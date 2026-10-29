@@ -1,0 +1,48 @@
+
+> taskflow-client@1.0.0 test
+> node --import ./test/helpers/register-jsx.js --test test/*.test.js
+
+✔ 401 đang chờ từ phiên ẩn danh không đăng xuất phiên vừa xác minh (56.2225ms)
+✔ download: lỗi mạng được chuẩn hóa; hết phiên thật mới phát unauthorized (15.904ms)
+✔ JSON sai hoặc kết nối đứt khi đọc body được báo bằng ApiError (14.7841ms)
+✔ download làm mới phiên và tải đủ byte; refresh 503 không đăng xuất (29.9014ms)
+✔ refresh gặp 503 không đăng xuất người dùng và không xoay token khi /me lỗi server (30.9394ms)
+✔ lỗi mạng trong refresh hoặc retry được chuẩn hóa thành ApiError (31.1649ms)
+✔ refresh trả 401 mới phát sự kiện hết phiên (30.0859ms)
+✔ nhiều request 401 đồng thời chỉ xoay refresh một lần (30.7971ms)
+✔ useLoad không giữ dữ liệu dự án trước khi dự án mới tải lỗi (12.2724ms)
+✔ reload cũ không được thay thế kết quả của phạm vi mới (2.0843ms)
+✔ quyền bị vô hiệu hóa chỉ tải lại đúng dự án và khóa ghi trong lúc chờ (2.0019ms)
+✔ quyền dự án không còn lấy từ cache cũ sau khi component đã đóng và resync (1.7608ms)
+✔ chọn lịch sử sau cùng thắng phản hồi cũ đến muộn (9.8816ms)
+✔ mở lịch sử thất bại được báo trên giao diện, không reject khỏi handler (4.4164ms)
+✔ đổi dự án xóa kế hoạch đang mở và bỏ phản hồi tạo nháp cũ (8.3843ms)
+✔ báo cáo lưu lỗi giữ nguyên editor và nội dung để thử lại (35.8891ms)
+✔ mở báo cáo khác đóng editor cũ để không lưu nhầm nội dung sang báo cáo mới (17.3183ms)
+✔ hỏi đáp chặn Enter gửi lặp khi đang chờ và bỏ phản hồi sau Cuộc hỏi mới (9.0099ms)
+✔ duyệt nháp phải chờ lưu checkbox và không duyệt khi còn sửa chưa lưu (3.2412ms)
+✔ Cài đặt AI: tải lần đầu thất bại có lỗi và Thử lại, không crash (20.6624ms)
+✔ Lời mời: tải lần đầu thất bại có lỗi và Thử lại, không crash (3.3659ms)
+✔ Cài đặt AI: bật tính năng và resync không xóa hạn mức/timeout đang nhập (14.6134ms)
+✔ Cài đặt AI: hạn mức trống không được lưu thành 0 (3.7701ms)
+✔ Cài đặt AI: lưu lỗi giữ dữ liệu, thử lại cho phép hạn mức 0 có chủ ý (7.5664ms)
+✔ Cài đặt AI: lỗi nhật ký có Thử lại và lỗi xuất CSV được báo (12.0542ms)
+✔ Lời mời: gửi lại và hủy lỗi được xử lý, giữ mục để thử lại (5.3787ms)
+✔ Hồ sơ: lỗi đổi mật khẩu không có fields vẫn được hiển thị (8.522ms)
+✔ Hồ sơ: lỗi tải phiên có Thử lại, lỗi thu hồi phiên không thoát khỏi handler (6.6065ms)
+✔ Member gửi Review, không thể tự duyệt Done (0.9406ms)
+✔ PM chỉ được duyệt Done từ Review, có thể mở lại Done (0.1584ms)
+✔ Viewer, dự án archived hoặc chưa tải quyền không có thao tác ghi (0.2406ms)
+✔ My Tasks dùng quyền server: Member bắt đầu rồi gửi Review, không duyệt hoặc mở lại (0.5759ms)
+✔ Kanban và My Tasks cùng giới hạn PM duyệt Done sau Review (0.2684ms)
+✔ P2: a pending realtime reload must preserve edits started while it was loading (65.7344ms)
+✔ out-of-order realtime responses cannot replace the newest task (13.9635ms)
+✔ explicit reload discards the old draft but keeps edits started during the reload (15.3179ms)
+ℹ tests 36
+ℹ suites 0
+ℹ pass 36
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1628.5717

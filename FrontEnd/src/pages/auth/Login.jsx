@@ -96,12 +96,15 @@ export default function Login({ initialTab = 'login' }) {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(null);
+  const [mailPending, setMailPending] = useState(false);
+  const [resendNotice, setResendNotice] = useState('');
+  const resendPending = useRef(false);
   const [unverified, setUnverified] = useState(false);
   const [success, setSuccess] = useState(false);
   const formRef = useRef(null);
   const fail = (err) => {
     setError(err.message);
-    setErrors(err.fields);
+    setErrors(err.fields || {});
     // Lắc nhẹ form khi lỗi (Web Animations API – không dựng lại form nên ô nhập giữ focus)
     if (!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
       formRef.current?.animate(
@@ -142,7 +145,12 @@ export default function Login({ initialTab = 'login' }) {
     try {
       await api.post('/auth/register', { name: f.name, email: f.email, password: f.password, acceptTerms: f.accept });
       setSent(f.email);
+      setMailPending(false);
     } catch (err) {
+      if (err.details?.code === 'MAIL_UNAVAILABLE') {
+        setSent(f.email);
+        setMailPending(true);
+      }
       fail(err);
     } finally {
       setBusy(false);
@@ -150,8 +158,20 @@ export default function Login({ initialTab = 'login' }) {
   };
 
   const resend = async () => {
-    await api.post('/auth/resend-verification', { email: sent || f.email }).catch(() => {});
-    setSent(sent || f.email);
+    if (resendPending.current) return;
+    resendPending.current = true;
+    setBusy(true);
+    setResendNotice('');
+    try {
+      await api.post('/auth/resend-verification', { email: sent || f.email });
+      setResendNotice('Đã yêu cầu gửi lại email xác minh. Vui lòng kiểm tra hộp thư và thư rác; nếu chưa nhận được, hãy thử lại sau.');
+      setError('');
+    } catch (err) {
+      fail(err);
+    } finally {
+      resendPending.current = false;
+      setBusy(false);
+    }
   };
 
   if (success) {
@@ -187,6 +207,8 @@ export default function Login({ initialTab = 'login' }) {
                 setError('');
                 setErrors({});
                 setSent(null);
+                setMailPending(false);
+                setResendNotice('');
               }}
               className={`relative flex items-center justify-center gap-1.5 rounded-md py-2 text-label-lg transition-colors duration-300 ${tab === key ? 'font-semibold text-blue-700' : 'text-slate-500 hover:text-slate-700'}`}
             >
@@ -206,13 +228,13 @@ export default function Login({ initialTab = 'login' }) {
               <Notice tone="danger">
                 {error}
                 {unverified && (
-                  <button type="button" className="ml-1 font-semibold underline" onClick={resend}>
+                  <button type="button" className="ml-1 font-semibold underline" onClick={resend} disabled={busy}>
                     Gửi lại email xác minh
                   </button>
                 )}
               </Notice>
             )}
-            {sent && <Notice tone="success">Đã gửi lại email xác minh tới {sent}.</Notice>}
+            {resendNotice && <Notice tone="info">{resendNotice}</Notice>}
             <Field label="Email công việc" required error={errors.email}>
               <div className="relative">
                 <Icon name="mail" size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -245,11 +267,13 @@ export default function Login({ initialTab = 'login' }) {
           </form>
         ) : sent ? (
           <AuthSuccess
-            title="Đăng ký thành công!"
+            title={mailPending ? 'Tài khoản đang chờ xác minh' : 'Đăng ký thành công!'}
             tone="blue"
             action={
               <>
-                <button className="btn-outline" onClick={resend}>
+                {error && <Notice tone="danger">{error}</Notice>}
+                {resendNotice && <Notice tone="info">{resendNotice}</Notice>}
+                <button className="btn-outline" onClick={resend} disabled={busy}>
                   <Icon name="forward_to_inbox" size={18} />
                   Gửi lại email
                 </button>
@@ -262,7 +286,7 @@ export default function Login({ initialTab = 'login' }) {
               </>
             }
           >
-            Kiểm tra hộp thư: chúng tôi đã gửi email xác minh tới <b>{sent}</b>. Liên kết có hiệu lực trong 24 giờ.
+            {mailPending ? <>Tài khoản <b>{sent}</b> đã được tạo, nhưng email chưa gửi được. Bạn có thể gửi lại mà không cần đăng ký lần nữa.</> : <>Kiểm tra hộp thư: chúng tôi đã gửi email xác minh tới <b>{sent}</b>. Liên kết có hiệu lực trong 24 giờ.</>}
           </AuthSuccess>
         ) : (
           <form ref={formRef} onSubmit={register} className="animate-fade-up space-y-4">

@@ -33,8 +33,8 @@ const STATUS_VI = { todo: 'Cần làm', in_progress: 'Đang thực hiện', revi
  */
 export async function collectSources(projectId) {
   const [tasks, comments, docs] = await Promise.all([
-    prisma.task.findMany({ where: { project: projectId } }),
-    prisma.comment.findMany({ where: { project: projectId } }),
+    prisma.task.findMany({ where: { deletedAt: null, project: projectId } }),
+    prisma.comment.findMany({ where: { project: projectId, taskRef: { deletedAt: null } } }),
     prisma.document.findMany({ where: { project: projectId, isScan: false, OR: [{ kind: 'doc' }, { mime: 'text/plain' }] } }),
   ]);
   await Promise.all([

@@ -114,8 +114,9 @@ export default function TaskDetailModal({ taskId, onClose }) {
   const dirtyRef = useRef(false);
   const editRevision = useRef(0);
   const loadSequence = useRef(0);
-  const currentTaskId = useRef(taskId);
-  currentTaskId.current = taskId;
+  const activeTask = useRef(taskId);
+  activeTask.current = taskId;
+  const mounted = useRef(false);
   const [comments, setComments] = useState([]);
   const [tab, setTab] = useState('comments');
   const [saving, setSaving] = useState(false);
@@ -133,13 +134,14 @@ export default function TaskDetailModal({ taskId, onClose }) {
   const load = useCallback(async ({ discard = false } = {}) => {
     const sequence = ++loadSequence.current;
     const revision = editRevision.current;
-    const isCurrent = () => sequence === loadSequence.current && currentTaskId.current === taskId;
+    const current = () => mounted.current && activeTask.current === taskId && sequence === loadSequence.current;
     try {
       setError(null);
       const d = await api.get(`/tasks/${taskId}`);
-      if (!isCurrent()) return;
-      // Never replace a draft (or its base version) with a background response.
-      if (dirtyRef.current && (!discard || revision !== editRevision.current)) {
+      if (!current()) return;
+      // Keep the original version as well as the draft: a later Save must still
+      // detect server conflicts instead of silently overwriting newer changes.
+      if ((!discard && dirtyRef.current) || revision !== editRevision.current) {
         setStale(true);
         return;
       }
@@ -160,9 +162,9 @@ export default function TaskDetailModal({ taskId, onClose }) {
       dirtyRef.current = false;
       setStale(false);
       const c = await api.get(`/tasks/${taskId}/comments`);
-      if (isCurrent()) setComments(c.comments);
+      if (current()) setComments(c.comments);
     } catch (e) {
-      if (isCurrent()) {
+      if (current()) {
         if ([403, 404].includes(e.status)) { setData(null); setForm(null); setComments([]); }
         setError(e);
       }
@@ -170,19 +172,23 @@ export default function TaskDetailModal({ taskId, onClose }) {
   }, [taskId]);
 
   useEffect(() => {
+    mounted.current = true;
     dirtyRef.current = false;
+    editRevision.current++;
     setDirty(false);
     setData(null);
     setForm(null);
     setComments([]);
+    setDepOptions([]);
     load();
-    return () => { loadSequence.current++; };
+    return () => { mounted.current = false; loadSequence.current++; };
   }, [load]);
   useSocketEvent(
     'access:changed',
     () => {
       dirtyRef.current = false;
       editRevision.current++;
+      setDirty(false);
       setData(null);
       setForm(null);
       setComments([]);
@@ -204,7 +210,7 @@ export default function TaskDetailModal({ taskId, onClose }) {
     ({ task }) => {
       if (task._id !== taskId && task.parent !== taskId) return;
       if (task._id === taskId && task.version === data?.task?.version) return;
-      if (dirty) setStale(true);
+      if (dirtyRef.current) setStale(true);
       else load();
     },
     [taskId, dirty, data?.task?.version, load],
@@ -244,14 +250,17 @@ export default function TaskDetailModal({ taskId, onClose }) {
   };
 
   const patch = async (body) => {
+    loadSequence.current++; // invalidate loads started before this mutation
     try {
       const { task: t } = await api.patch(`/tasks/${task._id}`, { ...body, version: task.version });
+      if (!mounted.current || activeTask.current !== taskId) return t;
+      loadSequence.current++;
       setData((d) => ({ ...d, task: t }));
       return t;
     } catch (e) {
       if (e.status === 409) {
-        toast('Công việc vừa được người khác cập nhật. Hãy đối chiếu nội dung trước khi tải lại.', 'info');
         setStale(true);
+        toast('Công việc vừa được cập nhật. Nội dung đang nhập được giữ lại; hãy sao chép phần cần giữ trước khi tải lại.', 'info');
       } else toast(e.message, 'error');
       throw e;
     }
@@ -260,6 +269,7 @@ export default function TaskDetailModal({ taskId, onClose }) {
   const save = async () => {
     if (!form.title.trim()) return toast('Vui lòng nhập tên công việc', 'error');
     setSaving(true);
+    const revision = editRevision.current;
     try {
       await patch({
         title: form.title,
@@ -273,8 +283,11 @@ export default function TaskDetailModal({ taskId, onClose }) {
         remainingHours: form.remainingHours === '' ? null : Number(form.remainingHours),
         labels: form.labels,
       });
-      setDirty(false);
-      dirtyRef.current = false;
+      if (mounted.current && activeTask.current === taskId && revision === editRevision.current) {
+        dirtyRef.current = false;
+        setDirty(false);
+        setStale(false);
+      }
       toast('Đã lưu thay đổi');
     } catch {
       /* đã báo lỗi */
@@ -426,7 +439,7 @@ export default function TaskDetailModal({ taskId, onClose }) {
           {canWrite && (
             <Dropdown
               trigger={
-                <button className="icon-btn">
+                <button className="icon-btn" aria-label="Thao tác công việc">
                   <Icon name="more_horiz" />
                 </button>
               }
@@ -821,7 +834,16 @@ export default function TaskDetailModal({ taskId, onClose }) {
             <input aria-label="Giờ còn lại" type="number" min="0" max="1000" disabled={!access.canUpdateProgress} className="input h-9" value={form.remainingHours} onChange={(e) => setF('remainingHours', e.target.value)} placeholder="Chưa ước lượng" />
             {!canWrite && access.canUpdateProgress && <button className="btn-outline btn-sm mt-2" disabled={saving || !dirty} onClick={async () => {
               setSaving(true);
-              try { await patch({ remainingHours: form.remainingHours === '' ? null : Number(form.remainingHours) }); await load(); toast('Đã cập nhật giờ còn lại'); }
+              const revision = editRevision.current;
+              try {
+                await patch({ remainingHours: form.remainingHours === '' ? null : Number(form.remainingHours) });
+                if (revision === editRevision.current && activeTask.current === taskId) {
+                  dirtyRef.current = false;
+                  setDirty(false);
+                }
+                await load();
+                toast('Đã cập nhật giờ còn lại');
+              }
               catch { /* patch hiển thị lỗi */ }
               finally { setSaving(false); }
             }}>Lưu giờ còn lại</button>}

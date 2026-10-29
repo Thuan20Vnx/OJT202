@@ -19,7 +19,7 @@ export function withWorkspaceLock(workspaceId, action) {
 export async function unassignTasks(tx, { workspace, project, users, actor }) {
   if (!users.length) return 0;
   const tasks = await tx.task.findMany({
-    where: { workspace, ...(project && { project }), assignee: { in: users } },
+    where: { deletedAt: null, workspace, ...(project && { project }), assignee: { in: users } },
     select: { id: true, project: true, assignee: true, key: true, title: true },
   });
   if (!tasks.length) return 0;

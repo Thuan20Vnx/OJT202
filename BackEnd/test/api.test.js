@@ -7,8 +7,10 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { io as connectSocket } from 'socket.io-client';
+import { smtpSandbox } from './helpers/smtp.js';
 
 process.env.NODE_ENV = 'test';
+process.env.MAIL_MODE = 'outbox';
 process.env.DATABASE_URL = '';
 const testUploads = await fs.mkdtemp(path.join(os.tmpdir(), 'taskflow-test-uploads-'));
 process.env.UPLOAD_DIR = testUploads;
@@ -26,6 +28,7 @@ const { csvCell } = await import('../src/utils/security.js');
 const db = await import('../src/db.js');
 const { initRealtime, emitProject } = await import('../src/services/realtime.js');
 const { projectOverview, riskAlerts, workload } = await import('../src/services/metrics.js');
+const { config } = await import('../src/config.js');
 
 let server;
 let base;
@@ -1129,7 +1132,8 @@ describe('Lộc: phân quyền và nghiệp vụ bổ sung', () => {
     assert.equal(w.overloaded, true);
     assert.equal(w.missingEstimates, 1);
     assert.ok((await riskAlerts(pid)).open.some((a) => a.type === 'overload' && a.owner.id === seed.users.nhu.id));
-    await owner.patch(`/tasks/${task._id}`, { spentHours: 5, version: task.version });
+    // Remaining work is now explicitly editable, independent from hours spent.
+    await owner.patch(`/tasks/${task._id}`, { spentHours: 5, remainingHours: 0, version: task.version });
     const empty = (await workload(pid)).find((w) => w.user.id === seed.users.nhu.id);
     assert.equal(empty.pct, 0);
     assert.equal(empty.overloaded, false);
@@ -1880,5 +1884,163 @@ describe('AI: hạn biên bản và giới hạn kế hoạch', () => {
     });
     assert.equal((await owner.post(`/ai/drafts/${draft.id}/approve`)).status, 400);
     assert.equal((await db.prisma.aiDraft.findUnique({ where: { id: draft.id } })).status, 'draft');
+  });
+});
+
+describe('Lộc Sprint 1: SMTP, giờ còn lại và xóa mềm', () => {
+  test('SMTP thực nhận email register/resend/verify và invite/resend/revoke/accept', async (t) => {
+    const { messages } = await smtpSandbox(t, config);
+    const client = new Client();
+    const email = 'loc.smtp@example.test';
+    const beforeOutbox = await db.prisma.outbox.count();
+    const registered = await client.post('/auth/register', { name: 'SMTP Test', email, password: DEMO_PASSWORD, acceptTerms: true });
+    assert.equal(registered.status, 201, JSON.stringify(registered.data));
+    assert.equal(messages.length, 1);
+    assert.equal(messages[0].envelope.rcptTo[0].address, email);
+    const token = messages[0].raw.match(/verify-email\?token=([A-Za-z0-9_-]+)/)?.[1];
+    assert.ok(token, 'SMTP message contains the verification link');
+    assert.equal((await client.post('/auth/resend-verification', { email })).status, 200);
+    assert.equal(messages.length, 2);
+    assert.equal((await client.post('/auth/verify-email', { token })).status, 200);
+    assert.equal((await client.post('/auth/verify-email', { token })).status, 400);
+    const { owner, ws, pid } = await permissionFixture();
+    const invite = await owner.post(`/workspaces/${ws}/invites`, { emails: [email], projects: [pid] });
+    assert.equal(invite.status, 201, JSON.stringify(invite.data));
+    const oldToken = messages.at(-1).raw.match(/\/invite\/([A-Za-z0-9_-]+)/)?.[1];
+    const id = invite.data.created[0]._id;
+    assert.equal((await owner.post(`/workspaces/${ws}/invites/${id}/resend`)).status, 200);
+    const newToken = messages.at(-1).raw.match(/\/invite\/([A-Za-z0-9_-]+)/)?.[1];
+    assert.ok(newToken && newToken !== oldToken);
+    assert.equal((await client.get(`/auth/invite/${oldToken}`)).data.valid, false);
+    const wrongUser = owner;
+    assert.equal((await wrongUser.post(`/me/invites/${newToken}/accept`)).status, 403);
+    assert.equal((await client.post(`/me/invites/${newToken}/accept`)).status, 200);
+    assert.equal((await client.post(`/me/invites/${newToken}/accept`)).status, 400);
+    const revoked = await owner.post(`/workspaces/${ws}/invites`, { emails: ['revoked.smtp@example.test'] });
+    const revokedToken = messages.at(-1).raw.match(/\/invite\/([A-Za-z0-9_-]+)/)?.[1];
+    assert.equal((await owner.del(`/workspaces/${ws}/invites/${revoked.data.created[0]._id}`)).status, 200);
+    assert.equal((await wrongUser.get(`/auth/invite/${revokedToken}`)).data.valid, false);
+    assert.equal(await db.prisma.outbox.count(), beforeOutbox, 'SMTP does not persist raw email tokens in the dev outbox');
+  });
+
+  test('SMTP lỗi báo lỗi an toàn, có thể gửi lại; recovery không lộ tài khoản', async (t) => {
+    const { messages, state } = await smtpSandbox(t, config);
+    const client = new Client();
+    state.reject = true;
+    const email = 'loc.smtp.retry@example.test';
+    const failed = await client.post('/auth/register', { name: 'Retry SMTP', email, password: DEMO_PASSWORD, acceptTerms: true });
+    assert.equal(failed.status, 503);
+    assert.equal(failed.data.details.code, 'MAIL_UNAVAILABLE');
+    assert.ok(!JSON.stringify(failed.data).includes('local-test-password'));
+    for (const route of ['/auth/resend-verification', '/auth/forgot-password']) {
+      const known = await client.post(route, { email });
+      const unknown = await client.post(route, { email: 'never-existed@example.test' });
+      assert.equal(known.status, 200);
+      assert.deepEqual(known.data, unknown.data);
+    }
+    state.reject = false;
+    assert.equal((await client.post('/auth/resend-verification', { email })).status, 200);
+    assert.equal(messages.length, 1);
+    const token = messages[0].raw.match(/verify-email\?token=([A-Za-z0-9_-]+)/)?.[1];
+    assert.equal((await client.post('/auth/verify-email', { token })).status, 200);
+    const { sendMail, validateMailConfig } = await import('../src/services/mailer.js');
+    config.mail.pass = 'wrong-password';
+    await assert.rejects(() => sendMail({ to: email, subject: 'Auth failure', text: 'Test' }), (e) => e.status === 503);
+    config.mail.pass = 'local-test-password';
+    config.mail.requireTLS = true;
+    await assert.rejects(() => sendMail({ to: email, subject: 'TLS required', text: 'Test' }), (e) => e.status === 503);
+    assert.equal(messages.length, 1, 'no SMTP success claimed after auth/TLS failures');
+    assert.throws(() => validateMailConfig({ mode: 'outbox' }, true), /Production/);
+    assert.throws(() => validateMailConfig({ ...config.mail, requireTLS: false }, true), /TLS/);
+  });
+
+  test('remainingHours nhận 0/null, kiểm biên/quyền, audit và thống kê dùng số cập nhật', async () => {
+    const { owner, member, other, pid, create } = await permissionFixture();
+    let task = await create({ title: 'Remaining work', assignee: seed.users.nhu.id, estimateHours: 8, remainingHours: 0, dueDate: new Date().toISOString() });
+    assert.equal(task.remainingHours, 0);
+    for (const remainingHours of [-1, 1001, '3']) {
+      assert.equal((await member.patch(`/tasks/${task._id}`, { remainingHours, version: task.version })).status, 400);
+    }
+    assert.equal((await other.patch(`/tasks/${task._id}`, { remainingHours: 2, version: task.version })).status, 403);
+    let result = await member.patch(`/tasks/${task._id}`, { remainingHours: 2.5, version: task.version });
+    assert.equal(result.status, 200, JSON.stringify(result.data));
+    task = result.data.task;
+    assert.equal((await workload(pid)).find((x) => x.user.id === seed.users.nhu.id).hours, 2.5);
+    assert.ok(await db.prisma.activity.findFirst({ where: { entityId: task._id, field: 'remainingHours' } }));
+    result = await owner.patch(`/tasks/${task._id}`, { remainingHours: null, version: task.version });
+    assert.equal(result.status, 200);
+    assert.equal(result.data.task.remainingHours, null);
+  });
+
+  test('soft-delete giữ dữ liệu/audit, ẩn mọi luồng, không tái tạo hoặc sửa task đã xóa', async () => {
+    const { owner, member, ws, pid, create } = await permissionFixture();
+    const parent = await create({ title: 'TombstoneParent', assignee: seed.users.nhu.id, estimateHours: 8, dueDate: new Date().toISOString() });
+    const child = await create({ title: 'TombstoneChild', parent: parent._id });
+    const dependent = await create({ title: 'Survivor', blockedBy: [parent._id] });
+    const comment = await owner.post(`/tasks/${parent._id}/comments`, { body: 'Keep audit content' });
+    assert.equal(comment.status, 201);
+    const file = await owner.post(`/projects/${pid}/documents`, { name: 'Keep document', content: 'preserve me', task: parent._id });
+    assert.equal(file.status, 201, JSON.stringify(file.data));
+    assert.equal((await member.del(`/tasks/${parent._id}?confirm=true`)).status, 403);
+    assert.equal((await owner.del(`/tasks/${parent._id}`)).status, 409);
+    assert.equal((await owner.del(`/tasks/${parent._id}?confirm=true`)).status, 200);
+    for (const original of [parent, child]) {
+      const stored = await db.prisma.task.findUnique({ where: { id: original._id } });
+      assert.ok(stored.deletedAt);
+      assert.equal(stored.version, original.version + 1);
+      assert.equal((await owner.get(`/tasks/${original._id}`)).status, 404);
+      assert.equal((await owner.patch(`/tasks/${original._id}`, { title: 'Revive', version: stored.version })).status, 404);
+      assert.equal((await owner.post(`/tasks/${original._id}/move`, { status: 'in_progress', order: 0, version: stored.version })).status, 404);
+    }
+    assert.equal(await db.prisma.comment.count({ where: { task: parent._id } }), 1);
+    assert.equal((await owner.get(`/tasks/${parent._id}/comments`)).status, 404);
+    assert.equal((await owner.patch(`/comments/${comment.data.comment._id}`, { body: 'Overwrite' })).status, 404);
+    assert.equal((await owner.del(`/tasks/${parent._id}?confirm=true`)).status, 404);
+    const audit = await db.prisma.activity.findFirst({ where: { entityId: parent._id, action: 'Xóa công việc' } });
+    assert.deepEqual([...audit.after.deletedTaskIds].sort(), [parent._id, child._id].sort());
+    assert.equal((await db.prisma.document.findUnique({ where: { id: file.data.document._id } })).task, null);
+    assert.equal((await owner.get(`/documents/${file.data.document._id}`)).status, 200);
+    const live = (await owner.get(`/projects/${pid}/tasks`)).data.tasks;
+    assert.deepEqual(live.map((x) => x._id), [dependent._id]);
+    assert.deepEqual(live[0].blockedBy, []);
+    assert.equal((await owner.get(`/projects/${pid}/calendar`)).data.tasks.length, 0);
+    assert.equal((await member.get(`/workspaces/${ws}/my-tasks`)).data.total, 0);
+    assert.equal((await owner.get(`/workspaces/${ws}/search?q=Tombstone`)).data.tasks.length, 0);
+    assert.equal((await owner.get(`/workspaces/${ws}/projects`)).data.projects.find((p) => p._id === pid).stats.total, 1);
+    assert.equal((await projectOverview(pid)).total, 1);
+    const { collectSources } = await import('../src/services/ai/qa.js');
+    assert.ok(!(await collectSources(pid)).some((s) => [parent._id, child._id].includes(s.refId)));
+    assert.equal((await owner.post(`/projects/${pid}/tasks`, { title: 'Invalid child', parent: parent._id })).status, 400);
+    assert.equal((await owner.post(`/tasks/${dependent._id}/dependencies`, { blockedBy: parent._id })).status, 404);
+    const { runDueReminders } = await import('../src/services/jobs.js');
+    await runDueReminders(new Date(Date.now() + 1000));
+    assert.equal(await db.prisma.notification.count({ where: { task: parent._id, type: { in: ['overdue', 'due_soon'] } } }), 0);
+    assert.ok(!(await member.get(`/notifications?workspace=${ws}`)).data.items.some((n) => n.task?._id === parent._id));
+  });
+
+  test('soft-delete rollback nếu audit thất bại; xóa/sửa đồng thời không phục hồi task', async (t) => {
+    const { owner, pid, create } = await permissionFixture();
+    const task = await create();
+    const txOriginal = db.prisma.$transaction.bind(db.prisma);
+    const original = db.prisma.$transaction;
+    t.after(() => { db.prisma.$transaction = original; });
+    db.prisma.$transaction = (callback, options) => txOriginal(async (tx) => {
+      const createMany = tx.activity.createMany.bind(tx.activity);
+      tx.activity.createMany = (args) => {
+        if (args.data.some((a) => a.action === 'Xóa công việc')) throw new Error('Simulated audit failure');
+        return createMany(args);
+      };
+      return callback(tx);
+    }, options);
+    assert.equal((await owner.del(`/tasks/${task._id}`)).status, 500);
+    db.prisma.$transaction = original;
+    assert.equal((await db.prisma.task.findUnique({ where: { id: task._id } })).deletedAt, null);
+    const [removed, changed] = await Promise.all([
+      owner.del(`/tasks/${task._id}`),
+      owner.patch(`/tasks/${task._id}`, { title: 'Concurrent edit', version: task.version }),
+    ]);
+    assert.equal(removed.status, 200);
+    assert.ok([200, 404].includes(changed.status), JSON.stringify(changed.data));
+    assert.equal((await owner.get(`/projects/${pid}/tasks`)).data.tasks.length, 0);
   });
 });

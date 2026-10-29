@@ -20,6 +20,8 @@ test('migration nâng dữ liệu project cũ, giữ member/Viewer, PM và giờ
   await db.prisma.$executeRawUnsafe('DROP TABLE project_members');
   await db.prisma.$executeRawUnsafe('DROP TYPE "ProjectRole"');
   await db.prisma.$executeRawUnsafe('ALTER TABLE tasks DROP COLUMN "remainingHours"');
+  await db.prisma.$executeRawUnsafe('ALTER TABLE tasks DROP COLUMN deleted_at');
+  await db.prisma.$executeRaw`DELETE FROM _prisma_migrations WHERE migration_name = '20261029090000_task_soft_delete'`;
   await db.prisma.$executeRaw`DELETE FROM _prisma_migrations WHERE migration_name = '20261028090000_project_roles'`;
   const cli = createRequire(import.meta.url).resolve('prisma/build/index.js');
   await promisify(execFile)(process.execPath, [cli, 'migrate', 'deploy'], {
@@ -32,6 +34,7 @@ test('migration nâng dữ liệu project cũ, giữ member/Viewer, PM và giờ
   assert.equal(website.memberships.find((m) => m.user === seed.users.linh.id).role, 'viewer');
   assert.deepEqual(website.members.sort(), website.memberships.map((m) => m.user).sort());
   for (const task of await db.prisma.task.findMany()) {
+    assert.equal(task.deletedAt, null, 'migration preserves all existing tasks as active');
     assert.equal(task.remainingHours, task.status === 'done' ? 0 : task.estimateHours == null ? null : Math.max(0, task.estimateHours - task.spentHours));
   }
   assert.equal(await db.prisma.projectMember.count({ where: { project: seed.projects.mobile.id, user: seed.users.hoanganh.id } }), 0, 'không tự thêm Admin vào project private');

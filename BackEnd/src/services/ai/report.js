@@ -16,7 +16,7 @@ export async function buildReportData(projectId, from, to, project) {
   const [ov, done, risks] = await Promise.all([
     projectOverview(projectId, { project }),
     prisma.task
-      .findMany({ where: { project: projectId, parent: null, status: 'done', completedAt: { gte: from, lte: end } } })
+      .findMany({ where: { deletedAt: null, project: projectId, parent: null, status: 'done', completedAt: { gte: from, lte: end } } })
       .then((r) => populate(r, 'assignee', 'user', { name: true })),
     riskAlerts(projectId, { project }),
   ]);

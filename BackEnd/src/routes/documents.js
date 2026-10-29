@@ -93,7 +93,7 @@ async function storeFiles(req, project, taskId) {
   try {
     return await withWorkspaceLock(project.workspace, async (tx) => {
       assertWrite(await projectAccess(req.user.id, project.id, tx));
-      if (taskId && !(await tx.task.findFirst({ where: { id: taskId, project: project.id } }))) throw badRequest('Công việc không còn thuộc dự án');
+      if (taskId && !(await tx.task.findFirst({ where: { deletedAt: null, id: taskId, project: project.id } }))) throw badRequest('Công việc không còn thuộc dự án');
       const out = [];
       for (const file of req.files || []) {
         const ext = path.extname(file.originalname).toLowerCase();
@@ -169,7 +169,7 @@ router.post('/projects/:projectId/documents/upload', middlewareProject(), upload
   assertWrite(req.pa);
   let taskId;
   if (req.body.task) {
-    const t = isId(req.body.task) ? await prisma.task.findFirst({ where: { id: req.body.task, project: req.pa.project.id }, select: { id: true } }) : null;
+    const t = isId(req.body.task) ? await prisma.task.findFirst({ where: { deletedAt: null, id: req.body.task, project: req.pa.project.id }, select: { id: true } }) : null;
     if (!t) throw badRequest('Công việc không thuộc dự án');
     taskId = t.id;
   }
@@ -187,7 +187,7 @@ router.post('/projects/:projectId/documents', middlewareProject(), async (req, r
   );
   let task = null;
   if (body.task) {
-    const t = isId(body.task) ? await prisma.task.findFirst({ where: { id: body.task, project: req.pa.project.id }, select: { id: true } }) : null;
+    const t = isId(body.task) ? await prisma.task.findFirst({ where: { deletedAt: null, id: body.task, project: req.pa.project.id }, select: { id: true } }) : null;
     if (!t) throw badRequest('Công việc không thuộc dự án');
     task = t.id;
   }
@@ -195,7 +195,7 @@ router.post('/projects/:projectId/documents', middlewareProject(), async (req, r
   const content = body.content;
   const doc = await withWorkspaceLock(req.pa.project.workspace, async (tx) => {
     assertWrite(await projectAccess(req.user.id, req.pa.project.id, tx));
-    if (task && !(await tx.task.findFirst({ where: { id: task, project: req.pa.project.id } }))) throw badRequest('Công việc không còn thuộc dự án');
+    if (task && !(await tx.task.findFirst({ where: { deletedAt: null, id: task, project: req.pa.project.id } }))) throw badRequest('Công việc không còn thuộc dự án');
     const doc = await tx.document.create({
       data: {
         workspace: req.pa.project.workspace,
