@@ -64,8 +64,26 @@ async function startEmbedded(ephemeral) {
     console.log(`[db] Dùng lại PostgreSQL nhúng đang chạy ở cổng ${port}`);
   } else {
     if (!fs.existsSync(path.join(databaseDir, 'PG_VERSION'))) await pg.initialise();
-    await pg.start();
-    embedded = pg;
+    if (process.platform === 'win32') {
+      // pg_ctl starts PostgreSQL with a restricted Windows token, including when
+      // a terminal is elevated. Starting postgres.exe directly refuses that case.
+      const { postgres } = await import('@embedded-postgres/windows-x64');
+      const ctl = path.join(path.dirname(postgres), 'pg_ctl.exe');
+      const runCtl = (args) => promisify(execFile)(ctl, args, { windowsHide: true, timeout: 40000 });
+      await runCtl(['start', '-D', databaseDir, '-l', path.join(databaseDir, 'server.log'), '-o', `-p ${port}`, '-w', '-t', '30']);
+      embedded = {
+        async stop() {
+          await runCtl(['stop', '-D', databaseDir, '-m', 'fast', '-w', '-t', '30']);
+          // Only ephemeral directories created above may be removed.
+          if (ephemeral && path.dirname(databaseDir) === os.tmpdir() && path.basename(databaseDir).startsWith('taskflow-pg-')) {
+            await fs.promises.rm(databaseDir, { recursive: true, force: true });
+          }
+        },
+      };
+    } else {
+      await pg.start();
+      embedded = pg;
+    }
   }
   const c = pg.getPgClient('postgres', 'localhost');
   await c.connect();

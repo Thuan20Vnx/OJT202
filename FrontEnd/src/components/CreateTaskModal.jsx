@@ -34,7 +34,7 @@ export function MemberPicker({ members = [], value, onChange, placeholder = 'Ch�
   const list = members.filter((m) => m.role !== 'viewer' && m.projectRole !== 'viewer' && m.name.toLowerCase().includes(q.toLowerCase()));
   return (
     <div className="relative" ref={ref}>
-      <button type="button" aria-label="Chọn người nhận" onClick={() => setOpen((o) => !o)} className="input flex items-center justify-between gap-2 text-left">
+      <button type="button" aria-label="Chọn người nhận" aria-expanded={open} onClick={() => setOpen((o) => !o)} onKeyDown={(e) => { if (e.key === 'Escape') setOpen(false); }} className="input flex items-center justify-between gap-2 text-left">
         <span className="flex min-w-0 items-center gap-2">
           <Avatar user={sel} size={22} />
           <span className={`truncate ${sel ? 'text-slate-800' : 'text-slate-400'}`}>{sel ? sel.name : placeholder}</span>
@@ -42,10 +42,10 @@ export function MemberPicker({ members = [], value, onChange, placeholder = 'Ch�
         <Icon name="expand_more" className="text-slate-400" />
       </button>
       {open && (
-        <div className="animate-slide-in absolute left-0 right-0 z-50 mt-1 rounded-xl border border-slate-200 bg-white p-1.5 shadow-pop">
+        <div onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); setOpen(false); ref.current?.querySelector('button')?.focus(); } }} className="animate-slide-in absolute left-0 right-0 z-50 mt-1 rounded-xl border border-slate-200 bg-white p-1.5 shadow-pop">
           <div className="relative mb-1">
             <Icon name="search" size={16} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input autoFocus className="input h-8 pl-8 text-body-sm" placeholder="Tìm thành viên..." value={q} onChange={(e) => setQ(e.target.value)} />
+            <input autoFocus aria-label="Tìm thành viên dự án" className="input h-8 pl-8 text-body-sm" placeholder="Tìm thành viên..." value={q} onChange={(e) => setQ(e.target.value)} />
           </div>
           <div className="scroll-thin max-h-56 overflow-y-auto">
             {allowEmpty && (
@@ -78,7 +78,7 @@ export function MemberPicker({ members = [], value, onChange, placeholder = 'Ch�
 }
 
 export default function CreateTaskModal({ open, onClose, defaultStatus, projectId: forcedProject, onCreated }) {
-  const { project, me } = useApp();
+  const { project, me, canManageProject } = useApp();
   const pid = forcedProject || project?._id;
   const info = useProjectInfo(open ? pid : null);
   const toast = useToast();
@@ -91,19 +91,26 @@ export default function CreateTaskModal({ open, onClose, defaultStatus, projectI
   const [newLabel, setNewLabel] = useState('');
   const files = useRef(null);
   const [picked, setPicked] = useState([]);
+  const submitting = useRef(false);
+  const canCreate = info?.access?.canManage === true && (forcedProject || canManageProject);
 
   useEffect(() => {
     if (open) {
       setF(empty(defaultStatus));
       setErrors({});
       setPicked([]);
+      setNewCrit('');
+      setNewSub('');
+      setNewLabel('');
     }
   }, [open, defaultStatus]);
 
   const set = (k) => (v) => setF((s) => ({ ...s, [k]: v?.target ? v.target.value : v }));
 
   const submit = async () => {
+    if (submitting.current || !canCreate) return;
     if (!f.title.trim()) return setErrors({ title: 'Vui lòng nhập tên công việc' });
+    submitting.current = true;
     setBusy(true);
     setErrors({});
     try {
@@ -135,6 +142,7 @@ export default function CreateTaskModal({ open, onClose, defaultStatus, projectI
       setErrors(e.fields || {});
       toast(e.message, 'error');
     } finally {
+      submitting.current = false;
       setBusy(false);
     }
   };
@@ -143,7 +151,7 @@ export default function CreateTaskModal({ open, onClose, defaultStatus, projectI
   return (
     <Modal
       open={open}
-      onClose={onClose}
+      onClose={() => !submitting.current && onClose()}
       width="max-w-5xl"
       bodyClass="p-0"
       title={
@@ -158,10 +166,10 @@ export default function CreateTaskModal({ open, onClose, defaultStatus, projectI
             <input type="checkbox" className="form-checkbox rounded text-blue-600" checked={more} onChange={(e) => setMore(e.target.checked)} />
             Tạo tiếp công việc khác
           </label>
-          <button className="btn-outline" onClick={onClose}>
+          <button className="btn-outline" onClick={onClose} disabled={busy}>
             Hủy
           </button>
-          <button className="btn-primary" onClick={submit} disabled={busy}>
+          <button className="btn-primary" onClick={submit} disabled={busy || !canCreate}>
             {busy ? <Spinner /> : <Icon name="add" size={16} />}
             Tạo công việc
           </button>
@@ -170,6 +178,8 @@ export default function CreateTaskModal({ open, onClose, defaultStatus, projectI
     >
       <div className="grid md:grid-cols-[1fr_320px]">
         <div className="space-y-5 p-5">
+          {!info && <p role="status" className="text-body-sm text-slate-500">Đang tải quyền và thành viên dự án. Nếu không tải được, đóng rồi mở lại để thử lại.</p>}
+          {info && !canCreate && <p role="alert" className="text-body-sm text-rose-600">Chỉ PM của dự án đang hoạt động được tạo công việc.</p>}
           <Field label="Tên công việc" required error={errors.title}>
             <input
               autoFocus
@@ -180,10 +190,11 @@ export default function CreateTaskModal({ open, onClose, defaultStatus, projectI
               maxLength={200}
             />
           </Field>
-          <Field label="Mô tả">
+          <Field label="Mô tả" error={errors.description}>
             <textarea
               className="textarea min-h-[110px]"
               value={f.description}
+              maxLength={20000}
               onChange={set('description')}
               placeholder="Nhập mô tả chi tiết yêu cầu, ngữ cảnh kỹ thuật hoặc mục tiêu công việc..."
             />
@@ -284,12 +295,12 @@ export default function CreateTaskModal({ open, onClose, defaultStatus, projectI
                 </option>
               ))}
             </Select>
-            <p className="mt-1 text-label-md text-slate-500">Công việc cần được PM, Owner hoặc Admin duyệt từ Đang kiểm duyệt trước khi hoàn thành.</p>
+            <p className="mt-1 text-label-md text-slate-500">Công việc cần được PM của dự án duyệt từ Đang kiểm duyệt trước khi hoàn thành.</p>
           </Field>
           <Field label="Người nhận" error={errors.assignee}>
             <MemberPicker members={members} value={f.assignee} onChange={set('assignee')} />
           </Field>
-          <Field label="Hạn chót" hint={`Hết ngày (23:59:59), ${timeZone()}. Để trống nếu không có hạn.`}>
+          <Field label="Hạn chót" error={errors.dueDate} hint={`Hết ngày (23:59:59), ${timeZone()}. Để trống nếu không có hạn.`}>
             <input type="date" className="input" value={f.dueDate} onChange={set('dueDate')} />
           </Field>
           <div>
@@ -300,6 +311,7 @@ export default function CreateTaskModal({ open, onClose, defaultStatus, projectI
                   key={p}
                   type="button"
                   onClick={() => set('priority')(p)}
+                  aria-pressed={f.priority === p}
                   className={`rounded-md py-1.5 text-label-md ${f.priority === p ? 'bg-white font-semibold text-slate-900 shadow-sm' : 'text-slate-500'}`}
                 >
                   {PRIORITY[p].label}
@@ -307,8 +319,8 @@ export default function CreateTaskModal({ open, onClose, defaultStatus, projectI
               ))}
             </div>
           </div>
-          <Field label="Giờ ước lượng">
-            <input type="number" min="0" className="input" value={f.estimateHours} onChange={set('estimateHours')} placeholder="vd 8" />
+          <Field label="Giờ ước lượng" error={errors.estimateHours}>
+            <input type="number" min="0" max="1000" step="0.01" className="input" value={f.estimateHours} onChange={set('estimateHours')} placeholder="vd 8" />
           </Field>
           <div>
             <span className="label">Nhãn</span>

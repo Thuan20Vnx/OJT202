@@ -10,7 +10,10 @@ import './index.css';
 
 installRipple();
 
-ReactDOM.createRoot(document.getElementById('root')).render(
+const root = document.getElementById('root');
+if (!root) throw new Error('Không tìm thấy phần tử root của TaskFlow');
+
+ReactDOM.createRoot(root).render(
   <React.StrictMode>
     <BrowserRouter>
       <ToastProvider>

@@ -109,6 +109,8 @@ Xem/sửa dữ liệu trực quan: `npm --prefix BackEnd run db:studio` (Prisma 
 
 ## Lệnh
 
+Frontend hỗ trợ chuyển dần sang TypeScript: entry ở `FrontEnd/src/main.tsx`, component JS/JSX cũ tiếp tục chạy. Kiểm tra với `npm --prefix FrontEnd run lint` và `npm --prefix FrontEnd run typecheck`; CI chạy cả hai. Báo cáo nhiệm vụ Như đến 28/10: [phân công, sửa đổi và minh chứng](docs/NHU_SPRINT1_2026-10-28.md).
+
 | Lệnh | Mô tả |
 |---|---|
 | `npm run dev` | Chạy AIService + BackEnd + FrontEnd (hot reload) |

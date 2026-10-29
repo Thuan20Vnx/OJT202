@@ -164,7 +164,10 @@ export default function TaskDetailModal({ taskId, onClose }) {
       const c = await api.get(`/tasks/${taskId}/comments`);
       if (current()) setComments(c.comments);
     } catch (e) {
-      if (current()) setError(e);
+      if (current()) {
+        if ([403, 404].includes(e.status)) { setData(null); setForm(null); setComments([]); }
+        setError(e);
+      }
     }
   }, [taskId]);
 
@@ -222,11 +225,12 @@ export default function TaskDetailModal({ taskId, onClose }) {
       <Shell onClose={onClose}>
         <div className="p-8">
           <Notice tone="danger">{error.status === 404 ? 'Không tìm thấy công việc hoặc bạn không có quyền xem.' : error.message}</Notice>
+          <div className="mt-4 flex gap-2"><button className="btn-outline" onClick={onClose}>Đóng</button><button className="btn-primary" onClick={() => load()}>Thử lại</button></div>
         </div>
       </Shell>
     );
   }
-  if (!data || !form) {
+  if (!data || !form || data.task._id !== taskId) {
     return (
       <Shell onClose={onClose}>
         <PageLoader />
@@ -464,6 +468,7 @@ export default function TaskDetailModal({ taskId, onClose }) {
         {/* Cột chính */}
         <div className="scroll-thin space-y-6 overflow-y-auto px-6 py-5">
           <textarea
+            aria-label="Tên công việc"
             value={form.title}
             disabled={!canWrite}
             onChange={(e) => setF('title', e.target.value)}
@@ -473,6 +478,7 @@ export default function TaskDetailModal({ taskId, onClose }) {
 
           <Section icon="notes" title="Mô tả công việc">
             <textarea
+              aria-label="Mô tả công việc"
               disabled={!canWrite}
               className="textarea min-h-[100px] bg-slate-50/60"
               value={form.description}
