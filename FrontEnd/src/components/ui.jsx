@@ -1,20 +1,22 @@
+import { t as tr, useI18n } from '../lib/i18n.js';
 import { useEffect, useRef, useState } from 'react';
 import { PRIORITY, STATUS, initials } from '../lib/format.js';
 import Select from './Select.jsx';
 
 export const Icon = ({ name, className = '', fill = false, size }) => (
-  <span className={`material-symbols-outlined ${fill ? 'icon-fill' : ''} ${className}`} style={size ? { fontSize: size } : undefined} aria-hidden="true">
+  (useI18n(), (<span className={`material-symbols-outlined ${fill ? 'icon-fill' : ''} ${className}`} style={size ? { fontSize: size } : undefined} aria-hidden="true">
     {name}
-  </span>
+  </span>))
 );
 
 const AVATAR_TONES = ['bg-blue-100 text-blue-700', 'bg-emerald-100 text-emerald-700', 'bg-purple-100 text-purple-700', 'bg-amber-100 text-amber-700', 'bg-rose-100 text-rose-700', 'bg-cyan-100 text-cyan-700', 'bg-indigo-100 text-indigo-700'];
 const tone = (s = '') => AVATAR_TONES[[...s].reduce((a, c) => a + c.charCodeAt(0), 0) % AVATAR_TONES.length];
 
 export function Avatar({ user, size = 28, ring = false }) {
+  useI18n();
   if (!user) {
     return (
-      <span className="inline-flex shrink-0 items-center justify-center rounded-full border border-dashed border-slate-300 text-slate-400" style={{ width: size, height: size }} title="Chưa giao">
+      <span className="inline-flex shrink-0 items-center justify-center rounded-full border border-dashed border-slate-300 text-slate-400" style={{ width: size, height: size }} title={tr("Chưa giao")}>
         <Icon name="person" size={size * 0.55} />
       </span>
     );
@@ -31,6 +33,7 @@ export function Avatar({ user, size = 28, ring = false }) {
 }
 
 export function AvatarStack({ users = [], max = 4, size = 26 }) {
+  useI18n();
   const shown = users.slice(0, max);
   return (
     <div className="flex items-center -space-x-1.5">
@@ -47,30 +50,31 @@ export function AvatarStack({ users = [], max = 4, size = 26 }) {
 }
 
 export const StatusChip = ({ status }) => (
-  <span className={`chip ${STATUS[status]?.chip}`}>
+  (useI18n(), (<span className={`chip ${STATUS[status]?.chip}`}>
     <span className={`h-1.5 w-1.5 rounded-full ${STATUS[status]?.dot}`} />
     {STATUS[status]?.label}
-  </span>
+  </span>))
 );
 
 export const PriorityChip = ({ priority }) => (
-  <span className={`chip ${PRIORITY[priority]?.chip}`}>
+  (useI18n(), (<span className={`chip ${PRIORITY[priority]?.chip}`}>
     <Icon name={PRIORITY[priority]?.icon} size={12} />
     {PRIORITY[priority]?.label}
-  </span>
+  </span>))
 );
 
 export const Chip = ({ children, className = 'border-slate-200 bg-slate-50 text-slate-600', icon }) => (
-  <span className={`chip ${className}`}>
+  (useI18n(), (<span className={`chip ${className}`}>
     {icon && <Icon name={icon} size={12} />}
     {children}
-  </span>
+  </span>))
 );
 
 export { Select };
 
 /** Dấu tích thành công có hiệu ứng: vòng tròn bật ra, nét tích vẽ dần, vầng sáng lan tỏa */
 export function SuccessCheck({ size = 64, tone = 'emerald' }) {
+  useI18n();
   const tones = { emerald: ['bg-emerald-500', 'bg-emerald-400'], blue: ['bg-blue-600', 'bg-blue-400'] }[tone];
   return (
     <span className="relative mx-auto flex items-center justify-center" style={{ width: size, height: size }}>
@@ -84,15 +88,16 @@ export function SuccessCheck({ size = 64, tone = 'emerald' }) {
   );
 }
 
-export const Spinner = ({ className = '' }) => <span className={`inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-r-transparent ${className}`} />;
+export const Spinner = ({ className = '' }) => (useI18n(), (<span className={`inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-r-transparent ${className}`} />));
 
 export const PageLoader = () => (
-  <div className="flex h-full min-h-[240px] items-center justify-center text-blue-600">
+  (useI18n(), (<div className="flex h-full min-h-[240px] items-center justify-center text-blue-600">
     <Spinner className="h-6 w-6" />
-  </div>
+  </div>))
 );
 
 export function Empty({ icon = 'inbox', title, children, action }) {
+  useI18n();
   return (
     <div className="flex flex-col items-center justify-center px-6 py-12 text-center">
       <span className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400">
@@ -106,21 +111,21 @@ export function Empty({ icon = 'inbox', title, children, action }) {
 }
 
 export function ErrorBox({ error, onRetry }) {
+  useI18n();
   if (!error) return null;
   return (
     <div className="flex items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-body-sm text-rose-700">
       <Icon name="error" size={18} />
       <span className="flex-1">{error.message || String(error)}</span>
       {onRetry && (
-        <button className="font-semibold underline" onClick={onRetry}>
-          Thử lại
-        </button>
+        <button className="font-semibold underline" onClick={onRetry}>{tr("Thử lại")}</button>
       )}
     </div>
   );
 }
 
 export function Notice({ tone = 'info', icon, children, className = '' }) {
+  useI18n();
   const t = {
     info: 'border-blue-200 bg-blue-50 text-blue-800',
     warn: 'border-amber-200 bg-amber-50 text-amber-800',
@@ -136,6 +141,7 @@ export function Notice({ tone = 'info', icon, children, className = '' }) {
 }
 
 export function Modal({ open, onClose, title, subtitle, icon, children, footer, width = 'max-w-lg', bodyClass = 'p-5' }) {
+  useI18n();
   useEffect(() => {
     if (!open) return;
     const onKey = (e) => e.key === 'Escape' && onClose?.();
@@ -157,7 +163,7 @@ export function Modal({ open, onClose, title, subtitle, icon, children, footer, 
               <h2 className="text-headline-sm text-slate-900">{title}</h2>
               {subtitle && <p className="text-body-sm text-slate-500">{subtitle}</p>}
             </div>
-            <button className="icon-btn -mr-2 -mt-1" onClick={onClose} aria-label="Đóng">
+            <button className="icon-btn -mr-2 -mt-1" onClick={onClose} aria-label={tr("Đóng")}>
               <Icon name="close" />
             </button>
           </div>
@@ -169,7 +175,8 @@ export function Modal({ open, onClose, title, subtitle, icon, children, footer, 
   );
 }
 
-export function Confirm({ open, title, children, confirmText = 'Xác nhận', danger, onConfirm, onClose, busy }) {
+export function Confirm({ open, title, children, confirmText = tr("Xác nhận"), danger, onConfirm, onClose, busy }) {
+  useI18n();
   return (
     <Modal
       open={open}
@@ -178,9 +185,7 @@ export function Confirm({ open, title, children, confirmText = 'Xác nhận', da
       icon={danger ? 'warning' : 'help'}
       footer={
         <>
-          <button className="btn-outline" onClick={onClose}>
-            Hủy
-          </button>
+          <button className="btn-outline" onClick={onClose}>{tr("Hủy")}</button>
           <button className={danger ? 'btn-danger' : 'btn-primary'} onClick={onConfirm} disabled={busy}>
             {busy && <Spinner />}
             {confirmText}
@@ -194,6 +199,7 @@ export function Confirm({ open, title, children, confirmText = 'Xác nhận', da
 }
 
 export function Field({ label, required, error, hint, children, className = '' }) {
+  useI18n();
   return (
     <label className={`block ${className}`}>
       {label && (
@@ -216,6 +222,7 @@ export function Field({ label, required, error, hint, children, className = '' }
 }
 
 export function Toggle({ checked, onChange, disabled, label }) {
+  useI18n();
   return (
     <button
       type="button"
@@ -232,6 +239,7 @@ export function Toggle({ checked, onChange, disabled, label }) {
 }
 
 export function Progress({ value, className = '', tone = 'bg-blue-600', height = 'h-1.5' }) {
+  useI18n();
   return (
     <div className={`w-full overflow-hidden rounded-full bg-slate-100 ${height} ${className}`}>
       <div className={`h-full rounded-full ${tone} transition-all`} style={{ width: `${Math.max(0, Math.min(100, value || 0))}%` }} />
@@ -240,6 +248,7 @@ export function Progress({ value, className = '', tone = 'bg-blue-600', height =
 }
 
 export function Pagination({ page, total, limit, onPage, onLimit }) {
+  useI18n();
   const pages = Math.max(1, Math.ceil(total / limit));
   const from = total ? (page - 1) * limit + 1 : 0;
   const to = Math.min(total, page * limit);
@@ -247,8 +256,7 @@ export function Pagination({ page, total, limit, onPage, onLimit }) {
   for (let i = Math.max(1, page - 2); i <= Math.min(pages, page + 2); i++) nums.push(i);
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-body-sm text-slate-500">
-      <span>
-        Hiển thị {from}–{to} trên {total}
+      <span>{tr("Hiển thị ")}{from}–{to}{tr(" trên ")}{total}
       </span>
       <div className="flex items-center gap-1">
         {onLimit && (
@@ -260,7 +268,7 @@ export function Pagination({ page, total, limit, onPage, onLimit }) {
             ))}
           </Select>
         )}
-        <button className="icon-btn h-8 w-8" disabled={page <= 1} onClick={() => onPage(page - 1)} aria-label="Trang trước">
+        <button className="icon-btn h-8 w-8" disabled={page <= 1} onClick={() => onPage(page - 1)} aria-label={tr("Trang trước")}>
           <Icon name="chevron_left" />
         </button>
         {nums.map((n) => (
@@ -277,6 +285,7 @@ export function Pagination({ page, total, limit, onPage, onLimit }) {
 }
 
 export function PageHeader({ title, icon, subtitle, badge, actions, children }) {
+  useI18n();
   return (
     <div className="mb-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -296,6 +305,7 @@ export function PageHeader({ title, icon, subtitle, badge, actions, children }) 
 }
 
 export function Tabs({ tabs, value, onChange, className = '' }) {
+  useI18n();
   return (
     <div className={`flex gap-6 overflow-x-auto border-b border-slate-200 ${className}`}>
       {tabs.map((t) => (
@@ -311,6 +321,7 @@ export function Tabs({ tabs, value, onChange, className = '' }) {
 
 /** Dropdown đơn giản đóng khi bấm ra ngoài */
 export function Dropdown({ trigger, children, align = 'right', width = 'w-56' }) {
+  useI18n();
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   useEffect(() => {
@@ -335,17 +346,18 @@ export function Dropdown({ trigger, children, align = 'right', width = 'w-56' })
 }
 
 export const MenuItem = ({ icon, children, onClick, danger, disabled }) => (
-  <button
+  (useI18n(), (<button
     disabled={disabled}
     onClick={onClick}
     className={`flex h-8 w-full items-center gap-2 rounded-md px-2.5 text-left text-body-sm transition-colors disabled:opacity-40 ${danger ? 'text-rose-600 hover:bg-rose-50' : 'text-slate-700 hover:bg-slate-100'}`}
   >
     {icon && <Icon name={icon} size={18} />}
     {children}
-  </button>
+  </button>))
 );
 
 export function StatCard({ label, value, sub, icon, tone = 'blue', onClick, active, children }) {
+  useI18n();
   const tones = {
     blue: 'bg-blue-50 text-blue-600',
     red: 'bg-rose-50 text-rose-600',

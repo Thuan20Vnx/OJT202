@@ -1,3 +1,4 @@
+import { t as tr, useI18n } from '../lib/i18n.js';
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Avatar, Empty, ErrorBox, Icon, PageHeader, PageLoader, Select, Toggle } from '../components/ui.jsx';
@@ -17,11 +18,13 @@ const TYPE = {
 };
 
 export default function Notifications() {
+  useI18n();
   const { wsId } = useApp();
   return <NotificationPage key={wsId} />;
 }
 
 function NotificationPage() {
+  useI18n();
   const { wsId, projects, setProjectId, refreshUnread } = useApp();
   const toast = useToast();
   const navigate = useNavigate();
@@ -58,7 +61,7 @@ function NotificationPage() {
   const readAll = async () => {
     try {
       await api.post('/notifications/read-all', { workspace: wsId });
-      toast('Đã đánh dấu tất cả là đã đọc');
+      toast(tr("Đã đánh dấu tất cả là đã đọc"));
       if (activeScope.current === scope) reload();
       refreshUnread();
     } catch (e) { toast(e.message, 'error'); }
@@ -95,40 +98,37 @@ function NotificationPage() {
   };
 
   const items = data?.items || [];
-  const groups = ['Hôm nay', 'Hôm qua', 'Tuần này', 'Trước đó'].map((g) => ({ g, list: items.filter((n) => dayGroup(n.createdAt) === g) })).filter((x) => x.list.length);
+  const groups = [tr("Hôm nay"), tr("Hôm qua"), tr("Tuần này"), tr("Trước đó")].map((g) => ({ g, list: items.filter((n) => dayGroup(n.createdAt) === g) })).filter((x) => x.list.length);
   const p = prefs.data?.prefs;
 
   return (
     <div className="mx-auto max-w-7xl p-6">
       <PageHeader
-        title="Thông báo"
+        title={tr("Thông báo")}
         subtitle={
-          <>
-            Bạn có <b className="text-blue-700">{data?.unread ?? 0}</b> thông báo chưa đọc
-          </>
+          <>{tr("Bạn có ")}<b className="text-blue-700">{data?.unread ?? 0}</b>{tr(" thông báo chưa đọc")}</>
         }
         actions={
           <button className="btn-outline" onClick={readAll} disabled={!data?.unread}>
-            <Icon name="done_all" size={16} /> Đánh dấu tất cả đã đọc
-          </button>
+            <Icon name="done_all" size={16} />{tr(" Đánh dấu tất cả đã đọc")}</button>
         }
       />
       <div className="grid gap-5 lg:grid-cols-[1fr_340px]">
         <div>
           <div className="mb-4 flex flex-wrap items-center gap-2">
             {[
-              ['all', 'Tất cả'],
-              ['unread', `Chưa đọc${data?.unread ? ` (${data.unread})` : ''}`],
-              ['assigned', 'Được giao'],
-              ['mentioned', 'Nhắc đến tôi'],
-              ['due', 'Sắp đến hạn'],
+              ['all', tr("Tất cả")],
+              ['unread', tr("Chưa đọc{0}", [data?.unread ? ` (${data.unread})` : ''])],
+              ['assigned', tr("Được giao")],
+              ['mentioned', tr("Nhắc đến tôi")],
+              ['due', tr("Sắp đến hạn")],
             ].map(([v, l]) => (
               <button key={v} className={`pill-tab ${tab === v ? 'pill-tab-active' : ''}`} onClick={() => setTab(v)}>
                 {l}
               </button>
             ))}
             <Select className="input ml-auto h-8 w-auto py-0 text-body-sm" value={project} onChange={(e) => setProject(e.target.value)}>
-              <option value="">Dự án: Tất cả</option>
+              <option value="">{tr("Dự án: Tất cả")}</option>
               {projects.map((x) => (
                 <option key={x._id} value={x._id}>
                   {x.name}
@@ -141,8 +141,8 @@ function NotificationPage() {
             <PageLoader />
           ) : error && !data ? null : !items.length ? (
             <div className="card">
-              <Empty icon="notifications_off" title={data?.nextCursor ? 'Không còn thông báo trên trang này' : 'Bạn đã xem hết thông báo'}>
-                {data?.nextCursor ? 'Tải thêm để xem những thông báo trước đó.' : 'Không còn thông báo nào trong mục này.'}
+              <Empty icon="notifications_off" title={data?.nextCursor ? tr("Không còn thông báo trên trang này") : tr("Bạn đã xem hết thông báo")}>
+                {data?.nextCursor ? tr("Tải thêm để xem những thông báo trước đó.") : tr("Không còn thông báo nào trong mục này.")}
               </Empty>
             </div>
           ) : (
@@ -150,7 +150,7 @@ function NotificationPage() {
               {groups.map(({ g, list }) => (
                 <div key={g}>
                   <p className="section-label mb-2 flex justify-between">
-                    {g} <span>{list.length} mục</span>
+                    {g} <span>{list.length}{tr(" mục")}</span>
                   </p>
                   <div className="card divide-y divide-slate-100 overflow-hidden">
                     {list.map((n) => {
@@ -176,20 +176,20 @@ function NotificationPage() {
                                   {n.project.name}
                                 </span>
                               )}
-                              {n.type === 'overdue' && <span className="chip border-rose-200 bg-rose-50 text-rose-700">Quá hạn</span>}
-                              {n.type === 'due_soon' && <span className="chip border-amber-200 bg-amber-50 text-amber-700">Trong 24 giờ</span>}
+                              {n.type === 'overdue' && <span className="chip border-rose-200 bg-rose-50 text-rose-700">{tr("Quá hạn")}</span>}
+                              {n.type === 'due_soon' && <span className="chip border-amber-200 bg-amber-50 text-amber-700">{tr("Trong 24 giờ")}</span>}
                             </div>
                           </button>
                           <div className="flex shrink-0 flex-col items-end gap-1.5">
                             <span className="whitespace-nowrap text-label-md font-normal text-slate-400">{timeAgo(n.createdAt)}</span>
                             <div className="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
                               {!n.readAt && (
-                                <button className="icon-btn h-7 w-7" onClick={() => markRead(n)} title="Đánh dấu đã đọc">
+                                <button className="icon-btn h-7 w-7" onClick={() => markRead(n)} title={tr("Đánh dấu đã đọc")}>
                                   <Icon name="done" size={16} />
                                 </button>
                               )}
                               {n.task && (
-                                <button className="icon-btn h-7 w-7" onClick={() => openTask(n)} title="Mở công việc">
+                                <button className="icon-btn h-7 w-7" onClick={() => openTask(n)} title={tr("Mở công việc")}>
                                   <Icon name="open_in_new" size={16} />
                                 </button>
                               )}
@@ -202,14 +202,13 @@ function NotificationPage() {
                 </div>
               ))}
               {!data?.nextCursor && <p className="py-2 text-center text-body-sm text-slate-400">
-                <Icon name="check_circle" size={16} className="text-emerald-500" /> Bạn đã xem hết thông báo
-              </p>}
+                <Icon name="check_circle" size={16} className="text-emerald-500" />{tr(" Bạn đã xem hết thông báo")}</p>}
             </div>
           )}
           {data?.nextCursor && (
             <div className="py-4 text-center">
               <button className="btn-outline" disabled={loading || moreScope === scope} onClick={loadMore}>
-                {moreScope === scope ? 'Đang tải…' : 'Tải thêm thông báo'}
+                {moreScope === scope ? tr("Đang tải…") : tr("Tải thêm thông báo")}
               </button>
             </div>
           )}
@@ -217,25 +216,24 @@ function NotificationPage() {
         <div className="card h-fit p-4">
           <ErrorBox error={prefs.error} onRetry={prefs.reload} />
           <p className="mb-3 flex items-center gap-1.5 text-label-lg font-semibold text-slate-900">
-            <Icon name="tune" size={18} className="text-blue-600" /> Cài đặt thông báo
-          </p>
+            <Icon name="tune" size={18} className="text-blue-600" />{tr(" Cài đặt thông báo")}</p>
           {p && (
             <>
-              <p className="section-label mb-2">Kênh nhận thông báo</p>
+              <p className="section-label mb-2">{tr("Kênh nhận thông báo")}</p>
               <div className="mb-4 grid grid-cols-2 rounded-lg bg-slate-100 p-0.5">
-                <span className="rounded-md bg-white py-1.5 text-center text-label-md font-semibold text-slate-900 shadow-sm">Trong ứng dụng</span>
+                <span className="rounded-md bg-white py-1.5 text-center text-label-md font-semibold text-slate-900 shadow-sm">{tr("Trong ứng dụng")}</span>
                 <button onClick={() => setPref('email', !p.email)} className={`rounded-md py-1.5 text-label-md ${p.email ? 'bg-white font-semibold text-slate-900 shadow-sm' : 'text-slate-500'}`}>
                   Email {p.email ? '✓' : ''}
                 </button>
               </div>
-              <p className="section-label mb-2">Tùy chọn sự kiện</p>
+              <p className="section-label mb-2">{tr("Tùy chọn sự kiện")}</p>
               <div className="space-y-3">
                 {[
-                  ['assigned', 'Khi được giao việc', 'Nhận thông báo khi có người giao việc cho bạn'],
-                  ['mentioned', 'Khi được nhắc tên (@mention)', 'Khi ai đó nhắc đến bạn trong bình luận'],
-                  ['due_soon', 'Nhắc trước hạn chót 24 giờ', 'Và khi công việc của bạn quá hạn'],
-                  ['status', 'Trạng thái việc tôi theo dõi thay đổi', 'Việc bạn tạo hoặc được giao'],
-                  ['comment', 'Bình luận mới trong việc của tôi', 'Có thể tạo nhiều thông báo'],
+                  ['assigned', tr("Khi được giao việc"), tr("Nhận thông báo khi có người giao việc cho bạn")],
+                  ['mentioned', tr("Khi được nhắc tên (@mention)"), tr("Khi ai đó nhắc đến bạn trong bình luận")],
+                  ['due_soon', tr("Nhắc trước hạn chót 24 giờ"), tr("Và khi công việc của bạn quá hạn")],
+                  ['status', tr("Trạng thái việc tôi theo dõi thay đổi"), tr("Việc bạn tạo hoặc được giao")],
+                  ['comment', tr("Bình luận mới trong việc của tôi"), tr("Có thể tạo nhiều thông báo")],
                 ].map(([k, t, d]) => (
                   <div key={k} className="flex items-start justify-between gap-3">
                     <div>
@@ -247,8 +245,7 @@ function NotificationPage() {
                 ))}
               </div>
               <p className="mt-4 flex items-start gap-1.5 rounded-lg bg-blue-50 px-3 py-2 text-label-md font-normal text-blue-800">
-                <Icon name="info" size={14} className="mt-px" /> Cùng một sự kiện chỉ gửi một thông báo.
-              </p>
+                <Icon name="info" size={14} className="mt-px" />{tr(" Cùng một sự kiện chỉ gửi một thông báo.")}</p>
             </>
           )}
         </div>

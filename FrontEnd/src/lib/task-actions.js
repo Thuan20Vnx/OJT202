@@ -1,3 +1,4 @@
+import { t as tr } from './i18n.js';
 // Match the server's Review -> Done approval rule, including archived projects.
 export function taskActions(task) {
   const canWrite = task.permissions ? task.permissions.canUpdateProgress : task.access?.canWrite === true;
@@ -7,7 +8,7 @@ export function taskActions(task) {
   return {
     canWrite,
     nextStatus: allowed && !allowed.includes(nextStatus) ? null : nextStatus,
-    label: !canWrite ? 'Chỉ xem' : task.status === 'todo' && allowed ? 'Bắt đầu công việc' : task.status === 'done' ? 'Mở lại công việc' : task.status === 'review' ? (canApprove ? 'Duyệt hoàn thành' : 'Chờ PM duyệt') : 'Gửi kiểm duyệt',
+    label: !canWrite ? tr("Chỉ xem") : task.status === 'todo' && allowed ? tr("Bắt đầu công việc") : task.status === 'done' ? tr("Mở lại công việc") : task.status === 'review' ? (canApprove ? tr("Duyệt hoàn thành") : tr("Chờ PM duyệt")) : tr("Gửi kiểm duyệt"),
     statuses: allowed || ['todo', 'in_progress', 'review', 'done'].filter((s) => s !== 'done' || task.status === 'done' || (canApprove && task.status === 'review')),
   };
 }

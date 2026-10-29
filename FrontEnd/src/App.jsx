@@ -1,3 +1,4 @@
+import { t as tr, useI18n } from './lib/i18n.js';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { lazy, Suspense } from 'react';
 import { useApp } from './lib/app.jsx';
@@ -24,18 +25,20 @@ import DevOutbox from './pages/DevOutbox.jsx';
 
 // Chưa biết đã đăng nhập hay chưa vì server không phản hồi: báo rõ và tự thử lại
 function Connecting() {
+  useI18n();
   const { offline, loadMe } = useApp();
   if (!offline) return <PageLoader />;
   return (
     <div className="grid min-h-screen place-items-center p-6">
       <div className="w-full max-w-md">
-        <ErrorBox error={{ message: 'Không kết nối được máy chủ. Đang tự thử kết nối lại…' }} onRetry={loadMe} />
+        <ErrorBox error={{ message: tr("Không kết nối được máy chủ. Đang tự thử kết nối lại…") }} onRetry={loadMe} />
       </div>
     </div>
   );
 }
 
 function RequireAuth({ children, needWorkspace = true }) {
+  useI18n();
   const { me, workspaces } = useApp();
   const loc = useLocation();
   if (me === undefined) return <Connecting />;
@@ -45,6 +48,7 @@ function RequireAuth({ children, needWorkspace = true }) {
 }
 
 function PublicOnly({ children }) {
+  useI18n();
   const { me } = useApp();
   const loc = useLocation();
   if (me === undefined) return <Connecting />;
@@ -53,12 +57,13 @@ function PublicOnly({ children }) {
 }
 
 function WorkspaceGate({ children }) {
+  useI18n();
   const { ws, workspaces, me, wsError, reloadWorkspace } = useApp();
   if (!workspaces.length && me?.isSystemAdmin) return <Navigate to="/admin" replace />;
   if (!ws && wsError) {
     return (
       <div className="p-6">
-        <ErrorBox error={{ message: 'Không tải được dữ liệu workspace. Đang thử kết nối lại…' }} onRetry={reloadWorkspace} />
+        <ErrorBox error={{ message: tr("Không tải được dữ liệu workspace. Đang thử kết nối lại…") }} onRetry={reloadWorkspace} />
       </div>
     );
   }
@@ -67,6 +72,7 @@ function WorkspaceGate({ children }) {
 }
 
 export default function App() {
+  useI18n();
   return (
     <Suspense fallback={<PageLoader />}>
       <Routes>

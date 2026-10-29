@@ -1,3 +1,4 @@
+import { useI18n } from '../lib/i18n.js';
 import { Children, Fragment, isValidElement, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
@@ -27,6 +28,9 @@ const MAX_H = 288;
  * Danh sách render qua portal (không bị khung overflow cắt), tự lật lên trên khi thiếu chỗ, hỗ trợ bàn phím.
  */
 export default function Select({ value, onChange, children, className = 'input', disabled, title, id, 'aria-label': ariaLabel }) {
+  useI18n();
+  useI18n();
+  useI18n();
   const options = collectOptions(children);
   const selectedIdx = options.findIndex((o) => o.value === String(value ?? ''));
   const selected = options[selectedIdx];
