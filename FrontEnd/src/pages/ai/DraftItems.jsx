@@ -1,3 +1,4 @@
+import { t as tr, useI18n } from '../../lib/i18n.js';
 import { useRef, useState } from 'react';
 import { MemberPicker } from '../../components/CreateTaskModal.jsx';
 import { Avatar, Icon, PriorityChip, Select, Spinner } from '../../components/ui.jsx';
@@ -7,6 +8,7 @@ import { PRIORITY, fmtDate, isoDate } from '../../lib/format.js';
 
 /** Danh sách mục nháp dùng chung cho Lập kế hoạch & Ghi chú họp: sửa, chọn, xóa, duyệt. */
 export default function DraftItems({ draft, setDraft, members, title, onApproved, onRegenerate, regenerating, showExcerpt, canManage = false }) {
+  useI18n();
   const toast = useToast();
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({});
@@ -71,7 +73,7 @@ export default function DraftItems({ draft, setDraft, members, title, onApproved
     setBusy(true);
     try {
       const d = await api.post(`/ai/drafts/${draft._id}/approve`);
-      toast(`Đã tạo ${d.created.length} công việc vào dự án`);
+      toast(tr("Đã tạo {0} công việc vào dự án", [d.created.length]));
       setDraft((current) => current?._id === draft._id ? { ...current, status: 'approved' } : current);
       onApproved?.(d.created);
     } catch (e) {
@@ -100,14 +102,13 @@ export default function DraftItems({ draft, setDraft, members, title, onApproved
     <fieldset disabled={busy || regenerating} className="flex min-h-0 min-w-0 flex-col">
       <div className="card mb-3 flex flex-wrap items-center gap-3 px-4 py-3">
         <h2 className="text-headline-sm text-slate-900">
-          {title} ({items.length} việc)
-        </h2>
+          {title} ({items.length}{tr(" việc)")}</h2>
         {readOnly ? (
           <span className="chip border-emerald-200 bg-emerald-50 text-emerald-700">
-            {draft.status === 'approved' ? 'Đã duyệt – đã tạo công việc' : draft.status === 'discarded' ? 'Đã hủy' : 'Chỉ xem'}
+            {draft.status === 'approved' ? tr("Đã duyệt – đã tạo công việc") : draft.status === 'discarded' ? tr("Đã hủy") : tr("Chỉ xem")}
           </span>
         ) : (
-          <span className="chip border-amber-200 bg-amber-50 text-amber-700">● Nháp – chưa lưu vào dự án</span>
+          <span className="chip border-amber-200 bg-amber-50 text-amber-700">{tr("● Nháp – chưa lưu vào dự án")}</span>
         )}
         {!readOnly && (
           <label className="ml-auto flex items-center gap-2 text-body-sm text-slate-600">
@@ -116,20 +117,16 @@ export default function DraftItems({ draft, setDraft, members, title, onApproved
               className="form-checkbox rounded text-blue-600"
               checked={selected.length === items.length && items.length > 0}
               onChange={(e) => patch({ items: items.map((i) => ({ key: i.key, selected: e.target.checked })) })}
-            />
-            Chọn tất cả
-          </label>
+            />{tr("Chọn tất cả")}</label>
         )}
-        <span className="text-body-sm text-slate-600">
-          Đã chọn{' '}
+        <span className="text-body-sm text-slate-600">{tr("Đã chọn")}{' '}
           <b>
             {selected.length}/{items.length}
           </b>
           {hours > 0 && (
             <>
               {' '}
-              · <b className="text-blue-700">{Number(hours.toFixed(2))} giờ</b> ước lượng
-            </>
+              · <b className="text-blue-700">{Number(hours.toFixed(2))}{tr(" giờ")}</b>{tr(" ước lượng")}</>
           )}
         </span>
       </div>
@@ -139,41 +136,36 @@ export default function DraftItems({ draft, setDraft, members, title, onApproved
             <div key={it.key} className="card border-blue-300 p-4 ring-2 ring-blue-100">
               <div className="mb-3 flex items-center justify-between">
                 <span className="flex items-center gap-1.5 text-label-sm uppercase tracking-wider text-blue-700">
-                  <Icon name="edit_note" size={16} /> Chỉnh sửa công việc nháp
-                </span>
+                  <Icon name="edit_note" size={16} />{tr(" Chỉnh sửa công việc nháp")}</span>
                 <div className="flex gap-2">
-                  <button className="btn-outline btn-sm" onClick={() => setEditing(null)}>
-                    Hủy
-                  </button>
-                  <button className="btn-primary btn-sm" onClick={() => saveEdit(it.key)}>
-                    Lưu sửa
-                  </button>
+                  <button className="btn-outline btn-sm" onClick={() => setEditing(null)}>{tr("Hủy")}</button>
+                  <button className="btn-primary btn-sm" onClick={() => saveEdit(it.key)}>{tr("Lưu sửa")}</button>
                 </div>
               </div>
               <div className="grid gap-3 md:grid-cols-2">
                 <label className="md:col-span-2">
-                  <span className="label">Tên công việc</span>
+                  <span className="label">{tr("Tên công việc")}</span>
                   <input className="input" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
                 </label>
                 <label className="md:col-span-2">
-                  <span className="label">Mô tả ngắn</span>
+                  <span className="label">{tr("Mô tả ngắn")}</span>
                   <textarea className="textarea" rows={2} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
                 </label>
                 <label className="md:col-span-2">
-                  <span className="label">Tiêu chí nghiệm thu (mỗi dòng một tiêu chí)</span>
+                  <span className="label">{tr("Tiêu chí nghiệm thu (mỗi dòng một tiêu chí)")}</span>
                   <textarea className="textarea" rows={2} value={form.acceptanceCriteria} onChange={(e) => setForm({ ...form, acceptanceCriteria: e.target.value })} />
                 </label>
                 <div>
-                  <span className="label">Người nhận</span>
-                  <MemberPicker members={members} value={form.assignee} onChange={(v) => setForm({ ...form, assignee: v })} placeholder="Chọn người nhận" />
+                  <span className="label">{tr("Người nhận")}</span>
+                  <MemberPicker members={members} value={form.assignee} onChange={(v) => setForm({ ...form, assignee: v })} placeholder={tr("Chọn người nhận")} />
                 </div>
                 <div className="grid grid-cols-3 gap-2">
                   <label>
-                    <span className="label">Giờ</span>
+                    <span className="label">{tr("Giờ")}</span>
                     <input type="number" min="0" className="input" value={form.estimateHours} onChange={(e) => setForm({ ...form, estimateHours: e.target.value })} />
                   </label>
                   <label>
-                    <span className="label">Ưu tiên</span>
+                    <span className="label">{tr("Ưu tiên")}</span>
                     <Select className="input" value={form.priority} onChange={(e) => setForm({ ...form, priority: e.target.value })}>
                       {Object.entries(PRIORITY).map(([k, v]) => (
                         <option key={k} value={k}>
@@ -183,7 +175,7 @@ export default function DraftItems({ draft, setDraft, members, title, onApproved
                     </Select>
                   </label>
                   <label>
-                    <span className="label">Hạn</span>
+                    <span className="label">{tr("Hạn")}</span>
                     <input type="date" className="input px-2" value={form.dueDate} onChange={(e) => setForm({ ...form, dueDate: e.target.value })} />
                   </label>
                 </div>
@@ -204,10 +196,10 @@ export default function DraftItems({ draft, setDraft, members, title, onApproved
                     <p className="text-body-md font-semibold text-slate-900">{it.title}</p>
                     {!readOnly && (
                       <div className="flex shrink-0 gap-1">
-                        <button className="icon-btn h-7 w-7" onClick={() => startEdit(it)} title="Sửa">
+                        <button className="icon-btn h-7 w-7" onClick={() => startEdit(it)} title={tr("Sửa")}>
                           <Icon name="edit" size={16} />
                         </button>
-                        <button className="icon-btn h-7 w-7 hover:text-rose-600" onClick={() => patch({ removeKeys: [it.key] })} title="Xóa khỏi nháp">
+                        <button className="icon-btn h-7 w-7 hover:text-rose-600" onClick={() => patch({ removeKeys: [it.key] })} title={tr("Xóa khỏi nháp")}>
                           <Icon name="delete" size={16} />
                         </button>
                       </div>
@@ -217,14 +209,13 @@ export default function DraftItems({ draft, setDraft, members, title, onApproved
                   {showExcerpt && it.excerpt && <p className="mt-2 border-l-2 border-purple-300 bg-purple-50/50 py-1 pl-3 text-body-sm italic text-slate-600">“{it.excerpt}”</p>}
                   {it.acceptanceCriteria?.length > 0 && (
                     <p className="mt-2 rounded-lg bg-slate-50 px-3 py-1.5 text-label-md font-normal text-slate-600">
-                      <b className="font-semibold">Tiêu chí nghiệm thu:</b> {it.acceptanceCriteria.map((c) => `• ${c}`).join(' ')}
+                      <b className="font-semibold">{tr("Tiêu chí nghiệm thu:")}</b> {it.acceptanceCriteria.map((c) => `• ${c}`).join(' ')}
                     </p>
                   )}
                   <div className="mt-2.5 flex flex-wrap items-center gap-2">
                     {it.estimateHours != null && (
                       <span className="chip border-slate-200 bg-white text-slate-600">
-                        <Icon name="schedule" size={12} /> {it.estimateHours} giờ
-                      </span>
+                        <Icon name="schedule" size={12} /> {it.estimateHours}{tr(" giờ")}</span>
                     )}
                     <PriorityChip priority={it.priority} />
                     {it.dueDate ? (
@@ -233,8 +224,7 @@ export default function DraftItems({ draft, setDraft, members, title, onApproved
                       </span>
                     ) : (
                       <span className="chip border-amber-300 bg-amber-50 text-amber-700">
-                        <Icon name="help" size={12} /> Chưa rõ hạn
-                      </span>
+                        <Icon name="help" size={12} />{tr(" Chưa rõ hạn")}</span>
                     )}
                     <span className="ml-auto">
                       {it.assignee ? (
@@ -243,8 +233,7 @@ export default function DraftItems({ draft, setDraft, members, title, onApproved
                         </span>
                       ) : (
                         <button disabled={readOnly} onClick={() => startEdit(it)} className="chip border-amber-300 bg-amber-50 text-amber-700">
-                          <Icon name="person_add" size={12} /> Chưa rõ người phụ trách
-                        </button>
+                          <Icon name="person_add" size={12} />{tr(" Chưa rõ người phụ trách")}</button>
                       )}
                     </span>
                   </div>
@@ -253,25 +242,19 @@ export default function DraftItems({ draft, setDraft, members, title, onApproved
             </div>
           ),
         )}
-        {!items.length && <p className="card p-6 text-center text-body-sm text-slate-500">Bản nháp trống.</p>}
+        {!items.length && <p className="card p-6 text-center text-body-sm text-slate-500">{tr("Bản nháp trống.")}</p>}
       </div>
       {!readOnly && (
         <div className="sticky bottom-0 -mx-1 mt-auto flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-pop">
           <span className="mr-auto flex items-center gap-1.5 text-label-md font-normal text-slate-500">
-            <Icon name="info" size={14} /> Bấm duyệt nhiều lần không tạo trùng công việc.
-          </span>
-          <button className="btn border border-rose-200 text-rose-600 hover:bg-rose-50" onClick={discard}>
-            Hủy bản nháp
-          </button>
+            <Icon name="info" size={14} />{tr(" Bấm duyệt nhiều lần không tạo trùng công việc.")}</span>
+          <button className="btn border border-rose-200 text-rose-600 hover:bg-rose-50" onClick={discard}>{tr("Hủy bản nháp")}</button>
           {onRegenerate && (
             <button className="btn-outline" onClick={onRegenerate} disabled={regenerating}>
-              {regenerating ? <Spinner /> : <Icon name="refresh" size={16} />} Tạo lại
-            </button>
+              {regenerating ? <Spinner /> : <Icon name="refresh" size={16} />}{tr(" Tạo lại")}</button>
           )}
-          <button className="btn-primary" onClick={approve} disabled={busy || !!editing || !selected.length} title={editing ? 'Lưu hoặc hủy chỉnh sửa trước khi duyệt' : undefined}>
-            {busy ? <Spinner /> : <Icon name="check_circle" size={16} />}
-            Duyệt & tạo {selected.length} công việc
-          </button>
+          <button className="btn-primary" onClick={approve} disabled={busy || !!editing || !selected.length} title={editing ? tr("Lưu hoặc hủy chỉnh sửa trước khi duyệt") : undefined}>
+            {busy ? <Spinner /> : <Icon name="check_circle" size={16} />}{tr("Duyệt & tạo ")}{selected.length}{tr(" công việc")}</button>
         </div>
       )}
     </fieldset>

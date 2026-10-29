@@ -1,3 +1,4 @@
+import { t as tr, useI18n } from '../../lib/i18n.js';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Icon, Tabs } from '../../components/ui.jsx';
 import { useApp } from '../../lib/app.jsx';
@@ -8,14 +9,15 @@ import Activity from './Activity.jsx';
 import General from './General.jsx';
 
 const HEAD = {
-  general: ['Thông tin chung', 'Tên và thông tin cơ bản của workspace.'],
-  members: ['Thành viên & phân quyền', 'Quản lý ai có quyền truy cập dữ liệu của workspace. Người ngoài nhóm không thể xem dự án.'],
-  invites: ['Lời mời đang chờ', 'Lời mời hết hạn sau 72 giờ.'],
-  ai: ['Cài đặt Trợ lý AI', 'Kiểm soát hạn mức và theo dõi chất lượng AI của workspace.'],
-  activity: ['Nhật ký hoạt động', 'Ghi lại mọi thay đổi quan trọng trong workspace. Nhật ký chỉ đọc, không thể sửa hay xóa.'],
+  get general() { return [tr("Thông tin chung"), tr("Tên và thông tin cơ bản của workspace.")]; },
+  get members() { return [tr("Thành viên & phân quyền"), tr("Quản lý ai có quyền truy cập dữ liệu của workspace. Người ngoài nhóm không thể xem dự án.")]; },
+  get invites() { return [tr("Lời mời đang chờ"), tr("Lời mời hết hạn sau 72 giờ.")]; },
+  get ai() { return [tr("Cài đặt Trợ lý AI"), tr("Kiểm soát hạn mức và theo dõi chất lượng AI của workspace.")]; },
+  get activity() { return [tr("Nhật ký hoạt động"), tr("Ghi lại mọi thay đổi quan trọng trong workspace. Nhật ký chỉ đọc, không thể sửa hay xóa.")]; },
 };
 
 export default function Settings() {
+  useI18n();
   const { tab = 'members' } = useParams();
   const navigate = useNavigate();
   const { role, ws } = useApp();
@@ -38,11 +40,11 @@ export default function Settings() {
         value={tab}
         onChange={(v) => navigate(`/settings/${v}`)}
         tabs={[
-          { value: 'general', label: 'Thông tin chung' },
-          { value: 'members', label: 'Thành viên' },
-          ...(isAdmin ? [{ value: 'invites', label: 'Lời mời đang chờ' }] : []),
-          { value: 'ai', label: 'Trợ lý AI' },
-          { value: 'activity', label: 'Nhật ký hoạt động' },
+          { value: 'general', label: tr("Thông tin chung") },
+          { value: 'members', label: tr("Thành viên") },
+          ...(isAdmin ? [{ value: 'invites', label: tr("Lời mời đang chờ") }] : []),
+          { value: 'ai', label: tr("Trợ lý AI") },
+          { value: 'activity', label: tr("Nhật ký hoạt động") },
         ]}
       />
       {tab === 'general' && <General key={ws.workspace._id} />}

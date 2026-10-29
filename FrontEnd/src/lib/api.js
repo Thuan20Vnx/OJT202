@@ -1,12 +1,13 @@
+import { t as tr, translateError } from './i18n.js';
 // Gọi API kèm cookie; tự làm mới access token một lần khi gặp 401.
 export class ApiError extends Error {
   constructor(status, message, details) {
-    super(message);
+    super(translateError(message));
     this.status = status;
     this.details = details || {};
   }
   get fields() {
-    return this.details.fields || {};
+    return Object.fromEntries(Object.entries(this.details.fields || {}).map(([key, value]) => [key, translateError(value)]));
   }
 }
 
@@ -77,7 +78,7 @@ export async function request(method, url, body, options = {}) {
   const data = await readBody(res, type.includes('application/json') ? 'json' : 'text');
   // 5xx không kèm JSON: proxy/reverse proxy không tới được API (API luôn trả lỗi dạng JSON)
   if (res.status >= 500 && !data?.error) throw new ApiError(res.status, OFFLINE_MSG);
-  if (!res.ok) throw new ApiError(res.status, data?.error || 'Đã có lỗi xảy ra', data?.details);
+  if (!res.ok) throw new ApiError(res.status, data?.error || tr("Đã có lỗi xảy ra"), data?.details);
   return data;
 }
 
@@ -100,7 +101,7 @@ export function qs(params) {
 /** Tải tệp qua backend (cookie đi kèm) */
 export async function download(url, filename) {
   const res = await authenticatedResponse('GET', url);
-  if (!res.ok) throw new ApiError(res.status, 'Không tải được tệp');
+  if (!res.ok) throw new ApiError(res.status, tr("Không tải được tệp"));
   const blob = await readBody(res, 'blob');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);

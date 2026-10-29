@@ -1,3 +1,4 @@
+import { t as tr, useI18n } from '../../lib/i18n.js';
 import { Fragment, useState } from 'react';
 import { Avatar, Empty, ErrorBox, Icon, Modal, Notice, PageLoader, Pagination, Select } from '../../components/ui.jsx';
 import { api, download, qs } from '../../lib/api.js';
@@ -5,7 +6,7 @@ import { useApp, useLoad } from '../../lib/app.jsx';
 import { fmtDate, fmtTime, isoDate } from '../../lib/format.js';
 
 const TONE = (a) =>
-  /Xóa|Gỡ/.test(a)
+  (/Xóa|Gỡ/.test(a)
     ? 'border-rose-200 bg-rose-50 text-rose-700'
     : /Phân quyền|Tham gia/.test(a)
       ? 'border-purple-200 bg-purple-50 text-purple-700'
@@ -13,20 +14,21 @@ const TONE = (a) =>
         ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
         : /trạng thái|Duyệt/.test(a)
           ? 'border-blue-200 bg-blue-50 text-blue-700'
-          : 'border-amber-200 bg-amber-50 text-amber-700';
+          : 'border-amber-200 bg-amber-50 text-amber-700');
 
 const show = (v) => (v == null ? '—' : typeof v === 'object' ? JSON.stringify(v) : String(v));
-const COLS = [
-  ['time', 'Thời gian'],
-  ['actor', 'Người thực hiện'],
-  ['action', 'Hành động'],
-  ['entity', 'Đối tượng'],
-  ['before', 'Giá trị cũ'],
-  ['after', 'Giá trị mới'],
-  ['project', 'Dự án'],
+const getColumns = () => [
+  ['time', tr("Thời gian")],
+  ['actor', tr("Người thực hiện")],
+  ['action', tr("Hành động")],
+  ['entity', tr("Đối tượng")],
+  ['before', tr("Giá trị cũ")],
+  ['after', tr("Giá trị mới")],
+  ['project', tr("Dự án")],
 ];
 
 export default function Activity() {
+  useI18n();
   const { ws, projects } = useApp();
   const wsId = ws.workspace._id;
   const [f, setF] = useState({ search: '', actor: '', action: '', entityType: '', project: '', from: '', to: '' });
@@ -44,10 +46,10 @@ export default function Activity() {
       <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 p-3">
         <div className="relative min-w-[200px] flex-1">
           <Icon name="search" size={16} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input className="input h-9 pl-8 text-body-sm" placeholder="Tìm theo mã công việc hoặc nội dung" value={f.search} onChange={(e) => set('search', e.target.value)} />
+          <input className="input h-9 pl-8 text-body-sm" placeholder={tr("Tìm theo mã công việc hoặc nội dung")} value={f.search} onChange={(e) => set('search', e.target.value)} />
         </div>
         <Select className="input h-9 w-auto text-body-sm" value={f.actor} onChange={(e) => set('actor', e.target.value)}>
-          <option value="">Người thực hiện</option>
+          <option value="">{tr("Người thực hiện")}</option>
           {(members.data?.members || []).map((m) => (
             <option key={m.user._id} value={m.user._id}>
               {m.user.name}
@@ -55,18 +57,18 @@ export default function Activity() {
           ))}
         </Select>
         <Select className="input h-9 w-auto text-body-sm" value={f.action} onChange={(e) => set('action', e.target.value)}>
-          <option value="">Loại hành động</option>
+          <option value="">{tr("Loại hành động")}</option>
           {(data?.actions || []).map((a) => (
             <option key={a}>{a}</option>
           ))}
         </Select>
         <Select className="input h-9 w-auto text-body-sm" value={f.entityType} onChange={(e) => set('entityType', e.target.value)}>
-          <option value="">Đối tượng</option>
+          <option value="">{tr("Đối tượng")}</option>
           {[
-            ['task', 'Công việc'],
-            ['project', 'Dự án'],
-            ['member', 'Thành viên'],
-            ['file', 'Tệp'],
+            ['task', tr("Công việc")],
+            ['project', tr("Dự án")],
+            ['member', tr("Thành viên")],
+            ['file', tr("Tệp")],
             ['ai', 'AI'],
           ].map(([v, l]) => (
             <option key={v} value={v}>
@@ -75,35 +77,32 @@ export default function Activity() {
           ))}
         </Select>
         <Select className="input h-9 w-auto text-body-sm" value={f.project} onChange={(e) => set('project', e.target.value)}>
-          <option value="">Dự án</option>
+          <option value="">{tr("Dự án")}</option>
           {projects.map((p) => (
             <option key={p._id} value={p._id}>
               {p.name}
             </option>
           ))}
         </Select>
-        <input type="date" className="input h-9 w-auto text-body-sm" value={f.from} onChange={(e) => set('from', e.target.value)} title="Từ ngày" />
-        <input type="date" className="input h-9 w-auto text-body-sm" value={f.to} onChange={(e) => set('to', e.target.value)} title="Đến ngày" />
+        <input type="date" className="input h-9 w-auto text-body-sm" value={f.from} onChange={(e) => set('from', e.target.value)} title={tr("Từ ngày")} />
+        <input type="date" className="input h-9 w-auto text-body-sm" value={f.to} onChange={(e) => set('to', e.target.value)} title={tr("Đến ngày")} />
         {active && (
-          <button className="btn-ghost btn-sm" onClick={() => { setF({ search: '', actor: '', action: '', entityType: '', project: '', from: '', to: '' }); setPage(1); }}>
-            Đặt lại
-          </button>
+          <button className="btn-ghost btn-sm" onClick={() => { setF({ search: '', actor: '', action: '', entityType: '', project: '', from: '', to: '' }); setPage(1); }}>{tr("Đặt lại")}</button>
         )}
         <button className="btn-primary ml-auto" onClick={() => setExporting(true)}>
-          <Icon name="download" size={16} /> Xuất CSV
-        </button>
+          <Icon name="download" size={16} />{tr(" Xuất CSV")}</button>
       </div>
       <ErrorBox error={error} onRetry={reload} />
       {loading && !data ? (
         <PageLoader />
       ) : error && !data ? null : !data?.items?.length ? (
-        <Empty icon="history" title="Không có bản ghi" />
+        <Empty icon="history" title={tr("Không có bản ghi")} />
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="border-b border-slate-100">
               <tr>
-                {['Thời gian', 'Người thực hiện', 'Hành động', 'Đối tượng', 'Thay đổi', 'Dự án'].map((h) => (
+                {[tr("Thời gian"), tr("Người thực hiện"), tr("Hành động"), tr("Đối tượng"), tr("Thay đổi"), tr("Dự án")].map((h) => (
                   <th key={h} className="table-th">
                     {h}
                   </th>
@@ -120,11 +119,11 @@ export default function Activity() {
                     </td>
                     <td className="table-td whitespace-nowrap">
                       <span className="flex items-center gap-2">
-                        <Avatar user={a.actor} size={24} /> {a.actor?.name || 'Hệ thống'}
+                        <Avatar user={a.actor} size={24} /> {a.actor?.name || tr("Hệ thống")}
                       </span>
                     </td>
                     <td className="table-td whitespace-nowrap">
-                      <span className={`chip ${TONE(a.action)}`}>{a.action}</span>
+                      <span className={`chip ${TONE(a.action)}`}>{tr(a.action)}</span>
                     </td>
                     <td className="table-td max-w-[280px] truncate text-blue-700">{a.entityLabel}</td>
                     <td className="table-td max-w-[260px]">
@@ -139,11 +138,11 @@ export default function Activity() {
                       <td colSpan={6} className="px-4 py-3">
                         <div className="grid gap-3 md:grid-cols-2">
                           <div className="rounded-lg border border-rose-200 bg-white p-3">
-                            <p className="section-label mb-1 text-rose-600">Giá trị trước</p>
+                            <p className="section-label mb-1 text-rose-600">{tr("Giá trị trước")}</p>
                             <pre className="whitespace-pre-wrap font-mono text-[12px] text-slate-700">{show(a.before)}</pre>
                           </div>
                           <div className="rounded-lg border border-emerald-200 bg-white p-3">
-                            <p className="section-label mb-1 text-emerald-600">Giá trị sau</p>
+                            <p className="section-label mb-1 text-emerald-600">{tr("Giá trị sau")}</p>
                             <pre className="whitespace-pre-wrap font-mono text-[12px] text-slate-700">{show(a.after)}</pre>
                           </div>
                         </div>
@@ -163,9 +162,10 @@ export default function Activity() {
 }
 
 function ExportModal({ open, onClose, wsId, filters, total }) {
+  useI18n();
   const [from, setFrom] = useState(filters.from || isoDate(new Date(Date.now() - 30 * 86400000)));
   const [to, setTo] = useState(filters.to || isoDate(new Date()));
-  const [cols, setCols] = useState(COLS.map((c) => c[0]));
+  const [cols, setCols] = useState(getColumns().map((c) => c[0]));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const go = async () => {
@@ -182,37 +182,35 @@ function ExportModal({ open, onClose, wsId, filters, total }) {
     <Modal
       open={open}
       onClose={() => { if (!busy) onClose(); }}
-      title="Xuất nhật ký ra CSV"
-      subtitle="Tải nhật ký truy vết để báo cáo tiến độ và nghiệm thu"
+      title={tr("Xuất nhật ký ra CSV")}
+      subtitle={tr("Tải nhật ký truy vết để báo cáo tiến độ và nghiệm thu")}
       icon="download"
       footer={
         <>
-          <button className="btn-outline" onClick={onClose} disabled={busy}>
-            Hủy
-          </button>
+          <button className="btn-outline" onClick={onClose} disabled={busy}>{tr("Hủy")}</button>
           <button className="btn-primary" onClick={go} disabled={busy || !cols.length || !from || !to || from > to}>
-            <Icon name="download" size={16} /> {busy ? 'Đang xuất…' : 'Xuất CSV'}{total != null ? ` (${total} dòng)` : ''}
+            <Icon name="download" size={16} /> {busy ? tr("Đang xuất…") : tr("Xuất CSV")}{total != null ? tr(" ({0} dòng)", [total]) : ''}
           </button>
         </>
       }
     >
       <div className="space-y-4">
         <ErrorBox error={error} />
-        {from && to && from > to && <Notice tone="warn">Ngày kết thúc phải từ ngày bắt đầu trở đi.</Notice>}
+        {from && to && from > to && <Notice tone="warn">{tr("Ngày kết thúc phải từ ngày bắt đầu trở đi.")}</Notice>}
         <div className="grid grid-cols-2 gap-3">
           <label>
-            <span className="label">Từ ngày</span>
+            <span className="label">{tr("Từ ngày")}</span>
             <input type="date" className="input" value={from} onChange={(e) => setFrom(e.target.value)} />
           </label>
           <label>
-            <span className="label">Đến ngày</span>
+            <span className="label">{tr("Đến ngày")}</span>
             <input type="date" className="input" value={to} onChange={(e) => setTo(e.target.value)} />
           </label>
         </div>
         <div>
-          <span className="label">Chọn cột cần xuất</span>
+          <span className="label">{tr("Chọn cột cần xuất")}</span>
           <div className="grid grid-cols-2 gap-2">
-            {COLS.map(([k, l]) => (
+            {getColumns().map(([k, l]) => (
               <label key={k} className="flex items-center gap-2 text-body-sm">
                 <input type="checkbox" className="form-checkbox rounded text-blue-600" checked={cols.includes(k)} onChange={() => setCols(cols.includes(k) ? cols.filter((x) => x !== k) : [...cols, k])} />
                 {l}
@@ -220,8 +218,8 @@ function ExportModal({ open, onClose, wsId, filters, total }) {
             ))}
           </div>
         </div>
-        <Notice tone="info">Phạm vi: chỉ dữ liệu bạn có quyền xem (theo phân quyền của workspace).</Notice>
-        <Notice tone="warn">Bảo mật: các ô bắt đầu bằng =, +, -, @ sẽ được thêm dấu ' để tránh chèn công thức khi mở bằng Excel.</Notice>
+        <Notice tone="info">{tr("Phạm vi: chỉ dữ liệu bạn có quyền xem (theo phân quyền của workspace).")}</Notice>
+        <Notice tone="warn">{tr("Bảo mật: các ô bắt đầu bằng =, +, -, @ sẽ được thêm dấu ' để tránh chèn công thức khi mở bằng Excel.")}</Notice>
       </div>
     </Modal>
   );

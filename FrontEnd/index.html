@@ -6,6 +6,7 @@
     <script>
       // Apply the saved theme before React mounts to avoid a bright first frame.
       try { document.documentElement.classList.toggle('dark', localStorage.getItem('tf_theme') === 'dark'); } catch {}
+      try { document.documentElement.lang = localStorage.getItem('tf_language') === 'en' ? 'en' : 'vi'; } catch {}
     </script>
     <title>TaskFlow – Quản lý công việc nhóm</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect width='24' height='24' rx='6' fill='%232563eb'/><path d='M7 12.5l3 3 7-7' stroke='white' stroke-width='2.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>" />

@@ -1,3 +1,4 @@
+import { t as tr, translateError, useI18n } from '../lib/i18n.js';
 import { Link, useNavigate } from 'react-router-dom';
 import { Burndown, Donut } from '../components/charts.jsx';
 import { Avatar, Empty, ErrorBox, Icon, PageHeader, PageLoader, Progress, StatCard } from '../components/ui.jsx';
@@ -7,11 +8,12 @@ import { fmtProjectDate as fmtDate, timeAgo } from '../lib/format.js';
 import { useSocketEvent } from '../lib/hooks.js';
 
 export const SEVERITY = {
-  critical: { label: 'Nghiêm trọng', chip: 'border-rose-200 bg-rose-50 text-rose-700', icon: 'error', card: 'border-rose-200 bg-rose-50/40' },
-  warning: { label: 'Cảnh báo', chip: 'border-amber-200 bg-amber-50 text-amber-700', icon: 'warning', card: 'border-amber-200 bg-amber-50/40' },
+  critical: { get label() { return tr("Nghiêm trọng"); }, chip: 'border-rose-200 bg-rose-50 text-rose-700', icon: 'error', card: 'border-rose-200 bg-rose-50/40' },
+  warning: { get label() { return tr("Cảnh báo"); }, chip: 'border-amber-200 bg-amber-50 text-amber-700', icon: 'warning', card: 'border-amber-200 bg-amber-50/40' },
 };
 
 export default function Overview() {
+  useI18n();
   const { project } = useApp();
   const navigate = useNavigate();
   const { data, error, loading, reload } = useLoad(() => (project ? api.get(`/projects/${project._id}/overview`) : Promise.resolve(null)), [project?._id]);
@@ -22,11 +24,9 @@ export default function Overview() {
     return (
       <Empty
         icon="folder_off"
-        title="Chưa có dự án"
+        title={tr("Chưa có dự án")}
         action={
-          <button className="btn-primary" onClick={() => navigate('/projects?new=1')}>
-            Tạo dự án
-          </button>
+          <button className="btn-primary" onClick={() => navigate('/projects?new=1')}>{tr("Tạo dự án")}</button>
         }
       />
     );
@@ -44,32 +44,30 @@ export default function Overview() {
   return (
     <div className="mx-auto max-w-7xl p-6">
       <PageHeader
-        title="Tổng quan dự án"
-        subtitle={`${project.name}${sprint?.name ? ` · ${sprint.name}` : ''}${data.burndown ? ` · Còn ${data.burndown.daysLeft} ngày` : ''}`}
+        title={tr("Tổng quan dự án")}
+        subtitle={`${project.name}${sprint?.name ? ` · ${sprint.name}` : ''}${data.burndown ? tr(" · Còn {0} ngày", [data.burndown.daysLeft]) : ''}`}
         actions={
           <>
             <Link to="/risks" className="btn-outline">
-              <Icon name="warning" size={16} className="text-amber-500" /> Cảnh báo rủi ro ({data.riskCount})
+              <Icon name="warning" size={16} className="text-amber-500" />{tr(" Cảnh báo rủi ro (")}{data.riskCount})
             </Link>
             <button className="btn-outline" onClick={() => download(`/projects/${project._id}/overview.csv`, 'tong-quan-du-an.csv')}>
-              <Icon name="download" size={16} /> Xuất CSV
-            </button>
+              <Icon name="download" size={16} />{tr(" Xuất CSV")}</button>
           </>
         }
       />
       <div className="mb-5 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard label="Tiến độ" value={`${k.done}/${k.total}`} sub={`${k.progressPct}% công việc hoàn thành`} icon="donut_large" tone="blue">
+        <StatCard label={tr("Tiến độ")} value={`${k.done}/${k.total}`} sub={tr("{0}% công việc hoàn thành", [k.progressPct])} icon="donut_large" tone="blue">
           <Progress value={k.progressPct} className="mt-2" />
         </StatCard>
-        <StatCard label="Quá hạn" value={k.overdue} sub={k.overdue ? 'Cần xử lý ngay' : 'Không có việc quá hạn'} icon="event_busy" tone="red" onClick={() => navigate('/risks')} />
-        <StatCard label="Đang bị chặn" value={k.blocked} sub="Chờ công việc khác" icon="block" tone="amber" onClick={() => navigate('/risks')} />
+        <StatCard label={tr("Quá hạn")} value={k.overdue} sub={k.overdue ? tr("Cần xử lý ngay") : tr("Không có việc quá hạn")} icon="event_busy" tone="red" onClick={() => navigate('/risks')} />
+        <StatCard label={tr("Đang bị chặn")} value={k.blocked} sub={tr("Chờ công việc khác")} icon="block" tone="amber" onClick={() => navigate('/risks')} />
         <StatCard
-          label="Tốc độ hoàn thành"
-          value={`${k.velocity.last7} việc/tuần`}
+          label={tr("Tốc độ hoàn thành")}
+          value={tr("{0} việc/tuần", [k.velocity.last7])}
           sub={
             <span className={trend > 0 ? 'text-emerald-600' : trend < 0 ? 'text-rose-600' : ''}>
-              {trend > 0 ? '▲' : trend < 0 ? '▼' : '='} {Math.abs(trend)} so với tuần trước
-            </span>
+              {trend > 0 ? '▲' : trend < 0 ? '▼' : '='} {Math.abs(trend)}{tr(" so với tuần trước")}</span>
           }
           icon="speed"
           tone="green"
@@ -82,29 +80,28 @@ export default function Overview() {
             <div>
               <h2 className="text-headline-sm text-slate-900">Burndown {sprint?.name || 'Sprint'}</h2>
               {sprint?.start && (
-                <p className="text-label-md font-normal text-slate-500">
-                  Số việc còn lại · {fmtDate(sprint.start)} → {fmtDate(sprint.end)}
+                <p className="text-label-md font-normal text-slate-500">{tr("Số việc còn lại · ")}{fmtDate(sprint.start)} → {fmtDate(sprint.end)}
                 </p>
               )}
             </div>
           </div>
           <Burndown days={data.burndown?.days || []} />
-          {data.burndown?.sampled && <p className="mt-2 text-label-sm text-slate-500">Khoảng Sprint dài: biểu đồ hiển thị các mốc lấy mẫu, giữ đủ ngày đầu và ngày cuối.</p>}
+          {data.burndown?.sampled && <p className="mt-2 text-label-sm text-slate-500">{tr("Khoảng Sprint dài: biểu đồ hiển thị các mốc lấy mẫu, giữ đủ ngày đầu và ngày cuối.")}</p>}
         </div>
         <div className="card p-5">
-          <h2 className="mb-1 text-headline-sm text-slate-900">Phân bố trạng thái</h2>
-          <p className="mb-4 text-label-md font-normal text-slate-500">Tổng {k.total} công việc (không tính việc con)</p>
+          <h2 className="mb-1 text-headline-sm text-slate-900">{tr("Phân bố trạng thái")}</h2>
+          <p className="mb-4 text-label-md font-normal text-slate-500">{tr("Tổng ")}{k.total}{tr(" công việc (không tính việc con)")}</p>
           <Donut
             segments={[
-              { label: 'Cần làm', value: data.byStatus.todo, color: '#64748b' },
-              { label: 'Đang thực hiện', value: data.byStatus.in_progress, color: '#3b82f6' },
-              { label: 'Đang kiểm duyệt', value: data.byStatus.review, color: '#f59e0b' },
-              { label: 'Hoàn thành', value: data.byStatus.done, color: '#10b981' },
+              { label: tr("Cần làm"), value: data.byStatus.todo, color: '#64748b' },
+              { label: tr("Đang thực hiện"), value: data.byStatus.in_progress, color: '#3b82f6' },
+              { label: tr("Đang kiểm duyệt"), value: data.byStatus.review, color: '#f59e0b' },
+              { label: tr("Hoàn thành"), value: data.byStatus.done, color: '#10b981' },
             ]}
             center={
               <>
                 <span className="text-headline-lg text-slate-900">{k.progressPct}%</span>
-                <span className="text-label-md font-normal text-slate-500">hoàn thành</span>
+                <span className="text-label-md font-normal text-slate-500">{tr("hoàn thành")}</span>
               </>
             }
           />
@@ -113,8 +110,8 @@ export default function Overview() {
 
       <div className="mb-5 grid gap-4 lg:grid-cols-2">
         <div className="card p-5">
-          <h2 className="text-headline-sm text-slate-900">Tải công việc tuần này</h2>
-          <p className="mb-4 text-label-md font-normal text-slate-500">Giờ ước lượng chưa xong (đến hạn trong tuần) / giờ khả dụng</p>
+          <h2 className="text-headline-sm text-slate-900">{tr("Tải công việc tuần này")}</h2>
+          <p className="mb-4 text-label-md font-normal text-slate-500">{tr("Giờ ước lượng chưa xong (đến hạn trong tuần) / giờ khả dụng")}</p>
           <div className="space-y-3">
             {data.workload
               .filter((w) => w.role !== 'viewer')
@@ -129,26 +126,24 @@ export default function Overview() {
                           {w.user.name} <span className="font-normal text-slate-400">{w.jobTitle}</span>
                         </span>
                         <span className={`whitespace-nowrap ${over ? 'font-semibold text-rose-600' : 'text-slate-600'}`}>
-                          {Math.round(w.hours * 10) / 10}/{w.available} giờ · {w.pct == null ? 'Không có giờ khả dụng' : `${w.pct}%`}
-                          {over && ' · Quá tải'}
+                          {Math.round(w.hours * 10) / 10}/{w.available}{tr(" giờ · ")}{w.pct == null ? tr("Không có giờ khả dụng") : `${w.pct}%`}
+                          {over && tr(" · Quá tải")}
                         </span>
                       </div>
                       <Progress value={w.pct == null ? 100 : Math.min(100, w.pct)} tone={over ? 'bg-rose-500' : w.pct >= 80 ? 'bg-amber-500' : 'bg-blue-600'} height="h-2" />
-                      {w.missingEstimates > 0 && <p className="mt-1 text-label-md text-amber-700">{w.missingEstimates} công việc chưa có ước lượng, chưa tính đủ tải.</p>}
+                      {w.missingEstimates > 0 && <p className="mt-1 text-label-md text-amber-700">{w.missingEstimates}{tr(" công việc chưa có ước lượng, chưa tính đủ tải.")}</p>}
                     </div>
                   </div>
                 );
               })}
           </div>
           <p className="mt-4 flex items-start gap-1.5 rounded-lg bg-slate-50 px-3 py-2 text-label-md font-normal text-slate-500">
-            <Icon name="info" size={14} className="mt-px" />
-            Tải = giờ ước lượng chưa xong trong tuần / giờ khả dụng. Không dùng để xếp hạng cá nhân.
-          </p>
+            <Icon name="info" size={14} className="mt-px" />{tr("Tải = giờ ước lượng chưa xong trong tuần / giờ khả dụng. Không dùng để xếp hạng cá nhân.")}</p>
         </div>
         <div className="card p-5">
           <div className="mb-4 flex items-center justify-between">
-            <h2 className="text-headline-sm text-slate-900">Cảnh báo rủi ro</h2>
-            <span className="chip border-rose-200 bg-rose-50 text-rose-700">{data.riskCount} cảnh báo</span>
+            <h2 className="text-headline-sm text-slate-900">{tr("Cảnh báo rủi ro")}</h2>
+            <span className="chip border-rose-200 bg-rose-50 text-rose-700">{data.riskCount}{tr(" cảnh báo")}</span>
           </div>
           <div className="space-y-3">
             {data.risks.map((r) => (
@@ -158,9 +153,9 @@ export default function Overview() {
                     <Icon name={SEVERITY[r.severity].icon} size={12} />
                     {SEVERITY[r.severity].label}
                   </span>
-                  <p className="flex-1 text-body-sm font-semibold text-slate-900">{r.title}</p>
+                  <p className="flex-1 text-body-sm font-semibold text-slate-900">{translateError(r.title)}</p>
                 </div>
-                <p className="mt-1.5 text-body-sm text-slate-600">{r.explanation}</p>
+                <p className="mt-1.5 text-body-sm text-slate-600">{translateError(r.explanation)}</p>
                 <div className="mt-2 flex flex-wrap items-center gap-1.5">
                   {r.tasks.slice(0, 4).map((t) => (
                     <button
@@ -171,16 +166,12 @@ export default function Overview() {
                       {t.key}
                     </button>
                   ))}
-                  <Link to="/risks" className="ml-auto text-label-md font-semibold text-blue-600">
-                    Xem việc
-                  </Link>
+                  <Link to="/risks" className="ml-auto text-label-md font-semibold text-blue-600">{tr("Xem việc")}</Link>
                 </div>
               </div>
             ))}
             {!data.risks.length && (
-              <Empty icon="verified" title="Chưa phát hiện rủi ro">
-                Các quy tắc cảnh báo chưa bị kích hoạt.
-              </Empty>
+              <Empty icon="verified" title={tr("Chưa phát hiện rủi ro")}>{tr("Các quy tắc cảnh báo chưa bị kích hoạt.")}</Empty>
             )}
           </div>
         </div>
@@ -188,23 +179,21 @@ export default function Overview() {
 
       <div className="card p-5">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-headline-sm text-slate-900">Hoạt động gần đây</h2>
-          <Link to="/settings/activity" className="text-label-md font-semibold text-blue-600">
-            Xem nhật ký hoạt động
-          </Link>
+          <h2 className="text-headline-sm text-slate-900">{tr("Hoạt động gần đây")}</h2>
+          <Link to="/settings/activity" className="text-label-md font-semibold text-blue-600">{tr("Xem nhật ký hoạt động")}</Link>
         </div>
         <div className="divide-y divide-slate-100">
           {data.recent.map((a) => (
             <div key={a._id} className="flex items-center gap-3 py-2.5 text-body-sm">
               <Avatar user={a.actor} size={26} />
               <p className="flex-1 text-slate-600">
-                <b className="text-slate-800">{a.actor?.name}</b> {a.action.toLowerCase()} <span className="text-slate-800">{a.entityLabel}</span>
-                {a.after != null && typeof a.after !== 'object' && <span className="text-slate-500"> → {String(a.after)}</span>}
+                <b className="text-slate-800">{a.actor?.name}</b> {tr(a.action).toLowerCase()} <span className="text-slate-800">{a.entityLabel}</span>
+                {a.after != null && typeof a.after !== 'object' && <span className="text-slate-500"> → {['Đổi trạng thái', 'Đổi ưu tiên', 'Phân quyền'].includes(a.action) ? tr(String(a.after)) : String(a.after)}</span>}
               </p>
               <span className="whitespace-nowrap text-label-md font-normal text-slate-400">{timeAgo(a.createdAt)}</span>
             </div>
           ))}
-          {!data.recent.length && <p className="py-4 text-body-sm text-slate-400">Chưa có hoạt động</p>}
+          {!data.recent.length && <p className="py-4 text-body-sm text-slate-400">{tr("Chưa có hoạt động")}</p>}
         </div>
       </div>
     </div>

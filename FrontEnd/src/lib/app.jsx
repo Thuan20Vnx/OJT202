@@ -1,7 +1,9 @@
+import { useI18n } from './i18n.js';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { api, onUnauthorized } from './api.js';
 import { closeSocket, getSocket, joinProject } from './socket.js';
 import { setTimeZone } from './dates.js';
+import { setLanguage } from './i18n.js';
 
 export const AppCtx = createContext(null);
 const ToastCtx = createContext(() => {});
@@ -24,6 +26,7 @@ const store = {
 };
 
 export function ToastProvider({ children }) {
+  useI18n();
   const [toasts, setToasts] = useState([]);
   const push = useCallback((message, tone = 'success') => {
     const id = Math.random().toString(36).slice(2);
@@ -54,9 +57,11 @@ export function ToastProvider({ children }) {
 export const useToast = () => useContext(ToastCtx);
 
 export function AppProvider({ children }) {
+  useI18n();
   const [me, setMeState] = useState(undefined); // undefined = đang tải, null = chưa đăng nhập
   const setMe = useCallback((user) => {
     setTimeZone(user?.timezone);
+    if (user?.language) setLanguage(user.language);
     setMeState(user);
   }, []);
   const [workspaces, setWorkspaces] = useState([]);

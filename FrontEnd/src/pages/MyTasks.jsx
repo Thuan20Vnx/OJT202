@@ -1,3 +1,4 @@
+import { t as tr, useI18n } from '../lib/i18n.js';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Avatar, Empty, ErrorBox, Icon, PageHeader, PageLoader, Pagination, PriorityChip, Select, StatCard, StatusChip } from '../components/ui.jsx';
@@ -11,16 +12,17 @@ import { taskActions } from '../lib/task-actions.js';
 const DEFAULT = { assignee: 'me', status: '', priority: '', due: '', project: '', search: '' };
 
 function group(task) {
-  if (!task.dueDate) return 'Không có hạn';
+  if (!task.dueDate) return tr("Không có hạn");
   const days = Math.round((sod(task.dueDate) - sod()) / 86400000);
-  if (task.status !== 'done' && new Date(task.dueDate).getTime() < Date.now()) return 'Quá hạn';
-  if (days === 0) return 'Hôm nay';
-  if (days >= 0 && new Date(task.dueDate) < dates.weekRange(new Date(), timeZone()).end) return 'Tuần này';
-  return 'Sau này';
+  if (task.status !== 'done' && new Date(task.dueDate).getTime() < Date.now()) return tr("Quá hạn");
+  if (days === 0) return tr("Hôm nay");
+  if (days >= 0 && new Date(task.dueDate) < dates.weekRange(new Date(), timeZone()).end) return tr("Tuần này");
+  return tr("Sau này");
 }
-const GROUPS = ['Quá hạn', 'Hôm nay', 'Tuần này', 'Sau này', 'Không có hạn'];
+const getGroups = () => [tr("Quá hạn"), tr("Hôm nay"), tr("Tuần này"), tr("Sau này"), tr("Không có hạn")];
 
 export default function MyTasks() {
+  useI18n();
   const { wsId, me, projects, setProjectId } = useApp();
   const toast = useToast();
   const navigate = useNavigate();
@@ -40,7 +42,7 @@ export default function MyTasks() {
   };
   const active = Object.entries(f).filter(([k, v]) => v && !(k === 'assignee' && v === 'me'));
   const hour = new Date().getHours();
-  const greet = hour < 11 ? 'Chào buổi sáng' : hour < 14 ? 'Chào buổi trưa' : hour < 18 ? 'Chào buổi chiều' : 'Chào buổi tối';
+  const greet = hour < 11 ? tr("Chào buổi sáng") : hour < 14 ? tr("Chào buổi trưa") : hour < 18 ? tr("Chào buổi chiều") : tr("Chào buổi tối");
 
   const toggleDone = async (t) => {
     const { nextStatus } = taskActions(t);
@@ -64,60 +66,56 @@ export default function MyTasks() {
 
   const items = data?.items || [];
   const s = data?.summary || {};
-  const byGroup = GROUPS.map((g) => ({ g, items: items.filter((t) => group(t) === g) })).filter((x) => x.items.length);
+  const byGroup = getGroups().map((g) => ({ g, items: items.filter((t) => group(t) === g) })).filter((x) => x.items.length);
 
   return (
     <div className="mx-auto max-w-7xl p-6">
       <PageHeader
         title={`${greet}, ${me?.name || ''} 👋`}
         subtitle={
-          <>
-            Bạn có <b className="text-blue-700">{s.actionable ?? '–'} việc</b> cần xử lý hôm nay.
-          </>
+          <>{tr("Bạn có ")}<b className="text-blue-700">{s.actionable ?? '–'}{tr(" việc")}</b>{tr(" cần xử lý hôm nay.")}</>
         }
         actions={
           <div className="flex rounded-lg border border-slate-200 bg-white p-0.5">
             <span className="flex items-center gap-1.5 rounded-md bg-blue-50 px-2.5 py-1 text-label-md font-semibold text-blue-700">
-              <Icon name="format_list_bulleted" size={16} /> Danh sách
-            </span>
+              <Icon name="format_list_bulleted" size={16} />{tr(" Danh sách")}</span>
             <button onClick={() => navigate('/board')} className="flex items-center gap-1.5 px-2.5 py-1 text-label-md text-slate-500 hover:text-slate-800">
-              <Icon name="view_kanban" size={16} /> Bảng
-            </button>
+              <Icon name="view_kanban" size={16} />{tr(" Bảng")}</button>
           </div>
         }
       />
       <div className="mb-5 grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard
-          label="Hôm nay"
+          label={tr("Hôm nay")}
           value={s.today ?? '–'}
-          sub="Việc đến hạn trong ngày"
+          sub={tr("Việc đến hạn trong ngày")}
           icon="today"
           tone="blue"
           active={f.due === 'today'}
           onClick={() => set('due', f.due === 'today' ? '' : 'today')}
         />
         <StatCard
-          label="Quá hạn"
+          label={tr("Quá hạn")}
           value={s.overdue ?? '–'}
-          sub="Cần xử lý ngay"
+          sub={tr("Cần xử lý ngay")}
           icon="error"
           tone="red"
           active={f.due === 'overdue'}
           onClick={() => set('due', f.due === 'overdue' ? '' : 'overdue')}
         />
         <StatCard
-          label="Sắp đến hạn"
+          label={tr("Sắp đến hạn")}
           value={s.upcoming ?? '–'}
-          sub="Từ nay đến cuối tuần"
+          sub={tr("Từ nay đến cuối tuần")}
           icon="schedule"
           tone="amber"
           active={f.due === 'week'}
           onClick={() => set('due', f.due === 'week' ? '' : 'week')}
         />
         <StatCard
-          label="Hoàn thành"
+          label={tr("Hoàn thành")}
           value={s.doneWeek ?? '–'}
-          sub="Trong 7 ngày qua"
+          sub={tr("Trong 7 ngày qua")}
           icon="task_alt"
           tone="green"
           active={f.status === 'done'}
@@ -129,15 +127,15 @@ export default function MyTasks() {
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative min-w-[220px] flex-1">
             <Icon name="search" size={16} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input className="input h-9 pl-8 text-body-sm" placeholder="Tìm theo tên hoặc mã công việc (TF-...)" value={f.search} onChange={(e) => set('search', e.target.value)} />
+            <input className="input h-9 pl-8 text-body-sm" placeholder={tr("Tìm theo tên hoặc mã công việc (TF-...)")} value={f.search} onChange={(e) => set('search', e.target.value)} />
           </div>
           <Select className="input h-9 w-auto text-body-sm" value={f.assignee} onChange={(e) => set('assignee', e.target.value)}>
-            <option value="me">Giao cho: Tôi</option>
-            <option value="all">Giao cho: Tất cả</option>
-            <option value="unassigned">Chưa giao</option>
+            <option value="me">{tr("Giao cho: Tôi")}</option>
+            <option value="all">{tr("Giao cho: Tất cả")}</option>
+            <option value="unassigned">{tr("Chưa giao")}</option>
           </Select>
           <Select className="input h-9 w-auto text-body-sm" value={f.status} onChange={(e) => set('status', e.target.value)}>
-            <option value="">Trạng thái: Chưa xong</option>
+            <option value="">{tr("Trạng thái: Chưa xong")}</option>
             {STATUS_ORDER.map((st) => (
               <option key={st} value={st}>
                 {STATUS[st].label}
@@ -145,20 +143,20 @@ export default function MyTasks() {
             ))}
           </Select>
           <Select className="input h-9 w-auto text-body-sm" value={f.priority} onChange={(e) => set('priority', e.target.value)}>
-            <option value="">Ưu tiên: Tất cả</option>
-            <option value="high">Cao</option>
-            <option value="medium">Trung bình</option>
-            <option value="low">Thấp</option>
+            <option value="">{tr("Ưu tiên: Tất cả")}</option>
+            <option value="high">{tr("Cao")}</option>
+            <option value="medium">{tr("Trung bình")}</option>
+            <option value="low">{tr("Thấp")}</option>
           </Select>
           <Select className="input h-9 w-auto text-body-sm" value={f.due} onChange={(e) => set('due', e.target.value)}>
-            <option value="">Hạn chót: Tất cả</option>
-            <option value="today">Hôm nay</option>
-            <option value="week">7 ngày tới</option>
-            <option value="overdue">Quá hạn</option>
-            <option value="none">Không có hạn</option>
+            <option value="">{tr("Hạn chót: Tất cả")}</option>
+            <option value="today">{tr("Hôm nay")}</option>
+            <option value="week">{tr("7 ngày tới")}</option>
+            <option value="overdue">{tr("Quá hạn")}</option>
+            <option value="none">{tr("Không có hạn")}</option>
           </Select>
           <Select className="input h-9 w-auto text-body-sm" value={f.project} onChange={(e) => set('project', e.target.value)}>
-            <option value="">Dự án: Tất cả</option>
+            <option value="">{tr("Dự án: Tất cả")}</option>
             {projects.map((p) => (
               <option key={p._id} value={p._id}>
                 {p.name}
@@ -167,20 +165,16 @@ export default function MyTasks() {
           </Select>
         </div>
         {active.length > 0 && (
-          <div className="mt-2.5 flex flex-wrap items-center gap-1.5 text-label-md font-normal text-slate-500">
-            Đang áp dụng:
-            {active.map(([k, v]) => (
+          <div className="mt-2.5 flex flex-wrap items-center gap-1.5 text-label-md font-normal text-slate-500">{tr("Đang áp dụng:")}{active.map(([k, v]) => (
               <span key={k} className="chip border-blue-200 bg-blue-50 text-blue-700">
-                {{ assignee: 'Người nhận', status: 'Trạng thái', priority: 'Ưu tiên', due: 'Hạn', project: 'Dự án', search: 'Tìm' }[k]}:{' '}
+                {{ assignee: tr("Người nhận"), status: tr("Trạng thái"), priority: tr("Ưu tiên"), due: tr("Hạn"), project: tr("Dự án"), search: tr("Tìm") }[k]}:{' '}
                 {k === 'project' ? projects.find((p) => p._id === v)?.name : k === 'status' ? STATUS[v]?.label : v}
                 <button onClick={() => set(k, k === 'assignee' ? 'me' : '')}>
                   <Icon name="close" size={12} />
                 </button>
               </span>
             ))}
-            <button className="ml-1 font-semibold text-blue-600 hover:underline" onClick={() => (setF(DEFAULT), setPage(1))}>
-              Đặt lại bộ lọc
-            </button>
+            <button className="ml-1 font-semibold text-blue-600 hover:underline" onClick={() => (setF(DEFAULT), setPage(1))}>{tr("Đặt lại bộ lọc")}</button>
           </div>
         )}
       </div>
@@ -192,15 +186,11 @@ export default function MyTasks() {
         <div className="card">
           <Empty
             icon="filter_alt_off"
-            title="Không có công việc nào khớp bộ lọc"
+            title={tr("Không có công việc nào khớp bộ lọc")}
             action={
-              <button className="btn-outline" onClick={() => setF(DEFAULT)}>
-                Đặt lại bộ lọc
-              </button>
+              <button className="btn-outline" onClick={() => setF(DEFAULT)}>{tr("Đặt lại bộ lọc")}</button>
             }
-          >
-            Thử bỏ bớt điều kiện lọc hoặc chọn “Giao cho: Tất cả”.
-          </Empty>
+          >{tr("Thử bỏ bớt điều kiện lọc hoặc chọn “Giao cho: Tất cả”.")}</Empty>
         </div>
       ) : (
         <div className="space-y-4">
@@ -211,7 +201,7 @@ export default function MyTasks() {
                 className="flex w-full items-center gap-2 border-b border-slate-100 bg-slate-50/60 px-4 py-2.5 text-left"
               >
                 <Icon name={collapsed[g] ? 'chevron_right' : 'expand_more'} size={18} className="text-slate-400" />
-                <span className={`text-label-lg font-semibold ${g === 'Quá hạn' ? 'text-rose-600' : 'text-slate-800'}`}>{g}</span>
+                <span className={`text-label-lg font-semibold ${g === tr("Quá hạn") ? 'text-rose-600' : 'text-slate-800'}`}>{g}</span>
                 <span className="rounded-full bg-slate-200 px-2 text-label-sm text-slate-600">{list.length}</span>
               </button>
               {!collapsed[g] && (
@@ -236,8 +226,7 @@ export default function MyTasks() {
                         </button>
                         {blocked && (
                           <span className="chip border-rose-200 bg-rose-50 text-rose-700">
-                            <Icon name="block" size={12} /> Đang bị chặn
-                          </span>
+                            <Icon name="block" size={12} />{tr(" Đang bị chặn")}</span>
                         )}
                         <span className="hidden items-center gap-1.5 whitespace-nowrap text-label-md text-slate-600 lg:flex">
                           <span className={`h-2 w-2 rounded-full ${PROJECT_COLOR[t.project?.color]}`} />
@@ -250,7 +239,7 @@ export default function MyTasks() {
                         <span
                           className={`hidden w-28 whitespace-nowrap text-right text-label-md sm:block ${due?.tone === 'danger' ? 'font-semibold text-rose-600' : 'text-slate-500'}`}
                         >
-                          {due ? due.text : 'Không có hạn'}
+                          {due ? due.text : tr("Không có hạn")}
                         </span>
                         <span className="hidden w-12 text-label-md font-normal text-slate-500 xl:block">{t.subtasks.total ? `${t.subtasks.done}/${t.subtasks.total}` : ''}</span>
                         <span className="hidden w-8 items-center gap-0.5 text-label-md font-normal text-slate-400 xl:flex">
@@ -263,7 +252,7 @@ export default function MyTasks() {
                         </span>
                         <Avatar user={t.assignee} size={24} />
                         {t.permissions?.canUpdateProgress && (
-                          <Select className="input hidden h-7 w-32 py-0 text-label-md group-hover:inline-flex" value={t.status} onChange={(e) => setStatus(t, e.target.value)} title="Đổi trạng thái nhanh">
+                          <Select className="input hidden h-7 w-32 py-0 text-label-md group-hover:inline-flex" value={t.status} onChange={(e) => setStatus(t, e.target.value)} title={tr("Đổi trạng thái nhanh")}>
                             {(t.permissions.allowedStatuses || []).map((st) => (
                               <option key={st} value={st}>
                                 {STATUS[st].label}
