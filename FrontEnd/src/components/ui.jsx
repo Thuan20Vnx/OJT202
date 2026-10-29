@@ -91,7 +91,7 @@ export function SuccessCheck({ size = 64, tone = 'emerald' }) {
 export const Spinner = ({ className = '' }) => (useI18n(), (<span className={`inline-block h-4 w-4 animate-spin rounded-full border-2 border-current border-r-transparent ${className}`} />));
 
 export const PageLoader = () => (
-  (useI18n(), (<div className="flex h-full min-h-[240px] items-center justify-center text-blue-600">
+  (useI18n(), (<div role="status" aria-label={tr("Đang tải dữ liệu")} className="flex h-full min-h-[240px] items-center justify-center text-blue-600">
     <Spinner className="h-6 w-6" />
   </div>))
 );
@@ -114,7 +114,7 @@ export function ErrorBox({ error, onRetry }) {
   useI18n();
   if (!error) return null;
   return (
-    <div className="flex items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-body-sm text-rose-700">
+    <div role="alert" className="flex items-center gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-body-sm text-rose-700">
       <Icon name="error" size={18} />
       <span className="flex-1">{error.message || String(error)}</span>
       {onRetry && (

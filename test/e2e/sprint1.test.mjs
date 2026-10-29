@@ -13,6 +13,11 @@ process.env.MAIL_MODE = 'outbox';
 process.env.DATABASE_URL = '';
 const uploads = await fs.mkdtemp(path.join(os.tmpdir(), 'taskflow-sprint1-'));
 process.env.UPLOAD_DIR = uploads;
+process.env.ANTHROPIC_API_KEY = '';
+const { createApp: createAiApp } = await import('../../AIService/src/app.js');
+const aiServer = http.createServer(createAiApp());
+await new Promise((resolve) => aiServer.listen(0, '127.0.0.1', resolve));
+process.env.AI_SERVICE_URL = `http://127.0.0.1:${aiServer.address().port}`;
 const db = await import('../../BackEnd/src/db.js');
 const { config } = await import('../../BackEnd/src/config.js');
 const { createApp } = await import('../../BackEnd/src/app.js');
@@ -37,6 +42,7 @@ before(async () => {
 
 after(async () => {
   await browser?.close();
+  await new Promise((r) => aiServer.close(r));
   if (realtime) await new Promise((r) => realtime.close(r));
   if (server?.listening) await new Promise((r) => server.close(r));
   await db.disconnectDb();
@@ -65,6 +71,95 @@ async function status(page, name) {
   await page.getByRole('button', { name, exact: true }).click();
   await expect(page.getByRole('button', { name: 'Đổi trạng thái công việc' })).toContainText(name);
 }
+
+test('Như Sprint 2–4: My Tasks, comment retry/mention, nguồn tài liệu AI, capacity và responsive', { timeout: 120000 }, async () => {
+  const owner = await context();
+  const { page, ctx } = owner;
+  try {
+    await login(page, 'mai.anh@nhom24.edu.vn');
+    const headers = { 'x-taskflow': '1' };
+    const made = await ctx.request.post(`/api/workspaces/${seed.workspace.id}/projects`, { headers, data: { name: 'Như nghiệm chứng các sprint', keyPrefix: 'NHU', members: [seed.users.nhu.id] } });
+    assert.equal(made.status(), 201);
+    const project = (await made.json()).project;
+    await page.evaluate(({ ws, project }) => { localStorage.setItem('tf_ws', ws); localStorage.setItem('tf_project', project); }, { ws: seed.workspace.id, project: project._id });
+    const taskRes = await ctx.request.post(`/api/projects/${project._id}/tasks`, { headers, data: { title: 'Nhu kiểm thử tương tác', assignee: seed.users.maianh.id, estimateHours: 8 } });
+    assert.equal(taskRes.status(), 201);
+    const task = (await taskRes.json()).task;
+    await page.goto('/my-tasks');
+    await page.getByRole('textbox', { name: 'Tìm công việc', exact: true }).fill('Nhu kiểm thử');
+    await expect(page.getByRole('button', { name: task.title, exact: true })).toBeVisible();
+    await page.getByRole('button', { name: task.title, exact: true }).click();
+    const comment = page.getByRole('textbox', { name: 'Nội dung bình luận' });
+    await expect(comment).toBeVisible();
+    await comment.fill('@Như');
+    await comment.press('ArrowDown');
+    await comment.press('Enter');
+    await expect(comment).toHaveValue(/@.*Như /);
+    await page.route(`**/api/tasks/${task._id}/comments`, (route) => route.request().method() === 'POST' ? route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'Lỗi gửi để thử lại' }) }) : route.continue());
+    await comment.fill('Bình luận cần giữ khi lỗi');
+    await comment.press('Control+Enter');
+    await expect(page.getByRole('alert').filter({ hasText: 'Lỗi gửi để thử lại' })).toBeVisible();
+    await expect(comment).toHaveValue('Bình luận cần giữ khi lỗi');
+    await page.unroute(`**/api/tasks/${task._id}/comments`);
+    await comment.press('Control+Enter');
+    await expect(comment).toHaveValue('');
+    await expect(page.getByText('Bình luận cần giữ khi lỗi', { exact: true })).toBeVisible();
+
+    const docRes = await ctx.request.post(`/api/projects/${project._id}/documents`, { headers, data: { name: 'Quy trình Sao Bắc', content: 'Mã nghiệm thu Sao Bắc là ORION742. Nhóm Sao Bắc chốt nghiệm thu vào thứ Sáu.' } });
+    assert.equal(docRes.status(), 201);
+    const doc = (await docRes.json()).document;
+    await page.goto('/ai/qa');
+    await expect(page.getByText('Nguồn được đọc trực tiếp khi hỏi; chưa có chỉ mục tìm kiếm nền.')).toBeVisible();
+    await page.getByRole('textbox', { name: 'Câu hỏi về dự án' }).fill('Mã nghiệm thu Sao Bắc là gì?');
+    await page.getByRole('button', { name: 'Gửi', exact: true }).click();
+    await expect(page.getByRole('button').filter({ hasText: `${doc.name} · đoạn 1` })).toBeVisible();
+    await page.screenshot({ path: path.join(artifacts, 'nhu-qa-citation.png'), fullPage: true });
+    await page.getByRole('button').filter({ hasText: `${doc.name} · đoạn 1` }).click();
+    await expect(page).toHaveURL(new RegExp(`document=${doc._id}`));
+    await expect(page.getByText('Trích đoạn nội dung', { exact: true })).toBeVisible();
+    await expect(page.getByText(/Mã nghiệm thu Sao Bắc là ORION742/)).toBeVisible();
+    await page.goto('/overview');
+    await page.getByRole('button', { name: 'Chỉnh giờ khả dụng' }).first().click();
+    const hours = page.getByRole('spinbutton', { name: /Giờ khả dụng/ });
+    await hours.fill('0');
+    await page.getByRole('button', { name: 'Lưu', exact: true }).click();
+    await expect(page.getByRole('spinbutton', { name: /Giờ khả dụng/ })).toHaveCount(0);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/my-tasks');
+    await expect(page.getByRole('button', { name: task.title, exact: true })).toBeVisible();
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true);
+    await page.screenshot({ path: path.join(artifacts, 'nhu-my-tasks-mobile.png'), fullPage: true });
+    await page.goto('/documents');
+    await expect(page.getByRole('button', { name: doc.name, exact: true })).toBeVisible();
+    await page.screenshot({ path: path.join(artifacts, 'nhu-documents-mobile.png'), fullPage: true });
+    assert.deepEqual(errors, []);
+  } finally { await ctx.close(); }
+});
+
+test('Như U031: My Tasks phân trang trên dataset 10.000 task', { timeout: 120000 }, async () => {
+  const { ctx, page } = await context();
+  try {
+    await login(page, 'mai.anh@nhom24.edu.vn');
+    const result = await ctx.request.post(`/api/workspaces/${seed.workspace.id}/projects`, { headers: { 'x-taskflow': '1' }, data: { name: 'Dataset UI 10000', keyPrefix: 'BIG' } });
+    assert.equal(result.status(), 201);
+    const project = (await result.json()).project;
+    for (let batch = 0; batch < 10; batch++) {
+      await db.prisma.task.createMany({ data: Array.from({ length: 1000 }, (_, i) => {
+        const number = batch * 1000 + i + 1;
+        return { workspace: seed.workspace.id, project: project._id, number, key: `BIG-${number}`, title: `Dataset lớn ${number}`, assignee: seed.users.maianh.id, creator: seed.users.maianh.id };
+      }) });
+    }
+    await page.goto('/my-tasks');
+    await page.getByRole('textbox', { name: 'Tìm công việc', exact: true }).fill('Dataset lớn');
+    await expect(page.getByRole('button', { name: /^Dataset lớn \d+$/ })).toHaveCount(20);
+    await expect(page.getByText(/trên 10000/)).toBeVisible();
+    await page.getByRole('button', { name: 'Trang sau', exact: true }).click();
+    await expect(page.getByRole('button', { name: /^Dataset lớn \d+$/ })).toHaveCount(20);
+    await expect(page.getByText(/21–40/)).toBeVisible();
+    await page.screenshot({ path: path.join(artifacts, 'nhu-my-tasks-10000.png'), fullPage: true });
+    assert.deepEqual(errors, []);
+  } finally { await ctx.close(); }
+});
 
 test('U003/U007/U009: SMTP register/invite → task → remaining hours → Review/Done → realtime draft', { timeout: 90000 }, async (t) => {
   const { messages } = await smtpSandbox(t, config);

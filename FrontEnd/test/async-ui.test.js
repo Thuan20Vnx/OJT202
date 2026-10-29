@@ -117,7 +117,7 @@ const stubReads = (t) => t.mock.method(api, 'get', async (url) => {
   if (url.endsWith('/ai/conversations')) return { conversations: [] };
   if (url.endsWith('/tasks')) return { tasks: [] };
   if (url.includes('/documents?')) return { counts: { doc: 0 } };
-  return { project: { members: [] }, access: { canManage: true } };
+  return { project: { members: [] }, access: { canManage: true, canWrite: true } };
 });
 
 test('đổi dự án xóa kế hoạch đang mở và bỏ phản hồi tạo nháp cũ', async (t) => {

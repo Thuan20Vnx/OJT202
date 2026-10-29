@@ -8,6 +8,7 @@ import { Avatar, Dropdown, Icon, MenuItem, StatusChip } from './ui.jsx';
 import CreateTaskModal from './CreateTaskModal.jsx';
 import TaskDetailModal from './TaskDetailModal.jsx';
 import ErrorBoundary from './ErrorBoundary.jsx';
+import ConnectionStatus from './ConnectionStatus.jsx';
 
 const NAV = [
   { to: '/overview', icon: 'dashboard', get label() { return tr("Tổng quan"); }, en: 'Overview' },
@@ -410,9 +411,10 @@ export default function AppShell() {
   return (
     <div className="flex h-full flex-col overflow-hidden">
       <TopBar onToggleSidebar={() => setCollapsed((c) => !c)} onCreate={() => setCreating(true)} sidebarOpen={!collapsed} />
+      <ConnectionStatus />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar collapsed={collapsed} overlay={narrow} onClose={() => setCollapsed(true)} />
-        <main className="scroll-thin flex-1 overflow-y-auto bg-slate-50">
+        <main id="main-content" className="scroll-thin min-w-0 flex-1 overflow-y-auto bg-slate-50">
           <ErrorBoundary key={loc.pathname}>
             <Outlet />
           </ErrorBoundary>

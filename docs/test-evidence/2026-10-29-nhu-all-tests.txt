@@ -1,0 +1,350 @@
+
+> test
+> npm --prefix AIService test && npm --prefix BackEnd test && npm --prefix FrontEnd test
+
+
+> taskflow-ai-service@1.0.0 test
+> node --test "test/**/*.test.js"
+
+▶ Bộ AI nội bộ
+  ✔ ghi chú họp: không rõ người/hạn thì để trống (36.9207ms)
+  ✔ lập kế hoạch: tổng giờ không vượt mức tối đa sau làm tròn, không tự đặt hạn (4.1941ms)
+  ✔ biên bản: ISO không bị đọc nhầm, ngày sai/thiếu tháng để trống, cuối ngày đúng profile (4.2407ms)
+  ✔ biên bản: ngày mai đi qua DST vẫn đúng cuối ngày, không phụ thuộc TZ máy (3.1338ms)
+  ✔ tên thành viên chứa ký tự regex vẫn nhận đúng và không làm hỏng biên bản (1.1681ms)
+  ✔ báo cáo dùng ngày dự án Việt Nam trên máy chủ UTC (1.6878ms)
+  ✔ kế hoạch giữ cuối ngày và không vượt timestamp hạn cụ thể (4.2711ms)
+  ✔ provider không được trả kế hoạch quá giờ, giờ vô hạn hoặc hạn sai (5.4706ms)
+  ✔ provider biên bản: ngày sai để trống, ngày hợp lệ đổi về cuối ngày profile (1.5002ms)
+  ✔ provider biên bản sai cấu trúc hoặc thiếu tiêu đề không được tạo việc rỗng (1.685ms)
+  ✔ hỏi đáp: có trích dẫn khi có nguồn, từ chối khi thiếu chứng cứ (1.3127ms)
+✔ Bộ AI nội bộ (69.8861ms)
+▶ API HTTP
+  ✔ health + thông tin nhà cung cấp (40.9432ms)
+  ✔ sai / thiếu khóa dùng chung bị từ chối (401) (23.7421ms)
+  ✔ dữ liệu không hợp lệ (400) (30.634ms)
+  ✔ /v1/planner trả bản nháp + token + model (4.4052ms)
+  ✔ /v1/meeting, /v1/qa, /v1/report, /v1/risk (7.6408ms)
+✔ API HTTP (108.0354ms)
+ℹ tests 16
+ℹ suites 2
+ℹ pass 16
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 462.485
+
+> taskflow-server@1.0.0 test
+> node --test --test-concurrency=1 "test/**/*.test.js"
+
+[seed] Tạo dữ liệu demo Nhóm 24…
+[seed] Xong. Đăng nhập: mai.anh@nhom24.edu.vn / TaskFlow@2026  (System Admin: admin@taskflow.local)
+✔ U025: thống kê nguồn trực tiếp có ACL, bỏ task xóa và ảnh; không tải toàn bộ nội dung (47464.39ms)
+▶ Xác thực & phiên (U003, U004, U005)
+  ✔ sai mật khẩu và email không tồn tại trả cùng một lỗi chung (968.9097ms)
+  ✔ đăng ký: email duy nhất không phân biệt hoa thường, phải xác minh mới đăng nhập (1501.4682ms)
+  ✔ mật khẩu yếu bị từ chối (18.8932ms)
+  ✔ refresh token xoay vòng; dùng lại token cũ thu hồi cả chuỗi phiên (297.1546ms)
+  ✔ logout thu hồi phiên (209.853ms)
+  ✔ đặt lại mật khẩu: token một lần, thu hồi phiên cũ (2199.9011ms)
+  ✔ cập nhật hồ sơ không đổi được vai trò (192.6279ms)
+  ✔ CSRF: request ghi thiếu header bảo vệ bị chặn (4.1758ms)
+✔ Xác thực & phiên (U003, U004, U005) (5396.5891ms)
+▶ Workspace, phân quyền & cách ly dữ liệu (U006, U007, U008)
+  ✔ người ngoài nhóm không đọc được workspace/dự án/công việc (404) (749.1506ms)
+  ✔ workspace cùng tên được phân biệt bằng ID và slug (216.909ms)
+  ✔ không xóa / hạ quyền được Owner cuối cùng (233.7497ms)
+  ✔ lời mời hết hạn sau 72 giờ (262.9378ms)
+  ✔ ngày kết thúc dự án không được trước ngày bắt đầu (273.8759ms)
+  ✔ dự án lưu trữ là chỉ đọc (311.8062ms)
+✔ Workspace, phân quyền & cách ly dữ liệu (U006, U007, U008) (2050.2736ms)
+▶ Công việc & Kanban (U009, U010, U013, U018)
+  ✔ người nhận phải thuộc dự án; thiếu ngày thì không tự đặt hạn (398.8515ms)
+  ✔ Viewer không được kéo thả (232.2355ms)
+  ✔ cập nhật với version cũ trả 409 (379.1615ms)
+  ✔ subtask tối đa 1 cấp; xóa cha cần xác nhận (286.6197ms)
+  ✔ phụ thuộc: không tự liên kết, không khác dự án, không chu trình (358.2445ms)
+  ✔ bình luận: nội dung HTML bị loại bỏ, chỉ sửa được của mình (551.2398ms)
+✔ Công việc & Kanban (U009, U010, U013, U018) (2207.9711ms)
+▶ Sprint 1 Hoàng Anh — quyền dự án và workflow (U006-T1, U008-T1, U010-T1)
+  ✔ Member/Viewer không tạo project; creator là PM trong cùng transaction (723.8673ms)
+  ✔ hai request tạo workspace cùng tên đều thành công, slug không trùng (226.2382ms)
+  ✔ PM archive làm project chỉ đọc với cả PM; Member không restore (755.1658ms)
+  ✔ không hạ Workspace Viewer cho PM cuối; transaction và audit không ghi thay đổi thất bại (308.8597ms)
+  ✔ Admin ngoài project không đọc được project/task/file/metrics/search/activity (784.8822ms)
+  ✔ không nhận member ngoài workspace và không nâng Workspace Viewer thành PM/Member (319.1038ms)
+  ✔ PM cuối không bị gỡ/hạ quyền/rời workspace trước khi chuyển giao (699.4384ms)
+  ✔ hai PM hạ quyền nhau đồng thời vẫn giữ ít nhất một PM (725.1126ms)
+  ✔ gỡ thành viên bỏ gán task; project và bảng thành viên luôn đồng bộ (357.8463ms)
+  ✔ Member chỉ đổi trạng thái task mình nhận; chỉ PM duyệt Done/reopen (1022.0181ms)
+  ✔ cập nhật thiếu version bị từ chối; hai request cùng version chỉ một thành công (373.6232ms)
+  ✔ quyền progress trên Kanban/My Tasks/detail nhất quán (855.3571ms)
+✔ Sprint 1 Hoàng Anh — quyền dự án và workflow (U006-T1, U008-T1, U010-T1) (7154.0577ms)
+▶ Nhật ký & xuất dữ liệu (U020)
+  ✔ CSV chống chèn công thức (1.0958ms)
+  ✔ nhật ký không có API sửa/xóa (281.3245ms)
+✔ Nhật ký & xuất dữ liệu (U020) (283.1188ms)
+▶ Trợ lý AI (U021–U027)
+  ✔ kế hoạch nháp 5–15 việc; không có hạn thì không tự đặt; duyệt nhiều lần không tạo trùng (829.7073ms)
+  ✔ hỏi đáp có nguồn; thiếu chứng cứ thì từ chối (548.9044ms)
+  ✔ hỏi đáp không đọc được dự án không có quyền (253.9481ms)
+  ✔ báo cáo: số liệu tính từ DB (517.267ms)
+  ✔ vượt hạn mức AI trả 429 nhưng CRUD vẫn hoạt động (473.2145ms)
+  ✔ ghi chú họp qua AIService: không rõ người/hạn thì để trống (411.6937ms)
+[ai] qa lỗi: fetch failed
+[error] HttpError: AI đang bận, vui lòng thử lại sau. Các chức năng khác vẫn hoạt động bình thường.
+    at runAi (file:///D:/OJT/Project/OJT202/BackEnd/src/services/ai/gateway.js:86:13)
+    at async file:///D:/OJT/Project/OJT202/BackEnd/src/routes/ai.js:447:15 {
+  status: 503,
+  details: { code: 'AI_UNAVAILABLE' }
+}
+  ✔ AIService không chạy: tính năng AI báo bận (503), CRUD vẫn hoạt động (398.0816ms)
+  ✔ cảnh báo rủi ro dựa trên quy tắc (424.3968ms)
+✔ Trợ lý AI (U021–U027) (3859.4541ms)
+▶ Quản trị hệ thống (U028)
+  ✔ khóa tài khoản chặn phiên ngay và bắt buộc lý do; admin không đọc nội dung dự án (546.4426ms)
+✔ Quản trị hệ thống (U028) (546.9113ms)
+▶ Rà soát vòng 2: thông báo và dữ liệu đầu vào
+  ✔ phân trang đủ 61 thông báo cùng thời điểm, không lặp và vẫn lọc quyền hiện tại (1307.0603ms)
+  ✔ cursor và ngày phân trang sai trả 400 (1006.4527ms)
+  ✔ tắt nhắc hạn chặn cả sắp hạn lẫn quá hạn, bật lại gửi được (1159.8422ms)
+  ✔ chưa mở cài đặt vẫn áp dụng mặc định không nhận bình luận (1077.3547ms)
+  ✔ TXT chứa NUL sau 512 byte bị chặn 400 và không lưu dở lô upload (1024.795ms)
+✔ Rà soát vòng 2: thông báo và dữ liệu đầu vào (5577.0896ms)
+▶ Rà soát 26/10: dữ liệu không hợp lệ và nhắc hạn dự án lưu trữ
+  ✔ NUL trong tên công việc, JSON checklist và hồ sơ trả 400, không lưu dở (1028.1224ms)
+  ✔ dự án lưu trữ không gửi nhắc hạn; khôi phục vẫn gửi đúng một lần (1214.0185ms)
+✔ Rà soát 26/10: dữ liệu không hợp lệ và nhắc hạn dự án lưu trữ (2243.0867ms)
+▶ Rà soát 26/10 vòng 2: phạm vi thông báo và thời gian phiên
+  ✔ workspace sai không được biến read-all thành đánh dấu toàn bộ tài khoản (938.8707ms)
+  ✔ phiên trả lastUsedAt thực thay vì thời điểm sửa bản ghi (255.4487ms)
+✔ Rà soát 26/10 vòng 2: phạm vi thông báo và thời gian phiên (1195.0814ms)
+▶ Rà soát 25/10: thu hồi quyền và bảo toàn tài liệu
+  ✔ My Tasks trả quyền từng dự án và đếm hợp nhất việc cần xử lý (1755.4456ms)
+  ✔ Admin bị hạ quyền sau middleware không thể đổi tên workspace (1106.7842ms)
+  ✔ editor nhận đủ nội dung hơn 20.000 ký tự, kiểm quyền và version khi lưu (1058.455ms)
+  ✔ TXT lớn tải nguyên bản, không cho ghi đè từ phần nội dung đã cắt (1081.7278ms)
+  ✔ TXT upload khôi phục được nguyên văn bản gốc sau chỉnh sửa (983.8758ms)
+  ✔ văn bản giữ nguyên markup và khoảng trắng; NUL bị từ chối rõ ràng (946.3854ms)
+  ✔ đổi tên tăng version, chặn ghi đè tên cũ; revision sai định dạng trả 404 (899.0842ms)
+✔ Rà soát 25/10: thu hồi quyền và bảo toàn tài liệu (7833.2537ms)
+▶ Lộc: phân quyền và nghiệp vụ bổ sung
+  ✔ Member bị chặn Done qua cả create, PATCH và Kanban; PM phải duyệt từ Review (1172.5026ms)
+  ✔ PM là Member vẫn được duyệt; Viewer không thể làm PM hoặc nhận task (1095.4984ms)
+  ✔ gỡ khỏi project: bỏ giao task cha/con, tăng version, giữ audit và thu hồi API/file/AI/thông báo (1333.1509ms)
+  ✔ gỡ khỏi workspace: bỏ giao, gỡ PM và không để lại quyền dự án (1160.9025ms)
+  ✔ hạ PM xuống Viewer: vẫn đọc được, không được ghi/duyệt/lưu trữ và task được bỏ giao (1196.1735ms)
+  ✔ Admin không gỡ Admin khác hoặc sửa quyền cấp cao (918.7398ms)
+  ✔ hai Owner hạ quyền đồng thời: luôn còn một Owner và owner_id hợp lệ (1040.3652ms)
+  ✔ giao task đồng thời gỡ thành viên: không để lại assignee ngoài dự án (1001.3868ms)
+  ✔ giao lại task đồng thời gỡ thành viên: version và assignee vẫn nhất quán (907.3613ms)
+  ✔ dữ liệu PM sai phải rollback cả bỏ giao và thay đổi thành viên (879.6867ms)
+  ✔ socket đang mở bị thu hồi khi gỡ thành viên, không join lại hoặc nhận sự kiện (962.9032ms)
+  ✔ Admin ngoài dự án bị chặn; gỡ membership thu hồi socket và API (952.2943ms)
+  ✔ logout chấm dứt socket đang mở (826.2048ms)
+  ✔ không lộ danh sách dự án riêng qua endpoint thành viên workspace (832.633ms)
+  ✔ nhận cùng lời mời đồng thời: chỉ một lần thành công; lời mời đã thu hồi/hết hạn bị chặn (946.5001ms)
+  ✔ quá hạn theo thời điểm: hôm nay, đúng hạn, không hạn, Done và ngưỡng 0/1 ngày (1016.3886ms)
+  ✔ 0 giờ khả dụng: có việc phải cảnh báo; không việc không cảnh báo; thiếu estimate được báo rõ (1001.5511ms)
+  ✔ ngưỡng tải so sánh số thực trước khi làm tròn phần trăm (863.6403ms)
+  ✔ hai phụ thuộc ngược nhau được gửi đồng thời vẫn không tạo chu trình (921.8234ms)
+  ✔ bản nháp AI không giao việc cho Viewer hoặc người bị gỡ trong lúc duyệt (917.5531ms)
+[error] PrismaClientKnownRequestError: 
+Invalid `prisma.task.create()` invocation:
+
+
+The provided value for the column is too long for the column's type. Column: (not available)
+    at ei.handleRequestError (D:\OJT\Project\OJT202\BackEnd\node_modules\@prisma\client\runtime\library.js:121:7268)
+    at ei.handleAndLogRequestError (D:\OJT\Project\OJT202\BackEnd\node_modules\@prisma\client\runtime\library.js:121:6593)
+    at ei.request (D:\OJT\Project\OJT202\BackEnd\node_modules\@prisma\client\runtime\library.js:121:6300)
+    at async a (D:\OJT\Project\OJT202\BackEnd\node_modules\@prisma\client\runtime\library.js:130:9551)
+    at async file:///D:/OJT/Project/OJT202/BackEnd/src/routes/ai.js:203:20
+    at async Proxy._transactionWithCallback (D:\OJT\Project\OJT202\BackEnd\node_modules\@prisma\client\runtime\library.js:130:8120)
+    at async file:///D:/OJT/Project/OJT202/BackEnd/src/routes/ai.js:167:42 {
+  code: 'P2000',
+  meta: { modelName: 'Task', column_name: '(not available)' },
+  clientVersion: '6.19.3'
+}
+  ✔ bản nháp AI lỗi giữa chừng rollback mọi task và audit (881.7511ms)
+  ✔ thu hồi quyền khi AI đang xử lý: không trả nội dung và không lưu cuộc hỏi đáp (931.3879ms)
+  ✔ subtask/checklist không tự duyệt task cha; dữ liệu trống cho thống kê bằng 0 (976.4868ms)
+  ✔ refresh đồng thời chỉ xoay token một lần và phát hiện dùng lại (359.2484ms)
+  ✔ AI plan/apply/report chỉ dành PM; Member được hỏi đáp, Viewer không ghi (1549.5398ms)
+  ✔ AI plan: kiểm lại quyền hoặc nguồn sau khi dịch vụ trả về (931.3805ms)
+  ✔ AI meeting: kiểm lại quyền hoặc nguồn sau khi dịch vụ trả về (959.8054ms)
+  ✔ AI reports: kiểm lại quyền hoặc nguồn sau khi dịch vụ trả về (968.8082ms)
+  ✔ AI ask: kiểm lại quyền hoặc nguồn sau khi dịch vụ trả về (949.226ms)
+  ✔ hạn mức AI đồng thời bao gồm lượt đang xử lý (1051.694ms)
+  ✔ quá hạn trong ngày đồng nhất giữa My Tasks, báo cáo và nhắc hạn (1112.6098ms)
+  ✔ Viewer không tạo/sửa/xóa bình luận; archived chặn cả tác giả; nội dung rỗng bị từ chối (1236.3797ms)
+  ✔ Admin không gửi lại/thu hồi/thay thế lời mời Admin; resend vô hiệu token cũ (880.7219ms)
+  ✔ tải lô tệp sai rollback toàn bộ; TXT sau sửa tải đúng phiên bản; restore sai trả 404 (955.9693ms)
+  ✔ hai câu hỏi đồng thời không ghi đè mất lịch sử hội thoại (915.5351ms)
+  ✔ thu hồi phiên đồng thời refresh không để lại phiên con còn sống (401.9379ms)
+  ✔ hai System Admin khóa nhau đồng thời vẫn còn người quản trị hoạt động và audit đầy đủ (442.1842ms)
+✔ Lộc: phân quyền và nghiệp vụ bổ sung (35459.1858ms)
+▶ Ngày giờ và nâng dependency — hồi quy bổ sung
+  ✔ API lưu date-only cuối ngày theo profile, giữ timestamp cụ thể khi cập nhật (368.2798ms)
+  ✔ API từ chối ngày không tồn tại, timestamp thiếu offset và timezone giả (281.6823ms)
+  ✔ báo cáo bao gồm đúng hết ngày VN, không lấn qua ngày tiếp theo (398.4117ms)
+  ✔ Sprint không được đảo ngày kể cả PATCH chỉ một đầu mốc (294.548ms)
+✔ Ngày giờ và nâng dependency — hồi quy bổ sung (1343.6965ms)
+▶ Tính hiện thời của nguồn AI
+  ✔ hỏi đáp cũ báo thay đổi và khóa link nguồn đã xóa; bản cũ chưa có revision báo unknown (446.7691ms)
+  ✔ report phát hiện sửa estimate và xóa task, vẫn giữ số liệu snapshot (562.0017ms)
+✔ Tính hiện thời của nguồn AI (1009.3442ms)
+▶ Vòng đời xác minh và giới hạn mật khẩu
+  ✔ xác minh một lần vô hiệu mọi link xác minh cũ, không dùng lại để đăng nhập (790.2363ms)
+  ✔ không nhận mật khẩu bị bcrypt cắt ở 72 byte, kể cả Unicode (6.3169ms)
+✔ Vòng đời xác minh và giới hạn mật khẩu (797.0173ms)
+▶ Phiên đăng nhập và dữ liệu biên
+  ✔ Ghi nhớ đăng nhập quyết định cookie persistent; refresh không kéo dài quá hạn phiên (416.5362ms)
+  ✔ hai link xác minh khác nhau chạy đồng thời chỉ tạo một phiên (734.0286ms)
+  ✔ client trực tiếp không giả IP qua X-Forwarded-For để né rate limit (181.8978ms)
+  ✔ burndown giới hạn số điểm với khoảng cực lớn, Sprint một ngày không lấn ngày sau (374.8736ms)
+✔ Phiên đăng nhập và dữ liệu biên (1708.0399ms)
+▶ Rủi ro: quyền sau AI và cập nhật đồng thời
+  ✔ AI đang chạy phải từ chối dữ liệu cũ: risk-revoked (600.5589ms)
+  ✔ AI đang chạy phải từ chối dữ liệu cũ: risk-source (587.3545ms)
+  ✔ AI đang chạy phải từ chối dữ liệu cũ: report-source (634.3733ms)
+  ✔ resolve chỉ nhận cảnh báo tồn tại, ghi audit; cập nhật hai quy tắc đồng thời không mất dữ liệu (758.6993ms)
+✔ Rủi ro: quyền sau AI và cập nhật đồng thời (2582.1225ms)
+✔ phân trang sai trả 400 thay vì lỗi Prisma 500 hoặc lấy ngược bản ghi (248.3093ms)
+▶ AI: hạn biên bản và giới hạn kế hoạch
+  ✔ biên bản qua HTTP và duyệt task giữ ngày ISO/cuối ngày profile, ngày sai để trống (370.393ms)
+  ✔ kế hoạch 1 giờ hợp lệ, sửa vượt giới hạn bị chặn trước khi tạo task (655.1577ms)
+  ✔ hạn kế hoạch đã qua không gọi AI; bản nháp không chọn việc không bị đánh dấu đã duyệt (283.6339ms)
+✔ AI: hạn biên bản và giới hạn kế hoạch (1309.918ms)
+▶ Lộc Sprint 1: SMTP, giờ còn lại và xóa mềm
+  ✔ SMTP thực nhận email register/resend/verify và invite/resend/revoke/accept (2469.3955ms)
+[error] HttpError: Chưa gửi được email. Vui lòng thử gửi lại sau.
+    at sendMail (file:///D:/OJT/Project/OJT202/BackEnd/src/services/mailer.js:41:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async sendVerification (file:///D:/OJT/Project/OJT202/BackEnd/src/routes/auth.js:34:3)
+    at async file:///D:/OJT/Project/OJT202/BackEnd/src/routes/auth.js:50:3 {
+  status: 503,
+  details: { code: 'MAIL_UNAVAILABLE' }
+}
+[mail] Delivery unavailable; user may retry the recovery request.
+[mail] Delivery unavailable; user may retry the recovery request.
+  ✔ SMTP lỗi báo lỗi an toàn, có thể gửi lại; recovery không lộ tài khoản (1455.077ms)
+  ✔ remainingHours nhận 0/null, kiểm biên/quyền, audit và thống kê dùng số cập nhật (999.2027ms)
+  ✔ soft-delete giữ dữ liệu/audit, ẩn mọi luồng, không tái tạo hoặc sửa task đã xóa (1429.6739ms)
+[error] Error: Simulated audit failure
+    at tx.activity.createMany (file:///D:/OJT/Project/OJT202/BackEnd/test/api.test.js:2047:72)
+    at logActivityIn (file:///D:/OJT/Project/OJT202/BackEnd/src/services/activity.js:7:41)
+    at file:///D:/OJT/Project/OJT202/BackEnd/src/routes/tasks.js:330:11
+    at async Proxy._transactionWithCallback (D:\OJT\Project\OJT202\BackEnd\node_modules\@prisma\client\runtime\library.js:130:8120)
+    at async file:///D:/OJT/Project/OJT202/BackEnd/src/routes/tasks.js:316:25
+  ✔ soft-delete rollback nếu audit thất bại; xóa/sửa đồng thời không phục hồi task (1037.2182ms)
+✔ Lộc Sprint 1: SMTP, giờ còn lại và xóa mềm (7391.799ms)
+✔ production never seeds public demo accounts, including explicit seed command (303.5028ms)
+✔ production refuses default and short signing secrets (157.4494ms)
+(node:16360) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ date-only deadlines end at 23:59:59.999 Vietnam time, independently of host TZ (22.8858ms)
+✔ DST days are 23 or 25 hours, not fixed 24h (1.4056ms)
+✔ week means Monday through Sunday, including year and DST boundaries (0.9343ms)
+✔ reject invalid calendar days, ambiguous timestamps and invalid timezone names (1.1251ms)
+✔ frontend formatting and calendar arithmetic use profile timezone (2.8482ms)
+[seed] Tạo dữ liệu demo Nhóm 24…
+[seed] Xong. Đăng nhập: mai.anh@nhom24.edu.vn / TaskFlow@2026  (System Admin: admin@taskflow.local)
+✔ migration nâng dữ liệu project cũ, giữ member/Viewer, PM và giờ còn lại (47296.4947ms)
+✔ U025: citation thể hiện thời điểm/version nguồn hiện tại và phát hiện nguồn thay đổi (1.9081ms)
+ℹ tests 131
+ℹ suites 19
+ℹ pass 131
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 189126.7623
+
+> taskflow-client@1.0.0 test
+> node --import ./test/helpers/register-jsx.js --test test/*.test.js
+
+(node:16700) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:16700) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+✔ 401 đang chờ từ phiên ẩn danh không đăng xuất phiên vừa xác minh (87.5827ms)
+✔ download: lỗi mạng được chuẩn hóa; hết phiên thật mới phát unauthorized (14.2457ms)
+✔ JSON sai hoặc kết nối đứt khi đọc body được báo bằng ApiError (14.8112ms)
+✔ download làm mới phiên và tải đủ byte; refresh 503 không đăng xuất (30.3277ms)
+✔ refresh gặp 503 không đăng xuất người dùng và không xoay token khi /me lỗi server (32.6653ms)
+✔ lỗi mạng trong refresh hoặc retry được chuẩn hóa thành ApiError (23.7749ms)
+✔ refresh trả 401 mới phát sự kiện hết phiên (31.4459ms)
+✔ nhiều request 401 đồng thời chỉ xoay refresh một lần (24.1076ms)
+(node:15012) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:15012) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+✔ useLoad không giữ dữ liệu dự án trước khi dự án mới tải lỗi (13.7064ms)
+✔ reload cũ không được thay thế kết quả của phạm vi mới (2.2411ms)
+✔ quyền bị vô hiệu hóa chỉ tải lại đúng dự án và khóa ghi trong lúc chờ (2.2923ms)
+✔ quyền dự án không còn lấy từ cache cũ sau khi component đã đóng và resync (1.6634ms)
+✔ chọn lịch sử sau cùng thắng phản hồi cũ đến muộn (25.976ms)
+✔ mở lịch sử thất bại được báo trên giao diện, không reject khỏi handler (5.5846ms)
+✔ đổi dự án xóa kế hoạch đang mở và bỏ phản hồi tạo nháp cũ (12.1284ms)
+✔ báo cáo lưu lỗi giữ nguyên editor và nội dung để thử lại (54.5992ms)
+✔ mở báo cáo khác đóng editor cũ để không lưu nhầm nội dung sang báo cáo mới (12.7854ms)
+✔ hỏi đáp chặn Enter gửi lặp khi đang chờ và bỏ phản hồi sau Cuộc hỏi mới (11.7291ms)
+✔ duyệt nháp phải chờ lưu checkbox và không duyệt khi còn sửa chưa lưu (4.1222ms)
+(node:26024) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:26024) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+✔ switches catalogs and dates at runtime, preserving interpolation values (24.3926ms)
+✔ stores preference and updates document language (1.1424ms)
+✔ translates server validation and risk templates without translating task titles (5.0472ms)
+✔ changing language updates the actual task form without losing its draft (35.1625ms)
+(node:11112) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:11112) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+✔ U011: debounce chỉ lấy chuỗi cuối, hủy timer khi unmount (55.2578ms)
+✔ U014: lỗi gửi giữ bình luận và không reject; Ctrl+Enter không gửi lặp (11.6753ms)
+✔ U014: mention hỗ trợ mũi tên, Enter và Escape (3.3777ms)
+✔ U019: giờ trống không thành 0, giờ 0 được gửi đúng và lỗi giữ form (4.683ms)
+✔ U011/U031: API lỗi không báo danh sách rỗng hoặc crash (31.15ms)
+✔ U025: dùng API thống kê nhỏ, lỗi nguồn/lịch sử hiện rõ, không giả số 0 (9.1538ms)
+(node:20876) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:20876) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+✔ U010-T2: thẻ có nút mở bằng bàn phím và select trạng thái đúng quyền (16.41ms)
+✔ U010-T2: lỗi move chỉ rollback thẻ thất bại, giữ thẻ khác và khóa gửi lặp (64.3323ms)
+✔ U010-T3: Viewer không có kéo thả hoặc điều khiển ghi trên thẻ (8.8195ms)
+✔ U009-T2: phản hồi realtime đang chờ không ghi đè draft hoặc version gốc (61.2128ms)
+✔ U009-T2: tạo task gửi đúng thuộc tính, chặn bấm lặp và giữ form khi API lỗi (23.2148ms)
+✔ U009-T2: chưa tải được quyền thì không gửi tạo công việc (3.459ms)
+(node:22240) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:22240) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+✔ Cài đặt AI: tải lần đầu thất bại có lỗi và Thử lại, không crash (34.1537ms)
+✔ Lời mời: tải lần đầu thất bại có lỗi và Thử lại, không crash (3.9097ms)
+✔ Cài đặt AI: bật tính năng và resync không xóa hạn mức/timeout đang nhập (20.5058ms)
+✔ Cài đặt AI: hạn mức trống không được lưu thành 0 (9.7345ms)
+✔ Cài đặt AI: lưu lỗi giữ dữ liệu, thử lại cho phép hạn mức 0 có chủ ý (14.8031ms)
+✔ Cài đặt AI: lỗi nhật ký có Thử lại và lỗi xuất CSV được báo (13.0218ms)
+✔ Lời mời: gửi lại và hủy lỗi được xử lý, giữ mục để thử lại (6.7682ms)
+✔ Hồ sơ: lỗi đổi mật khẩu không có fields vẫn được hiển thị (11.1456ms)
+✔ Hồ sơ: lỗi tải phiên có Thử lại, lỗi thu hồi phiên không thoát khỏi handler (7.0187ms)
+(node:17852) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:17852) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+✔ Member gửi Review, không thể tự duyệt Done (3.0567ms)
+✔ PM chỉ được duyệt Done từ Review, có thể mở lại Done (0.3355ms)
+✔ Viewer, dự án archived hoặc chưa tải quyền không có thao tác ghi (0.2963ms)
+✔ My Tasks dùng quyền server: Member bắt đầu rồi gửi Review, không duyệt hoặc mở lại (0.7099ms)
+✔ Kanban và My Tasks cùng giới hạn PM duyệt Done sau Review (0.3276ms)
+(node:21628) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:21628) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+✔ P2: a pending realtime reload must preserve edits started while it was loading (97.2248ms)
+✔ out-of-order realtime responses cannot replace the newest task (13.3319ms)
+✔ explicit reload discards the old draft but keeps edits started during the reload (16.1097ms)
+ℹ tests 52
+ℹ suites 0
+ℹ pass 52
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6271.6225

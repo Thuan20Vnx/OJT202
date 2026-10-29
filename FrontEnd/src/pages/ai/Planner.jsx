@@ -1,18 +1,20 @@
 import { t as tr, useI18n } from '../../lib/i18n.js';
 import { useState } from 'react';
-import { Field, Icon, Notice, Spinner } from '../../components/ui.jsx';
+import { ErrorBox, Field, Icon, Notice, Spinner } from '../../components/ui.jsx';
 import { api } from '../../lib/api.js';
 import { useLoad, useToast } from '../../lib/app.jsx';
 import { isoDate, timeAgo } from '../../lib/format.js';
 import { useLatestRequest, useProjectInfo } from '../../lib/hooks.js';
 import DraftItems from './DraftItems.jsx';
 
-export function History({ items, onOpen, activeId, empty = tr("Chưa có lịch sử") }) {
+export function History({ items, onOpen, activeId, error, loading, onRetry, empty = tr("Chưa có lịch sử") }) {
   useI18n();
   return (
     <div className="card p-4">
       <p className="section-label mb-2 flex items-center justify-between">{tr("Lịch sử gần đây ")}<Icon name="history" size={16} />
       </p>
+      <ErrorBox error={error} onRetry={onRetry} />
+      {loading && !items.length && <Spinner />}
       <div className="space-y-1.5">
         {items.map((d) => (
           <button
@@ -34,7 +36,7 @@ export function History({ items, onOpen, activeId, empty = tr("Chưa có lịch 
             </p>
           </button>
         ))}
-        {!items.length && <p className="text-body-sm text-slate-400">{empty}</p>}
+        {!loading && !error && !items.length && <p className="text-body-sm text-slate-400">{empty}</p>}
       </div>
     </div>
   );
@@ -99,6 +101,7 @@ export default function Planner({ project, onUsage, disabled }) {
             {info?.project?.sprint?.name && <span className="text-label-md font-normal text-slate-400">{info.project.sprint.name}</span>}
           </div>
           <textarea
+            aria-label={tr("Mục tiêu kế hoạch")}
             className="textarea min-h-[96px]"
             value={f.goal}
             onChange={(e) => setF({ ...f, goal: e.target.value })}
@@ -124,7 +127,7 @@ export default function Planner({ project, onUsage, disabled }) {
           {!canWrite && <p className="text-label-md font-normal text-slate-500">{tr("Chỉ PM, Owner hoặc Admin của dự án đang hoạt động được lập và duyệt kế hoạch.")}</p>}
         </div>
         {error && <Notice tone={error.status === 429 ? 'warn' : 'danger'}>{error.message}</Notice>}
-        <History items={history.data?.drafts || []} onOpen={open} activeId={draft?._id} />
+        <History items={history.data?.drafts || []} error={history.error} loading={history.loading} onRetry={history.reload} onOpen={open} activeId={draft?._id} />
       </div>
       <div className="min-w-0">
         {draft ? (

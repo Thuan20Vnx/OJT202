@@ -36,7 +36,7 @@ export function ToastProvider({ children }) {
   return (
     <ToastCtx.Provider value={push}>
       {children}
-      <div className="pointer-events-none fixed right-4 top-[72px] z-[100] flex w-[340px] flex-col gap-2">
+      <div aria-live="polite" className="pointer-events-none fixed right-4 top-[72px] z-[100] flex w-[340px] max-w-[calc(100vw-2rem)] flex-col gap-2">
         {toasts.map((t) => (
           <div
             key={t.id}

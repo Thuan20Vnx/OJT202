@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { USER, isId, nextSeq, populate, populateAll, prisma } from '../db.js';
 import { requireAuth } from '../middleware/auth.js';
-import { assertManage, middlewareProject, projectAccess } from '../middleware/access.js';
+import { assertManage, assertWrite, middlewareProject, projectAccess } from '../middleware/access.js';
 import { logActivityIn } from '../services/activity.js';
 import { withWorkspaceLock } from '../services/membership.js';
 import { runAi, usageToday } from '../services/ai/gateway.js';
@@ -415,6 +415,16 @@ router.delete('/ai/reports/:id', async (req, res) => {
 });
 
 // ===================== HỎI ĐÁP DỰ ÁN =====================
+router.get('/projects/:projectId/ai/sources', middlewareProject(), async (req, res) => {
+  const project = req.pa.project.id;
+  const [tasks, documents, latestTask, latestDocument] = await Promise.all([
+    prisma.task.count({ where: { project, deletedAt: null } }),
+    prisma.document.count({ where: { project, isScan: false, OR: [{ kind: 'doc' }, { mime: 'text/plain' }] } }),
+    prisma.task.findFirst({ where: { project, deletedAt: null }, orderBy: { updatedAt: 'desc' }, select: { updatedAt: true } }),
+    prisma.document.findFirst({ where: { project, isScan: false, OR: [{ kind: 'doc' }, { mime: 'text/plain' }] }, orderBy: { updatedAt: 'desc' }, select: { updatedAt: true } }),
+  ]);
+  res.json({ tasks, documents, retrieval: 'live', latestTaskAt: latestTask?.updatedAt || null, latestDocumentAt: latestDocument?.updatedAt || null });
+});
 router.get('/projects/:projectId/ai/conversations', middlewareProject(), async (req, res) => {
   const convs = await prisma.aiConversation.findMany({ where: { project: req.pa.project.id, user: req.user.id }, orderBy: { updatedAt: 'desc' }, take: 20 });
   res.json({ conversations: convs.map((c) => ({ id: c.id, title: c.title, updatedAt: c.updatedAt, count: c.messages.length })) });
@@ -428,6 +438,7 @@ router.get('/ai/conversations/:id', async (req, res) => {
 });
 
 router.post('/projects/:projectId/ai/ask', middlewareProject(), async (req, res) => {
+  assertWrite(req.pa);
   const body = parse(z.object({ question: z.string().trim().min(3, 'Câu hỏi quá ngắn').max(1000), conversation: z.string().optional() }), req.body);
   const project = req.pa.project;
   const existing = isId(body.conversation) ? await prisma.aiConversation.findFirst({ where: { id: body.conversation, user: req.user.id, project: project.id } }) : null;
@@ -436,7 +447,7 @@ router.post('/projects/:projectId/ai/ask', middlewareProject(), async (req, res)
   const out = await runAi({ workspaceId: project.workspace, userId: req.user.id, feature: 'qa', payload: { question: body.question, projectName: project.name, sources } });
   // Kiểm lại quyền trước khi trả kết quả (phòng quyền bị thu hồi trong lúc AI chạy)
   const conversation = await withWorkspaceLock(project.workspace, async (tx) => {
-    await projectAccess(req.user.id, project.id, tx);
+    assertWrite(await projectAccess(req.user.id, project.id, tx));
     if (sourceFingerprint(sources) !== sourceFingerprint(await collectSources(project.id))) {
       throw conflict('Nguồn dự án đã thay đổi trong lúc AI trả lời. Vui lòng hỏi lại để dùng dữ liệu mới nhất.', { code: 'AI_SOURCES_CHANGED' });
     }

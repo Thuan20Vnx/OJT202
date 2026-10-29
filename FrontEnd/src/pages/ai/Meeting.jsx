@@ -70,7 +70,7 @@ export default function Meeting({ project, onUsage, disabled }) {
             {busy ? <Spinner /> : <Icon name="auto_awesome" size={18} />}{tr("Trích action items")}</button>
         </div>
         {error && <Notice tone={error.status === 429 ? 'warn' : 'danger'}>{error.message}</Notice>}
-        <History items={history.data?.drafts || []} onOpen={open} activeId={draft?._id} />
+        <History items={history.data?.drafts || []} error={history.error} loading={history.loading} onRetry={history.reload} onOpen={open} activeId={draft?._id} />
       </div>
       <div className="min-w-0">
         {draft ? (

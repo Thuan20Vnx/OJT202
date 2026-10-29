@@ -1,11 +1,11 @@
 import { t as tr, useI18n } from '../lib/i18n.js';
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Avatar, Chip, Confirm, Empty, ErrorBox, Field, Icon, Modal, Notice, PageHeader, PageLoader, Pagination, Select, Spinner } from '../components/ui.jsx';
 import { api, download, qs } from '../lib/api.js';
 import { useApp, useLoad, useToast } from '../lib/app.jsx';
 import { fileIcon, fileSize, fmtDateTime, timeAgo } from '../lib/format.js';
-import { useProjectInfo, useSocketEvent } from '../lib/hooks.js';
+import { useDebouncedValue, useProjectInfo, useSocketEvent } from '../lib/hooks.js';
 
 const ALLOWED = /\.(pdf|txt|png|jpe?g)$/i;
 
@@ -21,17 +21,24 @@ function DocumentsPage() {
   const info = useProjectInfo(project?._id);
   const toast = useToast();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [tab, setTab] = useState('all');
   const [f, setF] = useState({ search: '', type: '', uploadedBy: '' });
   const [page, setPage] = useState(1);
-  const [selected, setSelected] = useState(null);
+  const [selected, setSelected] = useState(searchParams.get('document'));
   const [rejected, setRejected] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [newDoc, setNewDoc] = useState(false);
   const input = useRef(null);
-  const params = { ...f, kind: tab === 'docs' ? 'doc' : tab === 'files' ? 'file' : '', mine: tab === 'mine' ? 'true' : '', page, limit: 20 };
+  const search = useDebouncedValue(f.search);
+  const uploadLock = useRef(false);
+  const params = { ...f, search, kind: tab === 'docs' ? 'doc' : tab === 'files' ? 'file' : '', mine: tab === 'mine' ? 'true' : '', page, limit: 20 };
   const { data, error, loading, reload } = useLoad(() => (project ? api.get(`/projects/${project._id}/documents${qs(params)}`) : Promise.resolve(null)), [project?._id, JSON.stringify(params)]);
   useSocketEvent('documents:changed', () => reload(), [reload]);
+  useEffect(() => {
+    const id = searchParams.get('document');
+    if (id) setSelected(id);
+  }, [searchParams]);
 
   useEffect(() => {
     if (data?.documents?.length && !selected) setSelected(data.documents[0]._id);
@@ -40,6 +47,7 @@ function DocumentsPage() {
   if (!project) return <Empty icon="folder_off" title={tr("Chưa có dự án")} />;
 
   const upload = async (list) => {
+    if (uploadLock.current || !canWriteProject) return;
     const files = [...list];
     const bad = files.filter((x) => !ALLOWED.test(x.name) || x.size > 10 * 1024 * 1024);
     setRejected(bad.map((x) => (x.size > 10 * 1024 * 1024 ? tr("{0} vượt quá 10MB", [x.name]) : tr("{0} không được hỗ trợ – chỉ nhận PDF, TXT, PNG, JPG", [x.name]))));
@@ -47,6 +55,7 @@ function DocumentsPage() {
     if (!ok.length) return;
     const fd = new FormData();
     ok.forEach((x) => fd.append('files', x));
+    uploadLock.current = true;
     setUploading(true);
     try {
       const d = await api.upload(`/projects/${project._id}/documents/upload`, fd);
@@ -55,6 +64,7 @@ function DocumentsPage() {
     } catch (e) {
       setRejected((r) => [...r, e.message]);
     } finally {
+      uploadLock.current = false;
       setUploading(false);
     }
   };
@@ -112,9 +122,9 @@ function DocumentsPage() {
             ))}
             <div className="relative ml-auto">
               <Icon name="search" size={16} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input className="input h-8 w-52 pl-8 text-body-sm" placeholder={tr("Tìm theo tên tài liệu")} value={f.search} onChange={(e) => (setF({ ...f, search: e.target.value }), setPage(1))} />
+              <input aria-label={tr("Tìm theo tên tài liệu")} className="input h-8 w-52 pl-8 text-body-sm" placeholder={tr("Tìm theo tên tài liệu")} value={f.search} onChange={(e) => (setF({ ...f, search: e.target.value }), setPage(1))} />
             </div>
-            <Select className="input h-8 w-auto py-0 text-body-sm" value={f.type} onChange={(e) => setF({ ...f, type: e.target.value })}>
+            <Select aria-label={tr("Loại tệp")} className="input h-8 w-auto py-0 text-body-sm" value={f.type} onChange={(e) => (setF({ ...f, type: e.target.value }), setPage(1))}>
               <option value="">{tr("Loại tệp")}</option>
               {['pdf', 'txt', 'png', 'jpg'].map((x) => (
                 <option key={x} value={x}>
@@ -122,7 +132,7 @@ function DocumentsPage() {
                 </option>
               ))}
             </Select>
-            <Select className="input h-8 w-auto py-0 text-body-sm" value={f.uploadedBy} onChange={(e) => setF({ ...f, uploadedBy: e.target.value })}>
+            <Select aria-label={tr("Người tải lên")} className="input h-8 w-auto py-0 text-body-sm" value={f.uploadedBy} onChange={(e) => (setF({ ...f, uploadedBy: e.target.value }), setPage(1))}>
               <option value="">{tr("Người tải lên")}</option>
               {(info?.project?.members || []).map((m) => (
                 <option key={m._id} value={m._id}>
@@ -134,8 +144,8 @@ function DocumentsPage() {
           <ErrorBox error={error} onRetry={reload} />
           {loading && !data ? (
             <PageLoader />
-          ) : !data?.documents.length ? (
-            <Empty icon="folder_open" title={tr("Chưa có tài liệu")}>{tr("Tải tệp lên hoặc tạo tài liệu văn bản mới.")}</Empty>
+          ) : error && !data ? null : !data?.documents.length ? (
+            <Empty icon="folder_open" title={tr("Không có tài liệu phù hợp")}>{tr("Thử đổi bộ lọc, tải tệp lên hoặc tạo tài liệu văn bản mới.")}</Empty>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full">
@@ -160,7 +170,7 @@ function DocumentsPage() {
                               <Icon name={ic.icon} size={18} />
                             </span>
                             <div className="min-w-0">
-                              <p className="truncate font-medium text-slate-900">{d.name}</p>
+                              <button className="text-left font-medium text-slate-900 hover:text-blue-700" onClick={() => setSelected(d._id)}>{d.name}</button>
                               {d.isScan && <span className="chip mt-0.5 border-amber-200 bg-amber-50 text-amber-700">{tr("Ảnh scan – không dùng cho Trợ lý AI")}</span>}
                             </div>
                           </div>

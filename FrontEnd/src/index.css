@@ -253,3 +253,17 @@
     width: 100%;
   }
 }
+
+/* Thao tác bàn phím phải nhìn thấy trên mọi màn hình. */
+:where(button, a, input, textarea, select):focus-visible {
+  outline: 2px solid #1d4ed8;
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

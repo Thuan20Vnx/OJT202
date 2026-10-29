@@ -24,15 +24,19 @@ function Section({ icon, title, right, children, tone = 'text-slate-500' }) {
   );
 }
 
-function CommentBox({ members, onSend, initial = '', onCancel, autoFocus }) {
+export function CommentBox({ members, onSend, initial = '', onCancel, autoFocus }) {
   useI18n();
   const [text, setText] = useState(initial);
   const [suggest, setSuggest] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(null);
+  const [activeMention, setActiveMention] = useState(0);
+  const sending = useRef(false);
   const ref = useRef(null);
   const onChange = (e) => {
     const v = e.target.value;
     setText(v);
+    setActiveMention(0);
     const m = v.slice(0, e.target.selectionStart).match(/@([^\s@]*)$/);
     setSuggest(m ? m[1].toLowerCase() : null);
   };
@@ -44,12 +48,18 @@ function CommentBox({ members, onSend, initial = '', onCancel, autoFocus }) {
     ref.current.focus();
   };
   const send = async () => {
-    if (!text.trim()) return;
+    if (!text.trim() || sending.current) return;
+    sending.current = true;
     setBusy(true);
+    setError(null);
     try {
       await onSend(text);
       setText('');
+      setSuggest(null);
+    } catch (e) {
+      setError(e.message || tr("Không gửi được bình luận. Hãy thử lại."));
     } finally {
+      sending.current = false;
       setBusy(false);
     }
   };
@@ -60,19 +70,32 @@ function CommentBox({ members, onSend, initial = '', onCancel, autoFocus }) {
         ref={ref}
         autoFocus={autoFocus}
         value={text}
+        disabled={busy}
+        aria-label={tr("Nội dung bình luận")}
+        aria-expanded={list.length > 0}
         onChange={onChange}
-        onKeyDown={(e) => (e.key === 'Enter' && (e.ctrlKey || e.metaKey) ? send() : null)}
+        onKeyDown={(e) => {
+          if (e.nativeEvent?.isComposing) return;
+          if (list.length && ['ArrowDown', 'ArrowUp', 'Enter', 'Escape'].includes(e.key) && !e.ctrlKey && !e.metaKey) {
+            e.preventDefault();
+            if (e.key === 'Escape') setSuggest(null);
+            else if (e.key === 'Enter') pick(list[activeMention % list.length]);
+            else setActiveMention((n) => (n + (e.key === 'ArrowDown' ? 1 : list.length - 1)) % list.length);
+          } else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); send(); }
+        }}
         rows={2}
         className="w-full resize-none rounded-xl border-0 px-3 py-2 text-body-sm focus:ring-0"
         placeholder={tr("Viết bình luận… gõ @ để nhắc tên thành viên")}
       />
       {list.length > 0 && (
         <div className="absolute bottom-full left-2 z-10 mb-1 w-60 rounded-xl border border-slate-200 bg-white p-1 shadow-pop">
-          {list.map((m) => (
+          {list.map((m, i) => (
             <button
               key={m._id}
-              onMouseDown={(e) => (e.preventDefault(), pick(m))}
-              className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-body-sm hover:bg-slate-50"
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => pick(m)}
+              className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-body-sm hover:bg-slate-50 ${i === activeMention ? 'bg-blue-50' : ''}`}
             >
               <Avatar user={m} size={20} />
               {m.name}
@@ -80,6 +103,7 @@ function CommentBox({ members, onSend, initial = '', onCancel, autoFocus }) {
           ))}
         </div>
       )}
+      {error && <p role="alert" className="px-3 py-2 text-body-sm text-rose-700">{error}</p>}
       <div className="flex items-center justify-end gap-2 border-t border-slate-100 px-2 py-1.5">
         <span className="mr-auto text-label-md font-normal text-slate-400">{tr("Ctrl + Enter để gửi")}</span>
         {onCancel && (
@@ -716,8 +740,10 @@ export default function TaskDetailModal({ taskId, onClose }) {
                             <button
                               className="text-slate-400 hover:text-rose-600"
                               onClick={async () => {
-                                await api.del(`/comments/${c._id}`);
-                                setComments((cs) => cs.filter((x) => x._id !== c._id));
+                                try {
+                                  await api.del(`/comments/${c._id}`);
+                                  setComments((cs) => cs.filter((x) => x._id !== c._id));
+                                } catch (e) { toast(e.message, 'error'); }
                               }}
                             >{tr("Xóa")}</button>
                           </span>
