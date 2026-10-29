@@ -22,28 +22,28 @@ export function Burndown({ days = [], height = 220 }) {
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label="Biểu đồ burndown số việc còn lại theo ngày" onMouseLeave={() => setHover(null)}>
         {ticks.map((t) => (
           <g key={t}>
-            <line x1={pad.l} x2={W - pad.r} y1={y(t)} y2={y(t)} stroke="#e2e8f0" strokeWidth="1" />
-            <text x={pad.l - 6} y={y(t) + 4} textAnchor="end" fontSize="10" fill="#94a3b8">
+            <line x1={pad.l} x2={W - pad.r} y1={y(t)} y2={y(t)} stroke="var(--tf-chart-grid)" strokeWidth="1" />
+            <text x={pad.l - 6} y={y(t) + 4} textAnchor="end" fontSize="10" fill="var(--tf-chart-label)">
               {t}
             </text>
           </g>
         ))}
         {days.map((d, i) =>
           i % Math.ceil(days.length / 6) === 0 || i === days.length - 1 ? (
-            <text key={i} x={x(i)} y={H - 8} textAnchor="middle" fontSize="10" fill="#94a3b8">
+            <text key={i} x={x(i)} y={H - 8} textAnchor="middle" fontSize="10" fill="var(--tf-chart-label)">
               {fmtDate(d.date)}
             </text>
           ) : null,
         )}
-        <polyline points={ideal} fill="none" stroke="#94a3b8" strokeWidth="2" strokeDasharray="5 4" />
-        {actualPts.length > 1 && <polyline points={actualPts.map((p) => p.join(',')).join(' ')} fill="none" stroke="#2563eb" strokeWidth="2" strokeLinejoin="round" />}
+        <polyline points={ideal} fill="none" stroke="var(--tf-chart-label)" strokeWidth="2" strokeDasharray="5 4" />
+        {actualPts.length > 1 && <polyline points={actualPts.map((p) => p.join(',')).join(' ')} fill="none" stroke="var(--tf-chart-line)" strokeWidth="2" strokeLinejoin="round" />}
         {todayIdx >= 0 && (
           <g>
             <line x1={x(todayIdx)} x2={x(todayIdx)} y1={pad.t} y2={H - pad.b} stroke="#f43f5e" strokeWidth="1" strokeDasharray="3 3" />
-            <circle cx={x(todayIdx)} cy={y(days[todayIdx].actual)} r="4.5" fill="#2563eb" stroke="#fff" strokeWidth="2" />
+            <circle cx={x(todayIdx)} cy={y(days[todayIdx].actual)} r="4.5" fill="var(--tf-chart-line)" stroke="var(--tf-chart-surface)" strokeWidth="2" />
           </g>
         )}
-        {selected && <line x1={x(hover)} x2={x(hover)} y1={pad.t} y2={H - pad.b} stroke="#cbd5e1" strokeWidth="1" />}
+        {selected && <line x1={x(hover)} x2={x(hover)} y1={pad.t} y2={H - pad.b} stroke="var(--tf-chart-label)" strokeWidth="1" />}
         {days.map((_, i) => (
           <rect
             key={i}
@@ -92,7 +92,7 @@ export function Donut({ segments, size = 168, center }) {
     <div className="flex flex-wrap items-center gap-6">
       <div className="relative" style={{ width: size, height: size }}>
         <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} role="img" aria-label="Biểu đồ phân bố trạng thái công việc">
-          <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#f1f5f9" strokeWidth="18" />
+          <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--tf-chart-track)" strokeWidth="18" />
           {total > 0 &&
             segments.map((s, i) => {
               const len = (s.value / total) * c;
