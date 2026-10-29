@@ -5,9 +5,11 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { chromium, expect } from '@playwright/test';
+import { smtpSandbox } from '../../BackEnd/test/helpers/smtp.js';
 
 // Isolated DB/uploads: this suite never uses DATABASE_URL or the developer's stored files.
 process.env.NODE_ENV = 'test';
+process.env.MAIL_MODE = 'outbox';
 process.env.DATABASE_URL = '';
 const uploads = await fs.mkdtemp(path.join(os.tmpdir(), 'taskflow-sprint1-'));
 process.env.UPLOAD_DIR = uploads;
@@ -64,7 +66,8 @@ async function status(page, name) {
   await expect(page.getByRole('button', { name: 'Đổi trạng thái công việc' })).toContainText(name);
 }
 
-test('U012-T3: register → verify → workspace → project → task → Member Review → PM Done/reopen', { timeout: 90000 }, async () => {
+test('U003/U007/U009: SMTP register/invite → task → remaining hours → Review/Done → realtime draft', { timeout: 90000 }, async (t) => {
+  const { messages } = await smtpSandbox(t, config);
   const owner = await context();
   const member = await context();
   try {
@@ -76,8 +79,9 @@ test('U012-T3: register → verify → workspace → project → task → Member
     await page.getByRole('checkbox').check();
     await page.getByRole('button', { name: 'Tạo tài khoản', exact: true }).click();
     await expect(page.getByText('Đăng ký thành công!', { exact: true })).toBeVisible();
-    const verification = await db.prisma.outbox.findFirst({ where: { to: 'hoanganh.e2e@example.test' }, orderBy: { createdAt: 'desc' } });
-    await page.goto(new URL(verification.link).pathname + new URL(verification.link).search);
+    const verificationToken = messages.at(-1).raw.match(/verify-email\?token=([A-Za-z0-9_-]+)/)?.[1];
+    assert.ok(verificationToken, 'verification email received through SMTP');
+    await page.goto(`/verify-email?token=${verificationToken}`);
     await expect(page).toHaveURL(/\/onboarding/, { timeout: 10000 });
     await page.getByLabel('Tên workspace').fill('Sprint 1 Hoàng Anh');
     await page.getByRole('button', { name: 'Tiếp tục', exact: true }).click();
@@ -90,8 +94,8 @@ test('U012-T3: register → verify → workspace → project → task → Member
     // A second real account accepts the workspace invitation, then PM adds it to the project.
     await login(member.page, 'nhu@nhom24.edu.vn');
     assert.equal((await owner.ctx.request.post(`/api/workspaces/${project.workspace}/invites`, { headers: { 'x-taskflow': '1' }, data: { emails: ['nhu@nhom24.edu.vn'], role: 'member' } })).status(), 201);
-    const invite = await db.prisma.outbox.findFirst({ where: { to: 'nhu@nhom24.edu.vn' }, orderBy: { createdAt: 'desc' } });
-    const token = new URL(invite.link).pathname.split('/').at(-1);
+    const token = messages.at(-1).raw.match(/\/invite\/([A-Za-z0-9_-]+)/)?.[1];
+    assert.ok(token, 'invitation email received through SMTP');
     assert.equal((await member.ctx.request.post(`/api/me/invites/${token}/accept`, { headers: { 'x-taskflow': '1' }, data: {} })).status(), 200);
     assert.equal((await owner.ctx.request.post(`/api/projects/${project.id}/members`, { headers: { 'x-taskflow': '1' }, data: { user: seed.users.nhu.id, role: 'member' } })).status(), 200);
     // A fresh load refreshes the project-member cache used by the assignee picker.
@@ -109,6 +113,10 @@ test('U012-T3: register → verify → workspace → project → task → Member
     await member.page.goto(`/board?task=${task.id}`);
     await expect(member.page.getByRole('dialog', { name: 'Chi tiết công việc' })).toBeVisible();
     await status(member.page, 'Đang thực hiện');
+    await member.page.getByLabel('Giờ còn lại').fill('2.5');
+    await member.page.getByRole('button', { name: 'Lưu giờ còn lại', exact: true }).click();
+    await expect.poll(async () => (await db.prisma.task.findUnique({ where: { id: task.id } })).remainingHours).toBe(2.5);
+    await expect(member.page.getByRole('button', { name: 'Lưu giờ còn lại', exact: true })).toBeDisabled();
     await status(member.page, 'Đang kiểm duyệt');
     await member.page.getByRole('button', { name: 'Đổi trạng thái công việc' }).click();
     await expect(member.page.getByRole('button', { name: 'Hoàn thành', exact: true })).toHaveCount(0);
@@ -121,6 +129,17 @@ test('U012-T3: register → verify → workspace → project → task → Member
     await expect.poll(async () => (await db.prisma.task.findUnique({ where: { id: task.id } })).completedAt).not.toBeNull();
     await status(page, 'Đang thực hiện');
     assert.equal((await db.prisma.task.findUnique({ where: { id: task.id } })).completedAt, null);
+    const title = page.getByRole('dialog').locator('textarea').first();
+    await title.fill('Bản nháp chưa lưu của Lộc');
+    const currentTask = await db.prisma.task.findUnique({ where: { id: task.id } });
+    assert.equal((await owner.ctx.request.patch(`/api/tasks/${task.id}`, { headers: { 'x-taskflow': '1' },
+      data: { description: 'Server updated while editing', version: currentTask.version } })).status(), 200);
+    await expect(page.getByText('Công việc vừa được người khác cập nhật.', { exact: false })).toBeVisible();
+    await expect(title).toHaveValue('Bản nháp chưa lưu của Lộc');
+    await page.getByRole('button', { name: 'Lưu thay đổi', exact: true }).click();
+    await expect(title).toHaveValue('Bản nháp chưa lưu của Lộc');
+    await page.getByRole('button', { name: 'Tải lại', exact: true }).click();
+    await expect(title).toHaveValue('Kiểm thử workflow Sprint 1');
     await page.getByRole('button', { name: 'Đóng', exact: true }).click();
     await page.reload();
     await expect(page.getByText('Kiểm thử workflow Sprint 1', { exact: true })).toBeVisible();
@@ -130,6 +149,18 @@ test('U012-T3: register → verify → workspace → project → task → Member
     await expect(page.getByRole('button', { name: 'Mở/đóng menu' })).toHaveAttribute('aria-expanded', 'false');
     await page.screenshot({ path: path.join(artifacts, 'sprint1-mobile.png'), fullPage: true });
     await page.setViewportSize({ width: 1366, height: 900 });
+    const disposableResponse = await owner.ctx.request.post(`/api/projects/${project.id}/tasks`, {
+      headers: { 'x-taskflow': '1' }, data: { title: 'Xóa mềm qua giao diện' },
+    });
+    assert.equal(disposableResponse.status(), 201);
+    const disposable = (await disposableResponse.json()).task;
+    await page.goto(`/board?task=${disposable._id}`);
+    await page.getByRole('button', { name: 'Thao tác công việc', exact: true }).click();
+    await page.getByRole('button', { name: 'Xóa công việc', exact: true }).click();
+    await expect(page.getByRole('dialog', { name: 'Chi tiết công việc' })).not.toBeVisible();
+    assert.ok((await db.prisma.task.findUnique({ where: { id: disposable._id } })).deletedAt);
+    await page.reload();
+    await expect(page.getByText('Xóa mềm qua giao diện', { exact: true })).toHaveCount(0);
     await page.goto('/projects');
     await page.getByRole('button', { name: 'Thao tác dự án Review mentor Sprint 1' }).click();
     await page.getByRole('button', { name: 'Sửa dự án', exact: true }).click();
@@ -148,4 +179,28 @@ test('U012-T3: register → verify → workspace → project → task → Member
     await owner.ctx.close();
     await member.ctx.close();
   }
+});
+
+test('SMTP bị từ chối: màn hình cho gửi lại, không báo thư đã gửi thành công', { timeout: 30000 }, async (t) => {
+  const { messages, state } = await smtpSandbox(t, config);
+  const user = await context();
+  try {
+    state.reject = true;
+    await user.page.goto('/register');
+    await user.page.getByLabel('Họ và tên').fill('SMTP Retry E2E');
+    await user.page.getByLabel('Email công việc').fill('smtp.retry.e2e@example.test');
+    await user.page.locator('input[autocomplete="new-password"]').fill(DEMO_PASSWORD);
+    await user.page.getByRole('checkbox').check();
+    await user.page.getByRole('button', { name: 'Tạo tài khoản', exact: true }).click();
+    await expect(user.page.getByText('Tài khoản đang chờ xác minh', { exact: true })).toBeVisible();
+    await expect(user.page.getByText('Đăng ký thành công!', { exact: true })).toHaveCount(0);
+    assert.equal(messages.length, 0);
+    state.reject = false;
+    await user.page.getByRole('button', { name: 'Gửi lại email', exact: true }).click();
+    await expect(user.page.getByText('Đã yêu cầu gửi lại email xác minh.', { exact: false })).toBeVisible();
+    assert.equal(messages.length, 1);
+    const token = messages[0].raw.match(/verify-email\?token=([A-Za-z0-9_-]+)/)?.[1];
+    await user.page.goto(`/verify-email?token=${token}`);
+    await expect(user.page).toHaveURL(/\/onboarding/, { timeout: 10000 });
+  } finally { await user.ctx.close(); }
 });

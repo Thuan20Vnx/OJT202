@@ -7,6 +7,7 @@ import { emitUser } from './realtime.js';
  */
 export async function notify({ user, actor, type, dedupeKey, ...rest }) {
   if (!user || (actor && actor === user)) return null;
+  if (rest.task && !(await prisma.task.findFirst({ where: { id: rest.task, deletedAt: null }, select: { id: true } }))) return null;
   if (rest.project) {
     const permitted = await prisma.projectMember.findFirst({ where: { project: rest.project, user, projectRef: { workspaceRef: { memberships: { some: { user } } } }, userRef: { isLocked: false } } });
     if (!permitted) return null;

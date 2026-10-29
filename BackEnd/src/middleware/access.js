@@ -43,7 +43,7 @@ export async function projectAccess(userId, projectId, db = prisma) {
 /** Công việc + dự án + membership trong một truy vấn */
 export async function taskAccess(userId, taskId, db = prisma) {
   if (!isId(taskId)) throw notFound('Không tìm thấy công việc');
-  const found = await db.task.findUnique({ where: { id: taskId }, include: { projectRef: { include: withMembership(userId) } } });
+  const found = await db.task.findUnique({ where: { deletedAt: null, id: taskId }, include: { projectRef: { include: withMembership(userId) } } });
   if (!found) throw notFound('Không tìm thấy công việc');
   const { projectRef, ...task } = found;
   return { task, ...checkProject(projectRef, userId) };

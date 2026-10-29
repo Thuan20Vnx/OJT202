@@ -29,6 +29,16 @@ export const config = {
   uploadDir: path.resolve(root, env.UPLOAD_DIR || './.data/uploads'),
   dataDir: path.resolve(root, './.data'),
   maxUploadBytes: 10 * 1024 * 1024,
+  mail: {
+    mode: env.MAIL_MODE || (env.NODE_ENV === 'production' ? 'smtp' : 'outbox'),
+    host: env.SMTP_HOST || 'smtp.gmail.com',
+    port: Number(env.SMTP_PORT || 465),
+    secure: env.SMTP_SECURE !== 'false',
+    requireTLS: env.SMTP_REQUIRE_TLS !== 'false',
+    user: env.SMTP_USER || '',
+    pass: env.SMTP_PASS || '',
+    from: env.MAIL_FROM || env.SMTP_USER || '',
+  },
   ai: {
     // AIService (thư mục AIService) – BackEnd gọi qua HTTP, khóa dùng chung đặt giống bên AIService
     serviceUrl: (env.AI_SERVICE_URL || 'http://localhost:5000').replace(/\/+$/, ''),

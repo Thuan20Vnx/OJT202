@@ -70,7 +70,7 @@ async function projectStats(projectIds) {
            COUNT(*) FILTER (WHERE status = 'done')::int AS done,
            COUNT(*) FILTER (WHERE status <> 'done' AND "dueDate" IS NOT NULL AND "dueDate" < now())::int AS overdue
     FROM tasks
-    WHERE project_id = ANY(${projectIds}::uuid[]) AND parent_id IS NULL
+    WHERE project_id = ANY(${projectIds}::uuid[]) AND parent_id IS NULL AND deleted_at IS NULL
     GROUP BY project_id`;
   return Object.fromEntries(rows.map(({ id, ...r }) => [id, r]));
 }

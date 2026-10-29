@@ -14,6 +14,7 @@ router.get('/', async (req, res) => {
   const scope = parse(z.object({ workspace: scopeId.optional(), project: scopeId.optional() }), req.query);
   // Thông báo cũ cũng có thể chứa tên/nội dung task: lọc bằng quyền HIỆN TẠI.
   const visible = {
+    AND: [{ OR: [{ task: null }, { taskRef: { deletedAt: null } }] }],
     workspaceRef: { memberships: { some: { user: req.user.id } } },
     OR: [
       { project: null },
@@ -37,7 +38,7 @@ router.get('/', async (req, res) => {
       if (!Number.isFinite(createdAt.getTime()) || createdAt.toISOString() !== at) throw new Error();
       // ID là khóa phụ để không bỏ sót các thông báo có cùng millisecond.
       // AND giữ nguyên bộ lọc OR về quyền hiện tại ở trên.
-      where.AND = [{ OR: [{ createdAt: { lt: createdAt } }, { createdAt, id: { lt: id } }] }];
+      where.AND = [...visible.AND, { OR: [{ createdAt: { lt: createdAt } }, { createdAt, id: { lt: id } }] }];
     } catch {
       throw badRequest('Mốc phân trang thông báo không hợp lệ');
     }

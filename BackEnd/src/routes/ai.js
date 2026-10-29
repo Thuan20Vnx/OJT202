@@ -264,7 +264,7 @@ router.post('/ai/drafts/:id/approve', async (req, res) => {
       });
   }
   emitProject(project.id, 'board:refresh', {});
-  const tasks = await prisma.task.findMany({ where: { id: { in: created } }, select: { id: true, key: true, title: true, status: true, assignee: true } });
+  const tasks = await prisma.task.findMany({ where: { deletedAt: null, id: { in: created } }, select: { id: true, key: true, title: true, status: true, assignee: true } });
   res.json({ ok: true, created: tasks });
 });
 

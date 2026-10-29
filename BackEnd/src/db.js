@@ -141,7 +141,7 @@ export async function populate(rows, pathStr, model, select) {
   for (const r of list) walk(r, 0);
   const ids = new Set();
   for (const h of holders) for (const v of [h[key]].flat()) if (isId(v)) ids.add(v);
-  const found = ids.size ? await prisma[model].findMany({ where: { id: { in: [...ids] } }, select: { ...select, id: true } }) : [];
+  const found = ids.size ? await prisma[model].findMany({ where: { id: { in: [...ids] }, ...(model === 'task' && { deletedAt: null }) }, select: { ...select, id: true } }) : [];
   const byId = new Map(found.map((f) => [f.id, f]));
   for (const h of holders) {
     const v = h[key];
@@ -175,7 +175,7 @@ export async function countBy(model, field, where) {
 /** Tổng/đã xong của công việc con theo công việc cha */
 export async function subtaskCounts(parentIds) {
   if (!parentIds.length) return {};
-  const rows = await prisma.task.groupBy({ by: ['parent', 'status'], where: { parent: { in: parentIds } }, _count: { _all: true } });
+  const rows = await prisma.task.groupBy({ by: ['parent', 'status'], where: { parent: { in: parentIds }, deletedAt: null }, _count: { _all: true } });
   const out = {};
   for (const r of rows) {
     const s = (out[r.parent] ||= { total: 0, done: 0 });

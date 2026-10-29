@@ -450,7 +450,7 @@ router.get('/:wsId/my-tasks', middlewareWorkspace(), async (req, res) => {
   // Danh sách (kèm dữ liệu liên quan), tổng số và 4 chỉ số tóm tắt chạy song song
   const [items, total, today, overdue, upcoming, doneWeek, actionable] = await Promise.all([
     prisma.task
-      .findMany({ where, orderBy: [{ dueDate: { sort: 'asc', nulls: 'last' } }, { priority: 'desc' }, { number: 'asc' }], skip: (page - 1) * limit, take: limit })
+      .findMany({ where: { ...where, deletedAt: null }, orderBy: [{ dueDate: { sort: 'asc', nulls: 'last' } }, { priority: 'desc' }, { number: 'asc' }], skip: (page - 1) * limit, take: limit })
       .then(async (rows) => {
         const ids = rows.map((t) => t.id);
         const [, subs, comments] = await Promise.all([
@@ -474,13 +474,13 @@ router.get('/:wsId/my-tasks', middlewareWorkspace(), async (req, res) => {
           };
         });
       }),
-    prisma.task.count({ where }),
-    prisma.task.count({ where: { ...open, dueDate: { gte: sod, lt: eod } } }),
-    prisma.task.count({ where: { ...open, dueDate: { lt: now } } }),
-    prisma.task.count({ where: { ...open, dueDate: { gte: now, lt: eow } } }),
-    prisma.task.count({ where: { ...mine, status: 'done', completedAt: { gte: weekAgo } } }),
+    prisma.task.count({ where: { ...where, deletedAt: null } }),
+    prisma.task.count({ where: { deletedAt: null, ...open, dueDate: { gte: sod, lt: eod } } }),
+    prisma.task.count({ where: { deletedAt: null, ...open, dueDate: { lt: now } } }),
+    prisma.task.count({ where: { deletedAt: null, ...open, dueDate: { gte: now, lt: eow } } }),
+    prisma.task.count({ where: { deletedAt: null, ...mine, status: 'done', completedAt: { gte: weekAgo } } }),
     // Union of overdue and due today, so tasks overdue earlier today count once.
-    prisma.task.count({ where: { ...open, dueDate: { lt: eod } } }),
+    prisma.task.count({ where: { deletedAt: null, ...open, dueDate: { lt: eod } } }),
   ]);
   res.json({
     items,
@@ -499,7 +499,7 @@ router.get('/:wsId/search', middlewareWorkspace(), async (req, res) => {
   const [tasks, projects] = await Promise.all([
     prisma.task
       .findMany({
-        where: { projectRef: readable, OR: [{ title: ilike(s) }, { key: ilike(s) }] },
+        where: { deletedAt: null, projectRef: readable, OR: [{ title: ilike(s) }, { key: ilike(s) }] },
         select: { id: true, key: true, title: true, status: true, project: true },
         take: 8,
       })

@@ -351,6 +351,7 @@ model Task {
   estimateHours      Float?
   spentHours         Float      @default(0)
   remainingHours     Float?
+  deletedAt          DateTime?  @map("deleted_at")
   labels             String[]   @default([])
   sprint             String     @default("")
   parent             String?    @map("parent_id") @db.Uuid
@@ -380,6 +381,7 @@ model Task {
   // NULL không trùng nhau trong UNIQUE của PostgreSQL => chỉ ràng buộc việc tạo từ AI
   @@unique([project, aiDraftItem])
   @@index([project, status])
+  @@index([project, deletedAt])
   @@index([assignee])
   @@index([parent])
   @@index([blockedBy], type: Gin)
