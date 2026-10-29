@@ -2123,26 +2123,29 @@ describe('Hiệp – U020: Nhật ký hoạt động & xuất CSV (bổ sung)', 
     assert.ok(statusLog, 'Phải có log đổi trạng thái');
   });
 
-  test('Member chỉ thấy nhật ký dự án mình thuộc; Admin thấy tất cả', async () => {
-    const { owner, member, pid, ws, create } = await permissionFixture();
-    // Tạo dự án thứ 2 chỉ có Owner, không có Như
-    const proj2 = (await owner.post(`/workspaces/${ws}/projects`, { name: 'Bí mật', members: [seed.users.maianh.id] })).data.project;
+  test('Member chỉ thấy nhật ký dự án mình thuộc; người tạo proj thấy tất cả', async () => {
+    const { owner, member, pid, ws } = await permissionFixture();
+    // Lấy ID thực của fixture owner để tạo proj2 với owner là thành viên
+    const meRes = await owner.get('/me');
+    const ownerId = meRes.data.user._id;
+    // Tạo dự án thứ 2 chỉ có Owner, KHÔNG có Member (fixture Như)
+    const proj2 = (await owner.post(`/workspaces/${ws}/projects`, { name: 'Bí mật', members: [ownerId] })).data.project;
     await owner.post(`/projects/${proj2._id}/tasks`, { title: 'Task bí mật' });
-    // Thêm log cho cả 2 dự án
+    // Thêm log thủ công cho proj2
     await db.prisma.activity.create({
-      data: { workspace: ws, project: proj2._id, actor: seed.users.maianh.id, action: 'Ghi chú bí mật', entityType: 'task', entityLabel: 'BM' },
+      data: { workspace: ws, project: proj2._id, actor: ownerId, action: 'Ghi chú bí mật', entityType: 'task', entityLabel: 'BM' },
     });
-    // Member (Như) chỉ thấy log dự án của mình
+    // Member (Như fixture) chỉ thấy log dự án mình thuộc → không thấy proj2
     const memberLog = await member.get(`/workspaces/${ws}/activity`);
     assert.equal(memberLog.status, 200);
     const memberProjects = new Set(memberLog.data.items.map((i) => i.project).filter(Boolean));
     assert.ok(!memberProjects.has(proj2._id), 'Member không thấy log dự án không thuộc');
-    // Admin (Thuận) thấy tất cả
-    const admin = await new Client().login('thuan@nhom24.edu.vn');
-    const adminLog = await admin.get(`/workspaces/${ws}/activity`);
-    assert.equal(adminLog.status, 200);
-    const adminTotal = adminLog.data.total;
-    assert.ok(adminTotal >= memberLog.data.total, 'Admin thấy ít nhất bằng Member');
+    // Owner là ProjectMember của proj2 → thấy log proj2
+    const ownerLog = await owner.get(`/workspaces/${ws}/activity`);
+    assert.equal(ownerLog.status, 200);
+    const ownerProjects = new Set(ownerLog.data.items.map((i) => i.project).filter(Boolean));
+    assert.ok(ownerProjects.has(proj2._id), 'Owner thấy log dự án bí mật vì là thành viên');
+    assert.ok(ownerLog.data.total >= memberLog.data.total, 'Owner thấy ít nhất bằng Member');
   });
 
   test('lọc nhật ký theo ngày from/to hoạt động đúng', async () => {
