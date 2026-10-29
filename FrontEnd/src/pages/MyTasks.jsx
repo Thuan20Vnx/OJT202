@@ -1,11 +1,11 @@
 import { t as tr, useI18n } from '../lib/i18n.js';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Avatar, Empty, ErrorBox, Icon, PageHeader, PageLoader, Pagination, PriorityChip, Select, StatCard, StatusChip } from '../components/ui.jsx';
 import { api, qs } from '../lib/api.js';
 import { useApp, useLoad, useToast } from '../lib/app.jsx';
 import { PROJECT_COLOR, STATUS, STATUS_ORDER, dueInfo, sod } from '../lib/format.js';
-import { useSocketEvent } from '../lib/hooks.js';
+import { useDebouncedValue, useSocketEvent } from '../lib/hooks.js';
 import { dates, timeZone } from '../lib/dates.js';
 import { taskActions } from '../lib/task-actions.js';
 
@@ -30,9 +30,13 @@ export default function MyTasks() {
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
   const [collapsed, setCollapsed] = useState({});
+  const search = useDebouncedValue(f.search);
+  const pending = useRef(new Set());
+  const [busyIds, setBusyIds] = useState(new Set());
+  const query = { ...f, search };
   const { data, error, loading, reload } = useLoad(
-    () => api.get(`/workspaces/${wsId}/my-tasks${qs({ ...f, includeDone: f.status.includes('done') ? 'true' : '', page, limit })}`),
-    [wsId, JSON.stringify(f), page, limit],
+    () => api.get(`/workspaces/${wsId}/my-tasks${qs({ ...query, includeDone: f.status.includes('done') ? 'true' : '', page, limit })}`),
+    [wsId, JSON.stringify(query), page, limit],
   );
   useSocketEvent('task:changed', () => reload(), [reload]);
 
@@ -44,23 +48,20 @@ export default function MyTasks() {
   const hour = new Date().getHours();
   const greet = hour < 11 ? tr("Chào buổi sáng") : hour < 14 ? tr("Chào buổi trưa") : hour < 18 ? tr("Chào buổi chiều") : tr("Chào buổi tối");
 
-  const toggleDone = async (t) => {
-    const { nextStatus } = taskActions(t);
-    if (!nextStatus) return;
-    try {
-      await api.patch(`/tasks/${t._id}`, { status: nextStatus, version: t.version });
-      reload();
-    } catch (e) {
-      toast(e.message, 'error');
-      reload();
-    }
-  };
+  const toggleDone = (t) => setStatus(t, taskActions(t).nextStatus);
   const setStatus = async (t, status) => {
+    if (!status || pending.current.has(t._id)) return;
+    pending.current.add(t._id);
+    setBusyIds(new Set(pending.current));
     try {
       await api.patch(`/tasks/${t._id}`, { status, version: t.version });
       reload();
     } catch (e) {
       toast(e.message, 'error');
+      reload();
+    } finally {
+      pending.current.delete(t._id);
+      setBusyIds(new Set(pending.current));
     }
   };
 
@@ -127,7 +128,7 @@ export default function MyTasks() {
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative min-w-[220px] flex-1">
             <Icon name="search" size={16} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input className="input h-9 pl-8 text-body-sm" placeholder={tr("Tìm theo tên hoặc mã công việc (TF-...)")} value={f.search} onChange={(e) => set('search', e.target.value)} />
+            <input aria-label={tr("Tìm công việc")} className="input h-9 pl-8 text-body-sm" placeholder={tr("Tìm theo tên hoặc mã công việc (TF-...)")} value={f.search} onChange={(e) => set('search', e.target.value)} />
           </div>
           <Select className="input h-9 w-auto text-body-sm" value={f.assignee} onChange={(e) => set('assignee', e.target.value)}>
             <option value="me">{tr("Giao cho: Tôi")}</option>
@@ -182,13 +183,13 @@ export default function MyTasks() {
       <ErrorBox error={error} onRetry={reload} />
       {loading && !data ? (
         <PageLoader />
-      ) : !items.length ? (
+      ) : !items.length && !error ? (
         <div className="card">
           <Empty
             icon="filter_alt_off"
             title={tr("Không có công việc nào khớp bộ lọc")}
             action={
-              <button className="btn-outline" onClick={() => setF(DEFAULT)}>{tr("Đặt lại bộ lọc")}</button>
+              <button className="btn-outline" onClick={() => { setF(DEFAULT); setPage(1); }}>{tr("Đặt lại bộ lọc")}</button>
             }
           >{tr("Thử bỏ bớt điều kiện lọc hoặc chọn “Giao cho: Tất cả”.")}</Empty>
         </div>
@@ -211,11 +212,11 @@ export default function MyTasks() {
                     const due = dueInfo(t.dueDate, t.status);
                     const blocked = (t.blockedBy || []).some((b) => b && b.status !== 'done');
                     return (
-                      <div key={t._id} className="group flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50">
-                        <input type="checkbox" aria-label={`${actions.label} ${t.key}`} title={actions.label} className="form-checkbox h-4 w-4 rounded text-blue-600" checked={t.status === 'done'} disabled={!actions.nextStatus} onChange={() => toggleDone(t)} />
+                      <div key={t._id} className="group flex flex-wrap items-center gap-2 px-3 py-2.5 hover:bg-slate-50 sm:flex-nowrap sm:gap-3 sm:px-4">
+                        <input type="checkbox" aria-label={`${actions.label} ${t.key}`} title={actions.label} className="form-checkbox h-4 w-4 rounded text-blue-600" checked={t.status === 'done'} disabled={!actions.nextStatus || busyIds.has(t._id)} onChange={() => toggleDone(t)} />
                         <span className="w-16 shrink-0 font-mono text-label-md text-slate-400">{t.key}</span>
                         <button
-                          className="min-w-0 flex-1 truncate text-left text-body-md text-slate-900 hover:text-blue-700"
+                          className="order-first w-full min-w-0 truncate text-left text-body-md text-slate-900 hover:text-blue-700 sm:order-none sm:w-auto sm:flex-1"
                           onClick={() => {
                             setProjectId(t.project._id);
                             navigate({ search: `?task=${t._id}` });
@@ -252,7 +253,7 @@ export default function MyTasks() {
                         </span>
                         <Avatar user={t.assignee} size={24} />
                         {t.permissions?.canUpdateProgress && (
-                          <Select className="input hidden h-7 w-32 py-0 text-label-md group-hover:inline-flex" value={t.status} onChange={(e) => setStatus(t, e.target.value)} title={tr("Đổi trạng thái nhanh")}>
+                          <Select aria-label={`${tr("Đổi trạng thái nhanh")} ${t.key}`} disabled={busyIds.has(t._id)} className="input h-7 w-28 shrink-0 py-0 text-label-md" value={t.status} onChange={(e) => setStatus(t, e.target.value)} title={tr("Đổi trạng thái nhanh")}>
                             {(t.permissions.allowedStatuses || []).map((st) => (
                               <option key={st} value={st}>
                                 {STATUS[st].label}
@@ -268,7 +269,7 @@ export default function MyTasks() {
             </div>
           ))}
           <div className="card">
-            <Pagination page={page} total={data.total} limit={limit} onPage={setPage} onLimit={(n) => (setLimit(n), setPage(1))} />
+            <Pagination page={page} total={data?.total || 0} limit={limit} onPage={setPage} onLimit={(n) => (setLimit(n), setPage(1))} />
           </div>
         </div>
       )}

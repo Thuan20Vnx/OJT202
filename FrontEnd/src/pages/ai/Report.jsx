@@ -137,7 +137,7 @@ export default function Report({ project, onUsage, disabled }) {
             <p className="mt-2 text-label-md font-normal text-slate-400">{tr("Số liệu tính trực tiếp từ dữ liệu, không do AI ước đoán.")}</p>
           </div>
         )}
-        <History items={(history.data?.reports || []).map((r) => ({ ...r, count: undefined }))} onOpen={open} activeId={report?._id} empty={tr("Chưa có báo cáo đã lưu")} />
+        <History items={(history.data?.reports || []).map((r) => ({ ...r, count: undefined }))} error={history.error} loading={history.loading} onRetry={history.reload} onOpen={open} activeId={report?._id} empty={tr("Chưa có báo cáo đã lưu")} />
       </div>
 
       <div className="min-w-0">

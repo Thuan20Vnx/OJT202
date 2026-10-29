@@ -6,6 +6,7 @@ import { api, download } from '../lib/api.js';
 import { useApp, useLoad } from '../lib/app.jsx';
 import { fmtProjectDate as fmtDate, timeAgo } from '../lib/format.js';
 import { useSocketEvent } from '../lib/hooks.js';
+import CapacityEditor from '../components/CapacityEditor.jsx';
 
 export const SEVERITY = {
   critical: { get label() { return tr("Nghiêm trọng"); }, chip: 'border-rose-200 bg-rose-50 text-rose-700', icon: 'error', card: 'border-rose-200 bg-rose-50/40' },
@@ -14,11 +15,12 @@ export const SEVERITY = {
 
 export default function Overview() {
   useI18n();
-  const { project } = useApp();
+  const { project, wsId, role } = useApp();
   const navigate = useNavigate();
   const { data, error, loading, reload } = useLoad(() => (project ? api.get(`/projects/${project._id}/overview`) : Promise.resolve(null)), [project?._id]);
   useSocketEvent('task:changed', () => reload(), [reload]);
   useSocketEvent('risks:changed', () => reload(), [reload]);
+  useSocketEvent('board:refresh', () => reload(), [reload]);
 
   if (!project)
     return (
@@ -132,6 +134,7 @@ export default function Overview() {
                       </div>
                       <Progress value={w.pct == null ? 100 : Math.min(100, w.pct)} tone={over ? 'bg-rose-500' : w.pct >= 80 ? 'bg-amber-500' : 'bg-blue-600'} height="h-2" />
                       {w.missingEstimates > 0 && <p className="mt-1 text-label-md text-amber-700">{w.missingEstimates}{tr(" công việc chưa có ước lượng, chưa tính đủ tải.")}</p>}
+                      {project.status === 'active' && (role === 'owner' || (role === 'admin' && !['owner', 'admin'].includes(w.role))) && <CapacityEditor key={`${wsId}:${w.user._id}`} workspaceId={wsId} member={w} onSaved={reload} />}
                     </div>
                   </div>
                 );

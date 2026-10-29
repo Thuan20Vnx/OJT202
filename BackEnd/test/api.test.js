@@ -96,6 +96,20 @@ after(async () => {
   if (path.dirname(testUploads) === os.tmpdir() && path.basename(testUploads).startsWith('taskflow-test-uploads-')) await fs.rm(testUploads, { recursive: true, force: true });
 });
 
+test('U025: thống kê nguồn trực tiếp có ACL, bỏ task xóa và ảnh; không tải toàn bộ nội dung', async () => {
+  const c = new Client();
+  await c.post('/auth/login', { email: 'nhu@nhom24.edu.vn', password: DEMO_PASSWORD });
+  const project = await db.prisma.project.findFirst({ where: { memberships: { some: { user: seed.users.nhu.id } } } });
+  const r = await c.get(`/projects/${project.id}/ai/sources`);
+  assert.equal(r.status, 200);
+  assert.equal(r.data.retrieval, 'live');
+  assert.equal(r.data.tasks, await db.prisma.task.count({ where: { project: project.id, deletedAt: null } }));
+  assert.equal(r.data.documents, await db.prisma.document.count({ where: { project: project.id, isScan: false, OR: [{ kind: 'doc' }, { mime: 'text/plain' }] } }));
+  assert.equal(r.data.content, undefined);
+  assert.equal((await c.get('/projects/00000000-0000-4000-8000-000000000000/ai/sources')).status, 404);
+  assert.equal((await new Client().get(`/projects/${project.id}/ai/sources`)).status, 401);
+});
+
 describe('Xác thực & phiên (U003, U004, U005)', () => {
   test('sai mật khẩu và email không tồn tại trả cùng một lỗi chung', async () => {
     const c = new Client();
@@ -1270,6 +1284,9 @@ describe('Lộc: phân quyền và nghiệp vụ bổ sung', () => {
     const { owner, member, ws, pid } = await permissionFixture();
     const viewer = await new Client().login('khanh.linh@nhom24.edu.vn');
     const period = { from: '2026-10-01', to: '2026-10-22' };
+    const beforeUsage = await db.prisma.aiCall.count({ where: { workspace: ws } });
+    assert.equal((await viewer.post(`/projects/${pid}/ai/ask`, { question: 'Dự án có gì?' })).status, 403);
+    assert.equal(await db.prisma.aiCall.count({ where: { workspace: ws } }), beforeUsage, 'Viewer không tiêu quota');
     for (const c of [member, viewer]) {
       assert.equal((await c.post(`/projects/${pid}/ai/plan`, { goal: 'Kế hoạch kiểm thử' })).status, 403);
       assert.equal((await c.post(`/projects/${pid}/ai/meeting`, { title: 'Họp', text: 'Kiểm thử phần giao việc' })).status, 403);

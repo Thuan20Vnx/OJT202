@@ -1,17 +1,19 @@
 import { t as tr, useI18n } from '../../lib/i18n.js';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Avatar, Icon, Notice, Spinner } from '../../components/ui.jsx';
+import { Avatar, ErrorBox, Icon, Notice, Spinner } from '../../components/ui.jsx';
 import { api } from '../../lib/api.js';
 import { useApp, useLoad } from '../../lib/app.jsx';
-import { fmtTime, timeAgo } from '../../lib/format.js';
-import { useLatestRequest } from '../../lib/hooks.js';
+import { fmtDateTime, fmtTime, timeAgo } from '../../lib/format.js';
+import { useLatestRequest, useProjectInfo } from '../../lib/hooks.js';
 
 const getSuggestions = () => [tr("Việc nào sắp đến hạn tuần này?"), tr("Vì sao TF-103 đang bị chặn và ai đang xử lý?"), tr("Tóm tắt quyết định trong tài liệu kiến trúc")];
 
 export default function Qa({ project, onUsage, disabled }) {
   useI18n();
   const { me } = useApp();
+  const info = useProjectInfo(project._id);
+  disabled = disabled || !info?.access?.canWrite;
   const navigate = useNavigate();
   const [conv, setConv] = useState(null);
   const [q, setQ] = useState('');
@@ -20,7 +22,7 @@ export default function Qa({ project, onUsage, disabled }) {
   const end = useRef(null);
   const beginRequest = useLatestRequest();
   const list = useLoad(() => api.get(`/projects/${project._id}/ai/conversations`), [project._id, conv?._id, conv?.messages?.length]);
-  const scope = useLoad(() => Promise.all([api.get(`/projects/${project._id}/tasks`), api.get(`/projects/${project._id}/documents?kind=doc&limit=1`)]), [project._id]);
+  const scope = useLoad(() => api.get(`/projects/${project._id}/ai/sources`), [project._id]);
 
   useEffect(() => {
     end.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -60,12 +62,12 @@ export default function Qa({ project, onUsage, disabled }) {
     }
   };
   const openSource = (c) => {
-    if (c.kind === 'document') navigate('/documents');
+    if (c.kind === 'document') navigate(`/documents?document=${encodeURIComponent(c.refId)}`);
     else navigate({ search: `?task=${c.refId}` });
   };
 
-  const taskCount = scope.data?.[0]?.tasks?.length;
-  const docCount = scope.data?.[1]?.counts?.doc;
+  const taskCount = scope.data?.tasks;
+  const docCount = scope.data?.documents;
 
   return (
     <div className="grid gap-5 lg:grid-cols-[320px_1fr]">
@@ -82,12 +84,18 @@ export default function Qa({ project, onUsage, disabled }) {
             <li className="flex items-center gap-2">
               <Icon name="task_alt" size={16} className="text-slate-400" /> {taskCount ?? '…'}{tr(" công việc")}</li>
             <li className="flex items-center gap-2">
-              <Icon name="description" size={16} className="text-slate-400" /> {docCount ?? 0}{tr(" tài liệu văn bản")}</li>
+              <Icon name="description" size={16} className="text-slate-400" /> {docCount ?? '…'}{tr(" tài liệu văn bản")}</li>
           </ul>
+          <ErrorBox error={scope.error} onRetry={scope.reload} />
+          <p className="mt-2 text-body-sm text-slate-600">{tr("Nguồn được đọc trực tiếp khi hỏi; chưa có chỉ mục tìm kiếm nền.")}</p>
+          {scope.data?.latestTaskAt && <p className="mt-1 text-label-md text-slate-600">{tr("Cập nhật công việc:")} {fmtDateTime(scope.data.latestTaskAt)}</p>}
+          {scope.data?.latestDocumentAt && <p className="mt-1 text-label-md text-slate-600">{tr("Cập nhật tài liệu:")} {fmtDateTime(scope.data.latestDocumentAt)}</p>}
           <Notice tone="warn" className="mt-3">{tr("Chỉ tìm trong dữ liệu bạn có quyền xem. Ảnh scan không được đọc.")}</Notice>
         </div>
         <div className="card p-4">
           <p className="section-label mb-2">{tr("Lịch sử hỏi đáp")}</p>
+          <ErrorBox error={list.error} onRetry={list.reload} />
+          {list.loading && !list.data && <Spinner />}
           <div className="space-y-1">
             {(list.data?.conversations || []).map((c) => (
               <button key={c._id} onClick={() => open(c._id)} className={`w-full rounded-lg px-2.5 py-2 text-left hover:bg-slate-50 ${conv?._id === c._id ? 'bg-blue-50' : ''}`}>
@@ -97,7 +105,7 @@ export default function Qa({ project, onUsage, disabled }) {
                 </p>
               </button>
             ))}
-            {!list.data?.conversations?.length && <p className="text-body-sm text-slate-400">{tr("Chưa có cuộc hỏi đáp")}</p>}
+            {!list.loading && !list.error && !list.data?.conversations?.length && <p className="text-body-sm text-slate-400">{tr("Chưa có cuộc hỏi đáp")}</p>}
           </div>
         </div>
       </div>
@@ -185,6 +193,7 @@ export default function Qa({ project, onUsage, disabled }) {
                                   <Icon name="open_in_new" size={12} className="ml-auto shrink-0" />
                                 </p>
                                 <p className="mt-1 line-clamp-2 text-label-md font-normal italic text-slate-500">“{c.excerpt}”</p>
+                                {c.currentUpdatedAt && <p className="mt-1 text-label-md text-slate-600">{tr("Nguồn hiện tại:")} {fmtDateTime(c.currentUpdatedAt)}{c.currentVersion != null ? ` · v${c.currentVersion}` : ''}</p>}
                               </button>
                             ))}
                           </div>
@@ -205,6 +214,7 @@ export default function Qa({ project, onUsage, disabled }) {
           <div ref={end} />
         </div>
         <div className="border-t border-slate-100 p-4">
+          {info && !info.access?.canWrite && <Notice tone="warn" className="mb-2">{tr("Dự án chỉ đọc: bạn có thể xem lịch sử nhưng không gửi câu hỏi AI.")}</Notice>}
           <div className="mb-2 flex flex-wrap gap-1.5">
             <span className="text-label-md font-normal text-slate-400">{tr("Gợi ý:")}</span>
             {getSuggestions().map((s) => (
@@ -220,6 +230,7 @@ export default function Qa({ project, onUsage, disabled }) {
           </div>
           <div className="flex items-end gap-2">
             <textarea
+              aria-label={tr("Câu hỏi về dự án")}
               rows={2}
               className="textarea flex-1 resize-none"
               placeholder={tr("Đặt câu hỏi về công việc, tiến độ hoặc tài liệu của {0}…", [project.name])}
