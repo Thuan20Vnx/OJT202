@@ -2138,12 +2138,13 @@ describe('Hiệp – U020: Nhật ký hoạt động & xuất CSV (bổ sung)', 
     // Member (Như fixture) chỉ thấy log dự án mình thuộc → không thấy proj2
     const memberLog = await member.get(`/workspaces/${ws}/activity`);
     assert.equal(memberLog.status, 200);
-    const memberProjects = new Set(memberLog.data.items.map((i) => i.project).filter(Boolean));
+    const toProjId = (i) => i.project?._id || i.project;
+    const memberProjects = new Set(memberLog.data.items.map(toProjId).filter(Boolean));
     assert.ok(!memberProjects.has(proj2._id), 'Member không thấy log dự án không thuộc');
     // Owner là ProjectMember của proj2 → thấy log proj2
     const ownerLog = await owner.get(`/workspaces/${ws}/activity`);
     assert.equal(ownerLog.status, 200);
-    const ownerProjects = new Set(ownerLog.data.items.map((i) => i.project).filter(Boolean));
+    const ownerProjects = new Set(ownerLog.data.items.map(toProjId).filter(Boolean));
     assert.ok(ownerProjects.has(proj2._id), 'Owner thấy log dự án bí mật vì là thành viên');
     assert.ok(ownerLog.data.total >= memberLog.data.total, 'Owner thấy ít nhất bằng Member');
   });
