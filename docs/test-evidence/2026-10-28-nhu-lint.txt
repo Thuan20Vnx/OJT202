@@ -1,0 +1,19 @@
+
+> taskflow-client@1.0.0 lint
+> eslint src
+
+
+D:\OJT\Project\OJT202\FrontEnd\src\components\AppShell.jsx
+  242:5  warning  Unused eslint-disable directive (no problems were reported from 'react-hooks/exhaustive-deps')
+
+D:\OJT\Project\OJT202\FrontEnd\src\components\Select.jsx
+  94:5  warning  Unused eslint-disable directive (no problems were reported from 'react-hooks/exhaustive-deps')
+
+D:\OJT\Project\OJT202\FrontEnd\src\lib\app.jsx
+  281:5  warning  Unused eslint-disable directive (no problems were reported from 'react-hooks/exhaustive-deps')
+
+D:\OJT\Project\OJT202\FrontEnd\src\lib\hooks.js
+  38:5  warning  Unused eslint-disable directive (no problems were reported from 'react-hooks/exhaustive-deps')
+
+✖ 4 problems (0 errors, 4 warnings)
+  0 errors and 4 warnings potentially fixable with the `--fix` option.

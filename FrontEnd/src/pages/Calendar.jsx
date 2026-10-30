@@ -1,3 +1,4 @@
+import { t as tr, getLanguage, useI18n } from '../lib/i18n.js';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Avatar, Empty, ErrorBox, Icon, PageHeader, PageLoader, Select, StatusChip } from '../components/ui.jsx';
@@ -7,7 +8,7 @@ import { STATUS, STATUS_ORDER, fmtDate, isoDate, sod } from '../lib/format.js';
 import { useProjectInfo, useSocketEvent } from '../lib/hooks.js';
 import { addDays, deadline, zoned } from '../lib/dates.js';
 
-const DOW = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ nhật'];
+const getDaysOfWeek = () => [tr("Thứ 2"), tr("Thứ 3"), tr("Thứ 4"), tr("Thứ 5"), tr("Thứ 6"), tr("Thứ 7"), tr("Chủ nhật")];
 const DAY = 86400000;
 const mondayOf = (d) => {
   const x = sod(d);
@@ -15,6 +16,7 @@ const mondayOf = (d) => {
 };
 
 export default function Calendar() {
+  useI18n();
   const { project, me, canManageProject: canWriteProject } = useApp();
   const info = useProjectInfo(project?._id);
   const toast = useToast();
@@ -38,7 +40,7 @@ export default function Calendar() {
     last.setMonth(last.getMonth() + 1, 0);
     const days = Math.round((mondayOf(last).getTime() - start.getTime()) / DAY) + 7;
     return { start, days };
-  }, [cursor, view]);
+  }, [cursor, view, getLanguage()]);
 
   const { data, error, loading, reload } = useLoad(
     () =>
@@ -50,8 +52,9 @@ export default function Calendar() {
     [project?._id, range.start.getTime(), range.days, JSON.stringify(filter)],
   );
   useSocketEvent('task:changed', () => reload(), [reload]);
+  useSocketEvent('board:refresh', () => reload(), [reload]);
 
-  if (!project) return <Empty icon="folder_off" title="Chưa có dự án" />;
+  if (!project) return <Empty icon="folder_off" title={tr("Chưa có dự án")} />;
 
   const byDay = {};
   for (const t of data?.tasks || []) (byDay[isoDate(t.dueDate)] ||= []).push(t);
@@ -71,7 +74,7 @@ export default function Calendar() {
     try {
       const due = deadline(day);
       await api.patch(`/tasks/${t._id}`, { dueDate: due, version: t.version });
-      toast(`Đã dời hạn ${t.key} sang ${fmtDate(due)}`);
+      toast(tr("Đã dời hạn {0} sang {1}", [t.key, fmtDate(due)]));
       reload();
     } catch (e) {
       toast(e.message, 'error');
@@ -99,20 +102,18 @@ export default function Calendar() {
     }
   }
 
-  const title = view === 'week' ? `${fmtDate(range.start)} – ${fmtDate(addDays(range.start, 6))}` : `Tháng ${cursor.getMonth() + 1}, ${cursor.getFullYear()}`;
+  const title = view === 'week' ? `${fmtDate(range.start)} – ${fmtDate(addDays(range.start, 6))}` : getLanguage() === 'en' ? cursor.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }) : tr("Tháng {0}, {1}", [cursor.getMonth() + 1, cursor.getFullYear()]);
 
   return (
     <div className="p-6">
       <PageHeader
-        title="Lịch dự án"
+        title={tr("Lịch dự án")}
         subtitle={`${project.name}${info?.project?.sprint?.name ? ` · ${info.project.sprint.name} (${fmtDate(info.project.sprint.start)} – ${fmtDate(info.project.sprint.end)})` : ''}`}
         actions={
           <>
-            <button className="btn-outline btn-sm" onClick={() => setCursor(sod())}>
-              Hôm nay
-            </button>
+            <button className="btn-outline btn-sm" onClick={() => setCursor(sod())}>{tr("Hôm nay")}</button>
             <div className="flex items-center">
-              <button className="icon-btn h-8 w-8" onClick={() => move(-1)} aria-label="Trước">
+              <button className="icon-btn h-8 w-8" onClick={() => move(-1)} aria-label={tr("Trước")}>
                 <Icon name="chevron_left" />
               </button>
               <span className="min-w-[130px] text-center text-label-lg font-semibold text-slate-800">{title}</span>
@@ -122,8 +123,8 @@ export default function Calendar() {
             </div>
             <div className="flex rounded-lg bg-slate-100 p-0.5">
               {[
-                ['month', 'Tháng'],
-                ['week', 'Tuần'],
+                ['month', tr("Tháng")],
+                ['week', tr("Tuần")],
               ].map(([v, l]) => (
                 <button
                   key={v}
@@ -139,7 +140,7 @@ export default function Calendar() {
       />
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <Select className="input h-8 w-auto py-0 text-body-sm" value={filter.assignee} onChange={(e) => setFilter({ ...filter, assignee: e.target.value })}>
-          <option value="">Tất cả thành viên</option>
+          <option value="">{tr("Tất cả thành viên")}</option>
           {(info?.project?.members || []).map((m) => (
             <option key={m._id} value={m._id}>
               {m.name}
@@ -147,7 +148,7 @@ export default function Calendar() {
           ))}
         </Select>
         <Select className="input h-8 w-auto py-0 text-body-sm" value={filter.status} onChange={(e) => setFilter({ ...filter, status: e.target.value })}>
-          <option value="">Mọi trạng thái</option>
+          <option value="">{tr("Mọi trạng thái")}</option>
           {STATUS_ORDER.map((s) => (
             <option key={s} value={s}>
               {STATUS[s].label}
@@ -162,18 +163,16 @@ export default function Calendar() {
             </span>
           ))}
           <span className="flex items-center gap-1 text-rose-600">
-            <span className="h-2 w-2 rounded-full bg-rose-500" /> Quá hạn
-          </span>
+            <span className="h-2 w-2 rounded-full bg-rose-500" />{tr(" Quá hạn")}</span>
           <span className="flex items-center gap-1 text-rose-600">
-            <Icon name="block" size={14} /> Đang bị chặn
-          </span>
+            <Icon name="block" size={14} />{tr(" Đang bị chặn")}</span>
         </div>
       </div>
       <ErrorBox error={error} onRetry={reload} />
       <div className="grid gap-4 xl:grid-cols-[1fr_320px]">
         <div className="card overflow-hidden">
           <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-50">
-            {DOW.map((d) => (
+            {getDaysOfWeek().map((d) => (
               <div key={d} className="px-2 py-2 text-center text-label-md text-slate-500">
                 {d}
               </div>
@@ -202,9 +201,9 @@ export default function Calendar() {
                       >
                         {date.getDate()}
                       </span>
-                      {key === today && <span className="text-label-sm text-blue-600">Hôm nay</span>}
+                      {key === today && <span className="text-label-sm text-blue-600">{tr("Hôm nay")}</span>}
                     </div>
-                    {key === sprintEnd && <div className="mb-1 rounded bg-purple-100 px-1.5 py-0.5 text-label-sm text-purple-700">Kết thúc {info.project.sprint.name}</div>}
+                    {key === sprintEnd && <div className="mb-1 rounded bg-purple-100 px-1.5 py-0.5 text-label-sm text-purple-700">{tr("Kết thúc ")}{info.project.sprint.name}</div>}
                     <div className="space-y-1">
                       {shown.map((t) => {
                         const overdue = t.status !== 'done' && new Date(t.dueDate).getTime() < Date.now();
@@ -227,8 +226,7 @@ export default function Calendar() {
                       })}
                       {list.length > shown.length && (
                         <button className="px-1 text-label-md text-blue-600 hover:underline" onClick={() => (setView('week'), setCursor(date))}>
-                          +{list.length - shown.length} việc khác
-                        </button>
+                          +{list.length - shown.length}{tr(" việc khác")}</button>
                       )}
                     </div>
                   </div>
@@ -241,15 +239,13 @@ export default function Calendar() {
         <div className="space-y-4">
           <div className="card p-4">
             <h2 className="flex items-center gap-1.5 text-label-sm uppercase tracking-wider text-slate-500">
-              <Icon name="account_tree" size={16} /> Phụ thuộc công việc
-            </h2>
-            <p className="mb-3 text-label-md font-normal text-slate-400">Theo dõi luồng chặn & điểm nghẽn</p>
-            {!chains.length && <p className="text-body-sm text-slate-400">Chưa có phụ thuộc trong dự án.</p>}
+              <Icon name="account_tree" size={16} />{tr(" Phụ thuộc công việc")}</h2>
+            <p className="mb-3 text-label-md font-normal text-slate-400">{tr("Theo dõi luồng chặn & điểm nghẽn")}</p>
+            {!chains.length && <p className="text-body-sm text-slate-400">{tr("Chưa có phụ thuộc trong dự án.")}</p>}
             {chains.map((chain, ci) => (
               <div key={ci} className="mb-3 space-y-1">
-                <p className="flex items-center justify-between text-label-md text-slate-600">
-                  Chuỗi nghẽn {ci + 1}
-                  {chain.filter((c) => c.status !== 'done').length > 1 && <span className="chip border-rose-200 bg-rose-50 text-rose-700">Đang chặn {chain.length - 1} việc</span>}
+                <p className="flex items-center justify-between text-label-md text-slate-600">{tr("Chuỗi nghẽn ")}{ci + 1}
+                  {chain.filter((c) => c.status !== 'done').length > 1 && <span className="chip border-rose-200 bg-rose-50 text-rose-700">{tr("Đang chặn ")}{chain.length - 1}{tr(" việc")}</span>}
                 </p>
                 {chain.map((t, i) => {
                   const overdue = t.status !== 'done' && t.dueDate && new Date(t.dueDate).getTime() < Date.now();
@@ -261,14 +257,13 @@ export default function Calendar() {
                       >
                         <div className="flex items-center justify-between">
                           <span className="font-mono text-label-md font-semibold text-slate-700">{t.key}</span>
-                          {overdue ? <span className="chip border-rose-200 bg-white text-rose-600">Quá hạn</span> : <StatusChip status={t.status} />}
+                          {overdue ? <span className="chip border-rose-200 bg-white text-rose-600">{tr("Quá hạn")}</span> : <StatusChip status={t.status} />}
                         </div>
                         <p className="mt-0.5 truncate text-body-sm text-slate-800">{t.title}</p>
                       </button>
                       {i < chain.length - 1 && (
                         <div className="flex items-center justify-center py-0.5 text-label-sm text-rose-500">
-                          <Icon name="south" size={14} /> đang chặn
-                        </div>
+                          <Icon name="south" size={14} />{tr(" đang chặn")}</div>
                       )}
                     </div>
                   );
@@ -277,7 +272,7 @@ export default function Calendar() {
             ))}
           </div>
           <div className="card p-4">
-            <h3 className="mb-2 text-label-lg font-semibold text-slate-800">Việc bị chặn ({blocked.length})</h3>
+            <h3 className="mb-2 text-label-lg font-semibold text-slate-800">{tr("Việc bị chặn (")}{blocked.length})</h3>
             <div className="space-y-1.5">
               {blocked.map((t) => (
                 <button
@@ -290,9 +285,9 @@ export default function Calendar() {
                   <Icon name="chevron_right" size={16} className="text-slate-400" />
                 </button>
               ))}
-              {!blocked.length && <p className="text-body-sm text-slate-400">Không có việc nào bị chặn.</p>}
+              {!blocked.length && <p className="text-body-sm text-slate-400">{tr("Không có việc nào bị chặn.")}</p>}
             </div>
-            <p className="mt-3 text-label-md font-normal text-slate-400">Thêm phụ thuộc trong chi tiết công việc. Hệ thống chặn tự liên kết, liên kết khác dự án và vòng lặp.</p>
+            <p className="mt-3 text-label-md font-normal text-slate-400">{tr("Thêm phụ thuộc trong chi tiết công việc. Hệ thống chặn tự liên kết, liên kết khác dự án và vòng lặp.")}</p>
           </div>
         </div>
       </div>
@@ -311,14 +306,14 @@ export default function Calendar() {
             <p className="text-body-md font-semibold text-slate-900">{pop.task.title}</p>
             <div className="mt-2 space-y-1 text-body-sm text-slate-600">
               <p className="flex items-center gap-2">
-                <Icon name="event" size={16} /> Hạn: {fmtDate(pop.task.dueDate, { year: true })}
+                <Icon name="event" size={16} />{tr(" Hạn: ")}{fmtDate(pop.task.dueDate, { year: true })}
               </p>
               <p className="flex items-center gap-2">
-                <Avatar user={pop.task.assignee} size={18} /> {pop.task.assignee?.name || 'Chưa giao'}
+                <Avatar user={pop.task.assignee} size={18} /> {pop.task.assignee?.name || tr("Chưa giao")}
               </p>
               {pop.task.isBlocked && (
                 <p className="flex items-center gap-2 text-rose-600">
-                  <Icon name="block" size={16} /> Bị chặn bởi{' '}
+                  <Icon name="block" size={16} />{tr(" Bị chặn bởi")}{' '}
                   {pop.task.blockedBy
                     .filter((b) => b.status !== 'done')
                     .map((b) => b.key)
@@ -327,13 +322,9 @@ export default function Calendar() {
               )}
             </div>
             <div className="mt-3 flex gap-2">
-              <button className="btn-primary btn-sm flex-1" onClick={() => (navigate({ search: `?task=${pop.task._id}` }), setPop(null))}>
-                Mở chi tiết
-              </button>
+              <button className="btn-primary btn-sm flex-1" onClick={() => (navigate({ search: `?task=${pop.task._id}` }), setPop(null))}>{tr("Mở chi tiết")}</button>
               {canWriteProject && (
-                <label className="btn-outline btn-sm relative flex-1 cursor-pointer">
-                  Đổi hạn
-                  <input
+                <label className="btn-outline btn-sm relative flex-1 cursor-pointer">{tr("Đổi hạn")}<input
                     type="date"
                     className="absolute inset-0 cursor-pointer opacity-0"
                     defaultValue={isoDate(pop.task.dueDate)}

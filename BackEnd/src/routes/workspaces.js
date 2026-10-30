@@ -26,7 +26,7 @@ const findMember = (workspace, user) => (isId(user) ? prisma.membership.findUniq
 router.post('/', async (req, res) => {
   const body = parse(
     z.object({
-      name: z.string({ required_error: 'Vui lòng nhập tên workspace' }).trim().min(2, 'Tên workspace quá ngắn').max(80),
+      name: z.string({ error: 'Vui lòng nhập tên workspace' }).trim().min(2, 'Tên workspace quá ngắn').max(80),
       slug: z.string().trim().max(40).optional(),
       size: z.enum(['2-5', '6-10', '11-20']).default('6-10'),
     }),
@@ -285,18 +285,25 @@ router.delete('/:wsId/invites/:id', middlewareWorkspace('wsId', 'admin'), async 
 const ENTITY_TYPES = ['task', 'project', 'member', 'file', 'workspace', 'comment', 'ai'];
 
 function activityWhere(req) {
-  const { workspace, role } = req.ws;
+  const { workspace } = req.ws;
   const and = [{ workspace: workspace.id }];
   // Thành viên thường chỉ thấy log của dự án mình được gán + log cấp workspace (lọc lồng trong cùng truy vấn)
   and.push({ OR: [{ projectRef: { memberships: { some: { user: req.user.id } } } }, { project: null }] });
-  const { actor, action, entityType, project, from, to, search } = req.query;
-  if (isId(actor)) and.push({ actor });
-  if (action) and.push({ action: String(action) });
-  if (ENTITY_TYPES.includes(entityType)) and.push({ entityType });
-  if (isId(project)) and.push({ project });
-  if ((from && !isDateInput(from)) || (to && !isDateInput(to))) throw badRequest('Khoảng ngày không hợp lệ');
-  if (from) and.push({ createdAt: { gte: parseDate(from, req.user.timezone) } });
-  if (to) and.push({ createdAt: { lte: parseDate(to, req.user.timezone, true) } });
+  const date = z.string().refine(isDateInput, 'Khoảng ngày không hợp lệ');
+  const { actor, action, entityType, project, from, to, search } = parse(z.object({
+    actor: z.string().uuid().optional(), project: z.string().uuid().optional(),
+    action: z.string().max(200).optional(), entityType: z.enum(ENTITY_TYPES).optional(),
+    from: date.optional(), to: date.optional(), search: z.string().max(2000).optional(),
+  }), req.query);
+  if (actor) and.push({ actor });
+  if (action) and.push({ action });
+  if (entityType) and.push({ entityType });
+  if (project) and.push({ project });
+  const start = from ? parseDate(from, req.user.timezone) : null;
+  const end = to ? parseDate(to, req.user.timezone, true) : null;
+  if (start && end && end < start) throw badRequest('Ngày kết thúc phải từ ngày bắt đầu trở đi');
+  if (start) and.push({ createdAt: { gte: start } });
+  if (end) and.push({ createdAt: { lte: end } });
   if (search) and.push({ entityLabel: ilike(search) });
   return { AND: and };
 }
@@ -305,7 +312,7 @@ router.get('/:wsId/activity', middlewareWorkspace(), async (req, res) => {
   const where = activityWhere(req);
   const { page, limit } = pagination(req.query, 20);
   const [items, total, actions] = await Promise.all([
-    prisma.activity.findMany({ where, orderBy: { createdAt: 'desc' }, skip: (page - 1) * limit, take: limit }).then((r) =>
+    prisma.activity.findMany({ where, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], skip: (page - 1) * limit, take: limit }).then((r) =>
       populateAll(r, [
         ['actor', 'user', USER],
         ['project', 'project', { name: true, color: true }],
@@ -318,12 +325,16 @@ router.get('/:wsId/activity', middlewareWorkspace(), async (req, res) => {
 });
 
 router.get('/:wsId/activity.csv', middlewareWorkspace(), async (req, res) => {
-  const items = await prisma.activity.findMany({ where: activityWhere(req), orderBy: { createdAt: 'desc' }, take: 10000 });
+  const columns = ['time', 'actor', 'action', 'entity', 'before', 'after', 'project'];
+  const { columns: requested } = parse(z.object({ columns: z.string().optional() }), req.query);
+  const cols = requested === undefined ? columns : requested.split(',');
+  if (!cols.length || cols.some((c) => !columns.includes(c)) || new Set(cols).size !== cols.length) throw badRequest('Cột CSV không hợp lệ');
+  const items = await prisma.activity.findMany({ where: activityWhere(req), orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: 10001 });
+  if (items.length > 10000) throw badRequest('Có hơn 10.000 bản ghi. Hãy thu hẹp khoảng ngày hoặc bộ lọc để xuất đầy đủ.');
   await populateAll(items, [
     ['actor', 'user', { name: true, email: true }],
     ['project', 'project', { name: true }],
   ]);
-  const cols = String(req.query.columns || 'time,actor,action,entity,before,after,project').split(',');
   const header = { time: 'Thời gian', actor: 'Người thực hiện', action: 'Hành động', entity: 'Đối tượng', before: 'Giá trị cũ', after: 'Giá trị mới', project: 'Dự án' };
   const val = (a, c) =>
     ({
@@ -337,6 +348,7 @@ router.get('/:wsId/activity.csv', middlewareWorkspace(), async (req, res) => {
     })[c];
   const rows = [cols.map((c) => header[c] || c), ...items.map((a) => cols.map((c) => val(a, c)))];
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Cache-Control', 'private, no-store');
   res.setHeader('Content-Disposition', `attachment; filename="nhat-ky-${Date.now()}.csv"`);
   res.send(toCsv(rows));
 });
@@ -450,7 +462,7 @@ router.get('/:wsId/my-tasks', middlewareWorkspace(), async (req, res) => {
   // Danh sách (kèm dữ liệu liên quan), tổng số và 4 chỉ số tóm tắt chạy song song
   const [items, total, today, overdue, upcoming, doneWeek, actionable] = await Promise.all([
     prisma.task
-      .findMany({ where, orderBy: [{ dueDate: { sort: 'asc', nulls: 'last' } }, { priority: 'desc' }, { number: 'asc' }], skip: (page - 1) * limit, take: limit })
+      .findMany({ where: { ...where, deletedAt: null }, orderBy: [{ dueDate: { sort: 'asc', nulls: 'last' } }, { priority: 'desc' }, { number: 'asc' }], skip: (page - 1) * limit, take: limit })
       .then(async (rows) => {
         const ids = rows.map((t) => t.id);
         const [, subs, comments] = await Promise.all([
@@ -474,13 +486,13 @@ router.get('/:wsId/my-tasks', middlewareWorkspace(), async (req, res) => {
           };
         });
       }),
-    prisma.task.count({ where }),
-    prisma.task.count({ where: { ...open, dueDate: { gte: sod, lt: eod } } }),
-    prisma.task.count({ where: { ...open, dueDate: { lt: now } } }),
-    prisma.task.count({ where: { ...open, dueDate: { gte: now, lt: eow } } }),
-    prisma.task.count({ where: { ...mine, status: 'done', completedAt: { gte: weekAgo } } }),
+    prisma.task.count({ where: { ...where, deletedAt: null } }),
+    prisma.task.count({ where: { deletedAt: null, ...open, dueDate: { gte: sod, lt: eod } } }),
+    prisma.task.count({ where: { deletedAt: null, ...open, dueDate: { lt: now } } }),
+    prisma.task.count({ where: { deletedAt: null, ...open, dueDate: { gte: now, lt: eow } } }),
+    prisma.task.count({ where: { deletedAt: null, ...mine, status: 'done', completedAt: { gte: weekAgo } } }),
     // Union of overdue and due today, so tasks overdue earlier today count once.
-    prisma.task.count({ where: { ...open, dueDate: { lt: eod } } }),
+    prisma.task.count({ where: { deletedAt: null, ...open, dueDate: { lt: eod } } }),
   ]);
   res.json({
     items,
@@ -499,7 +511,7 @@ router.get('/:wsId/search', middlewareWorkspace(), async (req, res) => {
   const [tasks, projects] = await Promise.all([
     prisma.task
       .findMany({
-        where: { projectRef: readable, OR: [{ title: ilike(s) }, { key: ilike(s) }] },
+        where: { deletedAt: null, projectRef: readable, OR: [{ title: ilike(s) }, { key: ilike(s) }] },
         select: { id: true, key: true, title: true, status: true, project: true },
         take: 8,
       })

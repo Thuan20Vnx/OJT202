@@ -1,3 +1,4 @@
+import { t as tr, useI18n } from '../lib/i18n.js';
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../lib/api.js';
@@ -20,7 +21,8 @@ const empty = (status = 'todo') => ({
   labels: [],
 });
 
-export function MemberPicker({ members = [], value, onChange, placeholder = 'Chưa giao', allowEmpty = true }) {
+export function MemberPicker({ members = [], value, onChange, placeholder = tr("Chưa giao"), allowEmpty = true }) {
+  useI18n();
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
   const ref = useRef(null);
@@ -34,7 +36,7 @@ export function MemberPicker({ members = [], value, onChange, placeholder = 'Ch�
   const list = members.filter((m) => m.role !== 'viewer' && m.projectRole !== 'viewer' && m.name.toLowerCase().includes(q.toLowerCase()));
   return (
     <div className="relative" ref={ref}>
-      <button type="button" aria-label="Chọn người nhận" onClick={() => setOpen((o) => !o)} className="input flex items-center justify-between gap-2 text-left">
+      <button type="button" aria-label={tr("Chọn người nhận")} aria-expanded={open} onClick={() => setOpen((o) => !o)} onKeyDown={(e) => { if (e.key === 'Escape') setOpen(false); }} className="input flex items-center justify-between gap-2 text-left">
         <span className="flex min-w-0 items-center gap-2">
           <Avatar user={sel} size={22} />
           <span className={`truncate ${sel ? 'text-slate-800' : 'text-slate-400'}`}>{sel ? sel.name : placeholder}</span>
@@ -42,10 +44,10 @@ export function MemberPicker({ members = [], value, onChange, placeholder = 'Ch�
         <Icon name="expand_more" className="text-slate-400" />
       </button>
       {open && (
-        <div className="animate-slide-in absolute left-0 right-0 z-50 mt-1 rounded-xl border border-slate-200 bg-white p-1.5 shadow-pop">
+        <div onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); setOpen(false); ref.current?.querySelector('button')?.focus(); } }} className="animate-slide-in absolute left-0 right-0 z-50 mt-1 rounded-xl border border-slate-200 bg-white p-1.5 shadow-pop">
           <div className="relative mb-1">
             <Icon name="search" size={16} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input autoFocus className="input h-8 pl-8 text-body-sm" placeholder="Tìm thành viên..." value={q} onChange={(e) => setQ(e.target.value)} />
+            <input autoFocus aria-label={tr("Tìm thành viên dự án")} className="input h-8 pl-8 text-body-sm" placeholder={tr("Tìm thành viên...")} value={q} onChange={(e) => setQ(e.target.value)} />
           </div>
           <div className="scroll-thin max-h-56 overflow-y-auto">
             {allowEmpty && (
@@ -54,8 +56,7 @@ export function MemberPicker({ members = [], value, onChange, placeholder = 'Ch�
                 onClick={() => (onChange(''), setOpen(false))}
                 className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-body-sm text-slate-500 hover:bg-slate-50"
               >
-                <Avatar user={null} size={22} /> Chưa giao
-              </button>
+                <Avatar user={null} size={22} />{tr(" Chưa giao")}</button>
             )}
             {list.map((m) => (
               <button
@@ -70,7 +71,7 @@ export function MemberPicker({ members = [], value, onChange, placeholder = 'Ch�
               </button>
             ))}
           </div>
-          <p className="mt-1 border-t border-slate-100 px-2 pt-1.5 text-label-md font-normal text-slate-400">Chỉ thành viên của dự án mới được giao</p>
+          <p className="mt-1 border-t border-slate-100 px-2 pt-1.5 text-label-md font-normal text-slate-400">{tr("Chỉ thành viên của dự án mới được giao")}</p>
         </div>
       )}
     </div>
@@ -78,7 +79,8 @@ export function MemberPicker({ members = [], value, onChange, placeholder = 'Ch�
 }
 
 export default function CreateTaskModal({ open, onClose, defaultStatus, projectId: forcedProject, onCreated }) {
-  const { project, me } = useApp();
+  useI18n();
+  const { project, me, canManageProject } = useApp();
   const pid = forcedProject || project?._id;
   const info = useProjectInfo(open ? pid : null);
   const toast = useToast();
@@ -91,19 +93,26 @@ export default function CreateTaskModal({ open, onClose, defaultStatus, projectI
   const [newLabel, setNewLabel] = useState('');
   const files = useRef(null);
   const [picked, setPicked] = useState([]);
+  const submitting = useRef(false);
+  const canCreate = info?.access?.canManage === true && (forcedProject || canManageProject);
 
   useEffect(() => {
     if (open) {
       setF(empty(defaultStatus));
       setErrors({});
       setPicked([]);
+      setNewCrit('');
+      setNewSub('');
+      setNewLabel('');
     }
   }, [open, defaultStatus]);
 
   const set = (k) => (v) => setF((s) => ({ ...s, [k]: v?.target ? v.target.value : v }));
 
   const submit = async () => {
-    if (!f.title.trim()) return setErrors({ title: 'Vui lòng nhập tên công việc' });
+    if (submitting.current || !canCreate) return;
+    if (!f.title.trim()) return setErrors({ title: tr("Vui lòng nhập tên công việc") });
+    submitting.current = true;
     setBusy(true);
     setErrors({});
     try {
@@ -125,7 +134,7 @@ export default function CreateTaskModal({ open, onClose, defaultStatus, projectI
         fd.append('task', task._id);
         await api.upload(`/projects/${pid}/documents/upload`, fd).catch((e) => toast(e.message, 'error'));
       }
-      toast(`Đã tạo ${task.key}`);
+      toast(tr("Đã tạo {0}", [task.key]));
       onCreated?.(task);
       if (more) {
         setF(empty(f.status));
@@ -135,6 +144,7 @@ export default function CreateTaskModal({ open, onClose, defaultStatus, projectI
       setErrors(e.fields || {});
       toast(e.message, 'error');
     } finally {
+      submitting.current = false;
       setBusy(false);
     }
   };
@@ -143,57 +153,51 @@ export default function CreateTaskModal({ open, onClose, defaultStatus, projectI
   return (
     <Modal
       open={open}
-      onClose={onClose}
+      onClose={() => !submitting.current && onClose()}
       width="max-w-5xl"
       bodyClass="p-0"
       title={
-        <span className="flex items-center gap-2">
-          Tạo công việc mới <span className="rounded-md bg-blue-100 px-1.5 py-0.5 text-label-sm text-blue-700">Mới</span>
+        <span className="flex items-center gap-2">{tr("Tạo công việc mới ")}<span className="rounded-md bg-blue-100 px-1.5 py-0.5 text-label-sm text-blue-700">{tr("Mới")}</span>
         </span>
       }
-      subtitle={`${info?.project?.name || project?.name || ''} · cột ${STATUS[f.status].label}`}
+      subtitle={tr("{0} · cột {1}", [info?.project?.name || project?.name || '', STATUS[f.status].label])}
       footer={
         <>
           <label className="mr-auto flex items-center gap-2 text-body-sm text-slate-600">
-            <input type="checkbox" className="form-checkbox rounded text-blue-600" checked={more} onChange={(e) => setMore(e.target.checked)} />
-            Tạo tiếp công việc khác
-          </label>
-          <button className="btn-outline" onClick={onClose}>
-            Hủy
-          </button>
-          <button className="btn-primary" onClick={submit} disabled={busy}>
-            {busy ? <Spinner /> : <Icon name="add" size={16} />}
-            Tạo công việc
-          </button>
+            <input type="checkbox" className="form-checkbox rounded text-blue-600" checked={more} onChange={(e) => setMore(e.target.checked)} />{tr("Tạo tiếp công việc khác")}</label>
+          <button className="btn-outline" onClick={onClose} disabled={busy}>{tr("Hủy")}</button>
+          <button className="btn-primary" onClick={submit} disabled={busy || !canCreate}>
+            {busy ? <Spinner /> : <Icon name="add" size={16} />}{tr("Tạo công việc")}</button>
         </>
       }
     >
       <div className="grid md:grid-cols-[1fr_320px]">
         <div className="space-y-5 p-5">
-          <Field label="Tên công việc" required error={errors.title}>
+          {!info && <p role="status" className="text-body-sm text-slate-500">{tr("Đang tải quyền và thành viên dự án. Nếu không tải được, đóng rồi mở lại để thử lại.")}</p>}
+          {info && !canCreate && <p role="alert" className="text-body-sm text-rose-600">{tr("Chỉ PM của dự án đang hoạt động được tạo công việc.")}</p>}
+          <Field label={tr("Tên công việc")} required error={errors.title}>
             <input
               autoFocus
               className={`input ${errors.title ? 'input-error' : ''}`}
               value={f.title}
               onChange={set('title')}
-              placeholder="Ví dụ: Thiết kế màn hình Thông báo"
+              placeholder={tr("Ví dụ: Thiết kế màn hình Thông báo")}
               maxLength={200}
             />
           </Field>
-          <Field label="Mô tả">
+          <Field label={tr("Mô tả")} error={errors.description}>
             <textarea
               className="textarea min-h-[110px]"
               value={f.description}
+              maxLength={20000}
               onChange={set('description')}
-              placeholder="Nhập mô tả chi tiết yêu cầu, ngữ cảnh kỹ thuật hoặc mục tiêu công việc..."
+              placeholder={tr("Nhập mô tả chi tiết yêu cầu, ngữ cảnh kỹ thuật hoặc mục tiêu công việc...")}
             />
           </Field>
           <div>
             <div className="mb-2 flex items-center justify-between">
               <span className="label mb-0 flex items-center gap-1.5">
-                <Icon name="verified" size={16} className="text-emerald-500" />
-                Tiêu chí nghiệm thu
-              </span>
+                <Icon name="verified" size={16} className="text-emerald-500" />{tr("Tiêu chí nghiệm thu")}</span>
             </div>
             <div className="space-y-1.5">
               {f.acceptanceCriteria.map((c, i) => (
@@ -208,7 +212,7 @@ export default function CreateTaskModal({ open, onClose, defaultStatus, projectI
               <div className="flex gap-2">
                 <input
                   className="input h-9"
-                  placeholder="Thêm tiêu chí rồi nhấn Enter"
+                  placeholder={tr("Thêm tiêu chí rồi nhấn Enter")}
                   value={newCrit}
                   onChange={(e) => setNewCrit(e.target.value)}
                   onKeyDown={(e) => {
@@ -223,9 +227,7 @@ export default function CreateTaskModal({ open, onClose, defaultStatus, projectI
           </div>
           <div>
             <span className="label flex items-center gap-1.5">
-              <Icon name="account_tree" size={16} className="text-blue-600" />
-              Công việc con (tùy chọn)
-            </span>
+              <Icon name="account_tree" size={16} className="text-blue-600" />{tr("Công việc con (tùy chọn)")}</span>
             <div className="space-y-1.5">
               {f.subtasks.map((s, i) => (
                 <div key={i} className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-body-sm">
@@ -238,7 +240,7 @@ export default function CreateTaskModal({ open, onClose, defaultStatus, projectI
               ))}
               <input
                 className="input h-9"
-                placeholder="+ Thêm công việc con rồi nhấn Enter"
+                placeholder={tr("+ Thêm công việc con rồi nhấn Enter")}
                 value={newSub}
                 onChange={(e) => setNewSub(e.target.value)}
                 onKeyDown={(e) => {
@@ -252,19 +254,15 @@ export default function CreateTaskModal({ open, onClose, defaultStatus, projectI
           </div>
           <div>
             <span className="label flex items-center gap-1.5">
-              <Icon name="attach_file" size={16} />
-              Tệp đính kèm
-            </span>
+              <Icon name="attach_file" size={16} />{tr("Tệp đính kèm")}</span>
             <button
               type="button"
               onClick={() => files.current?.click()}
               className="flex w-full flex-col items-center rounded-xl border-2 border-dashed border-slate-200 px-4 py-5 text-body-sm text-slate-500 hover:border-blue-300 hover:bg-blue-50/40"
             >
               <Icon name="cloud_upload" size={26} className="text-slate-400" />
-              <span>
-                Kéo thả hoặc <span className="font-semibold text-blue-600">duyệt tệp</span> từ máy tính
-              </span>
-              <span className="text-label-md font-normal text-slate-400">PDF, TXT, PNG, JPG – tối đa 10MB</span>
+              <span>{tr("Kéo thả hoặc ")}<span className="font-semibold text-blue-600">{tr("duyệt tệp")}</span>{tr(" từ máy tính")}</span>
+              <span className="text-label-md font-normal text-slate-400">{tr("PDF, TXT, PNG, JPG – tối đa 10MB")}</span>
             </button>
             <input ref={files} type="file" multiple hidden accept=".pdf,.txt,.png,.jpg,.jpeg" onChange={(e) => setPicked([...e.target.files])} />
             {picked.map((p) => (
@@ -275,8 +273,8 @@ export default function CreateTaskModal({ open, onClose, defaultStatus, projectI
           </div>
         </div>
         <div className="space-y-4 border-l border-slate-100 bg-slate-50/60 p-5">
-          <p className="section-label">Chi tiết thuộc tính</p>
-          <Field label="Trạng thái">
+          <p className="section-label">{tr("Chi tiết thuộc tính")}</p>
+          <Field label={tr("Trạng thái")}>
             <Select className="input" value={f.status} onChange={set('status')}>
               {STATUS_ORDER.filter((s) => s !== 'done').map((s) => (
                 <option key={s} value={s}>
@@ -284,22 +282,23 @@ export default function CreateTaskModal({ open, onClose, defaultStatus, projectI
                 </option>
               ))}
             </Select>
-            <p className="mt-1 text-label-md text-slate-500">Công việc cần được PM, Owner hoặc Admin duyệt từ Đang kiểm duyệt trước khi hoàn thành.</p>
+            <p className="mt-1 text-label-md text-slate-500">{tr("Công việc cần được PM của dự án duyệt từ Đang kiểm duyệt trước khi hoàn thành.")}</p>
           </Field>
-          <Field label="Người nhận" error={errors.assignee}>
+          <Field label={tr("Người nhận")} error={errors.assignee}>
             <MemberPicker members={members} value={f.assignee} onChange={set('assignee')} />
           </Field>
-          <Field label="Hạn chót" hint={`Hết ngày (23:59:59), ${timeZone()}. Để trống nếu không có hạn.`}>
+          <Field label={tr("Hạn chót")} error={errors.dueDate} hint={tr("Hết ngày (23:59:59), {0}. Để trống nếu không có hạn.", [timeZone()])}>
             <input type="date" className="input" value={f.dueDate} onChange={set('dueDate')} />
           </Field>
           <div>
-            <span className="label">Mức độ ưu tiên</span>
+            <span className="label">{tr("Mức độ ưu tiên")}</span>
             <div className="grid grid-cols-3 rounded-lg bg-slate-100 p-0.5">
               {['low', 'medium', 'high'].map((p) => (
                 <button
                   key={p}
                   type="button"
                   onClick={() => set('priority')(p)}
+                  aria-pressed={f.priority === p}
                   className={`rounded-md py-1.5 text-label-md ${f.priority === p ? 'bg-white font-semibold text-slate-900 shadow-sm' : 'text-slate-500'}`}
                 >
                   {PRIORITY[p].label}
@@ -307,11 +306,11 @@ export default function CreateTaskModal({ open, onClose, defaultStatus, projectI
               ))}
             </div>
           </div>
-          <Field label="Giờ ước lượng">
-            <input type="number" min="0" className="input" value={f.estimateHours} onChange={set('estimateHours')} placeholder="vd 8" />
+          <Field label={tr("Giờ ước lượng")} error={errors.estimateHours}>
+            <input type="number" min="0" max="1000" step="0.01" className="input" value={f.estimateHours} onChange={set('estimateHours')} placeholder="vd 8" />
           </Field>
           <div>
-            <span className="label">Nhãn</span>
+            <span className="label">{tr("Nhãn")}</span>
             <div className="flex flex-wrap gap-1.5">
               {f.labels.map((l) => (
                 <span key={l} className="chip border-slate-200 bg-white text-slate-600">
@@ -323,7 +322,7 @@ export default function CreateTaskModal({ open, onClose, defaultStatus, projectI
               ))}
               <input
                 className="input h-[22px] w-28 rounded-md px-2 text-label-md"
-                placeholder="+ Thêm nhãn"
+                placeholder={tr("+ Thêm nhãn")}
                 value={newLabel}
                 onChange={(e) => setNewLabel(e.target.value)}
                 onKeyDown={(e) => {
@@ -343,14 +342,11 @@ export default function CreateTaskModal({ open, onClose, defaultStatus, projectI
           )}
           <div className="rounded-xl border border-purple-200 bg-purple-50 p-3">
             <p className="flex items-center gap-1.5 text-label-md font-semibold text-purple-700">
-              <Icon name="auto_awesome" size={16} /> Gợi ý từ Trợ lý AI
-            </p>
-            <p className="mt-1 text-body-sm text-purple-800">Tạo nhanh nhiều công việc từ một mục tiêu.</p>
-            <Link to="/ai" onClick={onClose} className="mt-1 inline-block text-label-md font-semibold text-purple-700 underline">
-              Mở Lập kế hoạch
-            </Link>
+              <Icon name="auto_awesome" size={16} />{tr(" Gợi ý từ Trợ lý AI")}</p>
+            <p className="mt-1 text-body-sm text-purple-800">{tr("Tạo nhanh nhiều công việc từ một mục tiêu.")}</p>
+            <Link to="/ai" onClick={onClose} className="mt-1 inline-block text-label-md font-semibold text-purple-700 underline">{tr("Mở Lập kế hoạch")}</Link>
           </div>
-          {me && <p className="text-label-md font-normal text-slate-400">Người tạo: {me.name}</p>}
+          {me && <p className="text-label-md font-normal text-slate-400">{tr("Người tạo: ")}{me.name}</p>}
         </div>
       </div>
     </Modal>
