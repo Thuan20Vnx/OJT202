@@ -5,6 +5,7 @@ import { BUSINESS_TIMEZONE, addDays, dateKey, endOfDay, isCalendarDate, parseDat
 const ACTION = /(se |can |phai |lam |cap nhat|gui |hoan thanh|hoan thien|kiem thu|kiem tra|viet |chuan bi|review|sua |fix|deploy|trien khai|thiet ke|bao cao|nop )/;
 const SELF = /\b(minh|toi|em|anh|chi)\s+se\b/;
 const SOMEONE = /(ai do|nguoi nao|mot ai)/;
+const CANCELLED = /\b(khong can|khong phai|khong duoc|chua can|huy (cong viec|yeu cau|ke hoach|trien khai)|tam dung|bo qua)\b/;
 const WEEKDAYS = {
   'chu nhat': 0,
   'thu 2': 1,
@@ -80,7 +81,7 @@ export function localMeeting(text, members, { timezone = BUSINESS_TIMEZONE, now 
     const speaker = m ? findMember(m[1], members) : null;
     const content = (m ? m[2] : lineText).trim();
     const f = ` ${fold(content)} `;
-    if (!ACTION.test(f)) continue;
+    if (!ACTION.test(f) || CANCELLED.test(f)) continue;
     let assignee = null;
     if (SOMEONE.test(f)) assignee = null;
     else if (SELF.test(f) && speaker) assignee = speaker;
@@ -114,12 +115,20 @@ export async function extractActions(llm, { text, members, timezone = BUSINESS_T
   if (!Array.isArray(arr) || arr.some((x) => !x || typeof x !== 'object' || !String(x.title || '').trim()))
     throw new Error('AI trả biên bản không hợp lệ hoặc công việc thiếu tiêu đề');
   const ids = new Set(members.map((m) => String(m.id)));
-  const items = arr.slice(0, 20).map((x) => ({
-    title: String(x.title).trim().slice(0, 160),
-    excerpt: String(x.excerpt || '').slice(0, 500),
-    assignee: ids.has(String(x.assigneeId)) ? x.assigneeId : undefined,
-    dueDate: isCalendarDate(x.dueDate) ? parseDate(x.dueDate, timezone, true) : null,
-    priority: 'medium',
-  }));
+  if (arr.length > 20) throw new Error('AI trả quá 20 công việc trong biên bản');
+  const items = arr.map((x) => {
+    const excerpt = typeof x.excerpt === 'string' ? x.excerpt.trim() : '';
+    if (!excerpt || excerpt.length > 500 || !text.slice(0, 15000).includes(excerpt)) throw new Error('Trích đoạn AI không tồn tại trong biên bản gốc');
+    if (CANCELLED.test(fold(excerpt))) throw new Error('AI trích công việc đã bị hủy hoặc phủ định');
+    const evidence = localMeeting(excerpt, members, { timezone });
+    const explicit = evidence.find((it) => it.assignee === x.assigneeId);
+    const due = parseDue(excerpt, new Date(), timezone);
+    return {
+      title: String(x.title).trim().slice(0, 160), excerpt,
+      assignee: ids.has(String(x.assigneeId)) && explicit ? x.assigneeId : undefined,
+      dueDate: isCalendarDate(x.dueDate) && due && dateKey(due, timezone) === x.dueDate ? due : null,
+      priority: 'medium',
+    };
+  });
   return { items, inputTokens: out.inputTokens, outputTokens: out.outputTokens };
 }

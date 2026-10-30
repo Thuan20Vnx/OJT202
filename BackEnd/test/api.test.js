@@ -709,6 +709,195 @@ describe('Nhật ký & xuất dữ liệu (U020)', () => {
   });
 });
 
+describe('Hoàng Anh Sprint 3 — planner và nguồn cảnh báo', () => {
+  test('U021: nháp chưa tạo task/notification; patch CAS, chọn người thủ công và duyệt đúng một lần', async () => {
+    const { owner, ws, pid } = await permissionFixture();
+    const r = await owner.post(`/projects/${pid}/ai/plan`, { goal: 'Xây dựng quản lý công việc', maxHours: 12 });
+    assert.equal(r.status, 201, JSON.stringify(r.data));
+    const draft = r.data.draft;
+    assert.equal(draft.version, 1);
+    assert.equal(await db.prisma.task.count({ where: { project: pid } }), 0);
+    assert.equal(await db.prisma.notification.count({ where: { project: pid } }), 0);
+    assert.ok(draft.items.every((it) => !it.assignee && it.description && it.acceptanceCriteria.length && it.estimateHours > 0));
+    const key = draft.items[0].key;
+    assert.equal((await owner.patch(`/ai/drafts/${draft._id}`, { items: [{ key, title: 'Thiếu version' }] })).status, 400);
+    const updates = await Promise.all(['Bản A', 'Bản B'].map((title) => owner.patch(`/ai/drafts/${draft._id}`, { version: 1, items: [{ key, title, assignee: seed.users.nhu.id }] })));
+    assert.deepEqual(updates.map((x) => x.status).sort(), [200, 409]);
+    assert.equal((await owner.post(`/ai/drafts/${draft._id}/approve`, { version: 1 })).status, 409);
+    assert.equal((await owner.post(`/ai/drafts/${draft._id}/discard`, { version: 1 })).status, 409);
+    assert.equal(await db.prisma.task.count({ where: { project: pid } }), 0);
+    const approved = await Promise.all(Array.from({ length: 5 }, () => owner.post(`/ai/drafts/${draft._id}/approve`, { version: 2 })));
+    assert.ok(approved.every((x) => x.status === 200), JSON.stringify(approved));
+    assert.ok(approved.every((x) => x.data.draft.version === 3));
+    const tasks = await db.prisma.task.findMany({ where: { project: pid } });
+    assert.equal(tasks.length, draft.items.length);
+    assert.equal(tasks.filter((t) => t.assignee === seed.users.nhu.id).length, 1);
+    assert.equal(await db.prisma.notification.count({ where: { project: pid, type: 'assigned' } }), 1);
+    assert.equal(await db.prisma.activity.count({ where: { project: pid, action: 'Duyệt kế hoạch AI' } }), 1);
+    assert.ok(tasks.every((t) => t.acceptanceCriteria.length && t.remainingHours === t.estimateHours));
+    assert.equal((await owner.post(`/ai/drafts/${draft._id}/discard`, { version: 3 })).status, 400);
+    assert.equal((await db.prisma.aiDraft.findUnique({ where: { id: draft._id } })).workspace, ws);
+  });
+
+  test('U021: từ chối project Viewer, mục không tồn tại, trùng key và trường không hỗ trợ', async () => {
+    const { owner, pid } = await permissionFixture();
+    await owner.patch(`/projects/${pid}/members/${seed.users.dat.id}`, { role: 'viewer' });
+    const { data } = await owner.post(`/projects/${pid}/ai/plan`, { goal: 'Viết API có phân quyền' });
+    const draft = data.draft, key = draft.items[0].key;
+    for (const body of [
+      { items: [{ key, assignee: seed.users.dat.id }] }, { items: [{ key: 'missing', selected: false }] },
+      { items: [{ key, title: 'A' }, { key, title: 'B' }] }, { removeKeys: ['missing'] },
+      { items: [{ key, excerpt: 'Không được sửa chứng cứ gốc' }] },
+    ]) assert.equal((await owner.patch(`/ai/drafts/${draft._id}`, { version: 1, ...body })).status, 400);
+    assert.equal((await owner.get(`/ai/drafts/${draft._id}`)).data.draft.version, 1);
+    assert.equal((await owner.post(`/ai/drafts/${draft._id}/discard`, { version: 1 })).status, 200);
+    assert.equal((await owner.post(`/ai/drafts/${draft._id}/approve`, { version: 1 })).status, 400);
+  });
+
+  test('U021: duyệt không được vượt số người tối đa; audit lỗi rollback toàn bộ task/sequence/nháp', async (t) => {
+    const { owner, pid } = await permissionFixture();
+    const r = await owner.post(`/projects/${pid}/ai/plan`, { goal: 'Triển khai API công việc', people: 1 });
+    assert.equal(r.status, 201);
+    const draft = r.data.draft;
+    await owner.patch(`/ai/drafts/${draft._id}`, { version: 1, items: [
+      { key: draft.items[0].key, assignee: seed.users.maianh.id },
+      { key: draft.items[1].key, assignee: seed.users.nhu.id },
+    ] });
+    assert.equal((await owner.post(`/ai/drafts/${draft._id}/approve`, { version: 2 })).status, 400);
+    assert.equal(await db.prisma.task.count({ where: { project: pid } }), 0);
+    await owner.patch(`/ai/drafts/${draft._id}`, { version: 2, items: [{ key: draft.items[1].key, assignee: null }] });
+    const original = db.prisma.$transaction;
+    const transact = original.bind(db.prisma);
+    t.after(() => { db.prisma.$transaction = original; });
+    db.prisma.$transaction = (callback, options) => transact(async (tx) => {
+      const createMany = tx.activity.createMany.bind(tx.activity);
+      tx.activity.createMany = (args) => {
+        if (args.data.some((a) => a.action === 'Duyệt kế hoạch AI')) throw new Error('Sprint3 simulated approval audit failure');
+        return createMany(args);
+      };
+      return callback(tx);
+    }, options);
+    assert.equal((await owner.post(`/ai/drafts/${draft._id}/approve`, { version: 3 })).status, 500);
+    db.prisma.$transaction = original;
+    assert.equal(await db.prisma.task.count({ where: { project: pid } }), 0);
+    assert.equal(await db.prisma.activity.count({ where: { project: pid, action: 'Tạo công việc từ AI' } }), 0);
+    assert.equal(await db.prisma.notification.count({ where: { project: pid } }), 0);
+    assert.equal((await owner.get(`/ai/drafts/${draft._id}`)).data.draft.status, 'draft');
+    assert.equal((await owner.post(`/ai/drafts/${draft._id}/approve`, { version: 3 })).status, 200);
+    assert.equal((await db.prisma.task.findFirst({ where: { project: pid }, orderBy: { number: 'asc' } })).number, 1);
+  });
+
+  test('U021: HTTP AI sai schema trả 503, ghi lỗi và không tạo nháp/task', async (t) => {
+    const { owner, ws, pid } = await permissionFixture();
+    const original = config.ai.serviceUrl;
+    const fake = http.createServer((req, res) => { req.resume(); res.setHeader('content-type', 'application/json'); res.end(JSON.stringify({ result: { items: [{ title: 'Thiếu mô tả và AC' }] }, model: 'invalid-test' })); });
+    await new Promise((r) => fake.listen(0, '127.0.0.1', r));
+    config.ai.serviceUrl = `http://127.0.0.1:${fake.address().port}`;
+    t.after(async () => { config.ai.serviceUrl = original; fake.closeAllConnections(); await new Promise((r) => fake.close(r)); });
+    const r = await owner.post(`/projects/${pid}/ai/plan`, { goal: 'Xây dựng API' });
+    assert.equal(r.status, 503);
+    assert.equal(r.data.details.code, 'AI_UNAVAILABLE');
+    assert.equal(await db.prisma.aiDraft.count({ where: { project: pid } }), 0);
+    assert.equal(await db.prisma.task.count({ where: { project: pid } }), 0);
+    assert.equal((await db.prisma.aiCall.findFirst({ where: { workspace: ws } })).status, 'error');
+  });
+
+  test('U026: biên quá hạn đúng mili giây; Blocked suy ra chỉ từ dependency quá hạn chưa Done', async () => {
+    const { owner, pid, create } = await permissionFixture();
+    await owner.req('PUT', `/projects/${pid}/risk-rules`, { overdueDays: 1, overload: false, dueSoon: false });
+    const now = new Date('2026-10-30T10:00:00Z');
+    const blocker = await create({ dueDate: new Date(now - 86400000 + 1).toISOString() });
+    const dependent = await create({ title: 'Công việc phụ thuộc' });
+    await owner.post(`/tasks/${dependent._id}/dependencies`, { blockedBy: blocker._id });
+    let data = await riskAlerts(pid, { now });
+    assert.equal(data.open.filter((a) => a.type === 'overdue').length, 0);
+    assert.equal(data.open.filter((a) => a.type === 'blocked').length, 1);
+    data = await riskAlerts(pid, { now: new Date(now.getTime() + 1) });
+    assert.equal(data.open.filter((a) => a.type === 'overdue').length, 1);
+    assert.equal(data.open.find((a) => a.type === 'overdue').severity, 'critical');
+    assert.ok(data.open.every((a) => a.tasks.length && a.snapshot.tasks.length && /^[a-f0-9]{64}$/.test(a.sourceVersion)));
+    await db.prisma.task.update({ where: { id: blocker._id }, data: { status: 'done', remainingHours: 0, completedAt: now, version: { increment: 1 } } });
+    assert.equal((await riskAlerts(pid, { now })).open.length, 0);
+  });
+
+  test('U026: tải đúng ngưỡng không cảnh báo; số 0 giờ khả dụng và remainingHours được tính đúng', async () => {
+    const { owner, ws, pid, create } = await permissionFixture();
+    await owner.req('PUT', `/projects/${pid}/risk-rules`, { overdue: false, blockedByOverdue: false, dueSoon: false, overloadPct: 100 });
+    const now = new Date('2026-10-30T10:00:00Z');
+    await db.prisma.membership.update({ where: { workspace_user: { workspace: ws, user: seed.users.nhu.id } }, data: { weeklyHours: 10 } });
+    const task = await create({ assignee: seed.users.nhu.id, estimateHours: 50, remainingHours: 10, dueDate: now.toISOString() });
+    assert.equal((await riskAlerts(pid, { now })).open.length, 0);
+    await db.prisma.task.update({ where: { id: task._id }, data: { remainingHours: 10.01, version: { increment: 1 } } });
+    assert.equal((await riskAlerts(pid, { now })).open.length, 1);
+    await db.prisma.membership.update({ where: { workspace_user: { workspace: ws, user: seed.users.nhu.id } }, data: { weeklyHours: 0 } });
+    const alert = (await riskAlerts(pid, { now })).open[0];
+    assert.equal(alert.snapshot.capacity.available, 0);
+    assert.equal(alert.snapshot.capacity.hours, 10.01);
+    await db.prisma.task.update({ where: { id: task._id }, data: { remainingHours: 0, version: { increment: 1 } } });
+    assert.equal((await riskAlerts(pid, { now })).open.length, 0);
+  });
+
+  test('U026: xử lý cần lý do/đúng nguồn, idempotent; chỉ nguồn liên quan thay đổi mới mở lại', async () => {
+    const { owner, pid, create } = await permissionFixture();
+    await owner.req('PUT', `/projects/${pid}/risk-rules`, { overdueDays: 0, overload: false, dueSoon: false, blockedByOverdue: false });
+    const task = await create({ dueDate: new Date(Date.now() - 86400000).toISOString() });
+    const unrelated = await create({ title: 'Không liên quan' });
+    const alert = (await owner.get(`/projects/${pid}/risks`)).data.open[0];
+    const reportResponse = await owner.post(`/projects/${pid}/ai/reports`, { from: '2026-10-01', to: '2026-10-30' });
+    assert.equal(reportResponse.status, 201);
+    const report = reportResponse.data.report;
+    assert.ok(new Date(report.generatedAt) <= new Date(report.createdAt));
+    assert.equal(report.sourceState, 'current');
+    const body = { key: alert.key, sourceVersion: alert.sourceVersion, reason: 'Đã thống nhất dời phạm vi ở buổi họp' };
+    assert.equal((await owner.post(`/projects/${pid}/risks/resolve`, { key: alert.key })).status, 400);
+    assert.equal((await owner.post(`/projects/${pid}/risks/resolve`, { ...body, reason: '  ' })).status, 400);
+    assert.equal((await owner.post(`/projects/${pid}/risks/resolve`, { ...body, sourceVersion: '0'.repeat(64) })).status, 409);
+    const results = await Promise.all([owner.post(`/projects/${pid}/risks/resolve`, body), owner.post(`/projects/${pid}/risks/resolve`, body)]);
+    assert.ok(results.every((r) => r.status === 200), JSON.stringify(results));
+    assert.equal(await db.prisma.activity.count({ where: { project: pid, action: 'Xử lý cảnh báo rủi ro' } }), 1);
+    let data = (await owner.get(`/projects/${pid}/risks`)).data;
+    assert.equal(data.open.length, 0);
+    assert.equal(data.resolved[0].reason, body.reason);
+    assert.equal(data.resolved[0].current, true);
+    assert.deepEqual(data.resolved[0].snapshot, alert.snapshot);
+    const staleReport = (await owner.get(`/ai/reports/${report._id}`)).data.report;
+    assert.equal(staleReport.sourceState, 'changed');
+    assert.equal(staleReport.generatedAt, report.generatedAt);
+    assert.deepEqual(staleReport.stats, report.stats);
+    await owner.patch(`/tasks/${unrelated._id}`, { version: unrelated.version, title: 'Thay đổi không liên quan' });
+    assert.equal((await owner.get(`/projects/${pid}/risks`)).data.open.length, 0);
+    await owner.patch(`/tasks/${task._id}`, { version: task.version, title: 'Đã thay đổi nguồn rủi ro' });
+    data = (await owner.get(`/projects/${pid}/risks`)).data;
+    assert.equal(data.open[0].key, alert.key);
+    assert.notEqual(data.open[0].sourceVersion, alert.sourceVersion);
+    assert.equal(data.resolved[0].current, false);
+    assert.equal((await owner.post(`/projects/${pid}/risks/resolve`, body)).status, 409);
+    const next = { ...body, sourceVersion: data.open[0].sourceVersion, reason: 'Đã xem xét lại nguồn mới' };
+    assert.equal((await owner.post(`/projects/${pid}/risks/resolve`, next)).status, 200);
+    assert.equal((await owner.del(`/projects/${pid}/risks/resolve?key=${encodeURIComponent(alert.key)}&sourceVersion=${body.sourceVersion}`)).status, 409);
+    assert.equal((await owner.get(`/projects/${pid}/risks`)).data.open.length, 0);
+    assert.equal((await owner.del(`/projects/${pid}/risks/resolve?key=${encodeURIComponent(alert.key)}&sourceVersion=${next.sourceVersion}`)).status, 200);
+    assert.equal((await owner.get(`/projects/${pid}/risks`)).data.open.length, 1);
+  });
+
+  test('U026: threshold có phiên bản, refresh không tạo hash giả; dismiss cũ thiếu nguồn không che cảnh báo', async () => {
+    const { owner, pid, create } = await permissionFixture();
+    await owner.req('PUT', `/projects/${pid}/risk-rules`, { overdueDays: 0, overload: false, dueSoon: false, blockedByOverdue: false });
+    await create({ dueDate: new Date(Date.now() - 86400000).toISOString() });
+    const first = (await riskAlerts(pid)).open[0];
+    assert.equal((await riskAlerts(pid, { now: new Date(Date.now() + 1000) })).open[0].sourceVersion, first.sourceVersion);
+    await db.prisma.riskResolution.create({ data: { project: pid, key: first.key, title: first.title, resolvedBy: seed.users.maianh.id } });
+    assert.equal((await riskAlerts(pid)).open.length, 1);
+    await owner.req('PUT', `/projects/${pid}/risk-rules`, { overdueDays: 1 });
+    await owner.req('PUT', `/projects/${pid}/risk-rules`, { overdueDays: 0 });
+    const next = (await riskAlerts(pid)).open[0];
+    assert.notEqual(next.sourceVersion, first.sourceVersion);
+    assert.equal(next.snapshot.thresholdsVersion, first.snapshot.thresholdsVersion + 2);
+    await owner.req('PUT', `/projects/${pid}/risk-rules`, { overdueDays: 0 });
+    assert.equal((await riskAlerts(pid)).open[0].sourceVersion, next.sourceVersion);
+  });
+});
+
 describe('Trợ lý AI (U021–U027)', () => {
   test('kế hoạch nháp 5–15 việc; không có hạn thì không tự đặt; duyệt nhiều lần không tạo trùng', async () => {
     const c = await new Client().login('mai.anh@nhom24.edu.vn');
@@ -719,7 +908,7 @@ describe('Trợ lý AI (U021–U027)', () => {
     assert.ok(items.length >= 5 && items.length <= 15);
     assert.ok(items.every((i) => i.dueDate === null));
     const before = await db.prisma.task.count({ where: { project: pid } });
-    const [a1, a2] = await Promise.all([c.post(`/ai/drafts/${r.data.draft._id}/approve`), c.post(`/ai/drafts/${r.data.draft._id}/approve`)]);
+    const [a1, a2] = await Promise.all([c.post(`/ai/drafts/${r.data.draft._id}/approve`, { version: r.data.draft.version }), c.post(`/ai/drafts/${r.data.draft._id}/approve`, { version: r.data.draft.version })]);
     assert.equal(a1.status, 200);
     assert.equal(a2.status, 200);
     assert.equal(await db.prisma.task.count({ where: { project: pid } }), before + items.length);
@@ -1419,7 +1608,7 @@ describe('Lộc: phân quyền và nghiệp vụ bổ sung', () => {
       },
     });
     const [approved, removed] = await Promise.all([
-      owner.post(`/ai/drafts/${draft.id}/approve`),
+      owner.post(`/ai/drafts/${draft.id}/approve`, { version: draft.version }),
       owner.patch(`/projects/${pid}`, { members: [seed.users.maianh.id, seed.users.linh.id, seed.users.dat.id] }),
     ]);
     assert.equal(approved.status, 200, JSON.stringify(approved.data));
@@ -1430,7 +1619,7 @@ describe('Lộc: phân quyền và nghiệp vụ bổ sung', () => {
     assert.ok(tasks.every((t) => t.assignee === null));
   });
 
-  test('bản nháp AI lỗi giữa chừng rollback mọi task và audit', async () => {
+  test('bản nháp AI chứa tiêu đề sai bị chặn trước khi tạo task và audit', async () => {
     const { owner, ws, pid } = await permissionFixture();
     const draft = await db.prisma.aiDraft.create({
       data: {
@@ -1444,7 +1633,7 @@ describe('Lộc: phân quyền và nghiệp vụ bổ sung', () => {
         ],
       },
     });
-    assert.equal((await owner.post(`/ai/drafts/${draft.id}/approve`)).status, 500);
+    assert.equal((await owner.post(`/ai/drafts/${draft.id}/approve`, { version: draft.version })).status, 400);
     assert.equal(await db.prisma.task.count({ where: { project: pid } }), 0);
     assert.equal(await db.prisma.activity.count({ where: { project: pid, entityType: 'task' } }), 0);
     assert.equal((await db.prisma.aiDraft.findUnique({ where: { id: draft.id } })).status, 'draft');
@@ -1554,7 +1743,7 @@ describe('Lộc: phân quyền và nghiệp vụ bổ sung', () => {
           res.setHeader('content-type', 'application/json');
           res.end(
             JSON.stringify({
-              result: { items: [], summary: 'Dữ liệu cũ', suggestions: '', content: 'Dữ liệu cũ', citations: [], refused: false },
+              result: { items: feature === 'plan' ? Array.from({ length: 5 }, () => ({ title: 'Công việc nháp', description: 'Nội dung thử quyền', acceptanceCriteria: ['Đã kiểm quyền'], estimateHours: 1, priority: 'medium', dueDate: null })) : [], summary: 'Dữ liệu cũ', suggestions: '', content: 'Dữ liệu cũ', citations: [], refused: false },
               model: 'test',
               provider: 'test',
             }),
@@ -1988,7 +2177,7 @@ describe('Rủi ro: quyền sau AI và cập nhật đồng thời', () => {
     return { owner, member, ws, pid, task, key };
   }
 
-  for (const mode of ['risk-revoked', 'risk-source', 'report-source']) {
+  for (const mode of ['risk-revoked', 'risk-source', 'report-source', 'report-risk-resolution']) {
     test(`AI đang chạy phải từ chối dữ liệu cũ: ${mode}`, { timeout: 15000 }, async (t) => {
       const { owner, member, pid, task, key } = await riskFixture();
       const { config } = await import('../src/config.js');
@@ -2013,9 +2202,13 @@ describe('Rủi ro: quyền sau AI và cập nhật đồng thời', () => {
       });
       config.ai.serviceUrl = `http://127.0.0.1:${fake.address().port}`;
       const pending =
-        mode === 'report-source' ? owner.post(`/projects/${pid}/ai/reports`, { from: '2026-10-01', to: '2026-10-23' }) : member.post(`/projects/${pid}/risks/explain`, { key });
+        mode.startsWith('report') ? owner.post(`/projects/${pid}/ai/reports`, { from: '2026-10-01', to: '2026-10-23' }) : member.post(`/projects/${pid}/risks/explain`, { key });
       await received;
       if (mode === 'risk-revoked') assert.equal((await owner.patch(`/projects/${pid}`, { members: [seed.users.maianh.id] })).status, 200);
+      else if (mode === 'report-risk-resolution') {
+        const alert = (await member.get(`/projects/${pid}/risks`)).data.open.find((a) => a.key === key);
+        assert.equal((await member.post(`/projects/${pid}/risks/resolve`, { key, sourceVersion: alert.sourceVersion, reason: 'Đã điều phối trong khi tạo báo cáo' })).status, 200);
+      }
       else assert.equal((await owner.patch(`/tasks/${task._id}`, { title: 'Nguồn rủi ro mới', version: task.version })).status, 200);
       release();
       const response = await pending;
@@ -2027,12 +2220,14 @@ describe('Rủi ro: quyền sau AI và cập nhật đồng thời', () => {
 
   test('resolve chỉ nhận cảnh báo tồn tại, ghi audit; cập nhật hai quy tắc đồng thời không mất dữ liệu', async () => {
     const { owner, member, ws, pid, key } = await riskFixture();
-    assert.equal((await member.post(`/projects/${pid}/risks/resolve`, { key: 'invented-key' })).status, 404);
-    assert.equal((await member.post(`/projects/${pid}/risks/resolve`, { key, title: 'Tiêu đề giả' })).status, 200);
+    const alert = (await member.get(`/projects/${pid}/risks`)).data.open.find((a) => a.key === key);
+    const body = { sourceVersion: alert.sourceVersion, reason: 'Đã điều phối lại công việc' };
+    assert.equal((await member.post(`/projects/${pid}/risks/resolve`, { key: 'invented-key', ...body })).status, 404);
+    assert.equal((await member.post(`/projects/${pid}/risks/resolve`, { key, title: 'Tiêu đề giả', ...body })).status, 200);
     const resolved = await db.prisma.riskResolution.findUnique({ where: { project_key: { project: pid, key } } });
     assert.ok(resolved.title.includes('Nguồn rủi ro cũ'));
     assert.ok(await db.prisma.activity.findFirst({ where: { project: pid, action: 'Xử lý cảnh báo rủi ro' } }));
-    assert.equal((await member.del(`/projects/${pid}/risks/resolve?key=${encodeURIComponent(key)}`)).status, 200);
+    assert.equal((await member.del(`/projects/${pid}/risks/resolve?key=${encodeURIComponent(key)}&sourceVersion=${alert.sourceVersion}`)).status, 200);
     assert.ok(await db.prisma.activity.findFirst({ where: { project: pid, action: 'Mở lại cảnh báo rủi ro' } }));
     const results = await Promise.all([owner.req('PUT', `/projects/${pid}/risk-rules`, { overdueDays: 0 }), owner.req('PUT', `/projects/${pid}/risk-rules`, { overloadPct: 155 })]);
     assert.ok(results.every((r) => r.status === 200));
@@ -2094,7 +2289,7 @@ describe('AI: hạn biên bản và giới hạn kế hoạch', () => {
     const draft = r.data.draft;
     assert.equal(draft.items[0].dueDate, '2099-02-16T04:59:59.999Z');
     assert.equal(draft.items[1].dueDate, null);
-    assert.equal((await owner.post(`/ai/drafts/${draft._id}/approve`)).status, 200);
+    assert.equal((await owner.post(`/ai/drafts/${draft._id}/approve`, { version: draft.version })).status, 200);
     const tasks = await db.prisma.task.findMany({ where: { project: pid }, orderBy: { number: 'asc' } });
     assert.equal(tasks[0].dueDate.toISOString(), draft.items[0].dueDate);
     assert.equal(tasks[1].dueDate, null);
@@ -2107,18 +2302,18 @@ describe('AI: hạn biên bản và giới hạn kế hoạch', () => {
     const draft = r.data.draft;
     assert.ok(draft.items.reduce((n, it) => n + it.estimateHours, 0) <= 1 + 1e-9);
     const key = draft.items[0].key;
-    assert.equal((await owner.patch(`/ai/drafts/${draft._id}`, { items: [{ key, estimateHours: 2 }] })).status, 200);
-    let denied = await owner.post(`/ai/drafts/${draft._id}/approve`);
+    assert.equal((await owner.patch(`/ai/drafts/${draft._id}`, { version: draft.version, items: [{ key, estimateHours: 2 }] })).status, 200);
+    let denied = await owner.post(`/ai/drafts/${draft._id}/approve`, { version: draft.version + 1 });
     assert.equal(denied.status, 400);
     assert.match(denied.data.error, /giờ/);
     assert.equal(await db.prisma.task.count({ where: { project: pid } }), 0);
-    assert.equal((await owner.patch(`/ai/drafts/${draft._id}`, { items: [{ key, estimateHours: draft.items[0].estimateHours, dueDate: '2099-02-16' }] })).status, 200);
-    denied = await owner.post(`/ai/drafts/${draft._id}/approve`);
+    assert.equal((await owner.patch(`/ai/drafts/${draft._id}`, { version: draft.version + 1, items: [{ key, estimateHours: draft.items[0].estimateHours, dueDate: '2099-02-16' }] })).status, 200);
+    denied = await owner.post(`/ai/drafts/${draft._id}/approve`, { version: draft.version + 2 });
     assert.equal(denied.status, 400);
     assert.match(denied.data.error, /hạn/);
     assert.equal(await db.prisma.task.count({ where: { project: pid } }), 0);
-    await owner.patch(`/ai/drafts/${draft._id}`, { items: [{ key, dueDate: draft.items[0].dueDate }] });
-    assert.equal((await owner.post(`/ai/drafts/${draft._id}/approve`)).status, 200);
+    await owner.patch(`/ai/drafts/${draft._id}`, { version: draft.version + 2, items: [{ key, dueDate: draft.items[0].dueDate }] });
+    assert.equal((await owner.post(`/ai/drafts/${draft._id}/approve`, { version: draft.version + 3 })).status, 200);
     assert.equal(await db.prisma.task.count({ where: { project: pid } }), draft.items.length);
   });
 
@@ -2129,7 +2324,7 @@ describe('AI: hạn biên bản và giới hạn kế hoạch', () => {
     const draft = await db.prisma.aiDraft.create({
       data: { workspace: ws, project: pid, user: seed.users.maianh.id, type: 'plan', items: [{ key: 'empty', title: 'Chưa chọn', selected: false }] },
     });
-    assert.equal((await owner.post(`/ai/drafts/${draft.id}/approve`)).status, 400);
+    assert.equal((await owner.post(`/ai/drafts/${draft.id}/approve`, { version: draft.version })).status, 400);
     assert.equal((await db.prisma.aiDraft.findUnique({ where: { id: draft.id } })).status, 'draft');
   });
 });

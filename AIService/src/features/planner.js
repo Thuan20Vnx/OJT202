@@ -1,4 +1,5 @@
 import { fold } from '../text.js';
+import { z } from 'zod';
 import { estimateTokens, parseJson } from '../llm.js';
 import { BUSINESS_TIMEZONE, dateKey, endOfDay, isCalendarDate, parseDate } from '../dates.js';
 
@@ -126,9 +127,16 @@ Quy tắc: tổng estimateHours không vượt tổng giờ tối đa; assigneeI
     signal,
   });
   const arr = parseJson(out.text);
-  if (!Array.isArray(arr) || arr.length < 1) throw new Error('AI trả về định dạng không hợp lệ');
+  const item = z.object({
+    title: z.string().trim().min(1).max(200), description: z.string().trim().min(1).max(2000),
+    acceptanceCriteria: z.array(z.string().trim().min(1).max(300)).min(1).max(8),
+    estimateHours: z.number().positive().max(1000), priority: z.enum(['low', 'medium', 'high']),
+    assigneeId: z.string().nullable().optional(), dueDate: z.string().nullable().optional(),
+  });
+  const parsed = z.array(item).min(5).max(15).safeParse(arr);
+  if (!parsed.success) throw new Error('AI phải trả 5–15 công việc với tiêu đề, mô tả, tiêu chí nghiệm thu và ước lượng hợp lệ');
   const ids = new Set(input.members.map((m) => String(m.id)));
-  const items = arr.slice(0, 15).map((x) => {
+  const items = parsed.data.map((x) => {
     if (!x || typeof x !== 'object' || !String(x.title || '').trim()) throw new Error('AI trả công việc thiếu tiêu đề');
     if (typeof x.estimateHours !== 'number' || !Number.isFinite(x.estimateHours) || x.estimateHours < 0 || x.estimateHours > 1000)
       throw new Error('AI trả ước lượng giờ không hợp lệ');

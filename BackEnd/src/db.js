@@ -145,7 +145,7 @@ export const USER = { id: true, name: true, email: true, title: true };
  * và đường dẫn lồng trong JSON như 'items.assignee', 'sections.refs'.
  * Id không còn tồn tại => null (id đơn) hoặc bị loại (mảng).
  */
-export async function populate(rows, pathStr, model, select) {
+export async function populate(rows, pathStr, model, select, db = prisma) {
   const list = Array.isArray(rows) ? rows : [rows];
   const parts = pathStr.split('.');
   const key = parts.pop();
@@ -159,7 +159,7 @@ export async function populate(rows, pathStr, model, select) {
   for (const r of list) walk(r, 0);
   const ids = new Set();
   for (const h of holders) for (const v of [h[key]].flat()) if (isId(v)) ids.add(v);
-  const found = ids.size ? await prisma[model].findMany({ where: { id: { in: [...ids] }, ...(model === 'task' && { deletedAt: null }) }, select: { ...select, id: true } }) : [];
+  const found = ids.size ? await db[model].findMany({ where: { id: { in: [...ids] }, ...(model === 'task' && { deletedAt: null }) }, select: { ...select, id: true } }) : [];
   const byId = new Map(found.map((f) => [f.id, f]));
   for (const h of holders) {
     const v = h[key];
@@ -170,8 +170,8 @@ export async function populate(rows, pathStr, model, select) {
 }
 
 /** Chạy song song nhiều populate trên cùng tập bản ghi: specs = [[path, model, select], …] */
-export async function populateAll(rows, specs) {
-  await Promise.all(specs.map(([p, model, select]) => populate(rows, p, model, select)));
+export async function populateAll(rows, specs, db = prisma) {
+  await Promise.all(specs.map(([p, model, select]) => populate(rows, p, model, select, db)));
   return rows;
 }
 
@@ -191,9 +191,9 @@ export async function countBy(model, field, where) {
 }
 
 /** Tổng/đã xong của công việc con theo công việc cha */
-export async function subtaskCounts(parentIds) {
+export async function subtaskCounts(parentIds, db = prisma) {
   if (!parentIds.length) return {};
-  const rows = await prisma.task.groupBy({ by: ['parent', 'status'], where: { parent: { in: parentIds }, deletedAt: null }, _count: { _all: true } });
+  const rows = await db.task.groupBy({ by: ['parent', 'status'], where: { parent: { in: parentIds }, deletedAt: null }, _count: { _all: true } });
   const out = {};
   for (const r of rows) {
     const s = (out[r.parent] ||= { total: 0, done: 0 });

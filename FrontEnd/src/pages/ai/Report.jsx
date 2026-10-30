@@ -5,6 +5,7 @@ import { Field, Icon, Notice, Select, Spinner } from '../../components/ui.jsx';
 import { api } from '../../lib/api.js';
 import { useApp, useLoad, useToast } from '../../lib/app.jsx';
 import { dates } from '../../lib/dates.js';
+import { fmtDateTime } from '../../lib/format.js';
 import { History } from './Planner.jsx';
 import { useLatestRequest, useProjectInfo } from '../../lib/hooks.js';
 
@@ -112,7 +113,7 @@ export default function Report({ project, onUsage, disabled }) {
             </Select>
           </Field>
           <Notice tone="warn">{tr("Số liệu được tính trực tiếp từ dữ liệu dự án, AI chỉ diễn giải.")}</Notice>
-          {!canManage && <Notice>{tr("Chỉ PM, Owner hoặc Admin của dự án đang hoạt động được tạo, sửa và chia sẻ báo cáo.")}</Notice>}
+          {!canManage && <Notice>{tr('Chỉ PM của dự án đang hoạt động được tạo, sửa và chia sẻ báo cáo.')}</Notice>}
           <button className="btn-primary h-10 w-full" onClick={generate} disabled={busy || disabled || !canManage}>
             {busy ? <Spinner /> : <Icon name="auto_awesome" size={18} />}{tr("Tạo báo cáo nháp")}</button>
         </div>
@@ -135,6 +136,7 @@ export default function Report({ project, onUsage, disabled }) {
               </div>
             ))}
             <p className="mt-2 text-label-md font-normal text-slate-400">{tr("Số liệu tính trực tiếp từ dữ liệu, không do AI ước đoán.")}</p>
+            {report.generatedAt && <p className="mt-1 text-label-md font-normal text-slate-500">{tr('Chốt số liệu: {0}', [fmtDateTime(report.generatedAt)])}</p>}
           </div>
         )}
         <History items={(history.data?.reports || []).map((r) => ({ ...r, count: undefined }))} error={history.error} loading={history.loading} onRetry={history.reload} onOpen={open} activeId={report?._id} empty={tr("Chưa có báo cáo đã lưu")} />

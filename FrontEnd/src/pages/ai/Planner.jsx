@@ -124,7 +124,7 @@ export default function Planner({ project, onUsage, disabled }) {
           <Notice tone="warn">{tr("Nếu thiếu ngày, AI không tự suy diễn hạn chót.")}</Notice>
           <button className="btn-primary h-10 w-full" onClick={generate} disabled={busy || f.goal.trim().length < 5 || disabled || !canWrite}>
             {busy ? <Spinner /> : <Icon name="auto_awesome" size={18} />}{tr("Tạo kế hoạch nháp")}</button>
-          {!canWrite && <p className="text-label-md font-normal text-slate-500">{tr("Chỉ PM, Owner hoặc Admin của dự án đang hoạt động được lập và duyệt kế hoạch.")}</p>}
+          {!canWrite && <p className="text-label-md font-normal text-slate-500">{tr('Chỉ PM của dự án đang hoạt động được lập và duyệt kế hoạch.')}</p>}
         </div>
         {error && <Notice tone={error.status === 429 ? 'warn' : 'danger'}>{error.message}</Notice>}
         <History items={history.data?.drafts || []} error={history.error} loading={history.loading} onRetry={history.reload} onOpen={open} activeId={draft?._id} />
@@ -136,7 +136,7 @@ export default function Planner({ project, onUsage, disabled }) {
             draft={draft}
             canManage={canWrite}
             setDraft={setDraft}
-            members={info?.project?.members || []}
+            members={(info?.project?.members || []).filter((m) => m.role !== 'viewer' && m.projectRole !== 'viewer')}
             title={tr("Kế hoạch nháp")}
             onRegenerate={generate}
             regenerating={busy}

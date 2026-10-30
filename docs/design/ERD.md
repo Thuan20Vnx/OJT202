@@ -101,6 +101,7 @@ erDiagram
     String manager
     Json sprint
     Json riskRules
+    Int riskRulesVersion
     String createdBy
     DateTime createdAt
     DateTime updatedAt
@@ -229,6 +230,7 @@ erDiagram
     String title
     Json input
     Json items
+    Int version
     DateTime approvedAt
     DateTime createdAt
     DateTime updatedAt
@@ -246,6 +248,7 @@ erDiagram
     Json sections
     String sourceTasks
     String sourceRevision
+    DateTime generatedAt
     DateTime sharedAt
     DateTime createdAt
     DateTime updatedAt
@@ -265,6 +268,9 @@ erDiagram
     String project
     String key
     String title
+    String sourceVersion
+    String reason
+    Json snapshot
     String resolvedBy
     DateTime createdAt
     DateTime updatedAt
@@ -564,6 +570,7 @@ model Project {
   sprint      Json          @default("{\"name\":\"\",\"goal\":\"\",\"start\":null,\"end\":null}")
   /// Ngưỡng của các quy tắc cảnh báo rủi ro
   riskRules   Json          @default("{\"overdueDays\":1,\"overdue\":true,\"blockedByOverdue\":true,\"overload\":true,\"overloadPct\":100,\"dueSoon\":true,\"dueSoonProgressPct\":80,\"reviewStaleDays\":3}")
+  riskRulesVersion Int @default(1)
   createdBy   String?       @map("created_by_id") @db.Uuid
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
@@ -854,6 +861,7 @@ model AiDraft {
   /// [{ key, title, description, acceptanceCriteria, estimateHours, priority, assignee, dueDate, excerpt, selected, createdTask }]
   items      Json          @default("[]")
   status     AiDraftStatus @default(draft)
+  version    Int           @default(1)
   approvedAt DateTime?
   createdAt  DateTime      @default(now())
   updatedAt  DateTime      @updatedAt
@@ -884,6 +892,7 @@ model AiReport {
   sections    Json           @default("[]")
   sourceTasks String[]       @default([]) @db.Uuid
   sourceRevision String?     @db.VarChar(64)
+  generatedAt DateTime?
   status      AiReportStatus @default(draft)
   sharedAt    DateTime?
   createdAt   DateTime       @default(now())
@@ -929,6 +938,9 @@ model RiskResolution {
   project    String   @map("project_id") @db.Uuid
   key        String
   title      String?
+  sourceVersion String? @map("source_version") @db.VarChar(64)
+  reason     String? @db.VarChar(1000)
+  snapshot   Json?
   resolvedBy String?  @map("resolved_by_id") @db.Uuid
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt

@@ -204,7 +204,9 @@ router.put('/projects/:projectId/risk-rules', middlewareProject(), async (req, r
   );
   const project = await withWorkspaceLock(req.pa.project.workspace, async (tx) => {
     const cur = await lockProject(tx, req.pa.project.id, req.user.id);
-    const result = await tx.project.update({ where: { id: cur.id }, data: { riskRules: { ...cur.riskRules, ...body } } });
+    const riskRules = { ...cur.riskRules, ...body };
+    if (JSON.stringify(riskRules) === JSON.stringify(cur.riskRules)) return cur;
+    const result = await tx.project.update({ where: { id: cur.id }, data: { riskRules, riskRulesVersion: { increment: 1 } } });
     await projectAudit(tx, result, req.user.id, 'Cập nhật quy tắc rủi ro', cur.riskRules, result.riskRules);
     return result;
   });

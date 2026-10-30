@@ -243,3 +243,7 @@ Ngày chót chỉ nhập ngày được hiểu hết ngày theo timezone hồ s�
 ## Hoàng Anh — Sprint 2 (30/10/2026)
 
 Đối chiếu U011-T3, U015-T1, U016-T2, U018-T1, U020-T2 và các task được giao review: [báo cáo triển khai, API, migration và bằng chứng](docs/HOANG_ANH_SPRINT2_2026-10-30.md). Gồm tài liệu có version bắt buộc, thông báo nhiều tab, dependency/preview xóa, workload task lá và capacity từng tuần, activity/CSV theo quyền. Cài lại dependency sau pull; backend tự áp dụng migration `20261030090000_weekly_capacity`.
+
+## Hoàng Anh — Sprint 3 (30/10/2026)
+
+[Báo cáo triển khai và kiểm chứng Sprint 3](docs/HOANG_ANH_SPRINT3_2026-10-30.md): planner kiểm schema/giới hạn, chọn người thủ công, version chống ghi đè và duyệt một lần; risk có snapshot/sourceVersion/lý do xử lý; report chốt generatedAt và phát hiện risk resolution thay đổi; hoàn thiện luồng ghi chú họp có chứng cứ. API sửa/duyệt/hủy nháp bắt buộc `version`; xử lý/mở lại risk bắt buộc `sourceVersion`, xử lý cần `reason`. Backend tự áp dụng migration `20261030100000_sprint3_draft_risk_versions`; generate lại Prisma sau pull. Phản hồi demo 3 người thật cần nghiệm thu riêng, không được suy ra từ kết quả test tự động.

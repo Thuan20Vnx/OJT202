@@ -1,7 +1,7 @@
 import { t as tr, useI18n } from '../../lib/i18n.js';
 import { useRef, useState } from 'react';
 import { MemberPicker } from '../../components/CreateTaskModal.jsx';
-import { Avatar, Icon, PriorityChip, Select, Spinner } from '../../components/ui.jsx';
+import { Avatar, Icon, Notice, PriorityChip, Select, Spinner } from '../../components/ui.jsx';
 import { api } from '../../lib/api.js';
 import { useToast } from '../../lib/app.jsx';
 import { PRIORITY, fmtDate, isoDate } from '../../lib/format.js';
@@ -13,6 +13,7 @@ export default function DraftItems({ draft, setDraft, members, title, onApproved
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState({});
   const [busy, setBusy] = useState(false);
+  const [conflict, setConflict] = useState(false);
   const pending = useRef(false);
   const readOnly = draft.status !== 'draft' || !canManage;
   const items = draft.items;
@@ -24,10 +25,11 @@ export default function DraftItems({ draft, setDraft, members, title, onApproved
     pending.current = true;
     setBusy(true);
     try {
-      const d = await api.patch(`/ai/drafts/${draft._id}`, body);
+      const d = await api.patch(`/ai/drafts/${draft._id}`, { ...body, version: draft.version });
       setDraft((current) => current?._id === draft._id ? d.draft : current);
       return true;
     } catch (e) {
+      if (e.status === 409) setConflict(true);
       toast(e.message, 'error');
       return false;
     } finally {
@@ -72,11 +74,12 @@ export default function DraftItems({ draft, setDraft, members, title, onApproved
     pending.current = true;
     setBusy(true);
     try {
-      const d = await api.post(`/ai/drafts/${draft._id}/approve`);
+      const d = await api.post(`/ai/drafts/${draft._id}/approve`, { version: draft.version });
       toast(tr("Đã tạo {0} công việc vào dự án", [d.created.length]));
-      setDraft((current) => current?._id === draft._id ? { ...current, status: 'approved' } : current);
+      setDraft((current) => current?._id === draft._id ? d.draft : current);
       onApproved?.(d.created);
     } catch (e) {
+      if (e.status === 409) setConflict(true);
       toast(e.message, 'error');
     } finally {
       pending.current = false;
@@ -88,9 +91,10 @@ export default function DraftItems({ draft, setDraft, members, title, onApproved
     pending.current = true;
     setBusy(true);
     try {
-      await api.post(`/ai/drafts/${draft._id}/discard`);
+      await api.post(`/ai/drafts/${draft._id}/discard`, { version: draft.version });
       setDraft((current) => current?._id === draft._id ? null : current);
     } catch (e) {
+      if (e.status === 409) setConflict(true);
       toast(e.message, 'error');
     } finally {
       pending.current = false;
@@ -98,8 +102,25 @@ export default function DraftItems({ draft, setDraft, members, title, onApproved
     }
   };
 
+  const reloadDraft = async () => {
+    if (pending.current) return;
+    pending.current = true;
+    setBusy(true);
+    try {
+      const d = await api.get(`/ai/drafts/${draft._id}`);
+      setDraft((current) => current?._id === draft._id ? d.draft : current);
+      setEditing(null);
+      setConflict(false);
+    } catch (e) { toast(e.message, 'error'); }
+    finally { pending.current = false; setBusy(false); }
+  };
+
   return (
     <fieldset disabled={busy || regenerating} className="flex min-h-0 min-w-0 flex-col">
+      {conflict && <Notice tone="warn">
+        {tr('Bản nháp đã thay đổi ở phiên khác. Nội dung đang sửa được giữ lại; tải bản mới sẽ bỏ chỉnh sửa chưa lưu.')}
+        <button className="btn-outline btn-sm ml-2" onClick={reloadDraft}>{tr('Tải bản mới')}</button>
+      </Notice>}
       <div className="card mb-3 flex flex-wrap items-center gap-3 px-4 py-3">
         <h2 className="text-headline-sm text-slate-900">
           {title} ({items.length}{tr(" việc)")}</h2>
@@ -193,7 +214,7 @@ export default function DraftItems({ draft, setDraft, members, title, onApproved
                 />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-start justify-between gap-2">
-                    <p className="text-body-md font-semibold text-slate-900">{it.title}</p>
+                    <p className="break-words text-body-md font-semibold text-slate-900">{it.title}</p>
                     {!readOnly && (
                       <div className="flex shrink-0 gap-1">
                         <button className="icon-btn h-7 w-7" onClick={() => startEdit(it)} title={tr("Sửa")}>
@@ -205,8 +226,8 @@ export default function DraftItems({ draft, setDraft, members, title, onApproved
                       </div>
                     )}
                   </div>
-                  {it.description && <p className="mt-0.5 text-body-sm text-slate-600">{it.description}</p>}
-                  {showExcerpt && it.excerpt && <p className="mt-2 border-l-2 border-purple-300 bg-purple-50/50 py-1 pl-3 text-body-sm italic text-slate-600">“{it.excerpt}”</p>}
+                  {it.description && <p className="mt-0.5 break-words text-body-sm text-slate-600">{it.description}</p>}
+                  {showExcerpt && it.excerpt && <p className="mt-2 break-words border-l-2 border-purple-300 bg-purple-50/50 py-1 pl-3 text-body-sm italic text-slate-600">“{it.excerpt}”</p>}
                   {it.acceptanceCriteria?.length > 0 && (
                     <p className="mt-2 rounded-lg bg-slate-50 px-3 py-1.5 text-label-md font-normal text-slate-600">
                       <b className="font-semibold">{tr("Tiêu chí nghiệm thu:")}</b> {it.acceptanceCriteria.map((c) => `• ${c}`).join(' ')}

@@ -37,6 +37,14 @@ for (const [file, prefix] of Object.entries(files)) {
 }
 const object = (properties, required = []) => ({ type: 'object', properties, required });
 const str = { type: 'string' };
+const version = { type: 'integer', minimum: 1 };
+const sourceVersion = { type: 'string', pattern: '^[a-f0-9]{64}$' };
+const draftItem = { ...object({
+  key: { type: 'string', minLength: 1, maxLength: 100 }, title: { type: 'string', minLength: 1, maxLength: 200 },
+  description: { type: 'string', maxLength: 2000 }, acceptanceCriteria: { type: 'array', maxItems: 20, items: { type: 'string', minLength: 1, maxLength: 300 } },
+  estimateHours: { type: ['number', 'null'], minimum: 0, maximum: 1000 }, priority: { enum: ['low', 'medium', 'high'] },
+  assignee: { type: ['string', 'null'], format: 'uuid' }, dueDate: { type: ['string', 'null'] }, selected: { type: 'boolean' },
+}, ['key']), additionalProperties: false };
 const taskFields = { title: { type: 'string', maxLength: 200 }, description: str, assignee: { type: ['string', 'null'] }, priority: { enum: ['low', 'medium', 'high'] }, dueDate: { type: ['string', 'null'] }, estimateHours: { type: ['number', 'null'], minimum: 0 }, remainingHours: { type: ['number', 'null'], minimum: 0 } };
 const bodies = {
   '/auth/login:post': object({ email: { type: 'string', format: 'email' }, password: str, remember: { type: 'boolean' } }, ['email', 'password']),
@@ -49,6 +57,10 @@ const bodies = {
   '/documents/{id}:patch': object({ name: { type: 'string', minLength: 1, maxLength: 200 }, content: { type: 'string', maxLength: 200000 }, restoreVersion: { type: 'integer', minimum: 1 }, version: { type: 'integer', minimum: 1 } }, ['version']),
   '/projects/{projectId}/ai/plan:post': object({ goal: { type: 'string', minLength: 5, maxLength: 2000 }, deadline: { type: ['string', 'null'] }, people: { type: ['integer', 'null'], minimum: 1, maximum: 50 }, maxHours: { type: ['number', 'null'], minimum: 1, maximum: 5000 } }, ['goal']),
   '/projects/{projectId}/ai/ask:post': object({ question: { type: 'string', minLength: 3, maxLength: 1000 }, conversation: str }, ['question']),
+  '/ai/drafts/{id}:patch': { ...object({ version, items: { type: 'array', maxItems: 20, items: draftItem }, removeKeys: { type: 'array', maxItems: 20, items: { type: 'string', minLength: 1, maxLength: 100 } } }, ['version']), additionalProperties: false },
+  '/ai/drafts/{id}/approve:post': { ...object({ version }, ['version']), additionalProperties: false },
+  '/ai/drafts/{id}/discard:post': { ...object({ version }, ['version']), additionalProperties: false },
+  '/projects/{projectId}/risks/resolve:post': { ...object({ key: { type: 'string', minLength: 1, maxLength: 100000 }, sourceVersion, reason: { type: 'string', minLength: 3, maxLength: 1000 }, title: { type: 'string', maxLength: 300, description: 'Tương thích client cũ; server dùng tiêu đề cảnh báo thật.' } }, ['key', 'sourceVersion', 'reason']), additionalProperties: false },
 };
 for (const [key, schema] of Object.entries(bodies)) {
   const [route, method] = key.split(':');
@@ -66,6 +78,14 @@ paths['/workspaces/{wsId}/members/{userId}/capacity/{week}'].patch.description =
 for (const p of paths['/workspaces/{wsId}/members/{userId}/capacity/{week}'].get.parameters) if (p.name === 'week') p.schema = { type: 'string', format: 'date' };
 paths['/workspaces/{wsId}/activity.csv'].get.responses['200'] = { description: 'CSV theo đúng quyền và bộ lọc ngày, chống formula injection. Vượt 10.000 bản ghi trả 400 để thu hẹp bộ lọc; không xuất thiếu âm thầm.', content: { 'text/csv': { schema: { type: 'string' } } } };
 const query = (name, schema, description) => ({ in: 'query', name, required: false, schema, ...(description && { description }) });
+paths['/projects/{projectId}/risks/resolve'].delete.parameters.push({ ...query('key', str), required: true }, { ...query('sourceVersion', sourceVersion), required: true });
+paths['/projects/{projectId}/risks/resolve'].post.description = 'Project PM/Member active. Lý do trim 3–1000 ký tự và sourceVersion bắt buộc. Khóa workspace, kiểm lại ACL/nguồn; stale 409 RISK_SOURCES_CHANGED; request lặp cùng nguồn không nhân audit. Snapshot/lý do lưu cùng transaction. Nguồn hoặc ngưỡng thay đổi thì cảnh báo xuất hiện lại.';
+paths['/projects/{projectId}/risks'].get.responses['200'] = { description: 'open: key/type/severity/rule/title/explanation/tasks/owner/sourceVersion/snapshot/generatedAt. resolved: tối đa 10 lần xử lý gần đây kèm reason/sourceVersion/snapshot/current. rulesVersion tăng khi ngưỡng thay đổi; engineVersion định danh bộ quy tắc. Mọi nguồn trong phạm vi dự án được đọc.' };
+paths['/ai/drafts/{id}'].patch.description = 'Chỉ chủ nháp đang là PM active. version bắt buộc; khóa workspace và trả 409 AI_DRAFT_CHANGED nếu tab cũ. Không chấp nhận key thiếu/trùng hoặc sửa excerpt; người nhận phải có ProjectRole/WorkspaceRole làm việc. Thành công tăng version và trả draft mới.';
+paths['/ai/drafts/{id}/approve'].post.description = 'Chỉ chủ nháp đang là PM active. version bắt buộc; nháp còn mở phải khớp. Kiểm tổng giờ, hạn và số người đã chọn; transaction tạo task/AC/remainingHours, audit, tăng version. UNIQUE(project,aiDraftItem) + lock bảo đảm duyệt lặp không tạo trùng; nháp approved trả lại kết quả đã duyệt, kể cả retry version cũ. Response có draft/created.';
+paths['/ai/drafts/{id}/discard'].post.description = 'Chỉ chủ nháp đang là PM active. version bắt buộc cho nháp còn mở; stale 409; không được hủy bản đã duyệt; hủy lặp là idempotent.';
+paths['/projects/{projectId}/ai/plan'].post.description = 'Chỉ PM active. AI trả 5–15 mục đủ title/description/AC/estimate; server kiểm schema và giới hạn trước lưu nháp. Không có deadline thì không tự đặt. Người nhận mặc định trống để PM chọn. Chưa tạo task/notification trước approve.';
+paths['/projects/{projectId}/ai/reports'].post.description = 'Chỉ PM active. Số liệu DB chốt tại generatedAt (legacy có thể null), AI chỉ viết diễn giải. Fingerprint gồm task/document/project/membership/capacity/risk resolutions; kiểm lại nguồn và quyền sau AI. Stats và generatedAt được giữ nguyên khi sửa nội dung báo cáo.';
 const activityFilters = [
   query('from', str, 'Ngày hoặc timestamp có offset, theo timezone profile; không sau to.'),
   query('to', str, 'Date-only bao gồm đến cuối ngày profile.'),

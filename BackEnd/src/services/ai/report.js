@@ -11,16 +11,15 @@ const line = (t, extra = '') => `${t.key} ${t.title}${extra ? ` – ${extra}` : 
  * Báo cáo tiến độ: MỌI con số tính bằng truy vấn DB; AI (nếu có) chỉ viết phần tóm tắt & đề xuất.
  * Mỗi mục đính kèm refs = công việc nguồn.
  */
-export async function buildReportData(projectId, from, to, project) {
+export async function buildReportData(projectId, from, to, project, now = new Date()) {
   const end = to; // API supplies an inclusive end instant; never extend a timestamp by 24h.
   const [ov, done, risks] = await Promise.all([
-    projectOverview(projectId, { project }),
+    projectOverview(projectId, { project, now }),
     prisma.task
       .findMany({ where: { deletedAt: null, project: projectId, parent: null, status: 'done', completedAt: { gte: from, lte: end } } })
       .then((r) => populate(r, 'assignee', 'user', { name: true })),
-    riskAlerts(projectId, { project }),
+    riskAlerts(projectId, { project, now }),
   ]);
-  const now = new Date();
   const late = ov.overdue;
   const blocked = ov.blocked;
   const stats = {
@@ -74,5 +73,5 @@ export async function buildReportData(projectId, from, to, project) {
     },
   ];
   const sourceTasks = [...new Set([...done, ...late, ...blocked].map((t) => t.id))];
-  return { ov, stats, sections, sourceTasks, risks: risks.open };
+  return { ov, stats, sections, sourceTasks, risks: risks.open, generatedAt: now };
 }

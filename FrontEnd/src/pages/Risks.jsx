@@ -1,11 +1,11 @@
 import { t as tr, translateError, useI18n } from '../lib/i18n.js';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Avatar, Empty, ErrorBox, Icon, PageHeader, PageLoader, Spinner, StatCard, Toggle } from '../components/ui.jsx';
+import { Avatar, Empty, ErrorBox, Icon, Modal, PageHeader, PageLoader, Spinner, StatCard, Toggle } from '../components/ui.jsx';
 import { api } from '../lib/api.js';
 import { useApp, useLoad, useToast } from '../lib/app.jsx';
 import { timeAgo } from '../lib/format.js';
-import { useSocketEvent } from '../lib/hooks.js';
+import { useLatestRequest, useSocketEvent } from '../lib/hooks.js';
 import { SEVERITY } from './Overview.jsx';
 
 export default function Risks() {
@@ -18,6 +18,18 @@ export default function Risks() {
   const [ai, setAi] = useState({});
   const [explaining, setExplaining] = useState(null);
   const [rulesOpen, setRulesOpen] = useState(false);
+  const [resolution, setResolution] = useState(null);
+  const [resolving, setResolving] = useState(false);
+  const beginExplain = useLatestRequest();
+  const beginResolution = useLatestRequest();
+  useEffect(() => {
+    setResolution(null);
+    setResolving(false);
+    setAi({});
+    setExplaining(null);
+    beginExplain();
+    beginResolution();
+  }, [project?._id, beginExplain, beginResolution]);
   const { data, error, loading, reload, setData } = useLoad(() => (project ? api.get(`/projects/${project._id}/risks`) : Promise.resolve(null)), [project?._id]);
   useSocketEvent(
     'task:changed',
@@ -27,6 +39,8 @@ export default function Risks() {
     },
     [reload],
   );
+  useSocketEvent('dependencies:changed', () => { setAi({}); reload(); }, [reload]);
+  useSocketEvent('board:refresh', () => { setAi({}); reload(); }, [reload]);
   useSocketEvent(
     'risks:changed',
     () => {
@@ -57,32 +71,40 @@ export default function Risks() {
   if (type) list = list.filter((a) => a.type === type);
   const canManage = data.access.canManage;
 
-  const resolve = async (a) => {
+  const resolve = async () => {
+    if (resolving || !resolution || resolution.projectId !== project._id) return;
+    const current = beginResolution();
+    setResolving(true);
     try {
-      await api.post(`/projects/${project._id}/risks/resolve`, { key: a.key, title: a.title });
+      await api.post(`/projects/${project._id}/risks/resolve`, { key: resolution.alert.key, sourceVersion: resolution.alert.sourceVersion, reason: resolution.reason });
+      if (!current()) return;
       toast(tr("Đã đánh dấu cảnh báo là đã xử lý"));
+      setResolution(null);
       reload();
     } catch (e) {
-      toast(e.message, 'error');
-    }
+      if (!current()) return;
+      setResolution((value) => value ? { ...value, error: e, stale: e.status === 409 || e.status === 404 } : value);
+      if (e.status === 409 || e.status === 404) reload();
+    } finally { if (current()) setResolving(false); }
   };
   const unresolve = async (r) => {
     try {
-      await api.del(`/projects/${project._id}/risks/resolve?key=${encodeURIComponent(r.key)}`);
+      await api.del(`/projects/${project._id}/risks/resolve?key=${encodeURIComponent(r.key)}&sourceVersion=${r.sourceVersion}`);
       reload();
     } catch (e) {
       toast(e.message, 'error');
     }
   };
   const explain = async (a) => {
+    const current = beginExplain();
     setExplaining(a.key);
     try {
       const d = await api.post(`/projects/${project._id}/risks/explain`, { key: a.key });
-      setAi((x) => ({ ...x, [a.key]: d.explanation }));
+      if (current() && d.sourceVersion === a.sourceVersion) setAi((x) => ({ ...x, [a.sourceVersion]: d.explanation }));
     } catch (e) {
-      toast(e.message, 'error');
+      if (current()) toast(e.message, 'error');
     } finally {
-      setExplaining(null);
+      if (current()) setExplaining(null);
     }
   };
   const setRule = async (k, v) => {
@@ -179,9 +201,9 @@ export default function Risks() {
                 <p className="mt-2 text-headline-sm text-slate-900">{translateError(a.title)}</p>
                 <div className="mt-2 rounded-lg bg-slate-50 px-3 py-2">
                   <p className="flex items-center gap-1.5 text-label-md text-slate-500">
-                    <Icon name={ai[a.key] ? 'auto_awesome' : 'help'} size={14} className={ai[a.key] ? 'text-purple-500' : ''} />{tr("Vì sao? ")}<span className="font-normal">{ai[a.key] ? tr("· Diễn giải bởi AI") : tr("· Giải thích theo quy tắc")}</span>
+                    <Icon name={ai[a.sourceVersion] ? 'auto_awesome' : 'help'} size={14} className={ai[a.sourceVersion] ? 'text-purple-500' : ''} />{tr("Vì sao? ")}<span className="font-normal">{ai[a.sourceVersion] ? tr("· Diễn giải bởi AI") : tr("· Giải thích theo quy tắc")}</span>
                   </p>
-                  <p className="mt-0.5 text-body-sm text-slate-700">{ai[a.key] || translateError(a.explanation)}</p>
+                  <p className="mt-0.5 text-body-sm text-slate-700">{ai[a.sourceVersion] || translateError(a.explanation)}</p>
                 </div>
                 <div className="mt-3 flex flex-wrap items-center gap-1.5">
                   {a.tasks.map((t) => (
@@ -195,14 +217,14 @@ export default function Risks() {
                     </button>
                   ))}
                   <span className="ml-auto flex flex-wrap gap-2">
-                    {!ai[a.key] && (
-                      <button className="btn-ghost btn-sm text-purple-700" onClick={() => explain(a)} disabled={explaining === a.key}>
+                    {!ai[a.sourceVersion] && (
+                      <button className="btn-ghost btn-sm text-purple-700" onClick={() => explain(a)} disabled={!!explaining}>
                         {explaining === a.key ? <Spinner /> : <Icon name="auto_awesome" size={16} />}{tr(" Diễn giải bằng AI")}</button>
                     )}
                     <button className="btn-primary btn-sm" onClick={() => navigate({ search: `?task=${a.tasks[0]._id}` })}>{tr("Xem công việc")}</button>
                     <button className="btn-outline btn-sm" onClick={() => navigate({ search: `?task=${a.tasks[0]._id}` })}>{tr("Giao lại")}</button>
                     {data.access.canWrite && (
-                      <button className="btn-ghost btn-sm" onClick={() => resolve(a)}>
+                      <button className="btn-ghost btn-sm" onClick={() => setResolution({ alert: a, reason: '', projectId: project._id })}>
                         <Icon name="check" size={16} />{tr(" Đã xử lý")}</button>
                     )}
                   </span>
@@ -250,11 +272,13 @@ export default function Risks() {
                 <Icon name="check_circle" size={16} className="mt-0.5 text-emerald-500" />
                 <div className="flex-1">
                   <p className="text-slate-700">{x.title}</p>
+                  {x.reason && <p className="mt-1 whitespace-pre-wrap break-words text-slate-600">{x.reason}</p>}
+                  {!x.current && <p className="text-amber-700">{tr('Nguồn đã thay đổi hoặc cảnh báo không còn áp dụng')}</p>}
                   <p className="text-label-md font-normal text-slate-400">
                     {x.resolvedBy?.name} · {timeAgo(x.updatedAt)}
                   </p>
                 </div>
-                {data.access.canWrite && (
+                {data.access.canWrite && x.sourceVersion && (
                   <button className="text-label-md text-slate-400 hover:text-slate-700" onClick={() => unresolve(x)}>{tr("Mở lại")}</button>
                 )}
               </div>
@@ -263,6 +287,17 @@ export default function Risks() {
           </div>
         </div>
       </div>
+      <Modal open={!!resolution && resolution.projectId === project._id} onClose={() => !resolving && setResolution(null)} title={tr('Xử lý cảnh báo rủi ro')} footer={<>
+        <button className="btn-outline" disabled={resolving} onClick={() => setResolution(null)}>{tr('Hủy')}</button>
+        <button className="btn-primary" disabled={resolving || resolution?.stale || (resolution?.reason.trim().length ?? 0) < 3} onClick={resolve}>{resolving && <Spinner />}{tr('Xác nhận xử lý')}</button>
+      </>}>
+        <p className="mb-3 text-body-sm text-slate-700">{resolution?.alert.title}</p>
+        <label className="block"><span className="label">{tr('Lý do xử lý')}</span>
+          <textarea className="textarea" rows={3} maxLength={1000} value={resolution?.reason || ''} disabled={resolving} onChange={(e) => setResolution((x) => ({ ...x, reason: e.target.value }))} />
+        </label>
+        <p className="mt-2 text-body-sm text-slate-500">{tr('Lý do chỉ áp dụng cho phiên bản nguồn đang xem. Cảnh báo có thể xuất hiện lại khi dữ liệu thay đổi.')}</p>
+        <ErrorBox error={resolution?.error} />
+      </Modal>
     </div>
   );
 }

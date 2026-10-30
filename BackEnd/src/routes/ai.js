@@ -67,6 +67,8 @@ async function createDraft(req, type, title, input, items) {
         items: plainJson(
           items.map((it) => ({
             ...it,
+            // A suggested plan is not an assignment. The PM chooses recipients in the draft.
+            ...(type === 'plan' && { assignee: null }),
             dueDate: it.dueDate && isDateInput(it.dueDate) ? parseDate(it.dueDate, req.user.timezone, true) : null,
             key: randomToken(8),
             selected: true,
@@ -104,37 +106,46 @@ router.post('/projects/:projectId/ai/plan', middlewareProject(), async (req, res
 });
 
 const itemPatch = z.object({
-  key: z.string(),
+  key: z.string().min(1).max(100),
   title: z.string().trim().min(1).max(200).optional(),
   description: z.string().max(2000).optional(),
-  acceptanceCriteria: z.array(z.string().max(300)).optional(),
+  acceptanceCriteria: z.array(z.string().trim().min(1).max(300)).max(20).optional(),
   estimateHours: z.number().min(0).max(1000).nullable().optional(),
   priority: z.enum(['low', 'medium', 'high']).optional(),
-  assignee: z.string().nullable().optional(),
+  assignee: z.uuid().nullable().optional(),
   dueDate: z
     .string()
     .refine((s) => !s || isDateInput(s), 'Ngày không hợp lệ; thời điểm phải có múi giờ')
     .nullable()
     .optional(),
   selected: z.boolean().optional(),
-});
+}).strict();
+
+const draftVersion = z.number().int().min(1);
+const checkDraftVersion = (draft, version) => {
+  if (draft.version !== version) throw conflict('Bản nháp đã thay đổi ở phiên khác. Hãy tải bản mới trước khi tiếp tục.', { code: 'AI_DRAFT_CHANGED', version: draft.version });
+};
 
 router.patch('/ai/drafts/:id', async (req, res) => {
   const initial = await ownDraft(req);
-  const body = parse(z.object({ items: z.array(itemPatch).optional(), removeKeys: z.array(z.string()).optional() }), req.body);
   await withWorkspaceLock(initial.workspace, async (tx) => {
     const draft = await ownDraft(req, tx);
     const access = await projectAccess(req.user.id, draft.project, tx);
     assertManage(access);
+    const body = parse(z.object({ version: draftVersion, items: z.array(itemPatch).max(20).optional(), removeKeys: z.array(z.string().min(1).max(100)).max(20).optional() }).strict(), req.body);
     if (draft.status !== 'draft') throw badRequest('Bản nháp đã được duyệt hoặc hủy');
+    checkDraftVersion(draft, body.version);
+    const keys = (body.items || []).map((p) => p.key);
+    if (new Set(keys).size !== keys.length) throw badRequest('Không được sửa cùng một mục nháp nhiều lần trong một yêu cầu');
+    if ([...keys, ...(body.removeKeys || [])].some((key) => !draft.items.some((it) => it.key === key))) throw badRequest('Mục nháp không tồn tại');
     let items = draft.items;
     for (const p of body.items || []) {
       const it = items.find((x) => x.key === p.key);
-      if (!it) continue;
       if (p.assignee && !access.project.members.includes(p.assignee)) throw badRequest('Người nhận phải là thành viên dự án');
       if (p.assignee) {
         const member = await tx.membership.findUnique({ where: { workspace_user: { workspace: initial.workspace, user: p.assignee } } });
-        if (!member || member.role === 'viewer') throw badRequest('Người nhận phải có quyền làm việc trong dự án');
+        const projectMember = await tx.projectMember.findUnique({ where: { project_user: { project: draft.project, user: p.assignee } } });
+        if (!member || member.role === 'viewer' || !projectMember || projectMember.role === 'viewer') throw badRequest('Người nhận phải có quyền làm việc trong dự án');
       }
       Object.assign(it, {
         ...p,
@@ -143,7 +154,7 @@ router.patch('/ai/drafts/:id', async (req, res) => {
       });
     }
     if (body.removeKeys) items = items.filter((x) => !body.removeKeys.includes(x.key));
-    await tx.aiDraft.update({ where: { id: draft.id }, data: { items } });
+    await tx.aiDraft.update({ where: { id: draft.id }, data: { items, version: { increment: 1 } } });
   });
   res.json({ draft: await loadDraft(initial.id) });
 });
@@ -153,7 +164,12 @@ router.post('/ai/drafts/:id/discard', async (req, res) => {
   await withWorkspaceLock(initial.workspace, async (tx) => {
     const draft = await ownDraft(req, tx);
     assertManage(await projectAccess(req.user.id, draft.project, tx));
-    if (draft.status === 'draft') await tx.aiDraft.update({ where: { id: draft.id }, data: { status: 'discarded' } });
+    const { version } = parse(z.object({ version: draftVersion }).strict(), req.body);
+    if (draft.status === 'approved') throw badRequest('Bản nháp đã được duyệt');
+    if (draft.status === 'draft') {
+      checkDraftVersion(draft, version);
+      await tx.aiDraft.update({ where: { id: draft.id }, data: { status: 'discarded', version: { increment: 1 } } });
+    }
   });
   res.json({ ok: true });
 });
@@ -168,10 +184,13 @@ router.post('/ai/drafts/:id/approve', async (req, res) => {
     const draft = await ownDraft(req, tx);
     const access = await projectAccess(req.user.id, draft.project, tx);
     assertManage(access);
+    const { version } = parse(z.object({ version: draftVersion }).strict(), req.body);
     if (draft.status === 'discarded') throw badRequest('Bản nháp đã bị hủy');
     if (draft.status === 'draft') {
+      checkDraftVersion(draft, version);
       const selected = draft.items.filter((x) => x.selected);
       if (!selected.length) throw badRequest('Chọn ít nhất một công việc để duyệt');
+      for (const item of selected) parse(itemPatch.omit({ key: true }).extend({ title: z.string().trim().min(1).max(200) }).passthrough(), item);
       if (draft.type === 'plan') {
         const total = selected.reduce((sum, it) => sum + (it.estimateHours ?? 0), 0);
         if (draft.input?.maxHours != null && total > draft.input.maxHours + 1e-9) throw badRequest(`Tổng giờ đã chọn vượt giới hạn ${draft.input.maxHours} giờ của kế hoạch`);
@@ -186,6 +205,10 @@ router.post('/ai/drafts/:id/approve', async (req, res) => {
     const members = await tx.membership.findMany({ where: { workspace: project.workspace, user: { in: project.members }, role: { not: 'viewer' } }, select: { user: true } });
     const projectMembers = await tx.projectMember.findMany({ where: { project: project.id, role: { not: 'viewer' } }, select: { user: true } });
     const eligible = new Set(projectMembers.map((m) => m.user).filter((id) => members.some((m) => m.user === id)));
+    if (draft.status === 'draft' && draft.type === 'plan' && draft.input?.people != null) {
+      const recipients = new Set(draft.items.filter((it) => it.selected && eligible.has(it.assignee)).map((it) => it.assignee));
+      if (recipients.size > draft.input.people) throw badRequest(`Số người nhận đã chọn vượt giới hạn ${draft.input.people} người của kế hoạch`);
+    }
     const findCreated = async (aiDraftItem) => (await tx.task.findUnique({ where: { project_aiDraftItem: { project: project.id, aiDraftItem } }, select: { id: true } }))?.id;
     for (const it of draft.items.filter((x) => x.selected)) {
       if (it.createdTask) {
@@ -235,7 +258,7 @@ router.post('/ai/drafts/:id/approve', async (req, res) => {
       });
     }
     const first = draft.status !== 'approved';
-    await tx.aiDraft.update({ where: { id: draft.id }, data: { items: draft.items, status: 'approved', approvedAt: draft.approvedAt || new Date() } });
+    if (first) await tx.aiDraft.update({ where: { id: draft.id }, data: { items: draft.items, status: 'approved', approvedAt: new Date(), version: { increment: 1 } } });
     if (first) {
       await logActivityIn(tx, {
         workspace: project.workspace,
@@ -265,7 +288,7 @@ router.post('/ai/drafts/:id/approve', async (req, res) => {
   }
   emitProject(project.id, 'board:refresh', {});
   const tasks = await prisma.task.findMany({ where: { deletedAt: null, id: { in: created } }, select: { id: true, key: true, title: true, status: true, assignee: true } });
-  res.json({ ok: true, created: tasks });
+  res.json({ ok: true, created: tasks, draft: await loadDraft(initial.id) });
 });
 
 // ===================== GHI CHÚ HỌP =====================
@@ -350,6 +373,7 @@ router.post('/projects/:projectId/ai/reports', middlewareProject(), async (req, 
         from,
         to,
         sourceRevision: revision,
+        generatedAt: data.generatedAt,
         stats: data.stats,
         sections: [
           { key: 'summary', title: 'Tóm tắt', body: narrative.summary, refs: [], aiSuggested: true },

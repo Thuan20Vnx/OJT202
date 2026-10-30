@@ -65,7 +65,7 @@ export default function Meeting({ project, onUsage, disabled }) {
             <button className="text-label-md text-blue-600 hover:underline" onClick={() => setF({ ...f, text: SAMPLE })}>{tr("Dùng biên bản mẫu")}</button>
           )}
           <Notice tone="warn">{tr("Không rõ người hoặc hạn thì AI sẽ để trống, không tự đoán.")}</Notice>
-          {!info?.access?.canManage && <Notice>{tr("Chỉ PM, Owner hoặc Admin của dự án đang hoạt động được tạo và duyệt việc từ biên bản.")}</Notice>}
+          {!info?.access?.canManage && <Notice>{tr('Chỉ PM của dự án đang hoạt động được tạo và duyệt việc từ biên bản.')}</Notice>}
           <button className="btn-primary h-10 w-full" onClick={extract} disabled={busy || f.text.trim().length < 10 || disabled || !info?.access?.canManage}>
             {busy ? <Spinner /> : <Icon name="auto_awesome" size={18} />}{tr("Trích action items")}</button>
         </div>
@@ -79,7 +79,7 @@ export default function Meeting({ project, onUsage, disabled }) {
             draft={draft}
             canManage={!!info?.access?.canManage}
             setDraft={setDraft}
-            members={info?.project?.members || []}
+            members={(info?.project?.members || []).filter((m) => m.role !== 'viewer' && m.projectRole !== 'viewer')}
             title={tr("Action items nháp")}
             showExcerpt
             onRegenerate={extract}
