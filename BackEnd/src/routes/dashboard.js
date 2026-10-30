@@ -68,15 +68,21 @@ router.get('/projects/:projectId/risks', middlewareProject(), async (req, res) =
 
 router.post('/projects/:projectId/risks/resolve', middlewareProject(), async (req, res) => {
   assertWrite(req.pa);
-  const { key } = parse(z.object({ key: z.string().min(1).max(100000), title: z.string().max(300).optional() }), req.body);
+  const { key, sourceVersion, reason } = parse(z.object({
+    key: z.string().min(1).max(100000), sourceVersion: z.string().regex(/^[a-f0-9]{64}$/),
+    reason: z.string().trim().min(3, 'Nhập lý do xử lý cảnh báo (ít nhất 3 ký tự)').max(1000), title: z.string().max(300).optional(),
+  }).strict(), req.body);
   await withWorkspaceLock(req.pa.project.workspace, async (tx) => {
     const access = await projectAccess(req.user.id, req.pa.project.id, tx);
     assertWrite(access);
-    if (await tx.riskResolution.findUnique({ where: { project_key: { project: access.project.id, key } } })) return;
-    const { open } = await riskAlerts(access.project.id, { project: access.project });
+    const previous = await tx.riskResolution.findUnique({ where: { project_key: { project: access.project.id, key } } });
+    const { open } = await riskAlerts(access.project.id, { project: access.project, db: tx });
     const alert = open.find((a) => a.key === key);
+    if (!alert && previous?.sourceVersion === sourceVersion && previous.reason?.trim()) return;
     if (!alert) throw notFound('Cảnh báo không còn tồn tại');
-    await tx.riskResolution.create({ data: { project: access.project.id, key, title: alert.title, resolvedBy: req.user.id } });
+    if (alert.sourceVersion !== sourceVersion) throw conflict('Nguồn cảnh báo đã thay đổi. Hãy tải lại và xem xét trước khi xử lý.', { code: 'RISK_SOURCES_CHANGED' });
+    const data = { title: alert.title, sourceVersion, reason, snapshot: alert.snapshot, resolvedBy: req.user.id };
+    await tx.riskResolution.upsert({ where: { project_key: { project: access.project.id, key } }, create: { project: access.project.id, key, ...data }, update: data });
     await logActivityIn(tx, {
       workspace: access.project.workspace,
       project: access.project.id,
@@ -85,6 +91,8 @@ router.post('/projects/:projectId/risks/resolve', middlewareProject(), async (re
       entityType: 'project',
       entityId: access.project.id,
       entityLabel: alert.title,
+      before: previous ? JSON.stringify({ sourceVersion: previous.sourceVersion, reason: previous.reason }) : null,
+      after: JSON.stringify({ sourceVersion, reason, snapshot: alert.snapshot }),
     });
   });
   await emitProject(req.pa.project.id, 'risks:changed', {});
@@ -93,10 +101,13 @@ router.post('/projects/:projectId/risks/resolve', middlewareProject(), async (re
 
 router.delete('/projects/:projectId/risks/resolve', middlewareProject(), async (req, res) => {
   assertWrite(req.pa);
+  const { key, sourceVersion } = parse(z.object({ key: z.string().min(1).max(100000), sourceVersion: z.string().regex(/^[a-f0-9]{64}$/) }), req.query);
   await withWorkspaceLock(req.pa.project.workspace, async (tx) => {
     const access = await projectAccess(req.user.id, req.pa.project.id, tx);
     assertWrite(access);
-    const { count } = await tx.riskResolution.deleteMany({ where: { project: access.project.id, key: String(req.query.key || '') } });
+    const current = await tx.riskResolution.findUnique({ where: { project_key: { project: access.project.id, key } } });
+    if (current && current.sourceVersion !== sourceVersion) throw conflict('Lần xử lý cảnh báo đã thay đổi. Vui lòng tải lại.', { code: 'RISK_SOURCES_CHANGED' });
+    const { count } = await tx.riskResolution.deleteMany({ where: { project: access.project.id, key, sourceVersion } });
     if (count)
       await logActivityIn(tx, {
         workspace: access.project.workspace,
@@ -105,7 +116,8 @@ router.delete('/projects/:projectId/risks/resolve', middlewareProject(), async (
         action: 'Mở lại cảnh báo rủi ro',
         entityType: 'project',
         entityId: access.project.id,
-        entityLabel: String(req.query.key || ''),
+        entityLabel: current.title,
+        before: JSON.stringify({ sourceVersion, reason: current.reason }),
       });
   });
   await emitProject(req.pa.project.id, 'risks:changed', {});
@@ -127,11 +139,11 @@ router.post('/projects/:projectId/risks/explain', middlewareProject(), async (re
   });
   await withWorkspaceLock(req.pa.project.workspace, async (tx) => {
     const access = await projectAccess(req.user.id, req.pa.project.id, tx);
-    const current = (await riskAlerts(access.project.id, { project: access.project, now })).open.find((a) => a.key === key);
-    if (!current || JSON.stringify(current) !== JSON.stringify(alert))
+    const current = (await riskAlerts(access.project.id, { project: access.project, now, db: tx })).open.find((a) => a.key === key);
+    if (!current || current.sourceVersion !== alert.sourceVersion)
       throw conflict('Cảnh báo đã thay đổi trong lúc AI diễn giải. Vui lòng tải lại.', { code: 'AI_SOURCES_CHANGED' });
   });
-  res.json(out);
+  res.json({ ...out, sourceVersion: alert.sourceVersion });
 });
 
 export default router;

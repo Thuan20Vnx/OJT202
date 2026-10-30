@@ -1,3 +1,4 @@
+import { t as tr, useI18n } from '../../lib/i18n.js';
 import { useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import AuthLayout, { AuthSuccess } from './AuthLayout.jsx';
@@ -6,6 +7,7 @@ import { api } from '../../lib/api.js';
 import { useApp } from '../../lib/app.jsx';
 
 export function PasswordInput({ value, onChange, error, placeholder = '••••••••', autoComplete }) {
+  useI18n();
   const [show, setShow] = useState(false);
   return (
     <div className="relative">
@@ -22,7 +24,7 @@ export function PasswordInput({ value, onChange, error, placeholder = '•••
         type="button"
         onClick={() => setShow((s) => !s)}
         className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
-        aria-label="Hiện/ẩn mật khẩu"
+        aria-label={tr("Hiện/ẩn mật khẩu")}
       >
         <Icon name={show ? 'visibility_off' : 'visibility'} size={18} />
       </button>
@@ -31,20 +33,21 @@ export function PasswordInput({ value, onChange, error, placeholder = '•••
 }
 
 export function PasswordStrength({ value }) {
+  useI18n();
   const rules = [
-    [value.length >= 8, 'Ít nhất 8 ký tự'],
-    [/[A-Z]/.test(value), 'Có chữ hoa'],
-    [/[0-9]/.test(value), 'Có số'],
+    [value.length >= 8, tr("Ít nhất 8 ký tự")],
+    [/[A-Z]/.test(value), tr("Có chữ hoa")],
+    [/[0-9]/.test(value), tr("Có số")],
   ];
   const tooLong = new TextEncoder().encode(value).length > 72;
   const score = tooLong ? 0 : rules.filter((r) => r[0]).length;
-  const label = ['Yếu', 'Yếu', 'Trung bình', 'Mạnh'][score];
+  const label = [tr("Yếu"), tr("Yếu"), tr("Trung bình"), tr("Mạnh")][score];
   const tone = ['bg-rose-500', 'bg-rose-500', 'bg-amber-500', 'bg-emerald-500'][score];
   return (
     <div className="mt-2">
-      {tooLong && <p className="mb-1 text-body-sm text-rose-600">Mật khẩu vượt 72 byte UTF-8; hãy rút ngắn (ký tự có dấu có thể chiếm nhiều byte).</p>}
+      {tooLong && <p className="mb-1 text-body-sm text-rose-600">{tr("Mật khẩu vượt 72 byte UTF-8; hãy rút ngắn (ký tự có dấu có thể chiếm nhiều byte).")}</p>}
       <div className="flex items-center justify-between text-label-md font-normal text-slate-500">
-        <span>Độ mạnh mật khẩu</span>
+        <span>{tr("Độ mạnh mật khẩu")}</span>
         <span className={score === 3 ? 'font-semibold text-emerald-600' : ''}>{value ? label : ''}</span>
       </div>
       <div className="mt-1 grid grid-cols-3 gap-1">
@@ -65,12 +68,13 @@ export function PasswordStrength({ value }) {
 }
 
 function GoogleButton() {
+  useI18n();
   return (
     <button
       type="button"
       className="btn-outline w-full"
-      title="Đăng nhập Google cần cấu hình OAuth khi triển khai"
-      onClick={() => alert('Đăng nhập Google cần cấu hình OAuth Client ID khi triển khai. Bản phát triển dùng email + mật khẩu.')}
+      title={tr("Đăng nhập Google cần cấu hình OAuth khi triển khai")}
+      onClick={() => alert(tr("Đăng nhập Google cần cấu hình OAuth Client ID khi triển khai. Bản phát triển dùng email + mật khẩu."))}
     >
       <svg width="16" height="16" viewBox="0 0 48 48" aria-hidden="true">
         <path
@@ -80,13 +84,12 @@ function GoogleButton() {
         <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z" />
         <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z" />
         <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z" />
-      </svg>
-      Tiếp tục với Google
-    </button>
+      </svg>{tr("Tiếp tục với Google")}</button>
   );
 }
 
 export default function Login({ initialTab = 'login' }) {
+  useI18n();
   const [tab, setTab] = useState(initialTab);
   const { loadMe } = useApp();
   const navigate = useNavigate();
@@ -96,12 +99,15 @@ export default function Login({ initialTab = 'login' }) {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(null);
+  const [mailPending, setMailPending] = useState(false);
+  const [resendNotice, setResendNotice] = useState('');
+  const resendPending = useRef(false);
   const [unverified, setUnverified] = useState(false);
   const [success, setSuccess] = useState(false);
   const formRef = useRef(null);
   const fail = (err) => {
     setError(err.message);
-    setErrors(err.fields);
+    setErrors(err.fields || {});
     // Lắc nhẹ form khi lỗi (Web Animations API – không dựng lại form nên ô nhập giữ focus)
     if (!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
       formRef.current?.animate(
@@ -142,7 +148,12 @@ export default function Login({ initialTab = 'login' }) {
     try {
       await api.post('/auth/register', { name: f.name, email: f.email, password: f.password, acceptTerms: f.accept });
       setSent(f.email);
+      setMailPending(false);
     } catch (err) {
+      if (err.details?.code === 'MAIL_UNAVAILABLE') {
+        setSent(f.email);
+        setMailPending(true);
+      }
       fail(err);
     } finally {
       setBusy(false);
@@ -150,17 +161,27 @@ export default function Login({ initialTab = 'login' }) {
   };
 
   const resend = async () => {
-    await api.post('/auth/resend-verification', { email: sent || f.email }).catch(() => {});
-    setSent(sent || f.email);
+    if (resendPending.current) return;
+    resendPending.current = true;
+    setBusy(true);
+    setResendNotice('');
+    try {
+      await api.post('/auth/resend-verification', { email: sent || f.email });
+      setResendNotice(tr("Đã yêu cầu gửi lại email xác minh. Vui lòng kiểm tra hộp thư và thư rác; nếu chưa nhận được, hãy thử lại sau."));
+      setError('');
+    } catch (err) {
+      fail(err);
+    } finally {
+      resendPending.current = false;
+      setBusy(false);
+    }
   };
 
   if (success) {
     return (
       <AuthLayout>
         <div className="card p-6 shadow-card">
-          <AuthSuccess title="Đăng nhập thành công" progressMs={1100}>
-            Chào mừng quay trở lại! Đang mở không gian làm việc của bạn…
-          </AuthSuccess>
+          <AuthSuccess title={tr("Đăng nhập thành công")} progressMs={1100}>{tr("Chào mừng quay trở lại! Đang mở không gian làm việc của bạn…")}</AuthSuccess>
         </div>
       </AuthLayout>
     );
@@ -177,8 +198,8 @@ export default function Login({ initialTab = 'login' }) {
             style={{ transform: `translateX(${tab === 'login' ? '4px' : 'calc(100% + 4px)'})`, left: 0 }}
           />
           {[
-            ['login', 'login', 'Đăng nhập'],
-            ['register', 'person_add', 'Đăng ký'],
+            ['login', 'login', tr("Đăng nhập")],
+            ['register', 'person_add', tr("Đăng ký")],
           ].map(([key, icon, label]) => (
             <button
               key={key}
@@ -187,6 +208,8 @@ export default function Login({ initialTab = 'login' }) {
                 setError('');
                 setErrors({});
                 setSent(null);
+                setMailPending(false);
+                setResendNotice('');
               }}
               className={`relative flex items-center justify-center gap-1.5 rounded-md py-2 text-label-lg transition-colors duration-300 ${tab === key ? 'font-semibold text-blue-700' : 'text-slate-500 hover:text-slate-700'}`}
             >
@@ -199,99 +222,83 @@ export default function Login({ initialTab = 'login' }) {
         {tab === 'login' ? (
           <form ref={formRef} onSubmit={login} className="animate-fade-up space-y-4">
             <div>
-              <h2 className="text-headline-md text-slate-900">Chào mừng quay trở lại</h2>
-              <p className="text-body-sm text-slate-500">Nhập thông tin tài khoản TaskFlow của bạn để tiếp tục.</p>
+              <h2 className="text-headline-md text-slate-900">{tr("Chào mừng quay trở lại")}</h2>
+              <p className="text-body-sm text-slate-500">{tr("Nhập thông tin tài khoản TaskFlow của bạn để tiếp tục.")}</p>
             </div>
             {error && (
               <Notice tone="danger">
                 {error}
                 {unverified && (
-                  <button type="button" className="ml-1 font-semibold underline" onClick={resend}>
-                    Gửi lại email xác minh
-                  </button>
+                  <button type="button" className="ml-1 font-semibold underline" onClick={resend} disabled={busy}>{tr("Gửi lại email xác minh")}</button>
                 )}
               </Notice>
             )}
-            {sent && <Notice tone="success">Đã gửi lại email xác minh tới {sent}.</Notice>}
-            <Field label="Email công việc" required error={errors.email}>
+            {resendNotice && <Notice tone="info">{resendNotice}</Notice>}
+            <Field label={tr("Email công việc")} required error={errors.email}>
               <div className="relative">
                 <Icon name="mail" size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input type="email" autoComplete="email" className="input pl-9" value={f.email} onChange={set('email')} placeholder="ban@congty.com" />
               </div>
             </Field>
-            <Field label="Mật khẩu" required error={errors.password}>
+            <Field label={tr("Mật khẩu")} required error={errors.password}>
               <PasswordInput value={f.password} onChange={set('password')} autoComplete="current-password" />
             </Field>
             <div className="flex items-center justify-between text-body-sm">
               <label className="flex items-center gap-2 text-slate-600">
-                <input type="checkbox" className="form-checkbox rounded text-blue-600" checked={f.remember} onChange={set('remember')} />
-                Ghi nhớ đăng nhập
-              </label>
-              <Link to="/forgot-password" className="font-semibold text-blue-600 hover:underline">
-                Quên mật khẩu?
-              </Link>
+                <input type="checkbox" className="form-checkbox rounded text-blue-600" checked={f.remember} onChange={set('remember')} />{tr("Ghi nhớ đăng nhập")}</label>
+              <Link to="/forgot-password" className="font-semibold text-blue-600 hover:underline">{tr("Quên mật khẩu?")}</Link>
             </div>
             <button className="btn-primary h-10 w-full" disabled={busy}>
-              {busy && <Spinner />}
-              Đăng nhập
-              <Icon name="arrow_forward" size={18} />
+              {busy && <Spinner />}{tr("Đăng nhập")}<Icon name="arrow_forward" size={18} />
             </button>
             <div className="flex items-center gap-3 text-label-md font-normal text-slate-400">
-              <span className="h-px flex-1 bg-slate-200" />
-              hoặc
-              <span className="h-px flex-1 bg-slate-200" />
+              <span className="h-px flex-1 bg-slate-200" />{tr("hoặc")}<span className="h-px flex-1 bg-slate-200" />
             </div>
             <GoogleButton />
           </form>
         ) : sent ? (
           <AuthSuccess
-            title="Đăng ký thành công!"
+            title={mailPending ? tr("Tài khoản đang chờ xác minh") : tr("Đăng ký thành công!")}
             tone="blue"
             action={
               <>
-                <button className="btn-outline" onClick={resend}>
-                  <Icon name="forward_to_inbox" size={18} />
-                  Gửi lại email
-                </button>
-                <p className="mt-3 text-label-md font-normal text-slate-400">
-                  Bản phát triển: xem email tại{' '}
-                  <Link className="text-blue-600 underline" to="/dev/outbox">
-                    hộp thư dev
-                  </Link>
+                {error && <Notice tone="danger">{error}</Notice>}
+                {resendNotice && <Notice tone="info">{resendNotice}</Notice>}
+                <button className="btn-outline" onClick={resend} disabled={busy}>
+                  <Icon name="forward_to_inbox" size={18} />{tr("Gửi lại email")}</button>
+                <p className="mt-3 text-label-md font-normal text-slate-400">{tr("Bản phát triển: xem email tại")}{' '}
+                  <Link className="text-blue-600 underline" to="/dev/outbox">{tr("hộp thư dev")}</Link>
                 </p>
               </>
             }
           >
-            Kiểm tra hộp thư: chúng tôi đã gửi email xác minh tới <b>{sent}</b>. Liên kết có hiệu lực trong 24 giờ.
+            {mailPending ? <>{tr("Tài khoản ")}<b>{sent}</b>{tr(" đã được tạo, nhưng email chưa gửi được. Bạn có thể gửi lại mà không cần đăng ký lần nữa.")}</> : <>{tr("Kiểm tra hộp thư: chúng tôi đã gửi email xác minh tới ")}<b>{sent}</b>{tr(". Liên kết có hiệu lực trong 24 giờ.")}</>}
           </AuthSuccess>
         ) : (
           <form ref={formRef} onSubmit={register} className="animate-fade-up space-y-4">
             <div>
-              <h2 className="text-headline-md text-slate-900">Tạo tài khoản</h2>
-              <p className="text-body-sm text-slate-500">Bắt đầu quản lý dự án hiệu quả cùng nhóm.</p>
+              <h2 className="text-headline-md text-slate-900">{tr("Tạo tài khoản")}</h2>
+              <p className="text-body-sm text-slate-500">{tr("Bắt đầu quản lý dự án hiệu quả cùng nhóm.")}</p>
             </div>
             {error && !Object.keys(errors).length && <Notice tone="danger">{error}</Notice>}
-            <Field label="Họ và tên" required error={errors.name}>
-              <input className="input" value={f.name} onChange={set('name')} placeholder="Nguyễn Văn A" autoComplete="name" />
+            <Field label={tr("Họ và tên")} required error={errors.name}>
+              <input className="input" value={f.name} onChange={set('name')} placeholder={tr("Nguyễn Văn A")} autoComplete="name" />
             </Field>
-            <Field label="Email công việc" required error={errors.email}>
+            <Field label={tr("Email công việc")} required error={errors.email}>
               <input type="email" className="input" value={f.email} onChange={set('email')} placeholder="ban@congty.com" autoComplete="email" />
             </Field>
-            <Field label="Mật khẩu" required error={errors.password}>
+            <Field label={tr("Mật khẩu")} required error={errors.password}>
               <PasswordInput value={f.password} onChange={set('password')} autoComplete="new-password" />
               <PasswordStrength value={f.password} />
             </Field>
             <label className="flex items-start gap-2 text-body-sm text-slate-600">
               <input type="checkbox" className="form-checkbox mt-0.5 rounded text-blue-600" checked={f.accept} onChange={set('accept')} />
-              <span>
-                Tôi đồng ý với <span className="text-blue-600">Điều khoản dịch vụ</span> và <span className="text-blue-600">Chính sách bảo mật</span>
+              <span>{tr("Tôi đồng ý với ")}<span className="text-blue-600">{tr("Điều khoản dịch vụ")}</span>{tr(" và ")}<span className="text-blue-600">{tr("Chính sách bảo mật")}</span>
               </span>
             </label>
             {errors.acceptTerms && <p className="field-error">{errors.acceptTerms}</p>}
             <button className="btn-primary h-10 w-full" disabled={busy}>
-              {busy && <Spinner />}
-              Tạo tài khoản
-            </button>
+              {busy && <Spinner />}{tr("Tạo tài khoản")}</button>
             <GoogleButton />
           </form>
         )}

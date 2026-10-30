@@ -67,7 +67,7 @@ router.get('/users', async (req, res) => {
 });
 
 router.post('/users/:id/lock', async (req, res) => {
-  const body = parse(z.object({ reason: z.enum(REASONS, { errorMap: () => ({ message: 'Vui lòng chọn lý do khóa' }) }), note: z.string().max(500).default('') }), req.body);
+  const body = parse(z.object({ reason: z.enum(REASONS, { error: 'Vui lòng chọn lý do khóa' }), note: z.string().max(500).default('') }), req.body);
   if (req.params.id === req.user.id) throw badRequest('Không thể tự khóa tài khoản của mình');
   const user = await findUser(req.params.id);
   await adminMutation(req, user.id, async (tx) => {

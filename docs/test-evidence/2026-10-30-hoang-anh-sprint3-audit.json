@@ -1,0 +1,94 @@
+{
+  "checkedAt": "2026-10-30T03:43:15.733Z",
+  "node": "v24.15.0",
+  "audits": {
+    "root": {
+      "auditReportVersion": 2,
+      "vulnerabilities": {},
+      "metadata": {
+        "vulnerabilities": {
+          "info": 0,
+          "low": 0,
+          "moderate": 0,
+          "high": 0,
+          "critical": 0,
+          "total": 0
+        },
+        "dependencies": {
+          "prod": 1,
+          "dev": 3,
+          "optional": 0,
+          "peer": 0,
+          "peerOptional": 0,
+          "total": 3
+        }
+      }
+    },
+    "backend": {
+      "auditReportVersion": 2,
+      "vulnerabilities": {},
+      "metadata": {
+        "vulnerabilities": {
+          "info": 0,
+          "low": 0,
+          "moderate": 0,
+          "high": 0,
+          "critical": 0,
+          "total": 0
+        },
+        "dependencies": {
+          "prod": 173,
+          "dev": 6,
+          "optional": 9,
+          "peer": 0,
+          "peerOptional": 0,
+          "total": 187
+        }
+      }
+    },
+    "frontend": {
+      "auditReportVersion": 2,
+      "vulnerabilities": {},
+      "metadata": {
+        "vulnerabilities": {
+          "info": 0,
+          "low": 0,
+          "moderate": 0,
+          "high": 0,
+          "critical": 0,
+          "total": 0
+        },
+        "dependencies": {
+          "prod": 22,
+          "dev": 267,
+          "optional": 96,
+          "peer": 0,
+          "peerOptional": 0,
+          "total": 288
+        }
+      }
+    },
+    "ai": {
+      "auditReportVersion": 2,
+      "vulnerabilities": {},
+      "metadata": {
+        "vulnerabilities": {
+          "info": 0,
+          "low": 0,
+          "moderate": 0,
+          "high": 0,
+          "critical": 0,
+          "total": 0
+        },
+        "dependencies": {
+          "prod": 77,
+          "dev": 0,
+          "optional": 0,
+          "peer": 0,
+          "peerOptional": 0,
+          "total": 76
+        }
+      }
+    }
+  }
+}

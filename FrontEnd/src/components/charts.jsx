@@ -1,10 +1,12 @@
+import { t as tr, useI18n } from '../lib/i18n.js';
 import { useState } from 'react';
 import { fmtProjectDate as fmtDate } from '../lib/format.js';
 
 /** Burndown: đường thực tế (xanh, liền) + lý tưởng (xám, nét đứt), có crosshair + tooltip khi rê chuột. */
 export function Burndown({ days = [], height = 220 }) {
+  useI18n();
   const [hover, setHover] = useState(null);
-  if (!days.length) return <p className="py-10 text-center text-body-sm text-slate-400">Dự án chưa đặt thời gian Sprint</p>;
+  if (!days.length) return <p className="py-10 text-center text-body-sm text-slate-400">{tr("Dự án chưa đặt thời gian Sprint")}</p>;
   const W = 640;
   const H = height;
   const pad = { l: 32, r: 12, t: 12, b: 26 };
@@ -19,31 +21,31 @@ export function Burndown({ days = [], height = 220 }) {
   const ticks = [0, Math.round(max / 2), max];
   return (
     <div className="relative">
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label="Biểu đồ burndown số việc còn lại theo ngày" onMouseLeave={() => setHover(null)}>
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label={tr("Biểu đồ burndown số việc còn lại theo ngày")} onMouseLeave={() => setHover(null)}>
         {ticks.map((t) => (
           <g key={t}>
-            <line x1={pad.l} x2={W - pad.r} y1={y(t)} y2={y(t)} stroke="#e2e8f0" strokeWidth="1" />
-            <text x={pad.l - 6} y={y(t) + 4} textAnchor="end" fontSize="10" fill="#94a3b8">
+            <line x1={pad.l} x2={W - pad.r} y1={y(t)} y2={y(t)} stroke="var(--tf-chart-grid)" strokeWidth="1" />
+            <text x={pad.l - 6} y={y(t) + 4} textAnchor="end" fontSize="10" fill="var(--tf-chart-label)">
               {t}
             </text>
           </g>
         ))}
         {days.map((d, i) =>
           i % Math.ceil(days.length / 6) === 0 || i === days.length - 1 ? (
-            <text key={i} x={x(i)} y={H - 8} textAnchor="middle" fontSize="10" fill="#94a3b8">
+            <text key={i} x={x(i)} y={H - 8} textAnchor="middle" fontSize="10" fill="var(--tf-chart-label)">
               {fmtDate(d.date)}
             </text>
           ) : null,
         )}
-        <polyline points={ideal} fill="none" stroke="#94a3b8" strokeWidth="2" strokeDasharray="5 4" />
-        {actualPts.length > 1 && <polyline points={actualPts.map((p) => p.join(',')).join(' ')} fill="none" stroke="#2563eb" strokeWidth="2" strokeLinejoin="round" />}
+        <polyline points={ideal} fill="none" stroke="var(--tf-chart-label)" strokeWidth="2" strokeDasharray="5 4" />
+        {actualPts.length > 1 && <polyline points={actualPts.map((p) => p.join(',')).join(' ')} fill="none" stroke="var(--tf-chart-line)" strokeWidth="2" strokeLinejoin="round" />}
         {todayIdx >= 0 && (
           <g>
             <line x1={x(todayIdx)} x2={x(todayIdx)} y1={pad.t} y2={H - pad.b} stroke="#f43f5e" strokeWidth="1" strokeDasharray="3 3" />
-            <circle cx={x(todayIdx)} cy={y(days[todayIdx].actual)} r="4.5" fill="#2563eb" stroke="#fff" strokeWidth="2" />
+            <circle cx={x(todayIdx)} cy={y(days[todayIdx].actual)} r="4.5" fill="var(--tf-chart-line)" stroke="var(--tf-chart-surface)" strokeWidth="2" />
           </g>
         )}
-        {selected && <line x1={x(hover)} x2={x(hover)} y1={pad.t} y2={H - pad.b} stroke="#cbd5e1" strokeWidth="1" />}
+        {selected && <line x1={x(hover)} x2={x(hover)} y1={pad.t} y2={H - pad.b} stroke="var(--tf-chart-label)" strokeWidth="1" />}
         {days.map((_, i) => (
           <rect
             key={i}
@@ -62,20 +64,17 @@ export function Burndown({ days = [], height = 220 }) {
           style={{ left: `${Math.min(80, (x(hover) / W) * 100)}%` }}
         >
           <p className="font-semibold text-slate-800">{fmtDate(days[hover].date)}</p>
-          <p className="font-normal text-slate-600">Thực tế: {days[hover].actual ?? '–'} việc</p>
-          <p className="font-normal text-slate-600">Lý tưởng: {days[hover].ideal} việc</p>
+          <p className="font-normal text-slate-600">{tr("Thực tế: ")}{days[hover].actual ?? '–'}{tr(" việc")}</p>
+          <p className="font-normal text-slate-600">{tr("Lý tưởng: ")}{days[hover].ideal}{tr(" việc")}</p>
         </div>
       )}
       <div className="mt-2 flex items-center gap-4 text-label-md font-normal text-slate-600">
         <span className="flex items-center gap-1.5">
-          <span className="h-0.5 w-5 rounded bg-blue-600" /> Thực tế
-        </span>
+          <span className="h-0.5 w-5 rounded bg-blue-600" />{tr(" Thực tế")}</span>
         <span className="flex items-center gap-1.5">
-          <span className="h-0 w-5 border-t-2 border-dashed border-slate-400" /> Lý tưởng
-        </span>
+          <span className="h-0 w-5 border-t-2 border-dashed border-slate-400" />{tr(" Lý tưởng")}</span>
         <span className="flex items-center gap-1.5">
-          <span className="h-3 w-0 border-l border-dashed border-rose-500" /> Hôm nay
-        </span>
+          <span className="h-3 w-0 border-l border-dashed border-rose-500" />{tr(" Hôm nay")}</span>
       </div>
     </div>
   );
@@ -83,6 +82,7 @@ export function Burndown({ days = [], height = 220 }) {
 
 /** Donut phân bố trạng thái – khoảng hở 2px giữa các lát, chú thích có nhãn + số (không chỉ dựa vào màu). */
 export function Donut({ segments, size = 168, center }) {
+  useI18n();
   const [hover, setHover] = useState(null);
   const total = segments.reduce((s, x) => s + x.value, 0);
   const r = size / 2 - 12;
@@ -91,8 +91,8 @@ export function Donut({ segments, size = 168, center }) {
   return (
     <div className="flex flex-wrap items-center gap-6">
       <div className="relative" style={{ width: size, height: size }}>
-        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} role="img" aria-label="Biểu đồ phân bố trạng thái công việc">
-          <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#f1f5f9" strokeWidth="18" />
+        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} role="img" aria-label={tr("Biểu đồ phân bố trạng thái công việc")}>
+          <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--tf-chart-track)" strokeWidth="18" />
           {total > 0 &&
             segments.map((s, i) => {
               const len = (s.value / total) * c;

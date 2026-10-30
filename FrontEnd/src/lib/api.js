@@ -1,16 +1,18 @@
+import { t as tr, translateError } from './i18n.js';
 // Gọi API kèm cookie; tự làm mới access token một lần khi gặp 401.
 export class ApiError extends Error {
   constructor(status, message, details) {
-    super(message);
+    super(translateError(message));
     this.status = status;
     this.details = details || {};
   }
   get fields() {
-    return this.details.fields || {};
+    return Object.fromEntries(Object.entries(this.details.fields || {}).map(([key, value]) => [key, translateError(value)]));
   }
 }
 
 let refreshing = null;
+let authGeneration = 0;
 const listeners = new Set();
 export const onUnauthorized = (fn) => (listeners.add(fn), () => listeners.delete(fn));
 
@@ -42,17 +44,21 @@ async function refresh() {
 const OFFLINE_MSG = 'Không kết nối được máy chủ, vui lòng thử lại sau giây lát';
 
 async function authenticatedResponse(method, url, body, { isForm = false, noRefresh = false } = {}) {
+  const generation = authGeneration;
   let res;
   try {
     res = await raw(method, url, body, isForm);
-    if (res.status === 401 && !noRefresh && !url.startsWith('/auth/')) {
+    if (res.status === 401 && generation === authGeneration && !noRefresh && !url.startsWith('/auth/')) {
       if (await refresh()) res = await raw(method, url, body, isForm);
     }
   } catch (error) {
     if (error instanceof ApiError) throw error;
     throw new ApiError(0, OFFLINE_MSG); // lỗi mạng: server tắt/đang khởi động lại
   }
-  if (res.status === 401 && !url.startsWith('/auth/')) listeners.forEach((fn) => fn());
+  // An anonymous /me request can finish after verification/login creates a session.
+  // Its stale 401 must not clear the newly authenticated account.
+  if (res.ok && ['/auth/login', '/auth/verify-email', '/auth/google', '/auth/logout'].includes(url)) authGeneration++;
+  if (res.status === 401 && generation === authGeneration && !url.startsWith('/auth/')) listeners.forEach((fn) => fn());
   return res;
 }
 
@@ -72,7 +78,7 @@ export async function request(method, url, body, options = {}) {
   const data = await readBody(res, type.includes('application/json') ? 'json' : 'text');
   // 5xx không kèm JSON: proxy/reverse proxy không tới được API (API luôn trả lỗi dạng JSON)
   if (res.status >= 500 && !data?.error) throw new ApiError(res.status, OFFLINE_MSG);
-  if (!res.ok) throw new ApiError(res.status, data?.error || 'Đã có lỗi xảy ra', data?.details);
+  if (!res.ok) throw new ApiError(res.status, data?.error || tr("Đã có lỗi xảy ra"), data?.details);
   return data;
 }
 
@@ -95,7 +101,10 @@ export function qs(params) {
 /** Tải tệp qua backend (cookie đi kèm) */
 export async function download(url, filename) {
   const res = await authenticatedResponse('GET', url);
-  if (!res.ok) throw new ApiError(res.status, 'Không tải được tệp');
+  if (!res.ok) {
+    const data = res.headers.get('content-type')?.includes('application/json') ? await readBody(res, 'json') : null;
+    throw new ApiError(res.status, data?.error || tr("Không tải được tệp"), data?.details);
+  }
   const blob = await readBody(res, 'blob');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);

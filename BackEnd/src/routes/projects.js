@@ -18,11 +18,11 @@ const dateStr = z
   .string()
   .refine(isDateInput, 'Ngày không hợp lệ; thời điểm phải có múi giờ');
 
-const projectBody = z
+const projectBase = z
   .object({
-    name: z.string({ required_error: 'Vui lòng nhập tên dự án' }).trim().min(1, 'Vui lòng nhập tên dự án').max(100),
-    description: z.string().trim().max(2000).default(''),
-    color: z.enum(COLORS).default('blue'),
+    name: z.string({ error: 'Vui lòng nhập tên dự án' }).trim().min(1, 'Vui lòng nhập tên dự án').max(100),
+    description: z.string().trim().max(2000),
+    color: z.enum(COLORS),
     keyPrefix: z
       .string()
       .trim()
@@ -31,11 +31,17 @@ const projectBody = z
       .optional(),
     startDate: dateStr.nullable().optional(),
     endDate: dateStr.nullable().optional(),
-    members: z.array(z.string().uuid()).default([]),
+    members: z.array(z.string().uuid()),
     manager: z.string().uuid().optional(),
-    memberRoles: z.record(z.enum(['pm', 'member', 'viewer'])).optional(),
+    memberRoles: z.record(z.string(), z.enum(['pm', 'member', 'viewer'])).optional(),
     sprint: z.object({ name: z.string().max(60), goal: z.string().max(300), start: dateStr.nullable(), end: dateStr.nullable() }).partial().optional(),
-  })
+  });
+// Creation defaults must never appear in PATCH and replace an existing roster.
+const projectBody = projectBase.extend({
+  description: projectBase.shape.description.default(''),
+  color: projectBase.shape.color.default('blue'),
+  members: projectBase.shape.members.default([]),
+})
   .superRefine((v, ctx) => {
     if (v.startDate && v.endDate && new Date(v.endDate) < new Date(v.startDate)) {
       ctx.addIssue({ code: 'custom', path: ['endDate'], message: 'Ngày kết thúc không được trước ngày bắt đầu' });
@@ -70,7 +76,7 @@ async function projectStats(projectIds) {
            COUNT(*) FILTER (WHERE status = 'done')::int AS done,
            COUNT(*) FILTER (WHERE status <> 'done' AND "dueDate" IS NOT NULL AND "dueDate" < now())::int AS overdue
     FROM tasks
-    WHERE project_id = ANY(${projectIds}::uuid[]) AND parent_id IS NULL
+    WHERE project_id = ANY(${projectIds}::uuid[]) AND parent_id IS NULL AND deleted_at IS NULL
     GROUP BY project_id`;
   return Object.fromEntries(rows.map(({ id, ...r }) => [id, r]));
 }
@@ -145,7 +151,7 @@ router.get('/projects/:projectId', middlewareProject(), async (req, res) => {
 
 router.patch('/projects/:projectId', middlewareProject(), async (req, res) => {
   if (!req.pa.canManage) throw forbidden(req.pa.project.status === 'archived' ? 'Dự án đã lưu trữ, chỉ được xem' : 'Chỉ PM được sửa dự án');
-  const body = parse(projectBody.innerType().partial(), req.body);
+  const body = parse(projectBase.partial(), req.body);
   normalizeDates(body, req.user.timezone);
   const removed = [];
   const project = await withWorkspaceLock(req.pa.project.workspace, async (tx) => {
@@ -198,7 +204,9 @@ router.put('/projects/:projectId/risk-rules', middlewareProject(), async (req, r
   );
   const project = await withWorkspaceLock(req.pa.project.workspace, async (tx) => {
     const cur = await lockProject(tx, req.pa.project.id, req.user.id);
-    const result = await tx.project.update({ where: { id: cur.id }, data: { riskRules: { ...cur.riskRules, ...body } } });
+    const riskRules = { ...cur.riskRules, ...body };
+    if (JSON.stringify(riskRules) === JSON.stringify(cur.riskRules)) return cur;
+    const result = await tx.project.update({ where: { id: cur.id }, data: { riskRules, riskRulesVersion: { increment: 1 } } });
     await projectAudit(tx, result, req.user.id, 'Cập nhật quy tắc rủi ro', cur.riskRules, result.riskRules);
     return result;
   });

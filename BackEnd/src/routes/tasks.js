@@ -8,7 +8,7 @@ import { withWorkspaceLock } from '../services/membership.js';
 import { notify } from '../services/notify.js';
 import { emitProject } from '../services/realtime.js';
 import { badRequest, conflict, forbidden, notFound, parse } from '../utils/http.js';
-import { plainText } from '../utils/security.js';
+import { plainText, sha256 } from '../utils/security.js';
 import { BUSINESS_TIMEZONE, isDateInput, parseDate } from '../utils/dates.js';
 
 const router = Router();
@@ -20,7 +20,7 @@ export const PRIORITY_VI = { low: 'Thấp', medium: 'Trung bình', high: 'Cao' }
 const optDate = z.union([z.string(), z.null()]).refine((s) => s === null || s === '' || isDateInput(s), 'Ngày không hợp lệ; thời điểm phải có múi giờ');
 
 const taskFields = {
-  title: z.string({ required_error: 'Vui lòng nhập tên công việc' }).trim().min(1, 'Vui lòng nhập tên công việc').max(200),
+  title: z.string({ error: 'Vui lòng nhập tên công việc' }).trim().min(1, 'Vui lòng nhập tên công việc').max(200),
   description: z.string().max(20000),
   acceptanceCriteria: z.array(z.string().trim().min(1).max(300)).max(30),
   status: z.enum(['todo', 'in_progress', 'review', 'done']),
@@ -62,7 +62,8 @@ async function enrich(tasks, access, userId) {
 }
 
 async function loadTask(id) {
-  const t = await prisma.task.findUnique({ where: { id } });
+  const t = await prisma.task.findUnique({ where: { deletedAt: null, id } });
+  if (!t) throw notFound('Không tìm thấy công việc');
   return t ? (await enrich([t]))[0] : null;
 }
 
@@ -90,7 +91,7 @@ router.get('/projects/:projectId/tasks', middlewareProject(), async (req, res) =
   else if (isId(assignee)) where.assignee = assignee;
   if (priority) where.priority = { in: listParam(priority, ['low', 'medium', 'high']) };
   if (search) where.OR = [{ title: ilike(search) }, { key: ilike(search) }];
-  const tasks = await prisma.task.findMany({ where, orderBy: [{ order: 'asc' }, { number: 'asc' }] });
+  const tasks = await prisma.task.findMany({ where: { ...where, deletedAt: null }, orderBy: [{ order: 'asc' }, { number: 'asc' }] });
   res.json({ tasks: await enrich(tasks, req.pa, req.user.id) });
 });
 
@@ -104,9 +105,9 @@ router.get('/projects/:projectId/calendar', middlewareProject(), async (req, res
   if (req.query.status) where.status = { in: listParam(req.query.status, Object.keys(STATUS_VI)) };
   // Chuỗi phụ thuộc trong dự án để vẽ panel "Phụ thuộc công việc"
   const [tasks, deps] = await Promise.all([
-    prisma.task.findMany({ where, orderBy: { dueDate: 'asc' } }),
+    prisma.task.findMany({ where: { ...where, deletedAt: null }, orderBy: { dueDate: 'asc' } }),
     prisma.task.findMany({
-      where: { project: req.pa.project.id, NOT: { blockedBy: { isEmpty: true } } },
+      where: { deletedAt: null, project: req.pa.project.id, NOT: { blockedBy: { isEmpty: true } } },
       select: { id: true, key: true, title: true, status: true, dueDate: true, blockedBy: true, assignee: true },
     }),
   ]);
@@ -139,7 +140,7 @@ router.post('/projects/:projectId/tasks', middlewareProject(), async (req, res) 
     await assertAssignee(project, body.assignee, tx);
     let parent = null;
     if (body.parent) {
-      parent = isId(body.parent) ? await tx.task.findFirst({ where: { id: body.parent, project: project.id } }) : null;
+      parent = isId(body.parent) ? await tx.task.findFirst({ where: { deletedAt: null, id: body.parent, project: project.id } }) : null;
       if (!parent) throw badRequest('Công việc cha không thuộc dự án');
       if (parent.parent) throw badRequest('Công việc con chỉ được tối đa 1 cấp');
     }
@@ -206,11 +207,11 @@ router.get('/tasks/:id', async (req, res) => {
   // Mỗi phần tải song song rồi tự nạp dữ liệu liên quan – tổng cộng 2 lượt đi-về tới DB
   const [[full], subtasks, blocking, files, activity, parent] = await Promise.all([
     enrich([{ ...task }]),
-    prisma.task.findMany({ where: { parent: task.id }, orderBy: { number: 'asc' } }).then((r) => populate(r, 'assignee', 'user', USER)),
-    prisma.task.findMany({ where: { blockedBy: { has: task.id } }, select: { id: true, key: true, title: true, status: true, dueDate: true } }),
+    prisma.task.findMany({ where: { deletedAt: null, parent: task.id }, orderBy: { number: 'asc' } }).then((r) => populate(r, 'assignee', 'user', USER)),
+    prisma.task.findMany({ where: { deletedAt: null, blockedBy: { has: task.id } }, select: { id: true, key: true, title: true, status: true, dueDate: true } }),
     prisma.document.findMany({ where: { task: task.id }, omit: { storageKey: true }, orderBy: { createdAt: 'desc' } }).then((r) => populate(r, 'uploadedBy', 'user', USER)),
     prisma.activity.findMany({ where: { entityType: 'task', entityId: task.id }, orderBy: { createdAt: 'desc' }, take: 50 }).then((r) => populate(r, 'actor', 'user', USER)),
-    task.parent ? prisma.task.findUnique({ where: { id: task.parent }, select: { id: true, key: true, title: true } }) : null,
+    task.parent ? prisma.task.findUnique({ where: { deletedAt: null, id: task.parent }, select: { id: true, key: true, title: true } }) : null,
   ]);
   res.json({
     task: full,
@@ -285,13 +286,14 @@ async function applyUpdate(req, before, project, patch) {
   ]);
   emitProject(task.project, 'task:changed', { task: full });
   if (parentFull) emitProject(task.project, 'task:changed', { task: parentFull });
+  if (patch.status && patch.status !== before.status) await emitProject(task.project, 'dependencies:changed', { taskId: task.id });
   return full;
 }
 
 router.patch('/tasks/:id', async (req, res) => {
   const access = await taskAccess(req.user.id, req.params.id);
   assertWrite(access);
-  const body = parse(z.object({ ...Object.fromEntries(Object.entries(taskFields).map(([k, v]) => [k, v.optional()])), version: z.number().int().min(1) }), req.body);
+  const body = parse(z.object({ ...Object.fromEntries(Object.entries(taskFields).map(([k, v]) => [k, v.optional()])), version: z.number().int().min(1) }).strict(), req.body);
   if (body.dueDate !== undefined) body.dueDate = body.dueDate ? parseDate(body.dueDate, req.user.timezone, true) : null;
   const { version, ...patch } = body;
   if (version !== access.task.version) throw conflict(STALE_MSG, { task: await loadTask(access.task.id) });
@@ -309,22 +311,58 @@ router.post('/tasks/:id/move', async (req, res) => {
   res.json({ task });
 });
 
+async function deletionImpact(tx, task) {
+  const children = await tx.task.findMany({ where: { deletedAt: null, parent: task.id }, select: { id: true, key: true, title: true, version: true }, orderBy: { id: 'asc' } });
+  const ids = [task.id, ...children.map((c) => c.id)];
+  const [dependents, attachmentCount] = await Promise.all([
+    tx.task.findMany({ where: { project: task.project, deletedAt: null, blockedBy: { hasSome: ids } }, select: { id: true, version: true, blockedBy: true }, orderBy: { id: 'asc' } }),
+    tx.document.count({ where: { task: { in: ids } } }),
+  ]);
+  const tasks = [{ id: task.id, key: task.key, title: task.title, version: task.version }, ...children];
+  const impactToken = sha256(JSON.stringify({ tasks, dependents, attachmentCount }));
+  const dependentCount = dependents.reduce((count, t) => count + t.blockedBy.filter((id) => ids.includes(id)).length, 0);
+  return { tasks, dependentCount, affectedTaskCount: dependents.length, attachmentCount, impactToken, preservesAttachments: true };
+}
+
+router.get('/tasks/:id/deletion-preview', async (req, res) => {
+  const access = await taskAccess(req.user.id, req.params.id);
+  assertManage(access);
+  const impact = await withWorkspaceLock(access.project.workspace, async (tx) => {
+    const fresh = await taskAccess(req.user.id, access.task.id, tx);
+    assertManage(fresh);
+    return deletionImpact(tx, fresh.task);
+  });
+  res.json({ impact });
+});
+
 router.delete('/tasks/:id', async (req, res) => {
   const access = await taskAccess(req.user.id, req.params.id);
   assertManage(access);
+  const { impact: expectedImpact } = parse(z.object({ impact: z.string().regex(/^[a-f0-9]{64}$/).optional() }), req.query);
   const { task, ids } = await withWorkspaceLock(access.project.workspace, async (tx) => {
     const fresh = await taskAccess(req.user.id, access.task.id, tx);
     assertManage(fresh);
     const { task } = fresh;
-    const children = await tx.task.findMany({ where: { parent: task.id }, select: { id: true } });
+    if (expectedImpact && (await deletionImpact(tx, task)).impactToken !== expectedImpact) throw conflict('Phạm vi xóa đã thay đổi. Hãy xem lại trước khi xác nhận.', { code: 'DELETE_CHANGED' });
+    const children = await tx.task.findMany({ where: { deletedAt: null, parent: task.id }, select: { id: true } });
     if (children.length && req.query.confirm !== 'true') {
       throw conflict(`Công việc có ${children.length} công việc con. Xác nhận để xóa tất cả.`, { code: 'CONFIRM_REQUIRED', children: children.length });
     }
     const ids = [task.id, ...children.map((c) => c.id)];
-    // Gỡ khỏi danh sách phụ thuộc của việc khác; bình luận xóa theo (CASCADE), tệp đính kèm giữ lại (SET NULL)
-    const dependents = await tx.task.findMany({ where: { blockedBy: { hasSome: ids } }, select: { id: true, blockedBy: true } });
-    for (const d of dependents) await tx.task.update({ where: { id: d.id }, data: { blockedBy: d.blockedBy.filter((b) => !ids.includes(b)), version: { increment: 1 } } });
-    await tx.task.deleteMany({ where: { id: { in: ids } } });
+    // Giữ task/bình luận để truy vết; gỡ phụ thuộc và giữ tệp ở thư viện dự án.
+    const dependents = await tx.task.findMany({ where: { deletedAt: null, blockedBy: { hasSome: ids } }, select: { id: true, key: true, title: true, blockedBy: true } });
+    for (const d of dependents) {
+      const after = d.blockedBy.filter((b) => !ids.includes(b));
+      await tx.task.update({ where: { id: d.id }, data: { blockedBy: after, version: { increment: 1 } } });
+      await logActivityIn(tx, {
+        workspace: task.workspace, project: task.project, actor: req.user.id,
+        action: 'Gỡ phụ thuộc khi xóa công việc', entityType: 'task', entityId: d.id,
+        entityLabel: `${d.key} ${d.title}`,
+        field: 'blockedBy', before: d.blockedBy, after,
+      });
+    }
+    await tx.document.updateMany({ where: { task: { in: ids } }, data: { task: null } });
+    await tx.task.updateMany({ where: { id: { in: ids }, deletedAt: null }, data: { deletedAt: new Date(), version: { increment: 1 } } });
     await logActivityIn(tx, {
       workspace: task.workspace,
       project: task.project,
@@ -333,6 +371,7 @@ router.delete('/tasks/:id', async (req, res) => {
       entityType: 'task',
       entityId: task.id,
       entityLabel: `${task.key} ${task.title}`,
+      after: { deletedTaskIds: ids },
     });
     return { task, ids };
   });
@@ -353,11 +392,11 @@ async function addDependency(task, depId, db = prisma) {
     WITH RECURSIVE chain(id) AS (
       SELECT ${depId}::uuid
       UNION
-      SELECT unnest(t."blockedBy") FROM tasks t JOIN chain c ON t.id = c.id
+      SELECT unnest(t."blockedBy") FROM tasks t JOIN chain c ON t.id = c.id WHERE t.deleted_at IS NULL
     )
     SELECT d.project_id AS project, d.key,
            ${task.id}::uuid IN (SELECT id FROM chain) AS "cycle"
-    FROM tasks d WHERE d.id = ${depId}::uuid`;
+    FROM tasks d WHERE d.id = ${depId}::uuid AND d.deleted_at IS NULL`;
   if (!dep) throw notFound('Không tìm thấy công việc phụ thuộc');
   if (dep.project !== task.project) throw badRequest('Chỉ liên kết được công việc trong cùng dự án');
   if (dep.cycle) throw badRequest('Không thể liên kết: tạo vòng lặp phụ thuộc', { code: 'CYCLE' });
@@ -373,7 +412,9 @@ router.post('/tasks/:id/dependencies', async (req, res) => {
     const fresh = await taskAccess(req.user.id, access.task.id, tx);
     assertManage(fresh);
     const task = { ...fresh.task };
-    const dep = await addDependency(task, blockedBy, tx);
+    if (task.blockedBy.includes(blockedBy)) return task;
+    const before = task.blockedBy;
+    await addDependency(task, blockedBy, tx);
     await tx.task.update({ where: { id: task.id }, data: { blockedBy: task.blockedBy, version: { increment: 1 } } });
     await logActivityIn(tx, {
       workspace: task.workspace,
@@ -383,7 +424,7 @@ router.post('/tasks/:id/dependencies', async (req, res) => {
       entityType: 'task',
       entityId: task.id,
       entityLabel: `${task.key} ${task.title}`,
-      after: `Bị chặn bởi ${dep.key}`,
+      field: 'blockedBy', before, after: task.blockedBy,
     });
     return task;
   });
@@ -395,10 +436,12 @@ router.post('/tasks/:id/dependencies', async (req, res) => {
 router.delete('/tasks/:id/dependencies/:depId', async (req, res) => {
   const access = await taskAccess(req.user.id, req.params.id);
   assertManage(access);
+  parse(z.string().uuid('Mã công việc phụ thuộc không hợp lệ'), req.params.depId);
   const task = await withWorkspaceLock(access.project.workspace, async (tx) => {
     const fresh = await taskAccess(req.user.id, access.task.id, tx);
     assertManage(fresh);
     const task = fresh.task;
+    if (!task.blockedBy.includes(req.params.depId)) return task;
     await tx.task.update({ where: { id: task.id }, data: { blockedBy: task.blockedBy.filter((b) => b !== req.params.depId), version: { increment: 1 } } });
     await logActivityIn(tx, {
       workspace: task.workspace,
@@ -408,6 +451,7 @@ router.delete('/tasks/:id/dependencies/:depId', async (req, res) => {
       entityType: 'task',
       entityId: task.id,
       entityLabel: `${task.key} ${task.title}`,
+      field: 'blockedBy',
       before: task.blockedBy,
       after: task.blockedBy.filter((b) => b !== req.params.depId),
     });

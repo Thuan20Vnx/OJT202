@@ -1,41 +1,44 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { api } from '../lib/api.js';
-import { useApp } from '../lib/app.jsx';
+import { useApp, useToast } from '../lib/app.jsx';
+import { t as tr, useI18n } from '../lib/i18n.js';
 import { PROJECT_COLOR, ROLE } from '../lib/format.js';
 import { Avatar, Dropdown, Icon, MenuItem, StatusChip } from './ui.jsx';
 import CreateTaskModal from './CreateTaskModal.jsx';
 import TaskDetailModal from './TaskDetailModal.jsx';
 import ErrorBoundary from './ErrorBoundary.jsx';
+import ConnectionStatus from './ConnectionStatus.jsx';
 
 const NAV = [
-  { to: '/overview', icon: 'dashboard', label: 'Tổng quan', en: 'Overview' },
-  { to: '/board', icon: 'view_kanban', label: 'Bảng công việc', en: 'Board' },
-  { to: '/my-tasks', icon: 'task_alt', label: 'Việc của tôi', en: 'My tasks', badge: 'mine' },
-  { to: '/calendar', icon: 'calendar_month', label: 'Lịch dự án', en: 'Calendar' },
-  { to: '/documents', icon: 'description', label: 'Tài liệu', en: 'Documents' },
-  { to: '/ai', icon: 'auto_awesome', label: 'Trợ lý AI', en: 'AI assistant', ai: true },
-  { to: '/reports', icon: 'bar_chart', label: 'Báo cáo', en: 'Reports' },
+  { to: '/overview', icon: 'dashboard', get label() { return tr("Tổng quan"); }, en: 'Overview' },
+  { to: '/board', icon: 'view_kanban', get label() { return tr("Bảng công việc"); }, en: 'Board' },
+  { to: '/my-tasks', icon: 'task_alt', get label() { return tr("Việc của tôi"); }, en: 'My tasks', badge: 'mine' },
+  { to: '/calendar', icon: 'calendar_month', get label() { return tr("Lịch dự án"); }, en: 'Calendar' },
+  { to: '/documents', icon: 'description', get label() { return tr("Tài liệu"); }, en: 'Documents' },
+  { to: '/ai', icon: 'auto_awesome', get label() { return tr("Trợ lý AI"); }, en: 'AI assistant', ai: true },
+  { to: '/reports', icon: 'bar_chart', get label() { return tr("Báo cáo"); }, en: 'Reports' },
 ];
 
 const CRUMBS = {
-  '/overview': ['Tổng quan'],
-  '/board': ['Bảng Kanban'],
-  '/my-tasks': ['Việc của tôi'],
-  '/calendar': ['Lịch dự án'],
-  '/documents': ['Tài liệu'],
-  '/ai': ['Trợ lý AI'],
-  '/reports': ['Trợ lý AI'],
-  '/risks': ['Tổng quan', 'Cảnh báo rủi ro'],
-  '/notifications': ['Thông báo'],
-  '/projects': ['Dự án'],
-  '/settings': ['Cài đặt'],
-  '/profile': ['Hồ sơ cá nhân'],
-  '/admin': ['Quản trị hệ thống'],
+  get '/overview'() { return [tr("Tổng quan")]; },
+  get '/board'() { return [tr("Bảng Kanban")]; },
+  get '/my-tasks'() { return [tr("Việc của tôi")]; },
+  get '/calendar'() { return [tr("Lịch dự án")]; },
+  get '/documents'() { return [tr("Tài liệu")]; },
+  get '/ai'() { return [tr("Trợ lý AI")]; },
+  get '/reports'() { return [tr("Trợ lý AI")]; },
+  get '/risks'() { return [tr("Tổng quan"), tr("Cảnh báo rủi ro")]; },
+  get '/notifications'() { return [tr("Thông báo")]; },
+  get '/projects'() { return [tr("Dự án")]; },
+  get '/settings'() { return [tr("Cài đặt")]; },
+  get '/profile'() { return [tr("Hồ sơ cá nhân")]; },
+  get '/admin'() { return [tr("Quản trị hệ thống")]; },
 };
 const PROJECT_SCOPED = ['/overview', '/board', '/calendar', '/documents', '/ai', '/reports', '/risks'];
 
 function SearchBox() {
+  useI18n();
   const { wsId, setProjectId } = useApp();
   const [q, setQ] = useState('');
   const [res, setRes] = useState(null);
@@ -67,12 +70,12 @@ function SearchBox() {
         onFocus={() => setOpen(true)}
         onBlur={() => setTimeout(() => setOpen(false), 150)}
         className="input h-9 rounded-lg bg-slate-50 pl-9 pr-12 text-body-sm"
-        placeholder="Tìm kiếm công việc... (⌘K)"
+        placeholder={tr("Tìm kiếm công việc... (⌘K)")}
       />
       <kbd className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 rounded border border-slate-200 bg-white px-1.5 py-0.5 font-mono text-[10px] text-slate-400">⌘K</kbd>
       {open && res && (
         <div className="absolute left-0 right-0 top-11 z-50 rounded-xl border border-slate-200 bg-white p-1.5 shadow-pop">
-          {!res.tasks.length && !res.projects.length && <p className="px-3 py-4 text-center text-body-sm text-slate-500">Không có kết quả</p>}
+          {!res.tasks.length && !res.projects.length && <p className="px-3 py-4 text-center text-body-sm text-slate-500">{tr("Không có kết quả")}</p>}
           {res.projects.map((p) => (
             <button
               key={p._id}
@@ -110,23 +113,34 @@ function SearchBox() {
 
 function TopBar({ onToggleSidebar, onCreate, sidebarOpen }) {
   const { me, ws, role, unread, logout, theme, toggleTheme, project, canManageProject } = useApp();
-  const [lang, setLang] = useState(me?.language || 'vi');
+  const { language: lang, setLanguage: setLang } = useI18n();
+  const { setMe } = useApp();
+  const toast = useToast();
+  const languagePending = useRef(false);
+  const [savingLanguage, setSavingLanguage] = useState(false);
   const loc = useLocation();
   const navigate = useNavigate();
   const base = '/' + loc.pathname.split('/')[1];
   const crumbs = CRUMBS[base] || [];
   const settingsTab = loc.pathname.split('/')[2];
-  const tail = base === '/settings' ? { members: 'Thành viên & Phân quyền', invites: 'Lời mời', ai: 'Cài đặt AI', activity: 'Nhật ký hoạt động', general: 'Thông tin chung' }[settingsTab] : null;
+  const tail = base === '/settings' ? { members: tr("Thành viên & Phân quyền"), invites: tr("Lời mời"), ai: tr("Cài đặt AI"), activity: tr("Nhật ký hoạt động"), general: tr("Thông tin chung") }[settingsTab] : null;
 
   const changeLang = async (l) => {
+    if (languagePending.current || l === lang) return;
+    languagePending.current = true;
+    setSavingLanguage(true);
     setLang(l);
-    await api.patch('/me', { language: l }).catch(() => {});
+    try {
+      const data = await api.patch('/me', { language: l });
+      setMe(data.user);
+    } catch (error) { toast(error.message, 'error'); }
+    finally { languagePending.current = false; setSavingLanguage(false); }
   };
 
   return (
     <header className="sticky top-0 z-40 flex h-[60px] shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4">
       <div className="flex min-w-0 items-center gap-3">
-        <button className="icon-btn" onClick={onToggleSidebar} title="Thu gọn / Mở rộng sidebar" aria-label="Mở/đóng menu" aria-expanded={sidebarOpen}>
+        <button className="icon-btn" onClick={onToggleSidebar} title={tr("Thu gọn / Mở rộng sidebar")} aria-label={tr("Mở/đóng menu")} aria-expanded={sidebarOpen}>
           {/* Biểu tượng ☰ xoay và đổi thành "menu_open" khi menu đang mở */}
           <span className="relative h-5 w-5">
             <Icon name="menu" className={`absolute inset-0 transition-all duration-300 ${sidebarOpen ? 'rotate-90 scale-50 opacity-0' : 'opacity-100'}`} />
@@ -141,7 +155,7 @@ function TopBar({ onToggleSidebar, onCreate, sidebarOpen }) {
         </Link>
         <div className="mx-1 h-4 w-px bg-slate-200" />
         <nav className="hidden min-w-0 items-center gap-1.5 whitespace-nowrap text-body-sm text-slate-500 lg:flex">
-          <span className="truncate">{base === '/admin' ? 'Quản trị hệ thống' : 'Không gian làm việc'}</span>
+          <span className="truncate">{base === '/admin' ? tr("Quản trị hệ thống") : tr("Không gian làm việc")}</span>
           {base === '/settings' && ws && (
             <>
               <Icon name="chevron_right" size={14} className="text-slate-400" />
@@ -154,7 +168,7 @@ function TopBar({ onToggleSidebar, onCreate, sidebarOpen }) {
               <span className="truncate">{project.name}</span>
             </>
           )}
-          {[...crumbs, ...(tail ? [tail] : [])].filter((c) => !(base === '/settings' && c === 'Cài đặt')).map((c, i, arr) => (
+          {[...crumbs, ...(tail ? [tail] : [])].filter((c) => !(base === '/settings' && c === tr("Cài đặt"))).map((c, i, arr) => (
             <span key={c} className="flex items-center gap-1.5">
               <Icon name="chevron_right" size={14} className="text-slate-400" />
               <span className={i === arr.length - 1 ? 'font-semibold text-slate-900' : ''}>{c}</span>
@@ -164,24 +178,22 @@ function TopBar({ onToggleSidebar, onCreate, sidebarOpen }) {
       </div>
       <SearchBox />
       <div className="flex shrink-0 items-center gap-2.5">
-        <div className="hidden items-center rounded-lg bg-slate-100 p-0.5 text-label-sm sm:flex">
+        <div className="flex items-center rounded-lg bg-slate-100 p-0.5 text-label-sm" role="group" aria-label={tr("Ngôn ngữ")}>
           {['vi', 'en'].map((l) => (
-            <button key={l} onClick={() => changeLang(l)} className={`rounded-md px-2 py-1 font-bold uppercase ${lang === l ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}>
+            <button key={l} disabled={savingLanguage} aria-pressed={lang === l} onClick={() => changeLang(l)} className={`rounded-md px-2 py-1 font-bold uppercase ${lang === l ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}>
               {l}
             </button>
           ))}
         </div>
-        <button className="icon-btn" onClick={toggleTheme} title="Chuyển chế độ sáng/tối">
+        <button className="icon-btn" onClick={toggleTheme} title={tr("Chuyển chế độ sáng/tối")}>
           <Icon name={theme === 'dark' ? 'dark_mode' : 'light_mode'} />
         </button>
-        <button className={`icon-btn relative ${base === '/notifications' ? 'bg-blue-50 text-blue-600' : ''}`} onClick={() => navigate('/notifications')} title="Thông báo">
+        <button className={`icon-btn relative ${base === '/notifications' ? 'bg-blue-50 text-blue-600' : ''}`} onClick={() => navigate('/notifications')} title={tr("Thông báo")}>
           <Icon name="notifications" />
           {unread > 0 && <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" />}
         </button>
         <button className="btn-primary hidden sm:inline-flex" onClick={onCreate} disabled={!canManageProject}>
-          <Icon name="add" size={16} />
-          Tạo công việc
-        </button>
+          <Icon name="add" size={16} />{tr("Tạo công việc")}</button>
         <div className="h-4 w-px bg-slate-200" />
         <Dropdown
           trigger={
@@ -198,20 +210,12 @@ function TopBar({ onToggleSidebar, onCreate, sidebarOpen }) {
             <p className="text-label-lg font-semibold text-slate-900">{me?.name}</p>
             <p className="truncate text-label-md font-normal text-slate-500">{me?.email}</p>
           </div>
-          <MenuItem icon="person" onClick={() => navigate('/profile')}>
-            Hồ sơ cá nhân
-          </MenuItem>
-          <MenuItem icon="settings" onClick={() => navigate('/settings/members')}>
-            Cài đặt Workspace
-          </MenuItem>
+          <MenuItem icon="person" onClick={() => navigate('/profile')}>{tr("Hồ sơ cá nhân")}</MenuItem>
+          <MenuItem icon="settings" onClick={() => navigate('/settings/members')}>{tr("Cài đặt Workspace")}</MenuItem>
           {me?.isSystemAdmin && (
-            <MenuItem icon="admin_panel_settings" onClick={() => navigate('/admin')}>
-              Quản trị hệ thống
-            </MenuItem>
+            <MenuItem icon="admin_panel_settings" onClick={() => navigate('/admin')}>{tr("Quản trị hệ thống")}</MenuItem>
           )}
-          <MenuItem icon="logout" danger onClick={logout}>
-            Đăng xuất
-          </MenuItem>
+          <MenuItem icon="logout" danger onClick={logout}>{tr("Đăng xuất")}</MenuItem>
         </Dropdown>
       </div>
     </header>
@@ -219,6 +223,7 @@ function TopBar({ onToggleSidebar, onCreate, sidebarOpen }) {
 }
 
 function Sidebar({ collapsed, overlay, onClose }) {
+  useI18n();
   const { ws, workspaces, setWsId, activeProjects, project, setProjectId, me, role } = useApp();
   const [mine, setMine] = useState(null);
   const navigate = useNavigate();
@@ -239,7 +244,7 @@ function Sidebar({ collapsed, overlay, onClose }) {
       return;
     }
     if (overlay) onClose?.();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [loc.pathname, project?._id]);
 
   const { mounted, shown } = usePresence(!collapsed, 300);
@@ -266,7 +271,7 @@ function Sidebar({ collapsed, overlay, onClose }) {
             </button>
           }
         >
-          <p className="section-label px-2.5 py-1.5">Workspace của bạn</p>
+          <p className="section-label px-2.5 py-1.5">{tr("Workspace của bạn")}</p>
           {workspaces.map((w) => (
             <MenuItem key={w._id} icon={w._id === ws?.workspace?._id ? 'check' : 'workspaces'} onClick={() => setWsId(w._id)}>
               <span className="truncate">{w.name}</span>
@@ -274,13 +279,11 @@ function Sidebar({ collapsed, overlay, onClose }) {
             </MenuItem>
           ))}
           <div className="my-1 border-t border-slate-100" />
-          <MenuItem icon="add" onClick={() => navigate('/onboarding')}>
-            Tạo workspace mới
-          </MenuItem>
+          <MenuItem icon="add" onClick={() => navigate('/onboarding')}>{tr("Tạo workspace mới")}</MenuItem>
         </Dropdown>
 
         <div>
-          <div className="section-label mb-1.5 px-2">Điều hướng</div>
+          <div className="section-label mb-1.5 px-2">{tr("Điều hướng")}</div>
           <nav className="space-y-0.5">
             {NAV.map((n, i) => (
               <NavLink
@@ -293,10 +296,10 @@ function Sidebar({ collapsed, overlay, onClose }) {
                   <>
                     <span className="flex items-center gap-2.5">
                       <Icon name={n.icon} className={n.ai ? 'text-purple-500' : isActive ? 'text-blue-600' : 'text-slate-400'} />
-                      <span>{me?.language === 'en' ? n.en : n.label}</span>
+                      <span>{n.label}</span>
                     </span>
                     {n.badge && mine > 0 && <span className="rounded-full bg-blue-100 px-2 py-0.5 text-label-sm text-blue-800">{mine}</span>}
-                    {n.ai && <span className="rounded bg-purple-100 px-1.5 text-[10px] font-bold text-purple-700">Mới</span>}
+                    {n.ai && <span className="rounded bg-purple-100 px-1.5 text-[10px] font-bold text-purple-700">{tr("Mới")}</span>}
                   </>
                 )}
               </NavLink>
@@ -306,12 +309,10 @@ function Sidebar({ collapsed, overlay, onClose }) {
 
         <div>
           <div className="mb-1.5 flex items-center justify-between px-2">
-            <span className="section-label">Dự án gần đây</span>
+            <span className="section-label">{tr("Dự án gần đây")}</span>
             <span className="flex items-center gap-1">
-              <NavLink to="/projects" className={({ isActive }) => `text-label-sm ${isActive ? 'font-semibold text-blue-700' : 'text-slate-400 hover:text-slate-700'}`}>
-                Xem tất cả
-              </NavLink>
-              <button disabled={role === 'viewer'} className="flex h-5 w-5 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-40" title="Thêm dự án" onClick={() => navigate('/projects?new=1')}>
+              <NavLink to="/projects" className={({ isActive }) => `text-label-sm ${isActive ? 'font-semibold text-blue-700' : 'text-slate-400 hover:text-slate-700'}`}>{tr("Xem tất cả")}</NavLink>
+              <button disabled={role === 'viewer'} className="flex h-5 w-5 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-40" title={tr("Thêm dự án")} onClick={() => navigate('/projects?new=1')}>
                 <Icon name="add" size={15} />
               </button>
             </span>
@@ -332,25 +333,19 @@ function Sidebar({ collapsed, overlay, onClose }) {
                 <span className="truncate">{p.name}</span>
               </button>
             ))}
-            {!activeProjects.length && <p className="px-2.5 py-1.5 text-body-sm text-slate-400">Chưa có dự án</p>}
+            {!activeProjects.length && <p className="px-2.5 py-1.5 text-body-sm text-slate-400">{tr("Chưa có dự án")}</p>}
           </nav>
         </div>
       </div>
       <div className="space-y-0.5 border-t border-slate-100 p-3">
         {me?.isSystemAdmin && (
           <NavLink to="/admin" className={({ isActive }) => `nav-item ${isActive ? 'nav-item-active' : ''}`}>
-            <Icon name="admin_panel_settings" className="text-slate-400" />
-            Quản trị hệ thống
-          </NavLink>
+            <Icon name="admin_panel_settings" className="text-slate-400" />{tr("Quản trị hệ thống")}</NavLink>
         )}
         <NavLink to="/settings/members" className={({ isActive }) => `nav-item ${isActive || loc.pathname.startsWith('/settings') ? 'nav-item-active' : ''}`}>
-          <Icon name="settings" className="text-slate-400" />
-          Cài đặt Workspace
-        </NavLink>
-        <a href="https://github.com" onClick={(e) => e.preventDefault()} className="nav-item" title="Xem README trong thư mục dự án">
-          <Icon name="help_outline" className="text-slate-400" />
-          Trợ giúp & Tài liệu
-        </a>
+          <Icon name="settings" className="text-slate-400" />{tr("Cài đặt Workspace")}</NavLink>
+        <a href="https://github.com" onClick={(e) => e.preventDefault()} className="nav-item" title={tr("Xem README trong thư mục dự án")}>
+          <Icon name="help_outline" className="text-slate-400" />{tr("Trợ giúp & Tài liệu")}</a>
       </div>
     </aside>
   );
@@ -390,6 +385,7 @@ function usePresence(open, ms) {
 const isNarrow = () => typeof window !== 'undefined' && window.innerWidth < 1024;
 
 export default function AppShell() {
+  useI18n();
   const [narrow, setNarrow] = useState(isNarrow);
   const [collapsed, setCollapsed] = useState(isNarrow);
   const [creating, setCreating] = useState(false);
@@ -415,9 +411,10 @@ export default function AppShell() {
   return (
     <div className="flex h-full flex-col overflow-hidden">
       <TopBar onToggleSidebar={() => setCollapsed((c) => !c)} onCreate={() => setCreating(true)} sidebarOpen={!collapsed} />
+      <ConnectionStatus />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar collapsed={collapsed} overlay={narrow} onClose={() => setCollapsed(true)} />
-        <main className="scroll-thin flex-1 overflow-y-auto bg-slate-50">
+        <main id="main-content" className="scroll-thin min-w-0 flex-1 overflow-y-auto bg-slate-50">
           <ErrorBoundary key={loc.pathname}>
             <Outlet />
           </ErrorBoundary>

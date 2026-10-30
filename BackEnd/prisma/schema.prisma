@@ -253,10 +253,26 @@ model Membership {
 
   workspaceRef Workspace @relation(fields: [workspace], references: [id], onDelete: Cascade)
   userRef      User      @relation(fields: [user], references: [id], onDelete: Cascade)
+  capacities   WeeklyCapacity[]
 
   @@unique([workspace, user])
   @@index([user])
   @@map("memberships")
+}
+
+model WeeklyCapacity {
+  workspace String   @map("workspace_id") @db.Uuid
+  user      String   @map("user_id") @db.Uuid
+  weekStart DateTime @map("week_start") @db.Date
+  hours     Float
+  version   Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  membershipRef Membership @relation(fields: [workspace, user], references: [workspace, user], onDelete: Cascade)
+
+  @@id([workspace, user, weekStart])
+  @@map("weekly_capacities")
 }
 
 model Invite {
@@ -297,6 +313,7 @@ model Project {
   sprint      Json          @default("{\"name\":\"\",\"goal\":\"\",\"start\":null,\"end\":null}")
   /// Ngưỡng của các quy tắc cảnh báo rủi ro
   riskRules   Json          @default("{\"overdueDays\":1,\"overdue\":true,\"blockedByOverdue\":true,\"overload\":true,\"overloadPct\":100,\"dueSoon\":true,\"dueSoonProgressPct\":80,\"reviewStaleDays\":3}")
+  riskRulesVersion Int @default(1)
   createdBy   String?       @map("created_by_id") @db.Uuid
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
@@ -351,6 +368,7 @@ model Task {
   estimateHours      Float?
   spentHours         Float      @default(0)
   remainingHours     Float?
+  deletedAt          DateTime?  @map("deleted_at")
   labels             String[]   @default([])
   sprint             String     @default("")
   parent             String?    @map("parent_id") @db.Uuid
@@ -380,6 +398,7 @@ model Task {
   // NULL không trùng nhau trong UNIQUE của PostgreSQL => chỉ ràng buộc việc tạo từ AI
   @@unique([project, aiDraftItem])
   @@index([project, status])
+  @@index([project, deletedAt])
   @@index([assignee])
   @@index([parent])
   @@index([blockedBy], type: Gin)
@@ -550,6 +569,7 @@ model AiDraft {
   /// [{ key, title, description, acceptanceCriteria, estimateHours, priority, assignee, dueDate, excerpt, selected, createdTask }]
   items      Json          @default("[]")
   status     AiDraftStatus @default(draft)
+  version    Int           @default(1)
   approvedAt DateTime?
   createdAt  DateTime      @default(now())
   updatedAt  DateTime      @updatedAt
@@ -576,6 +596,7 @@ model AiReport {
   sections    Json           @default("[]")
   sourceTasks String[]       @default([]) @db.Uuid
   sourceRevision String?     @db.VarChar(64)
+  generatedAt DateTime?
   status      AiReportStatus @default(draft)
   sharedAt    DateTime?
   createdAt   DateTime       @default(now())
@@ -613,6 +634,9 @@ model RiskResolution {
   project    String   @map("project_id") @db.Uuid
   key        String
   title      String?
+  sourceVersion String? @map("source_version") @db.VarChar(64)
+  reason     String? @db.VarChar(1000)
+  snapshot   Json?
   resolvedBy String?  @map("resolved_by_id") @db.Uuid
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt

@@ -1,3 +1,4 @@
+import { t as tr, useI18n } from '../../lib/i18n.js';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import AuthLayout, { AuthSuccess } from './AuthLayout.jsx';
@@ -6,6 +7,7 @@ import { api } from '../../lib/api.js';
 import { useApp } from '../../lib/app.jsx';
 
 export default function VerifyEmail() {
+  useI18n();
   const [params] = useSearchParams();
   const { loadMe } = useApp();
   const navigate = useNavigate();
@@ -32,16 +34,12 @@ export default function VerifyEmail() {
       <div className="card p-6 text-center shadow-card">
         {state === 'loading' && <PageLoader />}
         {state === 'ok' && (
-          <AuthSuccess title="Email đã được xác minh" progressMs={1400}>
-            Tài khoản đã sẵn sàng. Đang chuyển bạn tới bước tạo không gian làm việc…
-          </AuthSuccess>
+          <AuthSuccess title={tr("Email đã được xác minh")} progressMs={1400}>{tr("Tài khoản đã sẵn sàng. Đang chuyển bạn tới bước tạo không gian làm việc…")}</AuthSuccess>
         )}
         {state === 'error' && (
           <div className="space-y-4">
             <Notice tone="danger">{error}</Notice>
-            <Link to="/login" className="btn-primary w-full">
-              Về trang đăng nhập
-            </Link>
+            <Link to="/login" className="btn-primary w-full">{tr("Về trang đăng nhập")}</Link>
           </div>
         )}
       </div>

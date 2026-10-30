@@ -7,8 +7,10 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { io as connectSocket } from 'socket.io-client';
+import { smtpSandbox } from './helpers/smtp.js';
 
 process.env.NODE_ENV = 'test';
+process.env.MAIL_MODE = 'outbox';
 process.env.DATABASE_URL = '';
 const testUploads = await fs.mkdtemp(path.join(os.tmpdir(), 'taskflow-test-uploads-'));
 process.env.UPLOAD_DIR = testUploads;
@@ -26,6 +28,7 @@ const { csvCell } = await import('../src/utils/security.js');
 const db = await import('../src/db.js');
 const { initRealtime, emitProject } = await import('../src/services/realtime.js');
 const { projectOverview, riskAlerts, workload } = await import('../src/services/metrics.js');
+const { config } = await import('../src/config.js');
 
 let server;
 let base;
@@ -91,6 +94,250 @@ after(async () => {
   aiServer.close();
   await db.disconnectDb();
   if (path.dirname(testUploads) === os.tmpdir() && path.basename(testUploads).startsWith('taskflow-test-uploads-')) await fs.rm(testUploads, { recursive: true, force: true });
+});
+
+test('U025: thống kê nguồn trực tiếp có ACL, bỏ task xóa và ảnh; không tải toàn bộ nội dung', async () => {
+  const c = new Client();
+  await c.post('/auth/login', { email: 'nhu@nhom24.edu.vn', password: DEMO_PASSWORD });
+  const project = await db.prisma.project.findFirst({ where: { memberships: { some: { user: seed.users.nhu.id } } } });
+  const r = await c.get(`/projects/${project.id}/ai/sources`);
+  assert.equal(r.status, 200);
+  assert.equal(r.data.retrieval, 'live');
+  assert.equal(r.data.tasks, await db.prisma.task.count({ where: { project: project.id, deletedAt: null } }));
+  assert.equal(r.data.documents, await db.prisma.document.count({ where: { project: project.id, isScan: false, OR: [{ kind: 'doc' }, { mime: 'text/plain' }] } }));
+  assert.equal(r.data.content, undefined);
+  assert.equal((await c.get('/projects/00000000-0000-4000-8000-000000000000/ai/sources')).status, 404);
+  assert.equal((await new Client().get(`/projects/${project.id}/ai/sources`)).status, 401);
+});
+
+describe('Hoàng Anh Sprint 2 — tài liệu, phụ thuộc, thông báo và review nghiệp vụ', () => {
+  test('U011-T3: kết hợp filter, phân trang/trang rỗng và project private', async () => {
+    const { owner, member, ws, pid, create } = await permissionFixture();
+    for (let i = 0; i < 2; i++) await create({ title: `Filter needle ${i}`, assignee: seed.users.nhu.id, status: 'in_progress', priority: 'high', dueDate: new Date().toISOString() });
+    await create({ title: 'Filter needle sai ưu tiên', assignee: seed.users.nhu.id, priority: 'low' });
+    const privateProject = await owner.post(`/workspaces/${ws}/projects`, { name: 'Private filter' });
+    await owner.post(`/projects/${privateProject.data.project._id}/tasks`, { title: 'Filter needle bí mật', priority: 'high', status: 'in_progress', dueDate: new Date().toISOString() });
+    const query = `/workspaces/${ws}/my-tasks?assignee=me&status=in_progress&priority=high&due=today&search=needle&limit=1`;
+    const first = await member.get(query);
+    const second = await member.get(`${query}&page=2`);
+    assert.equal(first.status, 200);
+    assert.equal(first.data.total, 2);
+    assert.equal(second.data.total, 2);
+    assert.notEqual(first.data.items[0]._id, second.data.items[0]._id);
+    assert.deepEqual((await member.get(`${query}&page=3`)).data.items, []);
+    const all = await member.get(`/workspaces/${ws}/my-tasks?assignee=all&search=needle&includeDone=true`);
+    assert.ok(all.data.items.every((t) => t.project._id === pid));
+  });
+
+  test('U015-T1: version bắt buộc, lưu đồng thời chỉ một bản thắng, revision không mất', async () => {
+    const { owner, member, pid } = await permissionFixture();
+    const created = await owner.post(`/projects/${pid}/documents`, { name: 'CAS', content: 'Ban đầu' });
+    const id = created.data.document._id;
+    assert.equal((await owner.patch(`/documents/${id}`, { content: 'Thiếu version' })).status, 400);
+    const results = await Promise.all([owner.patch(`/documents/${id}`, { content: 'Owner', version: 1 }), member.patch(`/documents/${id}`, { content: 'Member', version: 1 })]);
+    assert.deepEqual(results.map((r) => r.status).sort(), [200, 409]);
+    assert.equal(await db.prisma.documentRevision.count({ where: { document: id } }), 2);
+    assert.equal((await owner.get(`/documents/${id}/revisions/1`)).data.revision.content, 'Ban đầu');
+    assert.equal((await member.del(`/documents/${id}`)).status, 403, 'Member không xóa tài liệu người khác');
+    const viewer = await new Client().login('khanh.linh@nhom24.edu.vn');
+    assert.equal((await viewer.patch(`/documents/${id}`, { content: 'Không được ghi', version: 2 })).status, 403);
+  });
+
+  test('U015-T1: magic bytes đầy đủ, UTF-8 và biên tệp 10MB; rollback cả lô', async () => {
+    const { owner, pid } = await permissionFixture();
+    const upload = async (name, bytes, mime) => {
+      const form = new FormData();
+      form.append('files', new Blob([bytes], { type: mime }), name);
+      return fetch(`${base}/projects/${pid}/documents/upload`, { method: 'POST', headers: { 'x-taskflow': '1', cookie: Object.entries(owner.cookies).map(([k, v]) => `${k}=${v}`).join('; ') }, body: form });
+    };
+    for (const [name, bytes, mime] of [
+      ['fake.png', Buffer.from([137, 80, 78, 71, 0, 0, 0, 0]), 'image/png'],
+      ['fake.jpg', Buffer.from([255, 216, 0]), 'image/jpeg'],
+      ['fake.pdf', '%PDFjunk', 'application/pdf'],
+      ['bad.txt', Buffer.from([0xff, 0xfe, 0xff]), 'text/plain'],
+      ['run.exe', 'MZ', 'application/octet-stream'],
+    ]) assert.equal((await upload(name, bytes, mime)).status, 400, name);
+    assert.equal(await db.prisma.document.count({ where: { project: pid } }), 0);
+    assert.equal((await upload('large.txt', Buffer.alloc(10 * 1024 * 1024 + 1, 97), 'text/plain')).status, 400);
+    const exact = await upload('exact.txt', Buffer.alloc(10 * 1024 * 1024, 97), 'text/plain');
+    assert.equal(exact.status, 201);
+    const id = (await exact.json()).documents[0]._id;
+    const response = await fetch(`${base}/documents/${id}/download`, { headers: { cookie: Object.entries(owner.cookies).map(([k, v]) => `${k}=${v}`).join('; ') } });
+    assert.equal(response.headers.get('cache-control'), 'private, no-store');
+    assert.equal((await response.arrayBuffer()).byteLength, 10 * 1024 * 1024);
+  });
+
+  test('U015-T1: tạo/sửa/xóa phát invalidation sau commit, RAG đọc đúng nguồn mới', async (t) => {
+    const { owner, member, pid } = await permissionFixture();
+    const socket = await socketFor(member, t);
+    assert.equal((await join(socket, pid)).ok, true);
+    const events = [];
+    socket.on('documents:changed', (e) => events.push(e));
+    const { collectSources, sourceFingerprint } = await import('../src/services/ai/qa.js');
+    const created = await owner.post(`/projects/${pid}/documents`, { name: 'Nguồn', content: 'Nguồn v1' });
+    const id = created.data.document._id;
+    const before = sourceFingerprint(await collectSources(pid));
+    assert.equal((await owner.patch(`/documents/${id}`, { content: 'Nguồn v2', version: 1 })).status, 200);
+    const sources = await collectSources(pid);
+    assert.notEqual(sourceFingerprint(sources), before);
+    assert.ok(sources.some((s) => s.refId === id && s.text.includes('Nguồn v2')));
+    assert.equal((await owner.del(`/documents/${id}`)).status, 200);
+    await join(socket, pid);
+    assert.deepEqual(events.map((e) => e.action), ['create', 'update', 'delete']);
+    assert.ok(events.every((e) => e.sourceInvalidated && e.documentIds.includes(id)));
+    assert.ok(!(await collectSources(pid)).some((s) => s.refId === id));
+    assert.equal((await member.get(`/documents/${id}/download`)).status, 404);
+  });
+
+  test('U016-T2: nhiều tab khởi tạo preference đồng thời không lỗi unique', async () => {
+    const { member } = await permissionFixture();
+    await db.prisma.notificationPref.deleteMany({ where: { user: seed.users.nhu.id } });
+    const results = await Promise.all(Array.from({ length: 12 }, () => member.get('/me/notification-prefs')));
+    assert.ok(results.every((r) => r.status === 200), JSON.stringify(results.map((r) => r.data)));
+    assert.equal(await db.prisma.notificationPref.count({ where: { user: seed.users.nhu.id } }), 1);
+  });
+
+  test('U016-T2: đọc idempotent, read-all theo quyền, đồng bộ tab và không đổi thông báo người khác', async (t) => {
+    const { owner, member, ws, pid } = await permissionFixture();
+    const socket = await socketFor(member, t);
+    const events = [];
+    socket.on('notification:read', (e) => events.push(e));
+    const privateProject = await owner.post(`/workspaces/${ws}/projects`, { name: 'Private notifications' });
+    const [visible, hidden, other] = await Promise.all([
+      db.prisma.notification.create({ data: { user: seed.users.nhu.id, workspace: ws, project: pid, type: 'assigned', text: 'Visible', dedupeKey: `${ws}:visible` } }),
+      db.prisma.notification.create({ data: { user: seed.users.nhu.id, workspace: ws, project: privateProject.data.project._id, type: 'assigned', text: 'Hidden', dedupeKey: `${ws}:hidden` } }),
+      db.prisma.notification.create({ data: { user: seed.users.maianh.id, workspace: ws, type: 'assigned', text: 'Other', dedupeKey: `${ws}:other` } }),
+    ]);
+    await member.post(`/notifications/${visible.id}/read`);
+    const first = await db.prisma.notification.findUnique({ where: { id: visible.id } });
+    await member.post(`/notifications/${visible.id}/read`);
+    assert.deepEqual((await db.prisma.notification.findUnique({ where: { id: visible.id } })).readAt, first.readAt);
+    await member.post(`/notifications/${other.id}/read`);
+    await member.post('/notifications/read-all', { workspace: ws });
+    assert.equal((await db.prisma.notification.findUnique({ where: { id: hidden.id } })).readAt, null);
+    assert.equal((await db.prisma.notification.findUnique({ where: { id: other.id } })).readAt, null);
+    assert.equal((await member.get(`/notifications?workspace=${ws}`)).data.unread, 0);
+    await join(socket, pid);
+    assert.equal(events.length, 1);
+  });
+
+  test('U018-T1: dependency lặp không tăng version/audit; Blocked suy ra và không là trạng thái thứ năm', async () => {
+    const { owner, member, create } = await permissionFixture();
+    const blocker = await create({ status: 'review' });
+    const dependent = await create();
+    const url = `/tasks/${dependent._id}/dependencies`;
+    const added = await owner.post(url, { blockedBy: blocker._id });
+    assert.equal(added.status, 200);
+    assert.equal(added.data.task.isBlocked, true);
+    assert.equal((await owner.post(url, { blockedBy: blocker._id })).data.task.version, added.data.task.version);
+    assert.equal(await db.prisma.activity.count({ where: { entityId: dependent._id, action: 'Thêm phụ thuộc' } }), 1);
+    assert.equal((await member.post(url, { blockedBy: blocker._id })).status, 403);
+    assert.equal((await owner.patch(`/tasks/${dependent._id}`, { status: 'blocked', version: added.data.task.version })).status, 400);
+    assert.equal((await owner.patch(`/tasks/${blocker._id}`, { status: 'done', version: blocker.version })).status, 200);
+    assert.equal((await owner.get(`/tasks/${dependent._id}`)).data.task.isBlocked, false);
+    const removed = await owner.del(`${url}/${blocker._id}`);
+    assert.equal((await owner.del(`${url}/${blocker._id}`)).data.task.version, removed.data.task.version);
+  });
+
+  test('U013 review: preview xóa chính xác, phát hiện cây thay đổi; gỡ dependency có audit', async () => {
+    const { owner, member, create } = await permissionFixture();
+    const parent = await create();
+    assert.equal((await owner.patch(`/tasks/${parent._id}`, { parent: parent._id, version: parent.version })).status, 400, 'không cho tự làm cha qua trường PATCH không hỗ trợ');
+    await create({ parent: parent._id });
+    const dependent = await create({ blockedBy: [parent._id] });
+    const preview = `/tasks/${parent._id}/deletion-preview`;
+    assert.equal((await member.get(preview)).status, 403);
+    const old = (await owner.get(preview)).data.impact;
+    assert.equal(old.tasks.length, 2);
+    assert.equal(old.dependentCount, 1);
+    await create({ parent: parent._id });
+    assert.equal((await owner.del(`/tasks/${parent._id}?confirm=true&impact=${old.impactToken}`)).status, 409);
+    assert.equal((await db.prisma.task.findUnique({ where: { id: parent._id } })).deletedAt, null);
+    const fresh = (await owner.get(preview)).data.impact;
+    assert.equal((await owner.del(`/tasks/${parent._id}?confirm=true&impact=${fresh.impactToken}`)).status, 200);
+    const audit = await db.prisma.activity.findFirst({ where: { entityId: dependent._id, action: 'Gỡ phụ thuộc khi xóa công việc' } });
+    assert.deepEqual(audit.before, [parent._id]);
+    assert.deepEqual(audit.after, []);
+    assert.equal(audit.entityLabel, `${dependent.key} ${dependent.title}`);
+  });
+
+  test('U019 review: chỉ cộng task lá, bao gồm overdue; tách thiếu hạn/estimate, không lộ project khác', async () => {
+    const { owner, member, pid, create } = await permissionFixture();
+    const parent = await create({ assignee: seed.users.nhu.id, estimateHours: 50, dueDate: '2026-10-29' });
+    const child = await create({ parent: parent._id, assignee: seed.users.nhu.id, estimateHours: 3, dueDate: '2026-10-20' });
+    await create({ assignee: seed.users.nhu.id, estimateHours: 20 });
+    await create({ assignee: seed.users.nhu.id, dueDate: '2026-10-31' });
+    await create({ assignee: seed.users.nhu.id, estimateHours: 99, dueDate: '2026-11-02' });
+    const deleted = await create({ assignee: seed.users.nhu.id, estimateHours: 9, dueDate: '2026-10-30' });
+    await owner.del(`/tasks/${deleted._id}`);
+    const row = (await workload(pid, undefined, new Date('2026-10-30T00:00:00Z'))).find((w) => w.user.id === seed.users.nhu.id);
+    assert.equal(row.hours, 3);
+    assert.equal(row.missingDeadlines, 1);
+    assert.equal(row.missingEstimates, 1);
+    assert.ok(row.taskIds.includes(child._id));
+    assert.ok(!row.taskIds.includes(parent._id));
+    const privateProject = await owner.post(`/workspaces/${(await db.prisma.project.findUnique({ where: { id: pid } })).workspace}/projects`, { name: 'Private metrics' });
+    assert.equal((await member.get(`/projects/${privateProject.data.project._id}/overview`)).status, 404);
+  });
+
+  test('U019 review: capacity workspace/user/week, số 0, quyền và hai request cạnh tranh', async () => {
+    const { owner, member, admin, ws, pid, create } = await permissionFixture();
+    await create({ assignee: seed.users.nhu.id, estimateHours: 2, dueDate: '2026-10-30' });
+    const url = `/workspaces/${ws}/members/${seed.users.nhu.id}/capacity/2026-10-26`;
+    assert.equal((await member.patch(url, { hours: 0, version: 0 })).status, 403);
+    assert.equal((await owner.patch(url, { hours: 0, version: 0 })).status, 200);
+    const row = (await workload(pid, undefined, new Date('2026-10-30T00:00:00Z'))).find((w) => w.user.id === seed.users.nhu.id);
+    assert.equal(row.available, 0);
+    assert.equal(row.pct, null);
+    assert.equal(row.overloaded, true);
+    assert.equal((await member.get(url.replace('2026-10-26', '2026-11-02'))).data.capacity.hours, 20);
+    for (const hours of [-1, 81, '2']) assert.equal((await owner.patch(url, { hours, version: 1 })).status, 400);
+    assert.equal((await owner.patch(url.replace('2026-10-26', '2026-10-27'), { hours: 5, version: 0 })).status, 400);
+    const results = await Promise.all([owner.patch(url, { hours: 4, version: 1 }), owner.patch(url, { hours: 6, version: 1 })]);
+    assert.deepEqual(results.map((r) => r.status).sort(), [200, 409]);
+    assert.equal((await admin.patch(url.replace(seed.users.nhu.id, seed.users.maianh.id), { hours: 2, version: 0 })).status, 403);
+    assert.equal((await db.prisma.membership.findUnique({ where: { workspace_user: { workspace: ws, user: seed.users.nhu.id } } })).weeklyHours, 20);
+    assert.equal(await db.prisma.activity.count({ where: { workspace: ws, field: 'weeklyCapacity' } }), 2);
+  });
+
+  test('U019 review: migration chặn capacity sai và thay đổi capacity làm report stale', async () => {
+    const { owner, ws, pid } = await permissionFixture();
+    const user = seed.users.nhu.id;
+    await assert.rejects(db.prisma.weeklyCapacity.create({ data: { workspace: ws, user, weekStart: new Date('2026-10-26T00:00:00Z'), hours: 81 } }));
+    await assert.rejects(db.prisma.weeklyCapacity.create({ data: { workspace: ws, user, weekStart: new Date('2026-10-27T00:00:00Z'), hours: 4 } }));
+    assert.equal(await db.prisma.weeklyCapacity.count({ where: { workspace: ws } }), 0);
+    const { reportSourceRevision } = await import('../src/services/ai/qa.js');
+    const before = await reportSourceRevision(pid);
+    assert.equal((await owner.patch(`/workspaces/${ws}/members/${user}/capacity/2026-10-26`, { hours: 10, version: 0 })).status, 200);
+    assert.notEqual(await reportSourceRevision(pid), before);
+  });
+
+  test('U020-T2: CSV không cắt âm thầm sau 10.000 dòng', async () => {
+    const { member, ws, pid } = await permissionFixture();
+    await db.prisma.activity.createMany({ data: Array.from({ length: 10001 }, (_, i) => ({ workspace: ws, project: pid, entityType: 'task', action: 'CSV overflow', entityLabel: `Export ${i}` })) });
+    const response = await member.get(`/workspaces/${ws}/activity.csv?action=CSV%20overflow`);
+    assert.equal(response.status, 400);
+    assert.match(response.data.error, /10.000/);
+    const narrowed = await member.get(`/workspaces/${ws}/activity.csv?action=CSV%20overflow&search=Export%2010000`);
+    assert.equal(narrowed.status, 200);
+    assert.match(narrowed.data, /Export 10000/);
+  });
+
+  test('U020-T2: khoảng ngày/cột hợp lệ, CSV theo quyền và chống formula injection', async () => {
+    const { owner, member, ws, pid } = await permissionFixture();
+    await db.prisma.activity.create({ data: { workspace: ws, project: pid, actor: seed.users.maianh.id, action: 'CSV test', entityType: 'task', entityLabel: '=HYPERLINK("x")', before: '=1+1', createdAt: new Date('2026-10-29T16:59:59Z') } });
+    const privateProject = await owner.post(`/workspaces/${ws}/projects`, { name: 'Private CSV' });
+    await db.prisma.activity.create({ data: { workspace: ws, project: privateProject.data.project._id, action: 'Private-only', entityType: 'task', entityLabel: 'Hidden CSV' } });
+    const url = `/workspaces/${ws}/activity`;
+    for (const query of ['from=2026-10-31&to=2026-10-01', 'from=2026-02-30', 'project=bad', 'actor=bad']) assert.equal((await member.get(`${url}?${query}`)).status, 400);
+    for (const columns of ['bad', 'time,time', '']) assert.equal((await member.get(`${url}.csv?columns=${columns}`)).status, 400);
+    const csv = await member.get(`${url}.csv?from=2026-10-29&to=2026-10-29&columns=entity,before`);
+    assert.equal(csv.status, 200);
+    assert.match(csv.data, /'=HYPERLINK/);
+    assert.match(csv.data, /'=1\+1/);
+    assert.ok(!csv.data.includes('Hidden CSV'));
+    assert.ok(!(await member.get(url)).data.actions.includes('Private-only'));
+  });
 });
 
 describe('Xác thực & phiên (U003, U004, U005)', () => {
@@ -462,6 +709,195 @@ describe('Nhật ký & xuất dữ liệu (U020)', () => {
   });
 });
 
+describe('Hoàng Anh Sprint 3 — planner và nguồn cảnh báo', () => {
+  test('U021: nháp chưa tạo task/notification; patch CAS, chọn người thủ công và duyệt đúng một lần', async () => {
+    const { owner, ws, pid } = await permissionFixture();
+    const r = await owner.post(`/projects/${pid}/ai/plan`, { goal: 'Xây dựng quản lý công việc', maxHours: 12 });
+    assert.equal(r.status, 201, JSON.stringify(r.data));
+    const draft = r.data.draft;
+    assert.equal(draft.version, 1);
+    assert.equal(await db.prisma.task.count({ where: { project: pid } }), 0);
+    assert.equal(await db.prisma.notification.count({ where: { project: pid } }), 0);
+    assert.ok(draft.items.every((it) => !it.assignee && it.description && it.acceptanceCriteria.length && it.estimateHours > 0));
+    const key = draft.items[0].key;
+    assert.equal((await owner.patch(`/ai/drafts/${draft._id}`, { items: [{ key, title: 'Thiếu version' }] })).status, 400);
+    const updates = await Promise.all(['Bản A', 'Bản B'].map((title) => owner.patch(`/ai/drafts/${draft._id}`, { version: 1, items: [{ key, title, assignee: seed.users.nhu.id }] })));
+    assert.deepEqual(updates.map((x) => x.status).sort(), [200, 409]);
+    assert.equal((await owner.post(`/ai/drafts/${draft._id}/approve`, { version: 1 })).status, 409);
+    assert.equal((await owner.post(`/ai/drafts/${draft._id}/discard`, { version: 1 })).status, 409);
+    assert.equal(await db.prisma.task.count({ where: { project: pid } }), 0);
+    const approved = await Promise.all(Array.from({ length: 5 }, () => owner.post(`/ai/drafts/${draft._id}/approve`, { version: 2 })));
+    assert.ok(approved.every((x) => x.status === 200), JSON.stringify(approved));
+    assert.ok(approved.every((x) => x.data.draft.version === 3));
+    const tasks = await db.prisma.task.findMany({ where: { project: pid } });
+    assert.equal(tasks.length, draft.items.length);
+    assert.equal(tasks.filter((t) => t.assignee === seed.users.nhu.id).length, 1);
+    assert.equal(await db.prisma.notification.count({ where: { project: pid, type: 'assigned' } }), 1);
+    assert.equal(await db.prisma.activity.count({ where: { project: pid, action: 'Duyệt kế hoạch AI' } }), 1);
+    assert.ok(tasks.every((t) => t.acceptanceCriteria.length && t.remainingHours === t.estimateHours));
+    assert.equal((await owner.post(`/ai/drafts/${draft._id}/discard`, { version: 3 })).status, 400);
+    assert.equal((await db.prisma.aiDraft.findUnique({ where: { id: draft._id } })).workspace, ws);
+  });
+
+  test('U021: từ chối project Viewer, mục không tồn tại, trùng key và trường không hỗ trợ', async () => {
+    const { owner, pid } = await permissionFixture();
+    await owner.patch(`/projects/${pid}/members/${seed.users.dat.id}`, { role: 'viewer' });
+    const { data } = await owner.post(`/projects/${pid}/ai/plan`, { goal: 'Viết API có phân quyền' });
+    const draft = data.draft, key = draft.items[0].key;
+    for (const body of [
+      { items: [{ key, assignee: seed.users.dat.id }] }, { items: [{ key: 'missing', selected: false }] },
+      { items: [{ key, title: 'A' }, { key, title: 'B' }] }, { removeKeys: ['missing'] },
+      { items: [{ key, excerpt: 'Không được sửa chứng cứ gốc' }] },
+    ]) assert.equal((await owner.patch(`/ai/drafts/${draft._id}`, { version: 1, ...body })).status, 400);
+    assert.equal((await owner.get(`/ai/drafts/${draft._id}`)).data.draft.version, 1);
+    assert.equal((await owner.post(`/ai/drafts/${draft._id}/discard`, { version: 1 })).status, 200);
+    assert.equal((await owner.post(`/ai/drafts/${draft._id}/approve`, { version: 1 })).status, 400);
+  });
+
+  test('U021: duyệt không được vượt số người tối đa; audit lỗi rollback toàn bộ task/sequence/nháp', async (t) => {
+    const { owner, pid } = await permissionFixture();
+    const r = await owner.post(`/projects/${pid}/ai/plan`, { goal: 'Triển khai API công việc', people: 1 });
+    assert.equal(r.status, 201);
+    const draft = r.data.draft;
+    await owner.patch(`/ai/drafts/${draft._id}`, { version: 1, items: [
+      { key: draft.items[0].key, assignee: seed.users.maianh.id },
+      { key: draft.items[1].key, assignee: seed.users.nhu.id },
+    ] });
+    assert.equal((await owner.post(`/ai/drafts/${draft._id}/approve`, { version: 2 })).status, 400);
+    assert.equal(await db.prisma.task.count({ where: { project: pid } }), 0);
+    await owner.patch(`/ai/drafts/${draft._id}`, { version: 2, items: [{ key: draft.items[1].key, assignee: null }] });
+    const original = db.prisma.$transaction;
+    const transact = original.bind(db.prisma);
+    t.after(() => { db.prisma.$transaction = original; });
+    db.prisma.$transaction = (callback, options) => transact(async (tx) => {
+      const createMany = tx.activity.createMany.bind(tx.activity);
+      tx.activity.createMany = (args) => {
+        if (args.data.some((a) => a.action === 'Duyệt kế hoạch AI')) throw new Error('Sprint3 simulated approval audit failure');
+        return createMany(args);
+      };
+      return callback(tx);
+    }, options);
+    assert.equal((await owner.post(`/ai/drafts/${draft._id}/approve`, { version: 3 })).status, 500);
+    db.prisma.$transaction = original;
+    assert.equal(await db.prisma.task.count({ where: { project: pid } }), 0);
+    assert.equal(await db.prisma.activity.count({ where: { project: pid, action: 'Tạo công việc từ AI' } }), 0);
+    assert.equal(await db.prisma.notification.count({ where: { project: pid } }), 0);
+    assert.equal((await owner.get(`/ai/drafts/${draft._id}`)).data.draft.status, 'draft');
+    assert.equal((await owner.post(`/ai/drafts/${draft._id}/approve`, { version: 3 })).status, 200);
+    assert.equal((await db.prisma.task.findFirst({ where: { project: pid }, orderBy: { number: 'asc' } })).number, 1);
+  });
+
+  test('U021: HTTP AI sai schema trả 503, ghi lỗi và không tạo nháp/task', async (t) => {
+    const { owner, ws, pid } = await permissionFixture();
+    const original = config.ai.serviceUrl;
+    const fake = http.createServer((req, res) => { req.resume(); res.setHeader('content-type', 'application/json'); res.end(JSON.stringify({ result: { items: [{ title: 'Thiếu mô tả và AC' }] }, model: 'invalid-test' })); });
+    await new Promise((r) => fake.listen(0, '127.0.0.1', r));
+    config.ai.serviceUrl = `http://127.0.0.1:${fake.address().port}`;
+    t.after(async () => { config.ai.serviceUrl = original; fake.closeAllConnections(); await new Promise((r) => fake.close(r)); });
+    const r = await owner.post(`/projects/${pid}/ai/plan`, { goal: 'Xây dựng API' });
+    assert.equal(r.status, 503);
+    assert.equal(r.data.details.code, 'AI_UNAVAILABLE');
+    assert.equal(await db.prisma.aiDraft.count({ where: { project: pid } }), 0);
+    assert.equal(await db.prisma.task.count({ where: { project: pid } }), 0);
+    assert.equal((await db.prisma.aiCall.findFirst({ where: { workspace: ws } })).status, 'error');
+  });
+
+  test('U026: biên quá hạn đúng mili giây; Blocked suy ra chỉ từ dependency quá hạn chưa Done', async () => {
+    const { owner, pid, create } = await permissionFixture();
+    await owner.req('PUT', `/projects/${pid}/risk-rules`, { overdueDays: 1, overload: false, dueSoon: false });
+    const now = new Date('2026-10-30T10:00:00Z');
+    const blocker = await create({ dueDate: new Date(now - 86400000 + 1).toISOString() });
+    const dependent = await create({ title: 'Công việc phụ thuộc' });
+    await owner.post(`/tasks/${dependent._id}/dependencies`, { blockedBy: blocker._id });
+    let data = await riskAlerts(pid, { now });
+    assert.equal(data.open.filter((a) => a.type === 'overdue').length, 0);
+    assert.equal(data.open.filter((a) => a.type === 'blocked').length, 1);
+    data = await riskAlerts(pid, { now: new Date(now.getTime() + 1) });
+    assert.equal(data.open.filter((a) => a.type === 'overdue').length, 1);
+    assert.equal(data.open.find((a) => a.type === 'overdue').severity, 'critical');
+    assert.ok(data.open.every((a) => a.tasks.length && a.snapshot.tasks.length && /^[a-f0-9]{64}$/.test(a.sourceVersion)));
+    await db.prisma.task.update({ where: { id: blocker._id }, data: { status: 'done', remainingHours: 0, completedAt: now, version: { increment: 1 } } });
+    assert.equal((await riskAlerts(pid, { now })).open.length, 0);
+  });
+
+  test('U026: tải đúng ngưỡng không cảnh báo; số 0 giờ khả dụng và remainingHours được tính đúng', async () => {
+    const { owner, ws, pid, create } = await permissionFixture();
+    await owner.req('PUT', `/projects/${pid}/risk-rules`, { overdue: false, blockedByOverdue: false, dueSoon: false, overloadPct: 100 });
+    const now = new Date('2026-10-30T10:00:00Z');
+    await db.prisma.membership.update({ where: { workspace_user: { workspace: ws, user: seed.users.nhu.id } }, data: { weeklyHours: 10 } });
+    const task = await create({ assignee: seed.users.nhu.id, estimateHours: 50, remainingHours: 10, dueDate: now.toISOString() });
+    assert.equal((await riskAlerts(pid, { now })).open.length, 0);
+    await db.prisma.task.update({ where: { id: task._id }, data: { remainingHours: 10.01, version: { increment: 1 } } });
+    assert.equal((await riskAlerts(pid, { now })).open.length, 1);
+    await db.prisma.membership.update({ where: { workspace_user: { workspace: ws, user: seed.users.nhu.id } }, data: { weeklyHours: 0 } });
+    const alert = (await riskAlerts(pid, { now })).open[0];
+    assert.equal(alert.snapshot.capacity.available, 0);
+    assert.equal(alert.snapshot.capacity.hours, 10.01);
+    await db.prisma.task.update({ where: { id: task._id }, data: { remainingHours: 0, version: { increment: 1 } } });
+    assert.equal((await riskAlerts(pid, { now })).open.length, 0);
+  });
+
+  test('U026: xử lý cần lý do/đúng nguồn, idempotent; chỉ nguồn liên quan thay đổi mới mở lại', async () => {
+    const { owner, pid, create } = await permissionFixture();
+    await owner.req('PUT', `/projects/${pid}/risk-rules`, { overdueDays: 0, overload: false, dueSoon: false, blockedByOverdue: false });
+    const task = await create({ dueDate: new Date(Date.now() - 86400000).toISOString() });
+    const unrelated = await create({ title: 'Không liên quan' });
+    const alert = (await owner.get(`/projects/${pid}/risks`)).data.open[0];
+    const reportResponse = await owner.post(`/projects/${pid}/ai/reports`, { from: '2026-10-01', to: '2026-10-30' });
+    assert.equal(reportResponse.status, 201);
+    const report = reportResponse.data.report;
+    assert.ok(new Date(report.generatedAt) <= new Date(report.createdAt));
+    assert.equal(report.sourceState, 'current');
+    const body = { key: alert.key, sourceVersion: alert.sourceVersion, reason: 'Đã thống nhất dời phạm vi ở buổi họp' };
+    assert.equal((await owner.post(`/projects/${pid}/risks/resolve`, { key: alert.key })).status, 400);
+    assert.equal((await owner.post(`/projects/${pid}/risks/resolve`, { ...body, reason: '  ' })).status, 400);
+    assert.equal((await owner.post(`/projects/${pid}/risks/resolve`, { ...body, sourceVersion: '0'.repeat(64) })).status, 409);
+    const results = await Promise.all([owner.post(`/projects/${pid}/risks/resolve`, body), owner.post(`/projects/${pid}/risks/resolve`, body)]);
+    assert.ok(results.every((r) => r.status === 200), JSON.stringify(results));
+    assert.equal(await db.prisma.activity.count({ where: { project: pid, action: 'Xử lý cảnh báo rủi ro' } }), 1);
+    let data = (await owner.get(`/projects/${pid}/risks`)).data;
+    assert.equal(data.open.length, 0);
+    assert.equal(data.resolved[0].reason, body.reason);
+    assert.equal(data.resolved[0].current, true);
+    assert.deepEqual(data.resolved[0].snapshot, alert.snapshot);
+    const staleReport = (await owner.get(`/ai/reports/${report._id}`)).data.report;
+    assert.equal(staleReport.sourceState, 'changed');
+    assert.equal(staleReport.generatedAt, report.generatedAt);
+    assert.deepEqual(staleReport.stats, report.stats);
+    await owner.patch(`/tasks/${unrelated._id}`, { version: unrelated.version, title: 'Thay đổi không liên quan' });
+    assert.equal((await owner.get(`/projects/${pid}/risks`)).data.open.length, 0);
+    await owner.patch(`/tasks/${task._id}`, { version: task.version, title: 'Đã thay đổi nguồn rủi ro' });
+    data = (await owner.get(`/projects/${pid}/risks`)).data;
+    assert.equal(data.open[0].key, alert.key);
+    assert.notEqual(data.open[0].sourceVersion, alert.sourceVersion);
+    assert.equal(data.resolved[0].current, false);
+    assert.equal((await owner.post(`/projects/${pid}/risks/resolve`, body)).status, 409);
+    const next = { ...body, sourceVersion: data.open[0].sourceVersion, reason: 'Đã xem xét lại nguồn mới' };
+    assert.equal((await owner.post(`/projects/${pid}/risks/resolve`, next)).status, 200);
+    assert.equal((await owner.del(`/projects/${pid}/risks/resolve?key=${encodeURIComponent(alert.key)}&sourceVersion=${body.sourceVersion}`)).status, 409);
+    assert.equal((await owner.get(`/projects/${pid}/risks`)).data.open.length, 0);
+    assert.equal((await owner.del(`/projects/${pid}/risks/resolve?key=${encodeURIComponent(alert.key)}&sourceVersion=${next.sourceVersion}`)).status, 200);
+    assert.equal((await owner.get(`/projects/${pid}/risks`)).data.open.length, 1);
+  });
+
+  test('U026: threshold có phiên bản, refresh không tạo hash giả; dismiss cũ thiếu nguồn không che cảnh báo', async () => {
+    const { owner, pid, create } = await permissionFixture();
+    await owner.req('PUT', `/projects/${pid}/risk-rules`, { overdueDays: 0, overload: false, dueSoon: false, blockedByOverdue: false });
+    await create({ dueDate: new Date(Date.now() - 86400000).toISOString() });
+    const first = (await riskAlerts(pid)).open[0];
+    assert.equal((await riskAlerts(pid, { now: new Date(Date.now() + 1000) })).open[0].sourceVersion, first.sourceVersion);
+    await db.prisma.riskResolution.create({ data: { project: pid, key: first.key, title: first.title, resolvedBy: seed.users.maianh.id } });
+    assert.equal((await riskAlerts(pid)).open.length, 1);
+    await owner.req('PUT', `/projects/${pid}/risk-rules`, { overdueDays: 1 });
+    await owner.req('PUT', `/projects/${pid}/risk-rules`, { overdueDays: 0 });
+    const next = (await riskAlerts(pid)).open[0];
+    assert.notEqual(next.sourceVersion, first.sourceVersion);
+    assert.equal(next.snapshot.thresholdsVersion, first.snapshot.thresholdsVersion + 2);
+    await owner.req('PUT', `/projects/${pid}/risk-rules`, { overdueDays: 0 });
+    assert.equal((await riskAlerts(pid)).open[0].sourceVersion, next.sourceVersion);
+  });
+});
+
 describe('Trợ lý AI (U021–U027)', () => {
   test('kế hoạch nháp 5–15 việc; không có hạn thì không tự đặt; duyệt nhiều lần không tạo trùng', async () => {
     const c = await new Client().login('mai.anh@nhom24.edu.vn');
@@ -472,7 +908,7 @@ describe('Trợ lý AI (U021–U027)', () => {
     assert.ok(items.length >= 5 && items.length <= 15);
     assert.ok(items.every((i) => i.dueDate === null));
     const before = await db.prisma.task.count({ where: { project: pid } });
-    const [a1, a2] = await Promise.all([c.post(`/ai/drafts/${r.data.draft._id}/approve`), c.post(`/ai/drafts/${r.data.draft._id}/approve`)]);
+    const [a1, a2] = await Promise.all([c.post(`/ai/drafts/${r.data.draft._id}/approve`, { version: r.data.draft.version }), c.post(`/ai/drafts/${r.data.draft._id}/approve`, { version: r.data.draft.version })]);
     assert.equal(a1.status, 200);
     assert.equal(a2.status, 200);
     assert.equal(await db.prisma.task.count({ where: { project: pid } }), before + items.length);
@@ -1129,7 +1565,8 @@ describe('Lộc: phân quyền và nghiệp vụ bổ sung', () => {
     assert.equal(w.overloaded, true);
     assert.equal(w.missingEstimates, 1);
     assert.ok((await riskAlerts(pid)).open.some((a) => a.type === 'overload' && a.owner.id === seed.users.nhu.id));
-    await owner.patch(`/tasks/${task._id}`, { spentHours: 5, version: task.version });
+    // Remaining work is now explicitly editable, independent from hours spent.
+    await owner.patch(`/tasks/${task._id}`, { spentHours: 5, remainingHours: 0, version: task.version });
     const empty = (await workload(pid)).find((w) => w.user.id === seed.users.nhu.id);
     assert.equal(empty.pct, 0);
     assert.equal(empty.overloaded, false);
@@ -1171,7 +1608,7 @@ describe('Lộc: phân quyền và nghiệp vụ bổ sung', () => {
       },
     });
     const [approved, removed] = await Promise.all([
-      owner.post(`/ai/drafts/${draft.id}/approve`),
+      owner.post(`/ai/drafts/${draft.id}/approve`, { version: draft.version }),
       owner.patch(`/projects/${pid}`, { members: [seed.users.maianh.id, seed.users.linh.id, seed.users.dat.id] }),
     ]);
     assert.equal(approved.status, 200, JSON.stringify(approved.data));
@@ -1182,7 +1619,7 @@ describe('Lộc: phân quyền và nghiệp vụ bổ sung', () => {
     assert.ok(tasks.every((t) => t.assignee === null));
   });
 
-  test('bản nháp AI lỗi giữa chừng rollback mọi task và audit', async () => {
+  test('bản nháp AI chứa tiêu đề sai bị chặn trước khi tạo task và audit', async () => {
     const { owner, ws, pid } = await permissionFixture();
     const draft = await db.prisma.aiDraft.create({
       data: {
@@ -1196,7 +1633,7 @@ describe('Lộc: phân quyền và nghiệp vụ bổ sung', () => {
         ],
       },
     });
-    assert.equal((await owner.post(`/ai/drafts/${draft.id}/approve`)).status, 500);
+    assert.equal((await owner.post(`/ai/drafts/${draft.id}/approve`, { version: draft.version })).status, 400);
     assert.equal(await db.prisma.task.count({ where: { project: pid } }), 0);
     assert.equal(await db.prisma.activity.count({ where: { project: pid, entityType: 'task' } }), 0);
     assert.equal((await db.prisma.aiDraft.findUnique({ where: { id: draft.id } })).status, 'draft');
@@ -1271,6 +1708,9 @@ describe('Lộc: phân quyền và nghiệp vụ bổ sung', () => {
     const { owner, member, ws, pid } = await permissionFixture();
     const viewer = await new Client().login('khanh.linh@nhom24.edu.vn');
     const period = { from: '2026-10-01', to: '2026-10-22' };
+    const beforeUsage = await db.prisma.aiCall.count({ where: { workspace: ws } });
+    assert.equal((await viewer.post(`/projects/${pid}/ai/ask`, { question: 'Dự án có gì?' })).status, 403);
+    assert.equal(await db.prisma.aiCall.count({ where: { workspace: ws } }), beforeUsage, 'Viewer không tiêu quota');
     for (const c of [member, viewer]) {
       assert.equal((await c.post(`/projects/${pid}/ai/plan`, { goal: 'Kế hoạch kiểm thử' })).status, 403);
       assert.equal((await c.post(`/projects/${pid}/ai/meeting`, { title: 'Họp', text: 'Kiểm thử phần giao việc' })).status, 403);
@@ -1308,7 +1748,7 @@ describe('Lộc: phân quyền và nghiệp vụ bổ sung', () => {
           res.setHeader('content-type', 'application/json');
           res.end(
             JSON.stringify({
-              result: { items: [], summary: 'Dữ liệu cũ', suggestions: '', content: 'Dữ liệu cũ', citations: [], refused: false },
+              result: { items: feature === 'plan' ? Array.from({ length: 5 }, () => ({ title: 'Công việc nháp', description: 'Nội dung thử quyền', acceptanceCriteria: ['Đã kiểm quyền'], estimateHours: 1, priority: 'medium', dueDate: null })) : [], summary: 'Dữ liệu cũ', suggestions: '', content: 'Dữ liệu cũ', citations: [], refused: false },
               model: 'test',
               provider: 'test',
             }),
@@ -1459,9 +1899,9 @@ describe('Lộc: phân quyền và nghiệp vụ bổ sung', () => {
     const good = await upload([['ok.txt', 'Nội dung ban đầu', 'text/plain']]);
     assert.equal(good.status, 201);
     const did = good.data.documents[0]._id;
-    assert.equal((await owner.patch(`/documents/${did}`, { content: 'Phiên bản mới' })).status, 200);
+    assert.equal((await owner.patch(`/documents/${did}`, { content: 'Phiên bản mới', version: 1 })).status, 200);
     assert.equal((await owner.get(`/documents/${did}/download`)).data, 'Phiên bản mới');
-    assert.equal((await owner.patch(`/documents/${did}`, { restoreVersion: 999 })).status, 404);
+    assert.equal((await owner.patch(`/documents/${did}`, { restoreVersion: 999, version: 2 })).status, 404);
     assert.equal((await owner.patch(`/documents/${did}`, { content: 'Ghi đè từ bản cũ', version: 1 })).status, 409);
     assert.equal((await owner.get(`/documents/${did}/download`)).data, 'Phiên bản mới');
   });
@@ -1742,7 +2182,7 @@ describe('Rủi ro: quyền sau AI và cập nhật đồng thời', () => {
     return { owner, member, ws, pid, task, key };
   }
 
-  for (const mode of ['risk-revoked', 'risk-source', 'report-source']) {
+  for (const mode of ['risk-revoked', 'risk-source', 'report-source', 'report-risk-resolution']) {
     test(`AI đang chạy phải từ chối dữ liệu cũ: ${mode}`, { timeout: 15000 }, async (t) => {
       const { owner, member, pid, task, key } = await riskFixture();
       const { config } = await import('../src/config.js');
@@ -1767,9 +2207,13 @@ describe('Rủi ro: quyền sau AI và cập nhật đồng thời', () => {
       });
       config.ai.serviceUrl = `http://127.0.0.1:${fake.address().port}`;
       const pending =
-        mode === 'report-source' ? owner.post(`/projects/${pid}/ai/reports`, { from: '2026-10-01', to: '2026-10-23' }) : member.post(`/projects/${pid}/risks/explain`, { key });
+        mode.startsWith('report') ? owner.post(`/projects/${pid}/ai/reports`, { from: '2026-10-01', to: '2026-10-23' }) : member.post(`/projects/${pid}/risks/explain`, { key });
       await received;
       if (mode === 'risk-revoked') assert.equal((await owner.patch(`/projects/${pid}`, { members: [seed.users.maianh.id] })).status, 200);
+      else if (mode === 'report-risk-resolution') {
+        const alert = (await member.get(`/projects/${pid}/risks`)).data.open.find((a) => a.key === key);
+        assert.equal((await member.post(`/projects/${pid}/risks/resolve`, { key, sourceVersion: alert.sourceVersion, reason: 'Đã điều phối trong khi tạo báo cáo' })).status, 200);
+      }
       else assert.equal((await owner.patch(`/tasks/${task._id}`, { title: 'Nguồn rủi ro mới', version: task.version })).status, 200);
       release();
       const response = await pending;
@@ -1781,12 +2225,14 @@ describe('Rủi ro: quyền sau AI và cập nhật đồng thời', () => {
 
   test('resolve chỉ nhận cảnh báo tồn tại, ghi audit; cập nhật hai quy tắc đồng thời không mất dữ liệu', async () => {
     const { owner, member, ws, pid, key } = await riskFixture();
-    assert.equal((await member.post(`/projects/${pid}/risks/resolve`, { key: 'invented-key' })).status, 404);
-    assert.equal((await member.post(`/projects/${pid}/risks/resolve`, { key, title: 'Tiêu đề giả' })).status, 200);
+    const alert = (await member.get(`/projects/${pid}/risks`)).data.open.find((a) => a.key === key);
+    const body = { sourceVersion: alert.sourceVersion, reason: 'Đã điều phối lại công việc' };
+    assert.equal((await member.post(`/projects/${pid}/risks/resolve`, { key: 'invented-key', ...body })).status, 404);
+    assert.equal((await member.post(`/projects/${pid}/risks/resolve`, { key, title: 'Tiêu đề giả', ...body })).status, 200);
     const resolved = await db.prisma.riskResolution.findUnique({ where: { project_key: { project: pid, key } } });
     assert.ok(resolved.title.includes('Nguồn rủi ro cũ'));
     assert.ok(await db.prisma.activity.findFirst({ where: { project: pid, action: 'Xử lý cảnh báo rủi ro' } }));
-    assert.equal((await member.del(`/projects/${pid}/risks/resolve?key=${encodeURIComponent(key)}`)).status, 200);
+    assert.equal((await member.del(`/projects/${pid}/risks/resolve?key=${encodeURIComponent(key)}&sourceVersion=${alert.sourceVersion}`)).status, 200);
     assert.ok(await db.prisma.activity.findFirst({ where: { project: pid, action: 'Mở lại cảnh báo rủi ro' } }));
     const results = await Promise.all([owner.req('PUT', `/projects/${pid}/risk-rules`, { overdueDays: 0 }), owner.req('PUT', `/projects/${pid}/risk-rules`, { overloadPct: 155 })]);
     assert.ok(results.every((r) => r.status === 200));
@@ -1848,7 +2294,7 @@ describe('AI: hạn biên bản và giới hạn kế hoạch', () => {
     const draft = r.data.draft;
     assert.equal(draft.items[0].dueDate, '2099-02-16T04:59:59.999Z');
     assert.equal(draft.items[1].dueDate, null);
-    assert.equal((await owner.post(`/ai/drafts/${draft._id}/approve`)).status, 200);
+    assert.equal((await owner.post(`/ai/drafts/${draft._id}/approve`, { version: draft.version })).status, 200);
     const tasks = await db.prisma.task.findMany({ where: { project: pid }, orderBy: { number: 'asc' } });
     assert.equal(tasks[0].dueDate.toISOString(), draft.items[0].dueDate);
     assert.equal(tasks[1].dueDate, null);
@@ -1861,18 +2307,18 @@ describe('AI: hạn biên bản và giới hạn kế hoạch', () => {
     const draft = r.data.draft;
     assert.ok(draft.items.reduce((n, it) => n + it.estimateHours, 0) <= 1 + 1e-9);
     const key = draft.items[0].key;
-    assert.equal((await owner.patch(`/ai/drafts/${draft._id}`, { items: [{ key, estimateHours: 2 }] })).status, 200);
-    let denied = await owner.post(`/ai/drafts/${draft._id}/approve`);
+    assert.equal((await owner.patch(`/ai/drafts/${draft._id}`, { version: draft.version, items: [{ key, estimateHours: 2 }] })).status, 200);
+    let denied = await owner.post(`/ai/drafts/${draft._id}/approve`, { version: draft.version + 1 });
     assert.equal(denied.status, 400);
     assert.match(denied.data.error, /giờ/);
     assert.equal(await db.prisma.task.count({ where: { project: pid } }), 0);
-    assert.equal((await owner.patch(`/ai/drafts/${draft._id}`, { items: [{ key, estimateHours: draft.items[0].estimateHours, dueDate: '2099-02-16' }] })).status, 200);
-    denied = await owner.post(`/ai/drafts/${draft._id}/approve`);
+    assert.equal((await owner.patch(`/ai/drafts/${draft._id}`, { version: draft.version + 1, items: [{ key, estimateHours: draft.items[0].estimateHours, dueDate: '2099-02-16' }] })).status, 200);
+    denied = await owner.post(`/ai/drafts/${draft._id}/approve`, { version: draft.version + 2 });
     assert.equal(denied.status, 400);
     assert.match(denied.data.error, /hạn/);
     assert.equal(await db.prisma.task.count({ where: { project: pid } }), 0);
-    await owner.patch(`/ai/drafts/${draft._id}`, { items: [{ key, dueDate: draft.items[0].dueDate }] });
-    assert.equal((await owner.post(`/ai/drafts/${draft._id}/approve`)).status, 200);
+    await owner.patch(`/ai/drafts/${draft._id}`, { version: draft.version + 2, items: [{ key, dueDate: draft.items[0].dueDate }] });
+    assert.equal((await owner.post(`/ai/drafts/${draft._id}/approve`, { version: draft.version + 3 })).status, 200);
     assert.equal(await db.prisma.task.count({ where: { project: pid } }), draft.items.length);
   });
 
@@ -1883,7 +2329,555 @@ describe('AI: hạn biên bản và giới hạn kế hoạch', () => {
     const draft = await db.prisma.aiDraft.create({
       data: { workspace: ws, project: pid, user: seed.users.maianh.id, type: 'plan', items: [{ key: 'empty', title: 'Chưa chọn', selected: false }] },
     });
-    assert.equal((await owner.post(`/ai/drafts/${draft.id}/approve`)).status, 400);
+    assert.equal((await owner.post(`/ai/drafts/${draft.id}/approve`, { version: draft.version })).status, 400);
     assert.equal((await db.prisma.aiDraft.findUnique({ where: { id: draft.id } })).status, 'draft');
+  });
+});
+
+describe('Lộc Sprint 1: SMTP, giờ còn lại và xóa mềm', () => {
+  test('SMTP thực nhận email register/resend/verify và invite/resend/revoke/accept', async (t) => {
+    const { messages } = await smtpSandbox(t, config);
+    const client = new Client();
+    const email = 'loc.smtp@example.test';
+    const beforeOutbox = await db.prisma.outbox.count();
+    const registered = await client.post('/auth/register', { name: 'SMTP Test', email, password: DEMO_PASSWORD, acceptTerms: true });
+    assert.equal(registered.status, 201, JSON.stringify(registered.data));
+    assert.equal(messages.length, 1);
+    assert.equal(messages[0].envelope.rcptTo[0].address, email);
+    const token = messages[0].raw.match(/verify-email\?token=([A-Za-z0-9_-]+)/)?.[1];
+    assert.ok(token, 'SMTP message contains the verification link');
+    assert.equal((await client.post('/auth/resend-verification', { email })).status, 200);
+    assert.equal(messages.length, 2);
+    assert.equal((await client.post('/auth/verify-email', { token })).status, 200);
+    assert.equal((await client.post('/auth/verify-email', { token })).status, 400);
+    const { owner, ws, pid } = await permissionFixture();
+    const invite = await owner.post(`/workspaces/${ws}/invites`, { emails: [email], projects: [pid] });
+    assert.equal(invite.status, 201, JSON.stringify(invite.data));
+    const oldToken = messages.at(-1).raw.match(/\/invite\/([A-Za-z0-9_-]+)/)?.[1];
+    const id = invite.data.created[0]._id;
+    assert.equal((await owner.post(`/workspaces/${ws}/invites/${id}/resend`)).status, 200);
+    const newToken = messages.at(-1).raw.match(/\/invite\/([A-Za-z0-9_-]+)/)?.[1];
+    assert.ok(newToken && newToken !== oldToken);
+    assert.equal((await client.get(`/auth/invite/${oldToken}`)).data.valid, false);
+    const wrongUser = owner;
+    assert.equal((await wrongUser.post(`/me/invites/${newToken}/accept`)).status, 403);
+    assert.equal((await client.post(`/me/invites/${newToken}/accept`)).status, 200);
+    assert.equal((await client.post(`/me/invites/${newToken}/accept`)).status, 400);
+    const revoked = await owner.post(`/workspaces/${ws}/invites`, { emails: ['revoked.smtp@example.test'] });
+    const revokedToken = messages.at(-1).raw.match(/\/invite\/([A-Za-z0-9_-]+)/)?.[1];
+    assert.equal((await owner.del(`/workspaces/${ws}/invites/${revoked.data.created[0]._id}`)).status, 200);
+    assert.equal((await wrongUser.get(`/auth/invite/${revokedToken}`)).data.valid, false);
+    assert.equal(await db.prisma.outbox.count(), beforeOutbox, 'SMTP does not persist raw email tokens in the dev outbox');
+  });
+
+  test('SMTP lỗi báo lỗi an toàn, có thể gửi lại; recovery không lộ tài khoản', async (t) => {
+    const { messages, state } = await smtpSandbox(t, config);
+    const client = new Client();
+    state.reject = true;
+    const email = 'loc.smtp.retry@example.test';
+    const failed = await client.post('/auth/register', { name: 'Retry SMTP', email, password: DEMO_PASSWORD, acceptTerms: true });
+    assert.equal(failed.status, 503);
+    assert.equal(failed.data.details.code, 'MAIL_UNAVAILABLE');
+    assert.ok(!JSON.stringify(failed.data).includes('local-test-password'));
+    for (const route of ['/auth/resend-verification', '/auth/forgot-password']) {
+      const known = await client.post(route, { email });
+      const unknown = await client.post(route, { email: 'never-existed@example.test' });
+      assert.equal(known.status, 200);
+      assert.deepEqual(known.data, unknown.data);
+    }
+    state.reject = false;
+    assert.equal((await client.post('/auth/resend-verification', { email })).status, 200);
+    assert.equal(messages.length, 1);
+    const token = messages[0].raw.match(/verify-email\?token=([A-Za-z0-9_-]+)/)?.[1];
+    assert.equal((await client.post('/auth/verify-email', { token })).status, 200);
+    const { sendMail, validateMailConfig } = await import('../src/services/mailer.js');
+    config.mail.pass = 'wrong-password';
+    await assert.rejects(() => sendMail({ to: email, subject: 'Auth failure', text: 'Test' }), (e) => e.status === 503);
+    config.mail.pass = 'local-test-password';
+    config.mail.requireTLS = true;
+    await assert.rejects(() => sendMail({ to: email, subject: 'TLS required', text: 'Test' }), (e) => e.status === 503);
+    assert.equal(messages.length, 1, 'no SMTP success claimed after auth/TLS failures');
+    assert.throws(() => validateMailConfig({ mode: 'outbox' }, true), /Production/);
+    assert.throws(() => validateMailConfig({ ...config.mail, requireTLS: false }, true), /TLS/);
+  });
+
+  test('remainingHours nhận 0/null, kiểm biên/quyền, audit và thống kê dùng số cập nhật', async () => {
+    const { owner, member, other, pid, create } = await permissionFixture();
+    let task = await create({ title: 'Remaining work', assignee: seed.users.nhu.id, estimateHours: 8, remainingHours: 0, dueDate: new Date().toISOString() });
+    assert.equal(task.remainingHours, 0);
+    for (const remainingHours of [-1, 1001, '3']) {
+      assert.equal((await member.patch(`/tasks/${task._id}`, { remainingHours, version: task.version })).status, 400);
+    }
+    assert.equal((await other.patch(`/tasks/${task._id}`, { remainingHours: 2, version: task.version })).status, 403);
+    let result = await member.patch(`/tasks/${task._id}`, { remainingHours: 2.5, version: task.version });
+    assert.equal(result.status, 200, JSON.stringify(result.data));
+    task = result.data.task;
+    assert.equal((await workload(pid)).find((x) => x.user.id === seed.users.nhu.id).hours, 2.5);
+    assert.ok(await db.prisma.activity.findFirst({ where: { entityId: task._id, field: 'remainingHours' } }));
+    result = await owner.patch(`/tasks/${task._id}`, { remainingHours: null, version: task.version });
+    assert.equal(result.status, 200);
+    assert.equal(result.data.task.remainingHours, null);
+  });
+
+  test('soft-delete giữ dữ liệu/audit, ẩn mọi luồng, không tái tạo hoặc sửa task đã xóa', async () => {
+    const { owner, member, ws, pid, create } = await permissionFixture();
+    const parent = await create({ title: 'TombstoneParent', assignee: seed.users.nhu.id, estimateHours: 8, dueDate: new Date().toISOString() });
+    const child = await create({ title: 'TombstoneChild', parent: parent._id });
+    const dependent = await create({ title: 'Survivor', blockedBy: [parent._id] });
+    const comment = await owner.post(`/tasks/${parent._id}/comments`, { body: 'Keep audit content' });
+    assert.equal(comment.status, 201);
+    const file = await owner.post(`/projects/${pid}/documents`, { name: 'Keep document', content: 'preserve me', task: parent._id });
+    assert.equal(file.status, 201, JSON.stringify(file.data));
+    assert.equal((await member.del(`/tasks/${parent._id}?confirm=true`)).status, 403);
+    assert.equal((await owner.del(`/tasks/${parent._id}`)).status, 409);
+    assert.equal((await owner.del(`/tasks/${parent._id}?confirm=true`)).status, 200);
+    for (const original of [parent, child]) {
+      const stored = await db.prisma.task.findUnique({ where: { id: original._id } });
+      assert.ok(stored.deletedAt);
+      assert.equal(stored.version, original.version + 1);
+      assert.equal((await owner.get(`/tasks/${original._id}`)).status, 404);
+      assert.equal((await owner.patch(`/tasks/${original._id}`, { title: 'Revive', version: stored.version })).status, 404);
+      assert.equal((await owner.post(`/tasks/${original._id}/move`, { status: 'in_progress', order: 0, version: stored.version })).status, 404);
+    }
+    assert.equal(await db.prisma.comment.count({ where: { task: parent._id } }), 1);
+    assert.equal((await owner.get(`/tasks/${parent._id}/comments`)).status, 404);
+    assert.equal((await owner.patch(`/comments/${comment.data.comment._id}`, { body: 'Overwrite' })).status, 404);
+    assert.equal((await owner.del(`/tasks/${parent._id}?confirm=true`)).status, 404);
+    const audit = await db.prisma.activity.findFirst({ where: { entityId: parent._id, action: 'Xóa công việc' } });
+    assert.deepEqual([...audit.after.deletedTaskIds].sort(), [parent._id, child._id].sort());
+    assert.equal((await db.prisma.document.findUnique({ where: { id: file.data.document._id } })).task, null);
+    assert.equal((await owner.get(`/documents/${file.data.document._id}`)).status, 200);
+    const live = (await owner.get(`/projects/${pid}/tasks`)).data.tasks;
+    assert.deepEqual(live.map((x) => x._id), [dependent._id]);
+    assert.deepEqual(live[0].blockedBy, []);
+    assert.equal((await owner.get(`/projects/${pid}/calendar`)).data.tasks.length, 0);
+    assert.equal((await member.get(`/workspaces/${ws}/my-tasks`)).data.total, 0);
+    assert.equal((await owner.get(`/workspaces/${ws}/search?q=Tombstone`)).data.tasks.length, 0);
+    assert.equal((await owner.get(`/workspaces/${ws}/projects`)).data.projects.find((p) => p._id === pid).stats.total, 1);
+    assert.equal((await projectOverview(pid)).total, 1);
+    const { collectSources } = await import('../src/services/ai/qa.js');
+    assert.ok(!(await collectSources(pid)).some((s) => [parent._id, child._id].includes(s.refId)));
+    assert.equal((await owner.post(`/projects/${pid}/tasks`, { title: 'Invalid child', parent: parent._id })).status, 400);
+    assert.equal((await owner.post(`/tasks/${dependent._id}/dependencies`, { blockedBy: parent._id })).status, 404);
+    const { runDueReminders } = await import('../src/services/jobs.js');
+    await runDueReminders(new Date(Date.now() + 1000));
+    assert.equal(await db.prisma.notification.count({ where: { task: parent._id, type: { in: ['overdue', 'due_soon'] } } }), 0);
+    assert.ok(!(await member.get(`/notifications?workspace=${ws}`)).data.items.some((n) => n.task?._id === parent._id));
+  });
+
+  test('soft-delete rollback nếu audit thất bại; xóa/sửa đồng thời không phục hồi task', async (t) => {
+    const { owner, pid, create } = await permissionFixture();
+    const task = await create();
+    const txOriginal = db.prisma.$transaction.bind(db.prisma);
+    const original = db.prisma.$transaction;
+    t.after(() => { db.prisma.$transaction = original; });
+    db.prisma.$transaction = (callback, options) => txOriginal(async (tx) => {
+      const createMany = tx.activity.createMany.bind(tx.activity);
+      tx.activity.createMany = (args) => {
+        if (args.data.some((a) => a.action === 'Xóa công việc')) throw new Error('Simulated audit failure');
+        return createMany(args);
+      };
+      return callback(tx);
+    }, options);
+    assert.equal((await owner.del(`/tasks/${task._id}`)).status, 500);
+    db.prisma.$transaction = original;
+    assert.equal((await db.prisma.task.findUnique({ where: { id: task._id } })).deletedAt, null);
+    const [removed, changed] = await Promise.all([
+      owner.del(`/tasks/${task._id}`),
+      owner.patch(`/tasks/${task._id}`, { title: 'Concurrent edit', version: task.version }),
+    ]);
+    assert.equal(removed.status, 200);
+    assert.ok([200, 404].includes(changed.status), JSON.stringify(changed.data));
+    assert.equal((await owner.get(`/projects/${pid}/tasks`)).data.tasks.length, 0);
+  });
+});
+
+// =============================================================================
+// Hiệp – U012: Kiểm thử & Demo nền tảng cuối Sprint 1
+// =============================================================================
+describe('Hiệp – U012: Smoke test nền tảng cuối Sprint 1', () => {
+  test('luồng đăng ký → xác minh email → đăng nhập hoàn chỉnh', async () => {
+    const c = new Client();
+    const email = `u012-smoke-${++fixtureNumber}@test.vn`;
+    const reg = await c.post('/auth/register', { name: 'Smoke Test', email, password: 'Smoke@2026', acceptTerms: true });
+    assert.equal(reg.status, 201);
+    // Chưa xác minh thì không được đăng nhập
+    const blocked = await c.post('/auth/login', { email, password: 'Smoke@2026' });
+    assert.equal(blocked.status, 403);
+    assert.equal(blocked.data.details.code, 'EMAIL_NOT_VERIFIED');
+    // Lấy token xác minh từ outbox
+    const mail = await db.prisma.outbox.findFirst({ where: { to: email }, orderBy: { createdAt: 'desc' } });
+    const token = new URL(mail.link).searchParams.get('token');
+    assert.equal((await c.post('/auth/verify-email', { token })).status, 200);
+    // Sau xác minh, đăng nhập được
+    const login = await new Client().post('/auth/login', { email, password: 'Smoke@2026' });
+    assert.equal(login.status, 200);
+  });
+
+  test('tạo workspace → tạo dự án → tạo task → đổi trạng thái Kanban', async () => {
+    const owner = await new Client().login('mai.anh@nhom24.edu.vn');
+    const ws = (await owner.post('/workspaces', { name: `Demo Sprint1 ${++fixtureNumber}` })).data.workspace;
+    assert.ok(ws._id);
+    const proj = (await owner.post(`/workspaces/${ws._id}/projects`, { name: 'Demo Project' })).data.project;
+    assert.ok(proj._id);
+    const task = (await owner.post(`/projects/${proj._id}/tasks`, { title: 'Demo Task' })).data.task;
+    assert.equal(task.status, 'todo');
+    // Đổi trạng thái qua move (Kanban kéo thả)
+    const moved = await owner.post(`/tasks/${task._id}/move`, { status: 'in_progress', order: 1, version: task.version });
+    assert.equal(moved.status, 200);
+    assert.equal(moved.data.task.status, 'in_progress');
+  });
+
+  test('phân quyền demo: Viewer không ghi, người ngoài nhận 404', async () => {
+    const owner = await new Client().login('mai.anh@nhom24.edu.vn');
+    const ws = (await owner.post('/workspaces', { name: `Demo Perm ${++fixtureNumber}` })).data.workspace._id;
+    await db.prisma.membership.create({ data: { workspace: ws, user: seed.users.linh.id, role: 'viewer' } });
+    const proj = (await owner.post(`/workspaces/${ws}/projects`, { name: 'Demo Perms', members: [seed.users.linh.id] })).data.project;
+    const task = (await owner.post(`/projects/${proj._id}/tasks`, { title: 'Read Only' })).data.task;
+    // Viewer không kéo thả được
+    const viewer = await new Client().login('khanh.linh@nhom24.edu.vn');
+    assert.equal((await viewer.post(`/tasks/${task._id}/move`, { status: 'in_progress', order: 1, version: task.version })).status, 403);
+    // Người ngoài nhóm nhận 404
+    const outsider = new Client();
+    await outsider.post('/auth/register', { name: 'Out', email: `out-${++fixtureNumber}@x.vn`, password: 'Abcdefg1', acceptTerms: true });
+    const m = await db.prisma.outbox.findFirst({ where: { to: outsider.cookies?.email ?? `out-${fixtureNumber}@x.vn` } });
+    // Người ngoài chưa đăng nhập → 401 trước khi 404
+    assert.equal((await outsider.get(`/workspaces/${ws}`)).status, 401);
+  });
+
+  test('tài khoản demo seed đăng nhập được với mật khẩu TaskFlow@2026', async () => {
+    for (const email of ['mai.anh@nhom24.edu.vn', 'hoang.anh@nhom24.edu.vn', 'nhu@nhom24.edu.vn', 'admin@taskflow.local']) {
+      const r = await new Client().post('/auth/login', { email, password: 'TaskFlow@2026' });
+      assert.equal(r.status, 200, `Tài khoản ${email} phải đăng nhập được`);
+    }
+  });
+
+  test('version conflict khi hai người sửa cùng task: 409 với dữ liệu mới', async () => {
+    const a = await new Client().login('mai.anh@nhom24.edu.vn');
+    const task = await db.prisma.task.findFirst({ where: { project: seed.projects.website.id, key: 'TF-105' } });
+    const v = task.version;
+    // A sửa trước
+    assert.equal((await a.patch(`/tasks/${task.id}`, { title: 'Sửa lần 1', version: v })).status, 200);
+    // B dùng version cũ → 409
+    const b = await new Client().login('thuan@nhom24.edu.vn');
+    const conflict = await b.patch(`/tasks/${task.id}`, { title: 'Sửa lần 2', version: v });
+    assert.equal(conflict.status, 409);
+    assert.ok(conflict.data.details?.task, 'Phải trả kèm dữ liệu mới nhất');
+    assert.equal(conflict.data.details.task.version, v + 1);
+  });
+});
+
+// =============================================================================
+// Hiệp – U016: Thông báo & nhắc hạn (bổ sung case còn thiếu)
+// =============================================================================
+describe('Hiệp – U016: Thông báo & nhắc hạn (bổ sung)', () => {
+  test('giao task kích hoạt thông báo assigned; không gửi cho chính người giao', async () => {
+    const { owner, member, pid, ws, create } = await permissionFixture();
+    const before = await db.prisma.notification.count({ where: { user: seed.users.nhu.id, type: 'assigned' } });
+    // Owner giao cho Như → Như nhận thông báo
+    await create({ assignee: seed.users.nhu.id });
+    const after = await db.prisma.notification.count({ where: { user: seed.users.nhu.id, type: 'assigned' } });
+    assert.equal(after, before + 1, 'Người được giao phải nhận thông báo');
+    // Owner giao cho chính Owner → không nhận thông báo cho bản thân
+    const ownCount = await db.prisma.notification.count({ where: { user: seed.users.maianh.id, type: 'assigned', workspace: ws } });
+    await create({ assignee: seed.users.maianh.id });
+    assert.equal(
+      await db.prisma.notification.count({ where: { user: seed.users.maianh.id, type: 'assigned', workspace: ws } }),
+      ownCount,
+      'Không gửi thông báo cho chính mình',
+    );
+  });
+
+  test('dedupeKey ngăn thông báo trùng khi notify() gọi nhiều lần', async () => {
+    const { ws, pid } = await permissionFixture();
+    const { notify } = await import('../src/services/notify.js');
+    const user = seed.users.nhu.id;
+    const key = `hiep-dedupe-${ws}`;
+    await notify({ user, workspace: ws, project: pid, type: 'assigned', text: 'Gửi lần 1', dedupeKey: key });
+    await notify({ user, workspace: ws, project: pid, type: 'assigned', text: 'Gửi lần 2', dedupeKey: key });
+    await notify({ user, workspace: ws, project: pid, type: 'assigned', text: 'Gửi lần 3', dedupeKey: key });
+    assert.equal(
+      await db.prisma.notification.count({ where: { user, dedupeKey: key } }),
+      1,
+      'Chỉ được tạo đúng 1 thông báo dù gọi nhiều lần',
+    );
+  });
+
+  test('tắt pref due_soon chặn cả due_soon lẫn overdue; bật lại gửi được', async (t) => {
+    // Đây là bản kiểm tra rõ ràng cho logic L13-14 notify.js
+    const { ws, pid } = await permissionFixture();
+    const { notify } = await import('../src/services/notify.js');
+    const user = seed.users.nhu.id;
+    const prev = await db.prisma.notificationPref.findUnique({ where: { user } });
+    t.after(async () => {
+      await db.prisma.notificationPref.deleteMany({ where: { user } });
+      if (prev) await db.prisma.notificationPref.create({ data: prev });
+    });
+    // Tắt due_soon
+    await db.prisma.notificationPref.upsert({ where: { user }, create: { user, due_soon: false }, update: { due_soon: false } });
+    const base = { user, workspace: ws, project: pid, text: 'Test pref' };
+    assert.equal(await notify({ ...base, type: 'due_soon', dedupeKey: `${ws}:ds1` }), null, 'due_soon phải bị chặn');
+    assert.equal(await notify({ ...base, type: 'overdue', dedupeKey: `${ws}:ov1` }), null, 'overdue cũng bị chặn khi tắt due_soon');
+    // Bật lại
+    await db.prisma.notificationPref.update({ where: { user }, data: { due_soon: true } });
+    assert.ok(await notify({ ...base, type: 'overdue', dedupeKey: `${ws}:ov2` }), 'overdue phải gửi được khi due_soon=true');
+  });
+
+  test('comment mặc định tắt; assigned và mentioned mặc định bật khi chưa có pref', async (t) => {
+    const { ws, pid } = await permissionFixture();
+    const { notify } = await import('../src/services/notify.js');
+    const user = seed.users.nhu.id;
+    const prev = await db.prisma.notificationPref.findUnique({ where: { user } });
+    t.after(async () => {
+      await db.prisma.notificationPref.deleteMany({ where: { user } });
+      if (prev) await db.prisma.notificationPref.create({ data: prev });
+    });
+    await db.prisma.notificationPref.deleteMany({ where: { user } });
+    // Comment phải bị chặn theo mặc định
+    assert.equal(await notify({ user, workspace: ws, type: 'comment', text: 'Cmt', dedupeKey: `${ws}:def-cmt` }), null);
+    // assigned và mentioned phải thông
+    assert.ok(await notify({ user, workspace: ws, type: 'assigned', text: 'Asgn', dedupeKey: `${ws}:def-asgn` }));
+    assert.ok(await notify({ user, workspace: ws, type: 'mentioned', text: 'Mention', dedupeKey: `${ws}:def-mention` }));
+  });
+
+  test('đánh dấu đọc-tất-cả theo workspace chỉ đọc thông báo của workspace đó', async () => {
+    const owner = await new Client().login('mai.anh@nhom24.edu.vn');
+    // Tạo 2 workspace riêng
+    const ws1 = (await owner.post('/workspaces', { name: `ReadAll-WS1-${++fixtureNumber}` })).data.workspace._id;
+    const ws2 = (await owner.post('/workspaces', { name: `ReadAll-WS2-${++fixtureNumber}` })).data.workspace._id;
+    const user = seed.users.maianh.id;
+    await db.prisma.notification.createMany({
+      data: [
+        { user, workspace: ws1, type: 'assigned', text: 'WS1', dedupeKey: `ra:${ws1}:1` },
+        { user, workspace: ws2, type: 'assigned', text: 'WS2', dedupeKey: `ra:${ws2}:1` },
+      ],
+    });
+    // Đọc tất cả trong ws1
+    const r = await owner.post('/notifications/read-all', { workspace: ws1 });
+    assert.equal(r.status, 200);
+    // ws1 → đã đọc; ws2 → chưa đọc
+    assert.equal(await db.prisma.notification.count({ where: { user, workspace: ws1, readAt: null } }), 0);
+    assert.ok(await db.prisma.notification.count({ where: { user, workspace: ws2, readAt: null } }) > 0);
+  });
+
+  test('runDueReminders không gửi trùng khi gọi nhiều lần; Done bị bỏ qua', async () => {
+    const { pid, create } = await permissionFixture();
+    const { runDueReminders } = await import('../src/services/jobs.js');
+    const now = new Date();
+    const soon = new Date(now.getTime() + 3600000); // 1 giờ nữa (nằm trong 24h)
+    const task = await create({ assignee: seed.users.nhu.id, dueDate: soon.toISOString() });
+    // Gọi 3 lần
+    await runDueReminders(now);
+    await runDueReminders(now);
+    await runDueReminders(now);
+    assert.equal(
+      await db.prisma.notification.count({ where: { task: task._id, type: 'due_soon' } }),
+      1,
+      'Chỉ 1 thông báo dù gọi nhiều lần',
+    );
+    // Task Done không nhắc
+    const doneTask = await create({ assignee: seed.users.nhu.id, dueDate: soon.toISOString(), status: 'review' });
+    await db.prisma.task.update({ where: { id: doneTask._id }, data: { status: 'done' } });
+    const countBefore = await db.prisma.notification.count({ where: { task: doneTask._id } });
+    await runDueReminders(now);
+    assert.equal(await db.prisma.notification.count({ where: { task: doneTask._id } }), countBefore, 'Task Done không được nhắc hạn');
+  });
+
+  test('thông báo lọc đúng theo quyền hiện tại: bị kick khỏi project thì mất thông báo', async () => {
+    const { owner, member, pid, ws } = await permissionFixture();
+    // Tạo thông báo cho Như trong dự án
+    await db.prisma.notification.create({
+      data: { user: seed.users.nhu.id, workspace: ws, project: pid, type: 'assigned', text: 'Trong dự án', dedupeKey: `kick:${ws}:${pid}` },
+    });
+    const before = (await member.get(`/notifications?project=${pid}`)).data.items.length;
+    assert.ok(before > 0, 'Phải thấy thông báo khi còn trong dự án');
+    // Kick Như ra khỏi dự án
+    await owner.patch(`/projects/${pid}`, { members: [seed.users.maianh.id] });
+    const after = (await member.get(`/notifications?project=${pid}`)).data.items;
+    assert.equal(after.length, 0, 'Không thấy thông báo dự án đã bị kick');
+  });
+
+  test('đánh dấu đọc đơn lẻ theo id; không ảnh hưởng thông báo khác', async () => {
+    const { ws, pid } = await permissionFixture();
+    const user = seed.users.nhu.id;
+    const [n1, n2] = await Promise.all([
+      db.prisma.notification.create({ data: { user, workspace: ws, project: pid, type: 'assigned', text: 'N1', dedupeKey: `read1:${ws}` } }),
+      db.prisma.notification.create({ data: { user, workspace: ws, project: pid, type: 'assigned', text: 'N2', dedupeKey: `read2:${ws}` } }),
+    ]);
+    const member = await new Client().login('nhu@nhom24.edu.vn');
+    assert.equal((await member.post(`/notifications/${n1.id}/read`)).status, 200);
+    assert.ok((await db.prisma.notification.findUnique({ where: { id: n1.id } })).readAt, 'N1 phải được đánh dấu đọc');
+    assert.equal((await db.prisma.notification.findUnique({ where: { id: n2.id } })).readAt, null, 'N2 chưa đọc');
+  });
+});
+
+// =============================================================================
+// Hiệp – U020: Nhật ký hoạt động & xuất CSV (bổ sung case còn thiếu)
+// =============================================================================
+describe('Hiệp – U020: Nhật ký hoạt động & xuất CSV (bổ sung)', () => {
+  test('nhật ký ghi đúng khi tạo/đổi trạng thái/giao task', async () => {
+    const { owner, pid, ws, create } = await permissionFixture();
+    const task = await create();
+    // Giao task → ghi activity "Giao việc"
+    await owner.patch(`/tasks/${task._id}`, { assignee: seed.users.nhu.id, version: task.version });
+    const assignLog = await db.prisma.activity.findFirst({ where: { entityId: task._id, action: 'Giao việc' } });
+    assert.ok(assignLog, 'Phải có log giao việc');
+    assert.equal(assignLog.workspace, ws);
+    assert.equal(assignLog.project, pid);
+    assert.equal(assignLog.actor, seed.users.maianh.id);
+    // Đổi trạng thái → ghi "Đổi trạng thái"
+    const t2 = (await db.prisma.task.findUnique({ where: { id: task._id } }));
+    await owner.post(`/tasks/${task._id}/move`, { status: 'in_progress', order: 1, version: t2.version });
+    const statusLog = await db.prisma.activity.findFirst({ where: { entityId: task._id, action: 'Đổi trạng thái' } });
+    assert.ok(statusLog, 'Phải có log đổi trạng thái');
+  });
+
+  test('Member chỉ thấy nhật ký dự án mình thuộc; người tạo proj thấy tất cả', async () => {
+    const { owner, member, pid, ws } = await permissionFixture();
+    // Lấy ID thực của fixture owner để tạo proj2 với owner là thành viên
+    const meRes = await owner.get('/me');
+    const ownerId = meRes.data.user._id;
+    // Tạo dự án thứ 2 chỉ có Owner, KHÔNG có Member (fixture Như)
+    const proj2 = (await owner.post(`/workspaces/${ws}/projects`, { name: 'Bí mật', members: [ownerId] })).data.project;
+    await owner.post(`/projects/${proj2._id}/tasks`, { title: 'Task bí mật' });
+    // Thêm log thủ công cho proj2
+    await db.prisma.activity.create({
+      data: { workspace: ws, project: proj2._id, actor: ownerId, action: 'Ghi chú bí mật', entityType: 'task', entityLabel: 'BM' },
+    });
+    // Member (Như fixture) chỉ thấy log dự án mình thuộc → không thấy proj2
+    const memberLog = await member.get(`/workspaces/${ws}/activity`);
+    assert.equal(memberLog.status, 200);
+    const toProjId = (i) => i.project?._id || i.project;
+    const memberProjects = new Set(memberLog.data.items.map(toProjId).filter(Boolean));
+    assert.ok(!memberProjects.has(proj2._id), 'Member không thấy log dự án không thuộc');
+    // Owner là ProjectMember của proj2 → thấy log proj2
+    const ownerLog = await owner.get(`/workspaces/${ws}/activity`);
+    assert.equal(ownerLog.status, 200);
+    const ownerProjects = new Set(ownerLog.data.items.map(toProjId).filter(Boolean));
+    assert.ok(ownerProjects.has(proj2._id), 'Owner thấy log dự án bí mật vì là thành viên');
+    assert.ok(ownerLog.data.total >= memberLog.data.total, 'Owner thấy ít nhất bằng Member');
+  });
+
+  test('lọc nhật ký theo ngày from/to hoạt động đúng', async () => {
+    const { owner, ws, pid } = await permissionFixture();
+    // Dùng mốc rõ ràng: gần đây vs 10 ngày trước để tránh nhập nhằng timezone
+    const recentTs = new Date(Date.now() - 3600000);       // 1 giờ trước
+    const oldTs    = new Date(Date.now() - 10 * 86400000); // 10 ngày trước
+    await db.prisma.activity.createMany({
+      data: [
+        { workspace: ws, project: pid, actor: seed.users.maianh.id, action: 'Log gần đây', entityType: 'task', entityLabel: 'RECENT', createdAt: recentTs },
+        { workspace: ws, project: pid, actor: seed.users.maianh.id, action: 'Log cũ 10 ngày', entityType: 'task', entityLabel: 'OLD10', createdAt: oldTs },
+      ],
+    });
+    // Lọc từ 5 ngày trước đến NGÀY MAI (UTC) để đảm bảo cuối ngày VN (+7) vẫn nằm trong khoảng
+    const fromDate = new Date(Date.now() - 5 * 86400000).toISOString().slice(0, 10);
+    const toDate   = new Date(Date.now() + 24 * 3600000).toISOString().slice(0, 10); // ngày mai UTC
+    const r = await owner.get(`/workspaces/${ws}/activity?from=${fromDate}&to=${toDate}`);
+    assert.equal(r.status, 200);
+    const labels = r.data.items.map((i) => i.entityLabel);
+    assert.ok(labels.includes('RECENT'), 'Log 1 giờ trước phải nằm trong khoảng from=5ngày to=ngàymai');
+    assert.ok(!labels.includes('OLD10'), 'Log 10 ngày trước phải ngoài khoảng');
+  });
+
+  test('lọc nhật ký theo ngày sai định dạng trả 400', async () => {
+    const { owner, ws } = await permissionFixture();
+    assert.equal((await owner.get(`/workspaces/${ws}/activity?from=not-a-date`)).status, 400);
+    assert.equal((await owner.get(`/workspaces/${ws}/activity?to=32/13/2026`)).status, 400);
+  });
+
+  test('nhật ký không có API sửa/xóa (chỉ thêm)', async () => {
+    const { owner, ws } = await permissionFixture();
+    const list = await owner.get(`/workspaces/${ws}/activity`);
+    assert.equal(list.status, 200);
+    if (list.data.items.length > 0) {
+      const id = list.data.items[0]._id;
+      assert.equal((await owner.del(`/workspaces/${ws}/activity/${id}`)).status, 404, 'Không có API xóa log');
+      assert.equal((await owner.patch(`/workspaces/${ws}/activity/${id}`, { action: 'Sửa' })).status, 404, 'Không có API sửa log');
+    }
+  });
+
+  test('xuất CSV: định dạng đúng, header tiếng Việt, dữ liệu có thể parse', async () => {
+    const { owner, ws, pid, create } = await permissionFixture();
+    const task = await create({ title: 'Task Xuất CSV' });
+    await owner.patch(`/tasks/${task._id}`, { title: 'Task Xuất CSV Đã Sửa', version: task.version });
+    const r = await owner.get(`/workspaces/${ws}/activity.csv`);
+    assert.equal(r.status, 200);
+    const csv = r.data;
+    assert.ok(typeof csv === 'string', 'Response phải là string CSV');
+    // Node.js fetch().text() tự strip BOM nên kiểm tra nội dung header thay vì BOM byte
+    // CSV phải chứa các cột tiếng Việt
+    assert.ok(csv.includes('Thời gian'), 'Phải có cột Thời gian');
+    assert.ok(csv.includes('Hành động'), 'Phải có cột Hành động');
+    assert.ok(csv.includes('Người thực hiện'), 'Phải có cột Người thực hiện');
+    assert.ok(csv.includes('Đối tượng'), 'Phải có cột Đối tượng');
+    // Dữ liệu phải có ít nhất 2 dòng (header + ít nhất 1 bản ghi)
+    const lines = csv.split(/\r?\n/).filter(Boolean);
+    assert.ok(lines.length >= 2, 'CSV phải có header và ít nhất 1 bản ghi');
+  });
+
+  test('CSV chống formula injection: =, +, -, @ bị escape', () => {
+    // Kiểm tra trực tiếp hàm csvCell
+    assert.equal(csvCell('=HYPERLINK("http://evil.com","click")'), `"'=HYPERLINK(""http://evil.com"",""click"")"`);
+    assert.equal(csvCell('+1'), "'+1");
+    assert.equal(csvCell('-1'), "'-1");
+    assert.equal(csvCell('@SUM(A1)'), "'@SUM(A1)");
+    assert.equal(csvCell('\tTAB'), "'\tTAB");
+    // Giá trị bình thường không bị escape
+    assert.equal(csvCell('bình thường'), 'bình thường');
+    assert.equal(csvCell('Tạo workspace'), 'Tạo workspace');
+    // Giá trị có dấu phẩy hoặc ngoặc kép phải được bao
+    assert.ok(csvCell('a,b').startsWith('"'));
+    assert.ok(csvCell('say "hello"').includes('""'));
+  });
+
+  test('lọc nhật ký theo entityType trả đúng loại bản ghi', async () => {
+    const { owner, ws, pid, create } = await permissionFixture();
+    const task = await create();
+    await owner.patch(`/tasks/${task._id}`, { title: 'Đổi tên', version: task.version });
+    const r = await owner.get(`/workspaces/${ws}/activity?entityType=task`);
+    assert.equal(r.status, 200);
+    assert.ok(r.data.items.every((i) => i.entityType === 'task'), 'Chỉ trả log loại task');
+  });
+
+  test('phân trang nhật ký: page/limit hoạt động đúng', async () => {
+    const { owner, ws, pid } = await permissionFixture();
+    // Tạo 25 log tuần tự (khác createdAt) để orderBy ổn định
+    for (let i = 0; i < 25; i++) {
+      await db.prisma.activity.create({
+        data: {
+          workspace: ws, project: pid, actor: seed.users.maianh.id,
+          action: `Hành động ${i}`, entityType: 'task', entityLabel: `PAG${i}`,
+          createdAt: new Date(Date.now() - (25 - i) * 1000), // cách nhau 1 giây
+        },
+      });
+    }
+    const page1 = await owner.get(`/workspaces/${ws}/activity?page=1&limit=10`);
+    assert.equal(page1.status, 200);
+    assert.equal(page1.data.items.length, 10);
+    assert.equal(page1.data.page, 1);
+    assert.equal(page1.data.limit, 10);
+    assert.ok(page1.data.total >= 25);
+    const page2 = await owner.get(`/workspaces/${ws}/activity?page=2&limit=10`);
+    assert.equal(page2.status, 200);
+    assert.equal(page2.data.items.length, 10);
+    // Không trùng id giữa 2 trang (dùng Set intersection)
+    const ids1 = new Set(page1.data.items.map((i) => i._id));
+    const ids2 = new Set(page2.data.items.map((i) => i._id));
+    const overlap = [...ids2].filter((id) => ids1.has(id));
+    assert.equal(overlap.length, 0, `Không được trùng bản ghi giữa 2 trang, trùng: ${overlap.length}`);
+    // Tổng 3 trang phải >= 25 bản ghi duy nhất
+    const page3 = await owner.get(`/workspaces/${ws}/activity?page=3&limit=10`);
+    const allIds = new Set([...ids1, ...ids2, ...page3.data.items.map((i) => i._id)]);
+    assert.ok(allIds.size >= 25, `Tổng bản ghi duy nhất trên 3 trang phải >= 25, thực tế: ${allIds.size}`);
+  });
+
+  test('người ngoài workspace không xem được nhật ký', async () => {
+    const { ws } = await permissionFixture();
+    const outsider = new Client();
+    await outsider.post('/auth/register', { name: 'Ngoài', email: `ngoai-act-${++fixtureNumber}@x.vn`, password: 'Abcdefg1', acceptTerms: true });
+    const mail = await db.prisma.outbox.findFirst({ where: { to: `ngoai-act-${fixtureNumber}@x.vn` } });
+    await outsider.post('/auth/verify-email', { token: new URL(mail.link).searchParams.get('token') });
+    assert.equal((await outsider.get(`/workspaces/${ws}/activity`)).status, 404);
+    assert.equal((await outsider.get(`/workspaces/${ws}/activity.csv`)).status, 404);
   });
 });

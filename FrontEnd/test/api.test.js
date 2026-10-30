@@ -5,6 +5,29 @@ import { ApiError, download, onUnauthorized, request } from '../src/lib/api.js';
 const response = (status, body = {}) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 beforeEach(() => new Promise((resolve) => setTimeout(resolve, 5)));
 
+test('401 đang chờ từ phiên ẩn danh không đăng xuất phiên vừa xác minh', async (t) => {
+  let finishRefresh, refreshStarted;
+  const started = new Promise((resolve) => { refreshStarted = resolve; });
+  const delayed = new Promise((resolve) => { finishRefresh = resolve; });
+  let loggedOut = 0;
+  t.after(onUnauthorized(() => loggedOut++));
+  t.mock.method(globalThis, 'fetch', async (url) => {
+    if (url === '/api/auth/verify-email') return response(200);
+    if (url === '/api/auth/refresh') { refreshStarted(); return delayed; }
+    return response(401);
+  });
+  const oldIdentity = request('GET', '/me');
+  const rejected = assert.rejects(oldIdentity, (e) => e.status === 401);
+  await started;
+  await request('POST', '/auth/verify-email', { token: 'test' });
+  finishRefresh(response(401));
+  await rejected;
+  assert.equal(loggedOut, 0);
+  await new Promise((resolve) => setTimeout(resolve, 5));
+  await assert.rejects(request('GET', '/me'), (e) => e.status === 401);
+  assert.equal(loggedOut, 1, 'a 401 for the current session still logs out');
+});
+
 test('download: lỗi mạng được chuẩn hóa; hết phiên thật mới phát unauthorized', async (t) => {
   let loggedOut = 0;
   t.after(onUnauthorized(() => loggedOut++));

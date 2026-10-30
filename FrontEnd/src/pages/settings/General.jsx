@@ -1,3 +1,4 @@
+import { t as tr, useI18n } from '../../lib/i18n.js';
 import { useState } from 'react';
 import { Field, Notice, Spinner } from '../../components/ui.jsx';
 import { api } from '../../lib/api.js';
@@ -5,6 +6,7 @@ import { useApp, useToast } from '../../lib/app.jsx';
 import { ROLE, fmtDate } from '../../lib/format.js';
 
 export default function General() {
+  useI18n();
   const { ws, role, reloadWorkspace, loadMe } = useApp();
   const toast = useToast();
   const [name, setName] = useState(ws.workspace.name);
@@ -15,7 +17,7 @@ export default function General() {
     try {
       await api.patch(`/workspaces/${ws.workspace._id}`, { name });
       await Promise.all([reloadWorkspace(), loadMe()]);
-      toast('Đã lưu thông tin workspace');
+      toast(tr("Đã lưu thông tin workspace"));
     } catch (e) {
       toast(e.message, 'error');
     } finally {
@@ -25,27 +27,26 @@ export default function General() {
   return (
     <div className="grid gap-5 lg:grid-cols-[1fr_320px]">
       <div className="card space-y-4 p-5">
-        <Field label="Tên workspace">
+        <Field label={tr("Tên workspace")}>
           <input className="input" value={name} disabled={!isAdmin} onChange={(e) => setName(e.target.value)} />
         </Field>
-        <Field label="Địa chỉ">
+        <Field label={tr("Địa chỉ")}>
           <input className="input" value={`taskflow.app/${ws.workspace.slug}`} disabled />
         </Field>
         {isAdmin ? (
           <button className="btn-primary" onClick={save} disabled={busy || !name.trim() || name === ws.workspace.name}>
-            {busy && <Spinner />}Lưu thay đổi
-          </button>
+            {busy && <Spinner />}{tr("Lưu thay đổi")}</button>
         ) : (
-          <Notice>Chỉ Owner/Admin được sửa thông tin workspace.</Notice>
+          <Notice>{tr("Chỉ Owner/Admin được sửa thông tin workspace.")}</Notice>
         )}
       </div>
       <div className="card space-y-2 p-5 text-body-sm">
         {[
-          ['Gói', ws.workspace.plan],
-          ['Quy mô', `${ws.workspace.size} người`],
-          ['Vai trò của bạn', ROLE[role]],
-          ['Ngày tạo', fmtDate(ws.workspace.createdAt, { year: true })],
-          ['Số dự án', ws.projects.length],
+          [tr("Gói"), ws.workspace.plan],
+          [tr("Quy mô"), tr("{0} người", [ws.workspace.size])],
+          [tr("Vai trò của bạn"), ROLE[role]],
+          [tr("Ngày tạo"), fmtDate(ws.workspace.createdAt, { year: true })],
+          [tr("Số dự án"), ws.projects.length],
         ].map(([k, v]) => (
           <div key={k} className="flex justify-between">
             <span className="text-slate-500">{k}</span>

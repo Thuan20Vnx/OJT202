@@ -1,3 +1,4 @@
+import { t as tr } from '../lib/i18n.js';
 import { Component } from 'react';
 import { Icon } from './ui.jsx';
 
@@ -8,7 +9,7 @@ export default class ErrorBoundary extends Component {
     return { error };
   }
   componentDidCatch(error, info) {
-    console.error('[ui] Lỗi hiển thị trang:', error, info?.componentStack);
+    console.error(tr("[ui] Lỗi hiển thị trang:"), error, info?.componentStack);
   }
   render() {
     if (!this.state.error) return this.props.children;
@@ -18,11 +19,9 @@ export default class ErrorBoundary extends Component {
           <span className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-rose-50 text-rose-500">
             <Icon name="error" size={26} />
           </span>
-          <p className="text-headline-sm text-slate-900">Trang gặp lỗi khi hiển thị</p>
+          <p className="text-headline-sm text-slate-900">{tr("Trang gặp lỗi khi hiển thị")}</p>
           <p className="mt-1 text-body-sm text-slate-500">{String(this.state.error.message || this.state.error)}</p>
-          <button className="btn-primary mt-4" onClick={() => this.setState({ error: null })}>
-            Thử lại
-          </button>
+          <button className="btn-primary mt-4" onClick={() => this.setState({ error: null })}>{tr("Thử lại")}</button>
         </div>
       </div>
     );

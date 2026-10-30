@@ -1,7 +1,17 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from './api.js';
 import { useLoad } from './app.jsx';
 import { getSocket } from './socket.js';
+
+/** Chỉ gửi tìm kiếm sau khi người dùng ngừng gõ. */
+export function useDebouncedValue(value, delay = 300) {
+  const [settled, setSettled] = useState(value);
+  useEffect(() => {
+    const timer = setTimeout(() => setSettled(value), delay);
+    return () => clearTimeout(timer);
+  }, [value, delay]);
+  return settled;
+}
 
 /** Quyền luôn được tải lại khi mở dự án hoặc nhận sự kiện resync. */
 export function useProjectInfo(projectId) {
@@ -35,6 +45,6 @@ export function useSocketEvent(event, handler, deps = []) {
     const s = getSocket();
     s.on(event, handler);
     return () => s.off(event, handler);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [event, ...deps]);
 }

@@ -1,4 +1,4 @@
-// Review probes, run explicitly; not part of the normal *.test.js suite.
+// Regressions for review findings; run on every npm test and CI build.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { localMeeting, extractActions } from '../src/features/meeting.js';

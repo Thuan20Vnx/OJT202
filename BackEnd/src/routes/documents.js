@@ -55,11 +55,15 @@ const ALLOWED = {
 };
 // Chữ ký đầu tệp (magic bytes) để chặn đổi đuôi
 const MAGIC = {
-  '.pdf': (b) => b.subarray(0, 4).toString() === '%PDF',
-  '.png': (b) => b[0] === 0x89 && b.subarray(1, 4).toString() === 'PNG',
-  '.jpg': (b) => b[0] === 0xff && b[1] === 0xd8,
-  '.jpeg': (b) => b[0] === 0xff && b[1] === 0xd8,
-  '.txt': (b) => !b.includes(0),
+  '.pdf': (b) => /^%PDF-[12]\.\d/.test(b.subarray(0, 8).toString('ascii')),
+  '.png': (b) => b.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])),
+  '.jpg': (b) => b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff,
+  '.jpeg': (b) => b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff,
+  '.txt': (b) => {
+    if (b.includes(0)) return false;
+    try { new TextDecoder('utf-8', { fatal: true }).decode(b); return true; }
+    catch { return false; }
+  },
 };
 
 const upload = multer({
@@ -87,17 +91,17 @@ async function storeFiles(req, project, taskId) {
   // Kiểm tra cả lô trước khi ghi; lỗi tệp thứ hai không để tệp thứ nhất lưu dở dang.
   for (const file of req.files || []) {
     const ext = path.extname(file.originalname).toLowerCase();
+    parse(z.string().trim().min(1).max(200), fixName(file.originalname));
     if (!MAGIC[ext](file.buffer)) throw badRequest(`${fixName(file.originalname)}: nội dung tệp không khớp định dạng`);
   }
   const written = [];
   try {
     return await withWorkspaceLock(project.workspace, async (tx) => {
       assertWrite(await projectAccess(req.user.id, project.id, tx));
-      if (taskId && !(await tx.task.findFirst({ where: { id: taskId, project: project.id } }))) throw badRequest('Công việc không còn thuộc dự án');
+      if (taskId && !(await tx.task.findFirst({ where: { deletedAt: null, id: taskId, project: project.id } }))) throw badRequest('Công việc không còn thuộc dự án');
       const out = [];
       for (const file of req.files || []) {
         const ext = path.extname(file.originalname).toLowerCase();
-        if (!MAGIC[ext](file.buffer)) throw badRequest(`${fixName(file.originalname)}: nội dung tệp không khớp định dạng`);
         const key = `${randomToken(16)}${ext}`;
         await fs.promises.writeFile(path.join(config.uploadDir, key), file.buffer);
         written.push(key);
@@ -165,17 +169,16 @@ router.get('/projects/:projectId/documents', middlewareProject(), async (req, re
   res.json({ documents: docs, total, page, limit, counts });
 });
 
-router.post('/projects/:projectId/documents/upload', middlewareProject(), upload.array('files', 5), async (req, res) => {
-  assertWrite(req.pa);
+router.post('/projects/:projectId/documents/upload', middlewareProject(), (req, _res, next) => { assertWrite(req.pa); next(); }, upload.array('files', 5), async (req, res) => {
   let taskId;
   if (req.body.task) {
-    const t = isId(req.body.task) ? await prisma.task.findFirst({ where: { id: req.body.task, project: req.pa.project.id }, select: { id: true } }) : null;
+    const t = isId(req.body.task) ? await prisma.task.findFirst({ where: { deletedAt: null, id: req.body.task, project: req.pa.project.id }, select: { id: true } }) : null;
     if (!t) throw badRequest('Công việc không thuộc dự án');
     taskId = t.id;
   }
   if (!req.files?.length) throw badRequest('Chưa chọn tệp');
   const docs = await storeFiles(req, req.pa.project, taskId);
-  emitProject(req.pa.project.id, 'documents:changed', {});
+  await emitProject(req.pa.project.id, 'documents:changed', { action: 'upload', documentIds: docs.map((d) => d.id), sourceInvalidated: true });
   res.status(201).json({ documents: docs });
 });
 
@@ -187,7 +190,7 @@ router.post('/projects/:projectId/documents', middlewareProject(), async (req, r
   );
   let task = null;
   if (body.task) {
-    const t = isId(body.task) ? await prisma.task.findFirst({ where: { id: body.task, project: req.pa.project.id }, select: { id: true } }) : null;
+    const t = isId(body.task) ? await prisma.task.findFirst({ where: { deletedAt: null, id: body.task, project: req.pa.project.id }, select: { id: true } }) : null;
     if (!t) throw badRequest('Công việc không thuộc dự án');
     task = t.id;
   }
@@ -195,7 +198,7 @@ router.post('/projects/:projectId/documents', middlewareProject(), async (req, r
   const content = body.content;
   const doc = await withWorkspaceLock(req.pa.project.workspace, async (tx) => {
     assertWrite(await projectAccess(req.user.id, req.pa.project.id, tx));
-    if (task && !(await tx.task.findFirst({ where: { id: task, project: req.pa.project.id } }))) throw badRequest('Công việc không còn thuộc dự án');
+    if (task && !(await tx.task.findFirst({ where: { deletedAt: null, id: task, project: req.pa.project.id } }))) throw badRequest('Công việc không còn thuộc dự án');
     const doc = await tx.document.create({
       data: {
         workspace: req.pa.project.workspace,
@@ -223,7 +226,7 @@ router.post('/projects/:projectId/documents', middlewareProject(), async (req, r
     });
     return doc;
   });
-  emitProject(req.pa.project.id, 'documents:changed', {});
+  await emitProject(req.pa.project.id, 'documents:changed', { action: 'create', documentIds: [doc.id], version: doc.version, sourceInvalidated: true });
   res.status(201).json({ document: doc });
 });
 
@@ -270,7 +273,7 @@ router.patch('/documents/:id', async (req, res) => {
       name: z.string().trim().min(1).max(200).optional(),
       content: textBody.optional(),
       restoreVersion: z.number().int().min(1).max(2147483647).optional(),
-      version: z.number().int().min(1).max(2147483647).optional(),
+      version: z.number().int().min(1).max(2147483647),
     }),
     req.body,
   );
@@ -284,7 +287,7 @@ router.patch('/documents/:id', async (req, res) => {
   const updated = await withWorkspaceLock(doc.workspace, async (tx) => {
     const fresh = await docAccess(req.user.id, doc.id, tx);
     assertWrite(fresh.access);
-    if (fresh.doc.version !== (body.version ?? doc.version)) throw conflict('Tài liệu đã được cập nhật. Hãy tải lại và đối chiếu nội dung trước khi lưu.');
+    if (fresh.doc.version !== body.version) throw conflict('Tài liệu đã được cập nhật. Hãy tải lại và đối chiếu nội dung trước khi lưu.', { version: fresh.doc.version });
     const data = {};
     if (body.name) data.name = body.name;
     if (content !== undefined || body.name) {
@@ -311,17 +314,19 @@ router.patch('/documents/:id', async (req, res) => {
       entityType: 'file',
       entityId: updated.id,
       entityLabel: updated.name,
-      after: `v${updated.version}`,
+      before: { name: fresh.doc.name, version: fresh.doc.version },
+      after: { name: updated.name, version: updated.version },
     });
     return updated;
   });
-  emitProject(updated.project, 'documents:changed', {});
+  await emitProject(updated.project, 'documents:changed', { action: 'update', documentIds: [updated.id], version: updated.version, sourceInvalidated: true });
   res.json({ document: updated });
 });
 
 // Tải xuống qua backend proxy: luôn kiểm tra quyền, không lộ đường dẫn lưu trữ
 router.get('/documents/:id/download', async (req, res) => {
   const { doc } = await docAccess(req.user.id, req.params.id);
+  res.setHeader('Cache-Control', 'private, no-store');
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(doc.name)}`);
   if (originalUpload(doc)) {
@@ -354,7 +359,7 @@ router.delete('/documents/:id', async (req, res) => {
     await logActivityIn(tx, { workspace: doc.workspace, project: doc.project, actor: req.user.id, action: 'Xóa tệp', entityType: 'file', entityId: doc.id, entityLabel: doc.name });
   });
   if (doc.storageKey) await fs.promises.rm(path.join(config.uploadDir, path.basename(doc.storageKey)), { force: true });
-  emitProject(doc.project, 'documents:changed', {});
+  await emitProject(doc.project, 'documents:changed', { action: 'delete', documentIds: [doc.id], sourceInvalidated: true });
   res.json({ ok: true });
 });
 
