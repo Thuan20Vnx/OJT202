@@ -27,7 +27,7 @@ const { seedDemo, DEMO_PASSWORD } = await import('../src/seed.js');
 const { csvCell } = await import('../src/utils/security.js');
 const db = await import('../src/db.js');
 const { initRealtime, emitProject } = await import('../src/services/realtime.js');
-const { projectOverview, riskAlerts, workload } = await import('../src/services/metrics.js');
+const { projectOverview, riskAlerts, weekRange, workload } = await import('../src/services/metrics.js');
 const { config } = await import('../src/config.js');
 
 let server;
@@ -986,16 +986,30 @@ describe('Trợ lý AI (U021–U027)', () => {
 
   test('cảnh báo rủi ro dựa trên quy tắc', async () => {
     const c = await new Client().login('mai.anh@nhom24.edu.vn');
-    // Tải tuần phụ thuộc thứ trong tuần => hạ giờ khả dụng của Thuận để quy tắc quá tải luôn kích hoạt
-    // (TF-103 đến hạn hôm nay còn 5 giờ > 4 giờ khả dụng)
     const member = `/workspaces/${seed.workspace.id}/members/${seed.users.thuan.id}`;
-    await c.patch(member, { weeklyHours: 4 });
-    const r = await c.get(`/projects/${seed.projects.website.id}/risks`);
-    await c.patch(member, { weeklyHours: 20 });
-    const types = new Set(r.data.open.map((a) => a.type));
-    assert.ok(types.has('overdue'));
-    assert.ok(types.has('overload'));
-    assert.ok(r.data.open.some((a) => a.type === 'overload' && a.owner._id === seed.users.thuan.id));
+    const membership = await db.prisma.membership.findUnique({ where: { workspace_user: { workspace: seed.workspace.id, user: seed.users.thuan.id } } });
+    const dueDate = new Date(weekRange().end.getTime() - 60000).toISOString();
+    const task = await c.post(`/projects/${seed.projects.website.id}/tasks`, {
+      title: 'Việc lá để kiểm tra cảnh báo quá tải',
+      assignee: seed.users.thuan.id,
+      dueDate,
+      estimateHours: 5,
+    });
+    assert.equal(task.status, 201, JSON.stringify(task.data));
+    const updated = await c.patch(member, { weeklyHours: 4 });
+    assert.equal(updated.status, 200, JSON.stringify(updated.data));
+    try {
+      const r = await c.get(`/projects/${seed.projects.website.id}/risks`);
+      const types = new Set(r.data.open.map((a) => a.type));
+      assert.ok(types.has('overdue'));
+      assert.ok(types.has('overload'));
+      assert.ok(r.data.open.some((a) => a.type === 'overload' && a.owner._id === seed.users.thuan.id));
+    } finally {
+      const restored = await c.patch(member, { weeklyHours: membership.weeklyHours });
+      assert.equal(restored.status, 200, JSON.stringify(restored.data));
+      const deleted = await c.del(`/tasks/${task.data.task._id}`);
+      assert.equal(deleted.status, 200, JSON.stringify(deleted.data));
+    }
   });
 });
 
@@ -1681,6 +1695,11 @@ describe('Lộc: phân quyền và nghiệp vụ bổ sung', () => {
     assert.equal(empty.kpis.total, 0);
     assert.equal(empty.kpis.progressPct, 0);
     assert.equal(empty.riskCount, 0);
+    await create({ assignee: seed.users.nhu.id, dueDate: new Date(Date.now() - 1000).toISOString() });
+    const overview = (await owner.get(`/projects/${pid}/overview`)).data;
+    assert.equal(overview.kpis.overdue, 1);
+    assert.equal(overview.overdue[0].assignee._id, seed.users.nhu.id);
+    assert.equal(overview.overdue[0].assignee.name, seed.users.nhu.name);
     const parent = await create({ checklist: [{ text: 'Bước 1', done: false }] });
     const child = await create({ parent: parent._id, status: 'review' });
     assert.equal((await owner.patch(`/tasks/${child._id}`, { status: 'done', version: child.version })).status, 200);

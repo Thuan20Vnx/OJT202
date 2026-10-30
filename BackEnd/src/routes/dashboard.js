@@ -28,6 +28,7 @@ router.get('/projects/:projectId/overview', middlewareProject(), async (req, res
     riskAlerts(id, { project, load: loadP }),
     prisma.activity.findMany({ where: { project: id }, orderBy: { createdAt: 'desc' }, take: 6 }).then((r) => populate(r, 'actor', 'user', USER)),
   ]);
+  await populate(ov.overdue, 'assignee', 'user', { name: true, title: true });
   res.json({
     kpis: {
       total: ov.total,
@@ -37,7 +38,7 @@ router.get('/projects/:projectId/overview', middlewareProject(), async (req, res
       blocked: ov.blocked.length,
       velocity: ov.velocity,
     },
-    overdue: ov.overdue.map(brief),
+    overdue: ov.overdue.map((t) => ({ ...brief(t), assignee: t.assignee })),
     blocked: ov.blocked.map(brief),
     byStatus: ov.byStatus,
     burndown: ov.burndown,
