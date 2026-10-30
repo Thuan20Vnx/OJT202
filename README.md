@@ -239,3 +239,7 @@ Giữ thư mục `shared/` khi sao chép dự án. Cài lại dependency và gen
 Production cần `NODE_ENV=production`, `SEED_DEMO=false`, JWT_SECRET ít nhất 32 ký tự ngẫu nhiên, AI_SERVICE_KEY và cấu hình SMTP ở trên. Mặc định không tin header proxy; đặt `TRUST_PROXY` thành IP/CIDR của reverse proxy thực tế (ví dụ `loopback` nếu proxy cùng máy), không bật tin mọi địa chỉ. `npm start` tự nó không đặt NODE_ENV. Không coi outbox demo là email đã gửi.
 
 Ngày chót chỉ nhập ngày được hiểu hết ngày theo timezone hồ sơ; báo cáo, quota và số liệu chung dùng giờ Việt Nam. Không thay đổi ngầm timestamp các deadline cũ.
+
+## Hoàng Anh — Sprint 2 (30/10/2026)
+
+Đối chiếu U011-T3, U015-T1, U016-T2, U018-T1, U020-T2 và các task được giao review: [báo cáo triển khai, API, migration và bằng chứng](docs/HOANG_ANH_SPRINT2_2026-10-30.md). Gồm tài liệu có version bắt buộc, thông báo nhiều tab, dependency/preview xóa, workload task lá và capacity từng tuần, activity/CSV theo quyền. Cài lại dependency sau pull; backend tự áp dụng migration `20261030090000_weekly_capacity`.

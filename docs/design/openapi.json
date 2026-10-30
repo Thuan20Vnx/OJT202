@@ -3082,6 +3082,95 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Ngày hoặc timestamp có offset, theo timezone profile; không sau to."
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Date-only bao gồm đến cuối ngày profile."
+          },
+          {
+            "in": "query",
+            "name": "actor",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "query",
+            "name": "project",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "query",
+            "name": "entityType",
+            "required": false,
+            "schema": {
+              "enum": [
+                "task",
+                "project",
+                "member",
+                "file",
+                "workspace",
+                "comment",
+                "ai"
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "action",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            }
+          },
+          {
+            "in": "query",
+            "name": "search",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 2000
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
           }
         ],
         "responses": {
@@ -3178,6 +3267,85 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Ngày hoặc timestamp có offset, theo timezone profile; không sau to."
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Date-only bao gồm đến cuối ngày profile."
+          },
+          {
+            "in": "query",
+            "name": "actor",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "query",
+            "name": "project",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "query",
+            "name": "entityType",
+            "required": false,
+            "schema": {
+              "enum": [
+                "task",
+                "project",
+                "member",
+                "file",
+                "workspace",
+                "comment",
+                "ai"
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "action",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            }
+          },
+          {
+            "in": "query",
+            "name": "search",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 2000
+            }
+          },
+          {
+            "in": "query",
+            "name": "columns",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Danh sách không trùng, ngăn bằng dấu phẩy: time,actor,action,entity,before,after,project."
           }
         ],
         "responses": {
@@ -7072,6 +7240,18 @@
               "pattern": "^[a-f0-9]{64}$"
             },
             "description": "Token từ deletion-preview; 409 DELETE_CHANGED nếu phạm vi đã đổi trước khi xác nhận."
+          },
+          {
+            "in": "query",
+            "name": "confirm",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true"
+              ]
+            },
+            "description": "Bắt buộc xác nhận khi có task con; UI luôn dùng preview và impact."
           }
         ],
         "responses": {
@@ -7361,7 +7541,7 @@
           "tasks"
         ],
         "summary": "POST /tasks/{id}/dependencies",
-        "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
+        "description": "Chỉ PM active. Cùng project, không self-link/chu trình; khóa workspace và kiểm lại quyền. Thêm lặp là no-op, không tăng version/audit.",
         "x-source": "BackEnd/src/routes/tasks.js:407",
         "parameters": [
           {
@@ -7455,6 +7635,25 @@
                 "schema": {
                   "$ref": "#/components/schemas/Error"
                 }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "blockedBy": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                },
+                "required": [
+                  "blockedBy"
+                ]
               }
             }
           }
@@ -8242,7 +8441,7 @@
           "documents"
         ],
         "summary": "POST /projects/{projectId}/documents/upload",
-        "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
+        "description": "Project PM/Member, active. Tối đa 5 tệp PDF/TXT/PNG/JPG, mỗi tệp <=10MB; MIME/đuôi/chữ ký và UTF-8 cho TXT. Kiểm cả lô trước ghi; rollback DB và dọn tệp khi lỗi. Không OCR cho nguồn scan.",
         "x-source": "BackEnd/src/routes/documents.js:172",
         "parameters": [
           {
@@ -8336,6 +8535,34 @@
                 "schema": {
                   "$ref": "#/components/schemas/Error"
                 }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "files": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 5,
+                    "items": {
+                      "type": "string",
+                      "format": "binary"
+                    }
+                  },
+                  "task": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                },
+                "required": [
+                  "files"
+                ]
               }
             }
           }
