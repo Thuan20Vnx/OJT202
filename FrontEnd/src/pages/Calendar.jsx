@@ -52,6 +52,7 @@ export default function Calendar() {
     [project?._id, range.start.getTime(), range.days, JSON.stringify(filter)],
   );
   useSocketEvent('task:changed', () => reload(), [reload]);
+  useSocketEvent('board:refresh', () => reload(), [reload]);
 
   if (!project) return <Empty icon="folder_off" title={tr("Chưa có dự án")} />;
 

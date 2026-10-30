@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "TaskFlow API — inventory và contract luồng chính",
-    "version": "2026-10-29",
+    "version": "2026-10-30",
     "description": "Base /api. Cookie HttpOnly tf_at; refresh tf_rt. UUID nội bộ id được serialize thành _id. Inventory bao phủ tuyến REST được khai báo trực tiếp; request/response chi tiết mới đặc tả các luồng chính, xem x-source cho phần còn lại. Các response lỗi chung là khả năng, không phải mọi endpoint đều trả mọi mã."
   },
   "servers": [
@@ -1696,7 +1696,7 @@
         ],
         "summary": "PATCH /me/notification-prefs",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/me.js:108",
+        "x-source": "BackEnd/src/routes/me.js:109",
         "parameters": [
           {
             "in": "header",
@@ -1795,7 +1795,7 @@
         ],
         "summary": "POST /me/invites/{token}/accept",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/me.js:118",
+        "x-source": "BackEnd/src/routes/me.js:119",
         "parameters": [
           {
             "in": "path",
@@ -3073,7 +3073,7 @@
         ],
         "summary": "GET /workspaces/{wsId}/activity",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/workspaces.js:304",
+        "x-source": "BackEnd/src/routes/workspaces.js:311",
         "parameters": [
           {
             "in": "path",
@@ -3081,6 +3081,95 @@
             "required": true,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Ngày hoặc timestamp có offset, theo timezone profile; không sau to."
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Date-only bao gồm đến cuối ngày profile."
+          },
+          {
+            "in": "query",
+            "name": "actor",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "query",
+            "name": "project",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "query",
+            "name": "entityType",
+            "required": false,
+            "schema": {
+              "enum": [
+                "task",
+                "project",
+                "member",
+                "file",
+                "workspace",
+                "comment",
+                "ai"
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "action",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            }
+          },
+          {
+            "in": "query",
+            "name": "search",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 2000
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
             }
           }
         ],
@@ -3169,7 +3258,7 @@
         ],
         "summary": "GET /workspaces/{wsId}/activity.csv",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/workspaces.js:320",
+        "x-source": "BackEnd/src/routes/workspaces.js:327",
         "parameters": [
           {
             "in": "path",
@@ -3178,11 +3267,97 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Ngày hoặc timestamp có offset, theo timezone profile; không sau to."
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Date-only bao gồm đến cuối ngày profile."
+          },
+          {
+            "in": "query",
+            "name": "actor",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "query",
+            "name": "project",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "in": "query",
+            "name": "entityType",
+            "required": false,
+            "schema": {
+              "enum": [
+                "task",
+                "project",
+                "member",
+                "file",
+                "workspace",
+                "comment",
+                "ai"
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "action",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 200
+            }
+          },
+          {
+            "in": "query",
+            "name": "search",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 2000
+            }
+          },
+          {
+            "in": "query",
+            "name": "columns",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Danh sách không trùng, ngăn bằng dấu phẩy: time,actor,action,entity,before,after,project."
           }
         ],
         "responses": {
           "200": {
-            "description": "Thành công. Payload cụ thể theo handler được dẫn trong x-source; endpoint CSV/download trả tệp."
+            "description": "CSV theo đúng quyền và bộ lọc ngày, chống formula injection. Vượt 10.000 bản ghi trả 400 để thu hẹp bộ lọc; không xuất thiếu âm thầm.",
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           },
           "400": {
             "description": "Dữ liệu không hợp lệ",
@@ -3265,7 +3440,7 @@
         ],
         "summary": "GET /workspaces/{wsId}/ai",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/workspaces.js:345",
+        "x-source": "BackEnd/src/routes/workspaces.js:357",
         "parameters": [
           {
             "in": "path",
@@ -3359,7 +3534,7 @@
         ],
         "summary": "PATCH /workspaces/{wsId}/ai",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/workspaces.js:365",
+        "x-source": "BackEnd/src/routes/workspaces.js:377",
         "parameters": [
           {
             "in": "path",
@@ -3466,7 +3641,7 @@
         ],
         "summary": "GET /workspaces/{wsId}/ai/calls",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/workspaces.js:390",
+        "x-source": "BackEnd/src/routes/workspaces.js:402",
         "parameters": [
           {
             "in": "path",
@@ -3562,7 +3737,7 @@
         ],
         "summary": "GET /workspaces/{wsId}/ai/calls.csv",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/workspaces.js:402",
+        "x-source": "BackEnd/src/routes/workspaces.js:414",
         "parameters": [
           {
             "in": "path",
@@ -3658,7 +3833,7 @@
         ],
         "summary": "GET /workspaces/{wsId}/my-tasks",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/workspaces.js:422",
+        "x-source": "BackEnd/src/routes/workspaces.js:434",
         "parameters": [
           {
             "in": "path",
@@ -3754,7 +3929,7 @@
         ],
         "summary": "GET /workspaces/{wsId}/search",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/workspaces.js:494",
+        "x-source": "BackEnd/src/routes/workspaces.js:506",
         "parameters": [
           {
             "in": "path",
@@ -3842,6 +4017,265 @@
         }
       }
     },
+    "/workspaces/{wsId}/members/{userId}/capacity/{week}": {
+      "get": {
+        "operationId": "capacity_get__wsId_members_userId_capacity_week",
+        "tags": [
+          "capacity"
+        ],
+        "summary": "GET /workspaces/{wsId}/members/{userId}/capacity/{week}",
+        "description": "Tuần là ngày thứ Hai YYYY-MM-DD, lưu DATE. Chưa có override thì trả weeklyHours mặc định và version=0. Workspace membership bắt buộc.",
+        "x-source": "BackEnd/src/routes/capacity.js:15",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wsId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "userId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "week",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công. Payload cụ thể theo handler được dẫn trong x-source; endpoint CSV/download trả tệp."
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập / phiên hết hạn",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền / tính năng tắt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc ngoài phạm vi quyền",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột phiên bản / nguồn thay đổi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit / quota",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dịch vụ tạm lỗi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "capacity_patch__wsId_members_userId_capacity_week",
+        "tags": [
+          "capacity"
+        ],
+        "summary": "PATCH /workspaces/{wsId}/members/{userId}/capacity/{week}",
+        "description": "Owner quản mọi membership; Admin chỉ Member/Viewer. Khóa workspace, CAS version, audit cùng transaction. Chỉ thay tuần được chọn; 409 trả capacity hiện tại.",
+        "x-source": "BackEnd/src/routes/capacity.js:25",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wsId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "userId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "week",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-taskflow",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công. Payload cụ thể theo handler được dẫn trong x-source; endpoint CSV/download trả tệp."
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập / phiên hết hạn",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền / tính năng tắt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc ngoài phạm vi quyền",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột phiên bản / nguồn thay đổi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit / quota",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dịch vụ tạm lỗi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "hours": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 80
+                  },
+                  "version": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "required": [
+                  "hours",
+                  "version"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
     "/notifications": {
       "get": {
         "operationId": "notifications_get__",
@@ -3850,7 +4284,7 @@
         ],
         "summary": "GET /notifications",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/notifications.js:13",
+        "x-source": "BackEnd/src/routes/notifications.js:19",
         "parameters": [],
         "responses": {
           "200": {
@@ -3937,7 +4371,7 @@
         ],
         "summary": "POST /notifications/{id}/read",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/notifications.js:66",
+        "x-source": "BackEnd/src/routes/notifications.js:65",
         "parameters": [
           {
             "in": "path",
@@ -4044,7 +4478,7 @@
         ],
         "summary": "POST /notifications/read-all",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/notifications.js:71",
+        "x-source": "BackEnd/src/routes/notifications.js:73",
         "parameters": [
           {
             "in": "header",
@@ -4899,7 +5333,7 @@
         ],
         "summary": "GET /workspaces/{wsId}/projects",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/projects.js:78",
+        "x-source": "BackEnd/src/routes/projects.js:84",
         "parameters": [
           {
             "in": "path",
@@ -4993,7 +5427,7 @@
         ],
         "summary": "POST /workspaces/{wsId}/projects",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/projects.js:105",
+        "x-source": "BackEnd/src/routes/projects.js:111",
         "parameters": [
           {
             "in": "path",
@@ -5100,7 +5534,7 @@
         ],
         "summary": "GET /projects/{projectId}",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/projects.js:125",
+        "x-source": "BackEnd/src/routes/projects.js:131",
         "parameters": [
           {
             "in": "path",
@@ -5194,7 +5628,7 @@
         ],
         "summary": "PATCH /projects/{projectId}",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/projects.js:146",
+        "x-source": "BackEnd/src/routes/projects.js:152",
         "parameters": [
           {
             "in": "path",
@@ -5301,7 +5735,7 @@
         ],
         "summary": "PUT /projects/{projectId}/risk-rules",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/projects.js:182",
+        "x-source": "BackEnd/src/routes/projects.js:188",
         "parameters": [
           {
             "in": "path",
@@ -5408,7 +5842,7 @@
         ],
         "summary": "POST /projects/{projectId}/archive",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/projects.js:220",
+        "x-source": "BackEnd/src/routes/projects.js:226",
         "parameters": [
           {
             "in": "path",
@@ -5515,7 +5949,7 @@
         ],
         "summary": "POST /projects/{projectId}/restore",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/projects.js:221",
+        "x-source": "BackEnd/src/routes/projects.js:227",
         "parameters": [
           {
             "in": "path",
@@ -5622,7 +6056,7 @@
         ],
         "summary": "GET /projects/{projectId}/members",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/projects.js:223",
+        "x-source": "BackEnd/src/routes/projects.js:229",
         "parameters": [
           {
             "in": "path",
@@ -5716,7 +6150,7 @@
         ],
         "summary": "POST /projects/{projectId}/members",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/projects.js:244",
+        "x-source": "BackEnd/src/routes/projects.js:250",
         "parameters": [
           {
             "in": "path",
@@ -5823,7 +6257,7 @@
         ],
         "summary": "PATCH /projects/{projectId}/members/{userId}",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/projects.js:249",
+        "x-source": "BackEnd/src/routes/projects.js:255",
         "parameters": [
           {
             "in": "path",
@@ -5936,7 +6370,7 @@
         ],
         "summary": "DELETE /projects/{projectId}/members/{userId}",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/projects.js:257",
+        "x-source": "BackEnd/src/routes/projects.js:263",
         "parameters": [
           {
             "in": "path",
@@ -6051,7 +6485,7 @@
         ],
         "summary": "POST /projects/{projectId}/transfer-manager",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/projects.js:261",
+        "x-source": "BackEnd/src/routes/projects.js:267",
         "parameters": [
           {
             "in": "path",
@@ -6604,7 +7038,7 @@
         ],
         "summary": "PATCH /tasks/{id}",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/tasks.js:292",
+        "x-source": "BackEnd/src/routes/tasks.js:293",
         "parameters": [
           {
             "in": "path",
@@ -6776,7 +7210,7 @@
         ],
         "summary": "DELETE /tasks/{id}",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/tasks.js:313",
+        "x-source": "BackEnd/src/routes/tasks.js:338",
         "parameters": [
           {
             "in": "path",
@@ -6796,6 +7230,28 @@
                 "1"
               ]
             }
+          },
+          {
+            "in": "query",
+            "name": "impact",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{64}$"
+            },
+            "description": "Token từ deletion-preview; 409 DELETE_CHANGED nếu phạm vi đã đổi trước khi xác nhận."
+          },
+          {
+            "in": "query",
+            "name": "confirm",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true"
+              ]
+            },
+            "description": "Bắt buộc xác nhận khi có task con; UI luôn dùng preview và impact."
           }
         ],
         "responses": {
@@ -6883,7 +7339,7 @@
         ],
         "summary": "POST /tasks/{id}/move",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/tasks.js:303",
+        "x-source": "BackEnd/src/routes/tasks.js:304",
         "parameters": [
           {
             "in": "path",
@@ -6908,6 +7364,102 @@
         "responses": {
           "200": {
             "description": "Thành công. Payload cụ thể theo handler được dẫn trong x-source; endpoint CSV/download trả tệp."
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập / phiên hết hạn",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền / tính năng tắt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc ngoài phạm vi quyền",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột phiên bản / nguồn thay đổi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit / quota",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dịch vụ tạm lỗi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tasks/{id}/deletion-preview": {
+      "get": {
+        "operationId": "tasks_get__tasks_id_deletion_preview",
+        "tags": [
+          "tasks"
+        ],
+        "summary": "GET /tasks/{id}/deletion-preview",
+        "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
+        "x-source": "BackEnd/src/routes/tasks.js:327",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Chỉ PM. Preview task cha/con, số liên kết phụ thuộc bị gỡ, số tệp được giữ và impactToken; không thay đổi DB."
           },
           "400": {
             "description": "Dữ liệu không hợp lệ",
@@ -6989,8 +7541,8 @@
           "tasks"
         ],
         "summary": "POST /tasks/{id}/dependencies",
-        "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/tasks.js:371",
+        "description": "Chỉ PM active. Cùng project, không self-link/chu trình; khóa workspace và kiểm lại quyền. Thêm lặp là no-op, không tăng version/audit.",
+        "x-source": "BackEnd/src/routes/tasks.js:407",
         "parameters": [
           {
             "in": "path",
@@ -7086,6 +7638,25 @@
               }
             }
           }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "blockedBy": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                },
+                "required": [
+                  "blockedBy"
+                ]
+              }
+            }
+          }
         }
       }
     },
@@ -7097,7 +7668,7 @@
         ],
         "summary": "DELETE /tasks/{id}/dependencies/{depId}",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/tasks.js:398",
+        "x-source": "BackEnd/src/routes/tasks.js:436",
         "parameters": [
           {
             "in": "path",
@@ -7212,7 +7783,7 @@
         ],
         "summary": "GET /tasks/{id}/comments",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/tasks.js:425",
+        "x-source": "BackEnd/src/routes/tasks.js:466",
         "parameters": [
           {
             "in": "path",
@@ -7306,7 +7877,7 @@
         ],
         "summary": "POST /tasks/{id}/comments",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/tasks.js:448",
+        "x-source": "BackEnd/src/routes/tasks.js:489",
         "parameters": [
           {
             "in": "path",
@@ -7431,7 +8002,7 @@
         ],
         "summary": "PATCH /comments/{id}",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/tasks.js:476",
+        "x-source": "BackEnd/src/routes/tasks.js:517",
         "parameters": [
           {
             "in": "path",
@@ -7536,7 +8107,7 @@
         ],
         "summary": "DELETE /comments/{id}",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/tasks.js:496",
+        "x-source": "BackEnd/src/routes/tasks.js:537",
         "parameters": [
           {
             "in": "path",
@@ -7643,7 +8214,7 @@
         ],
         "summary": "GET /projects/{projectId}/documents",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/documents.js:144",
+        "x-source": "BackEnd/src/routes/documents.js:148",
         "parameters": [
           {
             "in": "path",
@@ -7737,7 +8308,7 @@
         ],
         "summary": "POST /projects/{projectId}/documents",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/documents.js:182",
+        "x-source": "BackEnd/src/routes/documents.js:185",
         "parameters": [
           {
             "in": "path",
@@ -7830,6 +8401,33 @@
                 "schema": {
                   "$ref": "#/components/schemas/Error"
                 }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "content": {
+                    "type": "string",
+                    "maxLength": 200000
+                  },
+                  "task": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "name"
+                ]
               }
             }
           }
@@ -7843,8 +8441,8 @@
           "documents"
         ],
         "summary": "POST /projects/{projectId}/documents/upload",
-        "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/documents.js:168",
+        "description": "Project PM/Member, active. Tối đa 5 tệp PDF/TXT/PNG/JPG, mỗi tệp <=10MB; MIME/đuôi/chữ ký và UTF-8 cho TXT. Kiểm cả lô trước ghi; rollback DB và dọn tệp khi lỗi. Không OCR cho nguồn scan.",
+        "x-source": "BackEnd/src/routes/documents.js:172",
         "parameters": [
           {
             "in": "path",
@@ -7937,6 +8535,34 @@
                 "schema": {
                   "$ref": "#/components/schemas/Error"
                 }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "files": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 5,
+                    "items": {
+                      "type": "string",
+                      "format": "binary"
+                    }
+                  },
+                  "task": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                },
+                "required": [
+                  "files"
+                ]
               }
             }
           }
@@ -7951,7 +8577,7 @@
         ],
         "summary": "GET /documents/{id}",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/documents.js:233",
+        "x-source": "BackEnd/src/routes/documents.js:236",
         "parameters": [
           {
             "in": "path",
@@ -8045,7 +8671,7 @@
         ],
         "summary": "PATCH /documents/{id}",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/documents.js:265",
+        "x-source": "BackEnd/src/routes/documents.js:268",
         "parameters": [
           {
             "in": "path",
@@ -8141,6 +8767,38 @@
               }
             }
           }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "content": {
+                    "type": "string",
+                    "maxLength": 200000
+                  },
+                  "restoreVersion": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "version": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                },
+                "required": [
+                  "version"
+                ]
+              }
+            }
+          }
         }
       },
       "delete": {
@@ -8150,7 +8808,7 @@
         ],
         "summary": "DELETE /documents/{id}",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/documents.js:345",
+        "x-source": "BackEnd/src/routes/documents.js:350",
         "parameters": [
           {
             "in": "path",
@@ -8257,7 +8915,7 @@
         ],
         "summary": "GET /documents/{id}/revisions/{version}",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/documents.js:249",
+        "x-source": "BackEnd/src/routes/documents.js:252",
         "parameters": [
           {
             "in": "path",
@@ -8361,7 +9019,7 @@
         ],
         "summary": "GET /documents/{id}/content",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/documents.js:259",
+        "x-source": "BackEnd/src/routes/documents.js:262",
         "parameters": [
           {
             "in": "path",
@@ -8457,7 +9115,7 @@
         ],
         "summary": "GET /documents/{id}/download",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/documents.js:323",
+        "x-source": "BackEnd/src/routes/documents.js:327",
         "parameters": [
           {
             "in": "path",

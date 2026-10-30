@@ -181,11 +181,23 @@ export function AppProvider({ children }) {
     store.set('tf_project', id);
   }, []);
 
+  const unreadWorkspace = useRef(activeWsId);
+  unreadWorkspace.current = activeWsId;
+  const unreadSequence = useRef(0);
+  const refreshUnread = useCallback(async () => {
+    const sequence = ++unreadSequence.current;
+    if (!activeWsId) return;
+    const d = await api.get(`/notifications?limit=1&workspace=${activeWsId}`).catch(() => null);
+    if (d && sequence === unreadSequence.current && unreadWorkspace.current === activeWsId) setUnread(d.unread);
+  }, [activeWsId]);
+
   // Realtime: vào phòng dự án hiện tại, nhận thông báo cá nhân
   useEffect(() => {
     if (!me) return closeSocket();
     const s = getSocket();
-    const onNotif = () => setUnread((n) => n + 1);
+    const onNotif = (event) => {
+      if (!event?.workspace || event.workspace === activeWsId) refreshUnread();
+    };
     const onAccess = async () => {
       setWs(null);
       await loadMe();
@@ -193,23 +205,21 @@ export function AppProvider({ children }) {
       window.dispatchEvent(new CustomEvent('tf:resync'));
     };
     s.on('notification:new', onNotif);
+    s.on('notification:read', onNotif);
     s.on('access:changed', onAccess);
     return () => {
       s.off('notification:new', onNotif);
+      s.off('notification:read', onNotif);
       s.off('access:changed', onAccess);
     };
-  }, [me, loadMe, safeReloadWs]);
+  }, [me, loadMe, safeReloadWs, activeWsId, refreshUnread]);
   useEffect(() => {
     if (me && project?._id) joinProject(project._id);
   }, [me, project?._id]);
 
-  const refreshUnread = useCallback(async () => {
-    if (!activeWsId) return;
-    const d = await api.get(`/notifications?limit=1&workspace=${activeWsId}`).catch(() => null);
-    if (d) setUnread(d.unread);
-  }, [activeWsId]);
   useEffect(() => {
     if (me) refreshUnread();
+    else { unreadSequence.current++; setUnread(0); }
   }, [me, refreshUnread]);
 
   const logout = useCallback(async () => {
@@ -283,7 +293,7 @@ export function useLoad(fn, deps) {
       if (isCurrent()) setState((s) => ({ ...s, error, loading: false }));
       return null;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [scope]);
   useEffect(() => {
     mounted.current = true;

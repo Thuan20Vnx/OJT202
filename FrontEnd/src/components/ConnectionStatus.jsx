@@ -4,10 +4,10 @@ import { t as tr, useI18n } from '../lib/i18n.js';
 
 export default function ConnectionStatus() {
   useI18n();
-  const [connected, setConnected] = useState(() => getSocket().connected);
+  const [connected, setConnected] = useState(() => getSocket().connected && navigator.onLine !== false);
   useEffect(() => {
     const socket = getSocket();
-    const online = () => setConnected(true);
+    const online = () => setConnected(navigator.onLine !== false);
     const offline = () => setConnected(false);
     socket.on('connect', online);
     socket.on('disconnect', offline);
@@ -16,6 +16,13 @@ export default function ConnectionStatus() {
     const refresh = () => {
       if (document.visibilityState === 'visible') window.dispatchEvent(new CustomEvent('tf:resync'));
     };
+    const networkOnline = () => {
+      setConnected(socket.connected);
+      if (!socket.connected) socket.connect();
+      refresh();
+    };
+    window.addEventListener('offline', offline);
+    window.addEventListener('online', networkOnline);
     document.addEventListener('visibilitychange', refresh);
     const timer = setInterval(() => {
       if (!socket.connected && document.visibilityState === 'visible') refresh();
@@ -24,6 +31,8 @@ export default function ConnectionStatus() {
       socket.off('connect', online);
       socket.off('disconnect', offline);
       socket.off('connect_error', offline);
+      window.removeEventListener('offline', offline);
+      window.removeEventListener('online', networkOnline);
       document.removeEventListener('visibilitychange', refresh);
       clearInterval(timer);
     };

@@ -101,7 +101,10 @@ export function qs(params) {
 /** Tải tệp qua backend (cookie đi kèm) */
 export async function download(url, filename) {
   const res = await authenticatedResponse('GET', url);
-  if (!res.ok) throw new ApiError(res.status, tr("Không tải được tệp"));
+  if (!res.ok) {
+    const data = res.headers.get('content-type')?.includes('application/json') ? await readBody(res, 'json') : null;
+    throw new ApiError(res.status, data?.error || tr("Không tải được tệp"), data?.details);
+  }
   const blob = await readBody(res, 'blob');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);

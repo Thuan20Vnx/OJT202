@@ -116,7 +116,7 @@ export default function Overview() {
           <p className="mb-4 text-label-md font-normal text-slate-500">{tr("Giờ ước lượng chưa xong (đến hạn trong tuần) / giờ khả dụng")}</p>
           <div className="space-y-3">
             {data.workload
-              .filter((w) => w.role !== 'viewer')
+              .filter((w) => w.role !== 'viewer' && w.projectRole !== 'viewer')
               .map((w) => {
                 const over = w.overloaded;
                 return (
@@ -134,7 +134,8 @@ export default function Overview() {
                       </div>
                       <Progress value={w.pct == null ? 100 : Math.min(100, w.pct)} tone={over ? 'bg-rose-500' : w.pct >= 80 ? 'bg-amber-500' : 'bg-blue-600'} height="h-2" />
                       {w.missingEstimates > 0 && <p className="mt-1 text-label-md text-amber-700">{w.missingEstimates}{tr(" công việc chưa có ước lượng, chưa tính đủ tải.")}</p>}
-                      {project.status === 'active' && (role === 'owner' || (role === 'admin' && !['owner', 'admin'].includes(w.role))) && <CapacityEditor key={`${wsId}:${w.user._id}`} workspaceId={wsId} member={w} onSaved={reload} />}
+                      {w.missingDeadlines > 0 && <p className="mt-1 text-label-md text-amber-700">{tr("{0} công việc chưa có hạn, chưa tính vào tải tuần.", [w.missingDeadlines])}</p>}
+                      {project.status === 'active' && (role === 'owner' || (role === 'admin' && !['owner', 'admin'].includes(w.role))) && <CapacityEditor key={`${wsId}:${w.user._id}:${w.weekStart}`} workspaceId={wsId} member={w} onSaved={reload} />}
                     </div>
                   </div>
                 );

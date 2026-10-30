@@ -932,5 +932,15 @@ export const english = {
   "Bạn cần đồng ý điều khoản": "Please agree to the terms",
   "Vui lòng xác minh email trước khi đăng nhập": "Please verify your email before signing in",
   "Tài khoản đã bị khóa. Vui lòng liên hệ quản trị viên.": "Your account has been locked. Please contact an administrator.",
-  "1 công việc đang bị chặn bởi một việc quá hạn": "1 task is blocked by an overdue task"
+  "1 công việc đang bị chặn bởi một việc quá hạn": "1 task is blocked by an overdue task",
+  "Áp dụng cho tuần bắt đầu {0}": "Applies to the week starting {0}",
+  "{0} công việc chưa có hạn, chưa tính vào tải tuần.": "{0} tasks have no deadline and are excluded from weekly load.",
+  "Tải giá trị mới": "Load the latest value",
+  "Xóa công việc?": "Delete task?",
+  "Xóa {0} công việc; gỡ {1} liên kết phụ thuộc. Giữ lại {2} tệp trong thư viện dự án.": "Delete {0} tasks and remove {1} dependency links. Keep {2} attachments in the project library.",
+  "Có hơn 10.000 bản ghi. Hãy thu hẹp khoảng ngày hoặc bộ lọc để xuất đầy đủ.": "There are more than 10,000 records. Narrow the date range or filters to export the complete results.",
+  "Giờ khả dụng đã thay đổi. Hãy tải lại trước khi lưu.": "Capacity has changed. Load the latest value before saving.",
+  "Phạm vi xóa đã thay đổi. Hãy xem lại trước khi xác nhận.": "The deletion scope has changed. Review it again before confirming.",
+  "Gỡ phụ thuộc khi xóa công việc": "Remove dependency after task deletion",
+  "Cập nhật giờ khả dụng theo tuần": "Update weekly capacity"
 };

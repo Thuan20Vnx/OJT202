@@ -1,9 +1,10 @@
 import { t as tr, useI18n } from '../../lib/i18n.js';
-import { Fragment, useState } from 'react';
+import { Fragment, useRef, useState } from 'react';
 import { Avatar, Empty, ErrorBox, Icon, Modal, Notice, PageLoader, Pagination, Select } from '../../components/ui.jsx';
 import { api, download, qs } from '../../lib/api.js';
 import { useApp, useLoad } from '../../lib/app.jsx';
 import { fmtDate, fmtTime, isoDate } from '../../lib/format.js';
+import { useDebouncedValue, useSocketEvent } from '../../lib/hooks.js';
 
 const TONE = (a) =>
   (/Xóa|Gỡ/.test(a)
@@ -36,8 +37,13 @@ export default function Activity() {
   const [limit, setLimit] = useState(20);
   const [open, setOpen] = useState(null);
   const [exporting, setExporting] = useState(false);
+  const search = useDebouncedValue(f.search);
+  const filters = { ...f, search };
   const members = useLoad(() => api.get(`/workspaces/${wsId}/members`), [wsId]);
-  const { data, loading, error, reload } = useLoad(() => api.get(`/workspaces/${wsId}/activity${qs({ ...f, page, limit })}`), [wsId, JSON.stringify(f), page, limit]);
+  const { data, loading, error, reload } = useLoad(() => api.get(`/workspaces/${wsId}/activity${qs({ ...filters, page, limit })}`), [wsId, JSON.stringify(filters), page, limit]);
+  useSocketEvent('task:changed', () => reload(), [reload]);
+  useSocketEvent('board:refresh', () => reload(), [reload]);
+  useSocketEvent('documents:changed', () => reload(), [reload]);
   const set = (k, v) => (setF((s) => ({ ...s, [k]: v })), setPage(1));
   const active = Object.values(f).some(Boolean);
 
@@ -112,7 +118,7 @@ export default function Activity() {
             <tbody className="divide-y divide-slate-100">
               {data.items.map((a) => (
                 <Fragment key={a._id}>
-                  <tr className="cursor-pointer hover:bg-slate-50" onClick={() => setOpen(open === a._id ? null : a._id)}>
+                  <tr className="hover:bg-slate-50">
                     <td className="table-td whitespace-nowrap">
                       <p className="font-medium text-slate-800">{fmtDate(a.createdAt, { year: true })}</p>
                       <p className="font-mono text-label-md text-slate-400">{fmtTime(a.createdAt)}</p>
@@ -125,7 +131,7 @@ export default function Activity() {
                     <td className="table-td whitespace-nowrap">
                       <span className={`chip ${TONE(a.action)}`}>{tr(a.action)}</span>
                     </td>
-                    <td className="table-td max-w-[280px] truncate text-blue-700">{a.entityLabel}</td>
+                    <td className="table-td max-w-[280px] text-blue-700"><button className="max-w-full truncate text-left underline" aria-expanded={open === a._id} onClick={() => setOpen(open === a._id ? null : a._id)}>{a.entityLabel || tr(a.action)}</button></td>
                     <td className="table-td max-w-[260px]">
                       {a.before != null && <span className="mr-1 text-slate-400 line-through">{show(a.before).slice(0, 40)}</span>}
                       {a.before != null && a.after != null && <span className="text-slate-400">→ </span>}
@@ -156,32 +162,34 @@ export default function Activity() {
           <Pagination page={page} total={data.total} limit={limit} onPage={setPage} onLimit={(n) => (setLimit(n), setPage(1))} />
         </div>
       )}
-      {exporting && <ExportModal open onClose={() => setExporting(false)} wsId={wsId} filters={f} total={data?.total} />}
+      {exporting && <ExportModal open onClose={() => setExporting(false)} wsId={wsId} filters={f} />}
     </div>
   );
 }
 
-function ExportModal({ open, onClose, wsId, filters, total }) {
+function ExportModal({ open, onClose, wsId, filters }) {
   useI18n();
   const [from, setFrom] = useState(filters.from || isoDate(new Date(Date.now() - 30 * 86400000)));
   const [to, setTo] = useState(filters.to || isoDate(new Date()));
   const [cols, setCols] = useState(getColumns().map((c) => c[0]));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
+  const exportLock = useRef(false);
   const go = async () => {
-    if (busy) return;
+    if (exportLock.current) return;
+    exportLock.current = true;
     setBusy(true);
     setError(null);
     try {
       await download(`/workspaces/${wsId}/activity.csv${qs({ ...filters, from, to, columns: cols.join(',') })}`, `nhat-ky-${from}-${to}.csv`);
       onClose();
     } catch (e) { setError(e); }
-    finally { setBusy(false); }
+    finally { exportLock.current = false; setBusy(false); }
   };
   return (
     <Modal
       open={open}
-      onClose={() => { if (!busy) onClose(); }}
+      onClose={() => { if (!exportLock.current) onClose(); }}
       title={tr("Xuất nhật ký ra CSV")}
       subtitle={tr("Tải nhật ký truy vết để báo cáo tiến độ và nghiệm thu")}
       icon="download"
@@ -189,7 +197,7 @@ function ExportModal({ open, onClose, wsId, filters, total }) {
         <>
           <button className="btn-outline" onClick={onClose} disabled={busy}>{tr("Hủy")}</button>
           <button className="btn-primary" onClick={go} disabled={busy || !cols.length || !from || !to || from > to}>
-            <Icon name="download" size={16} /> {busy ? tr("Đang xuất…") : tr("Xuất CSV")}{total != null ? tr(" ({0} dòng)", [total]) : ''}
+            <Icon name="download" size={16} /> {busy ? tr("Đang xuất…") : tr("Xuất CSV")}
           </button>
         </>
       }
@@ -200,11 +208,11 @@ function ExportModal({ open, onClose, wsId, filters, total }) {
         <div className="grid grid-cols-2 gap-3">
           <label>
             <span className="label">{tr("Từ ngày")}</span>
-            <input type="date" className="input" value={from} onChange={(e) => setFrom(e.target.value)} />
+            <input type="date" className="input" disabled={busy} value={from} onChange={(e) => setFrom(e.target.value)} />
           </label>
           <label>
             <span className="label">{tr("Đến ngày")}</span>
-            <input type="date" className="input" value={to} onChange={(e) => setTo(e.target.value)} />
+            <input type="date" className="input" disabled={busy} value={to} onChange={(e) => setTo(e.target.value)} />
           </label>
         </div>
         <div>
@@ -212,7 +220,7 @@ function ExportModal({ open, onClose, wsId, filters, total }) {
           <div className="grid grid-cols-2 gap-2">
             {getColumns().map(([k, l]) => (
               <label key={k} className="flex items-center gap-2 text-body-sm">
-                <input type="checkbox" className="form-checkbox rounded text-blue-600" checked={cols.includes(k)} onChange={() => setCols(cols.includes(k) ? cols.filter((x) => x !== k) : [...cols, k])} />
+                <input type="checkbox" className="form-checkbox rounded text-blue-600" disabled={busy} checked={cols.includes(k)} onChange={() => setCols(cols.includes(k) ? cols.filter((x) => x !== k) : [...cols, k])} />
                 {l}
               </label>
             ))}

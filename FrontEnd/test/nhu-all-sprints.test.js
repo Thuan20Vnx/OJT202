@@ -56,14 +56,14 @@ test('U014: mention hỗ trợ mũi tên, Enter và Escape', async (t) => {
 
 test('U019: giờ trống không thành 0, giờ 0 được gửi đúng và lỗi giữ form', async (t) => {
   const patch = t.mock.method(api, 'patch', async () => { throw new Error('Lưu lỗi'); });
-  const tree = await mount(t, React.createElement(CapacityEditor, { workspaceId: 'ws', member: { available: 20, user: { _id: 'u', name: 'Như' } }, onSaved() {} }));
+  const tree = await mount(t, React.createElement(CapacityEditor, { workspaceId: 'ws', member: { available: 20, weekStart: '2026-10-26', capacityVersion: 0, user: { _id: 'u', name: 'Như' } }, onSaved() {} }));
   await act(() => tree.root.findByType('button').props.onClick());
   await act(() => tree.root.findByType('input').props.onChange({ target: { value: '' } }));
   await act(() => tree.root.findByType('form').props.onSubmit({ preventDefault() {} }));
   assert.equal(patch.mock.callCount(), 0);
   await act(() => tree.root.findByType('input').props.onChange({ target: { value: '0' } }));
   await act(async () => tree.root.findByType('form').props.onSubmit({ preventDefault() {} }));
-  assert.deepEqual(patch.mock.calls[0].arguments, ['/workspaces/ws/members/u', { weeklyHours: 0 }]);
+  assert.deepEqual(patch.mock.calls[0].arguments, ['/workspaces/ws/members/u/capacity/2026-10-26', { hours: 0, version: 0 }]);
   assert.equal(tree.root.findByType('input').props.value, '0');
   assert.equal(text(tree.root.findByProps({ role: 'alert' })), 'Lưu lỗi');
 });

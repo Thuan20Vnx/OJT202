@@ -45,6 +45,6 @@ export function useSocketEvent(event, handler, deps = []) {
     const s = getSocket();
     s.on(event, handler);
     return () => s.off(event, handler);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [event, ...deps]);
 }

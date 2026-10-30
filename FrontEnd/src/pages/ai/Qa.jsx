@@ -5,7 +5,7 @@ import { Avatar, ErrorBox, Icon, Notice, Spinner } from '../../components/ui.jsx
 import { api } from '../../lib/api.js';
 import { useApp, useLoad } from '../../lib/app.jsx';
 import { fmtDateTime, fmtTime, timeAgo } from '../../lib/format.js';
-import { useLatestRequest, useProjectInfo } from '../../lib/hooks.js';
+import { useLatestRequest, useProjectInfo, useSocketEvent } from '../../lib/hooks.js';
 
 const getSuggestions = () => [tr("Việc nào sắp đến hạn tuần này?"), tr("Vì sao TF-103 đang bị chặn và ai đang xử lý?"), tr("Tóm tắt quyết định trong tài liệu kiến trúc")];
 
@@ -23,6 +23,7 @@ export default function Qa({ project, onUsage, disabled }) {
   const beginRequest = useLatestRequest();
   const list = useLoad(() => api.get(`/projects/${project._id}/ai/conversations`), [project._id, conv?._id, conv?.messages?.length]);
   const scope = useLoad(() => api.get(`/projects/${project._id}/ai/sources`), [project._id]);
+  useSocketEvent('documents:changed', () => { scope.reload(); list.reload(); }, [scope.reload, list.reload]);
 
   useEffect(() => {
     end.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });

@@ -1,5 +1,6 @@
 import { populate, populateAll, prisma, subtaskCounts } from '../db.js';
 import { startOfDay, weekRange } from '../utils/dates.js';
+import { capacityWeek, currentCapacityWeek } from './capacity.js';
 export { startOfDay, weekRange } from '../utils/dates.js';
 
 const DAY = 86400000;
@@ -79,27 +80,37 @@ export async function projectOverview(projectId, { from, to, project: given, now
 export async function workload(projectId, given, now = new Date()) {
   const project = await loadProject(projectId, given);
   const { end } = weekRange(now);
-  const [tasks, memberships, users] = await Promise.all([
-    prisma.task.findMany({ where: { deletedAt: null, project: projectId, status: { not: 'done' }, assignee: { not: null }, dueDate: { lt: end } } }),
+  const week = currentCapacityWeek(now);
+  const [tasks, memberships, users, capacities, projectMembers] = await Promise.all([
+    prisma.task.findMany({ where: { deletedAt: null, project: projectId, status: { not: 'done' }, assignee: { not: null }, subtasks: { none: { deletedAt: null } } } }),
     prisma.membership.findMany({ where: { workspace: project.workspace, user: { in: project.members } } }),
     prisma.user.findMany({ where: { id: { in: project.members } }, select: { id: true, name: true, email: true, title: true } }),
+    prisma.weeklyCapacity.findMany({ where: { workspace: project.workspace, user: { in: project.members }, weekStart: capacityWeek(week) } }),
+    prisma.projectMember.findMany({ where: { project: projectId } }),
   ]);
   return users
     .map((u) => {
       const m = memberships.find((x) => x.user === u.id);
-      const mine = tasks.filter((t) => t.assignee === u.id);
+      const all = tasks.filter((t) => t.assignee === u.id);
+      const mine = all.filter((t) => t.dueDate && t.dueDate < end);
       const hours = mine.reduce((s, t) => s + remaining(t), 0);
-      const available = m?.weeklyHours ?? 20;
+      const capacity = capacities.find((c) => c.user === u.id);
+      const available = capacity?.hours ?? m?.weeklyHours ?? 20;
       return {
         user: u,
         role: m?.role,
+        projectRole: projectMembers.find((p) => p.user === u.id)?.role,
         jobTitle: m?.title,
         hours,
         available,
+        weekStart: week,
+        capacityVersion: capacity?.version ?? 0,
+        capacitySource: capacity ? 'week' : 'default',
         // Không có mẫu số thì tỷ lệ không xác định, tuyệt đối không ghi 0% khi còn việc.
         pct: available > 0 ? Math.round((hours / available) * 100) : hours > 0 ? null : 0,
         overloaded: hours > available,
         missingEstimates: mine.filter((t) => t.remainingHours == null && t.estimateHours == null).length,
+        missingDeadlines: all.filter((t) => !t.dueDate).length,
         taskIds: mine.map((t) => t.id),
         tasks: mine.map((t) => ({ id: t.id, key: t.key, title: t.title })),
       };

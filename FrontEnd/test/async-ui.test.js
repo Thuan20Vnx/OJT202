@@ -1,4 +1,4 @@
-import { beforeEach, test } from 'node:test';
+import { afterEach, beforeEach, test } from 'node:test';
 import assert from 'node:assert/strict';
 import React from 'react';
 import { act, create } from 'react-test-renderer';
@@ -12,6 +12,7 @@ import Ai from '../src/pages/Ai.jsx';
 import Qa from '../src/pages/ai/Qa.jsx';
 import Report from '../src/pages/ai/Report.jsx';
 import DraftItems from '../src/pages/ai/DraftItems.jsx';
+import { closeSocket } from '../src/lib/socket.js';
 
 const deferred = () => {
   let resolve, reject;
@@ -19,6 +20,7 @@ const deferred = () => {
   return { promise, resolve, reject };
 };
 beforeEach(() => { globalThis.window = new EventTarget(); });
+afterEach(() => closeSocket());
 const mount = async (t, element) => {
   let tree;
   await act(async () => { tree = create(element); });

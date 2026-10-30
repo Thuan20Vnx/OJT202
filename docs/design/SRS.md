@@ -1,6 +1,6 @@
 # TaskFlow — đặc tả sản phẩm đang triển khai
 
-Version 2026-10-29. Phạm vi: mã nguồn local và workbook `DN26_CPL_Mock_Project_Nhom24 (2).xlsx`, không phải biên bản nghiệm thu release. Hash source frontend/backend/AI/shared và Prisma: [manifest](source-manifest.json); tái sinh bằng `node scripts/generate-contract-docs.mjs`.
+Version 2026-10-30. Phạm vi: mã nguồn local và baseline `DN26_CPL_Mock_Project_Nhom24 (2).xlsx`; bổ sung phần Hoàng Anh Sprint 2 theo `TaskFlow_Nhom24_SuaLoiNgay.xlsx`. Đây không phải biên bản nghiệm thu release. Hash source frontend/backend/AI/shared và Prisma: [manifest](source-manifest.json); tái sinh bằng `node scripts/generate-contract-docs.mjs`.
 
 ## Người dùng và quy trình
 
@@ -18,10 +18,10 @@ Nhóm học tập/dự án nhỏ 5–20 người cần giao việc, trao đổi 
 | U009/U010 | Form/drawer, Kanban kéo thả và nút bàn phím | Version bắt buộc khi sửa; 409 giữ draft; rollback không làm mất thẻ khác; Member không tự duyệt Done |
 | U011 | My Tasks lọc người nhận/status/priority/hạn/project/search | Search debounce 300ms; phân trang 10/20/50; filter reset về trang 1; lỗi khác với kết quả rỗng |
 | U013/U014 | Subtask/checklist, thread bình luận và @mention | Chỉ người trong project được nhắc; tác giả sửa/xóa; Ctrl+Enter gửi; lỗi giữ nội dung; không gửi lặp |
-| U015 | Tài liệu text có revisions, upload/download PDF/TXT/PNG/JPG | ≤10MB/tệp, kiểm MIME/chữ ký; proxy kiểm quyền mỗi lần; không OCR; link citation mở đúng tài liệu |
-| U016/U017 | Notification dedupe, Socket.io room theo quyền | Thu hồi quyền rời room; reconnect resync; mất socket có banner + refresh 30 giây khi tab hiện; quay lại tab tải lại |
-| U018/U019 | Calendar/dependencies, overview và workload | Chặn chu trình; số liệu từ DB; remainingHours ưu tiên khi có; capacity 0 không bị coi là thiếu; chỉ Owner/Admin phù hợp được sửa capacity |
-| U020 | Activity và CSV | Phạm vi quyền hiện tại; chống ô công thức; audit không có API chỉnh/xóa |
+| U015 | Tài liệu text có revisions, upload/download PDF/TXT/PNG/JPG | ≤10MB/tệp, kiểm MIME/chữ ký đầy đủ và UTF-8; PATCH bắt buộc version, 409 giữ nội dung; proxy kiểm quyền mỗi lần; không OCR; event invalidation sau commit |
+| U016/U017 | Notification dedupe, Socket.io room theo quyền | Khởi tạo prefs đồng thời không xung đột; đọc đồng bộ nhiều tab; badge theo workspace và quyền hiện tại; reconnect resync; offline báo ngay, có refresh 30 giây khi tab hiện |
+| U018/U019 | Calendar/dependencies, overview và workload | Không self-link/cross-project/chu trình kể cả hai request đồng thời; dependency lặp không tăng version; Blocked suy ra và realtime cập nhật. Workload chỉ cộng task lá chưa Done/xóa đến hạn trước cuối tuần, gồm overdue; tách thiếu estimate/deadline; capacity workspace/user/week, 0 hợp lệ, CAS và audit |
+| U020 | Activity và CSV | Cùng ACL/bộ lọc ngày; phân trang ổn định; whitelist cột và chống ô công thức; vượt 10.000 dòng yêu cầu thu hẹp bộ lọc, không cắt dữ liệu âm thầm; audit chỉ đọc |
 | U021/U022 | AI preview/edit/approve, report draft/source/history | Không tạo task trước duyệt; approve lặp không trùng; số liệu report từ DB; nguồn đổi báo stale; lỗi lịch sử có Thử lại |
 | U023/U025 | Quota, Q&A một project có citations | ACL trước/sau AI; Viewer không gọi ask; retrieval lỗi báo lỗi; không chứng cứ từ chối; không giả index nền |
 | U026 | Rủi ro theo quy tắc | Quá hạn/blocked/overload từ DB; AI chỉ diễn giải |
@@ -43,9 +43,12 @@ Nhóm học tập/dự án nhỏ 5–20 người cần giao việc, trao đổi 
 | AI planner/apply/report publish | Theo project role | Có | Không | Không |
 | Q&A phát sinh lượt AI | Theo project role | Có | Có | Không |
 | Sửa weeklyHours | Owner: mọi membership; Admin: Member/Viewer | Chỉ nếu có quyền workspace phù hợp | Không | Không |
+| Sửa giờ khả dụng một tuần | Quyền giống weeklyHours; chỉ tuần được chọn, version bắt buộc | Theo workspace role | Không | Không |
 | Thay workspace Owner/Admin | Chỉ Owner | Theo workspace role | Không | Không |
 
 Dự án archived: chỉ đọc. Restore có kiểm tra riêng tại API project; không suy luận quyền restore từ `canManage` (false khi archived). Workspace Viewer luôn là project Viewer. Quyền cuối cùng do backend quyết định, UI chỉ hỗ trợ trải nghiệm.
+
+`Membership.weeklyHours` là mặc định. `WeeklyCapacity` khóa theo workspace/user/thứ Hai (DATE), override 0–80 giờ, giữ mặc định cho tuần chưa cấu hình. Mốc tải tuần dùng Asia/Ho_Chi_Minh thống nhất cho cả dự án. Chỉ dữ liệu project đang được phép đọc được cộng vào tải, không tổng hợp ngầm project private khác. Xóa task qua UI luôn có preview task cha/con, dependency và tệp giữ lại; token preview được kiểm tra trong transaction trước khi soft-delete.
 
 ## Trạng thái task
 

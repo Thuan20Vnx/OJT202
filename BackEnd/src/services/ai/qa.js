@@ -85,6 +85,9 @@ export async function collectSources(projectId) {
 
 export async function reportSourceRevision(projectId) {
   const [sources, project] = await Promise.all([collectSources(projectId), prisma.project.findUnique({ where: { id: projectId } })]);
-  const memberships = await prisma.membership.findMany({ where: { workspace: project.workspace }, orderBy: { id: 'asc' } });
-  return sourceFingerprint([...sources, { project, memberships }]);
+  const [memberships, capacities] = await Promise.all([
+    prisma.membership.findMany({ where: { workspace: project.workspace }, orderBy: { id: 'asc' } }),
+    prisma.weeklyCapacity.findMany({ where: { workspace: project.workspace, user: { in: project.members } }, orderBy: [{ user: 'asc' }, { weekStart: 'asc' }] }),
+  ]);
+  return sourceFingerprint([...sources, { project, memberships, capacities }]);
 }
