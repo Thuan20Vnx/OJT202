@@ -252,6 +252,7 @@ test('U003/U007/U009: SMTP register/invite → task → remaining hours → Revi
     await page.goto(`/board?task=${disposable._id}`);
     await page.getByRole('button', { name: 'Thao tác công việc', exact: true }).click();
     await page.getByRole('button', { name: 'Xóa công việc', exact: true }).click();
+    await page.getByRole('button', { name: 'Xóa tất cả', exact: true }).click();
     await expect(page.getByRole('dialog', { name: 'Chi tiết công việc' })).not.toBeVisible();
     assert.ok((await db.prisma.task.findUnique({ where: { id: disposable._id } })).deletedAt);
     await page.reload();
@@ -340,6 +341,97 @@ test('Như U009/U010: keyboard, API rollback, hai tab xung đột giữ draft v�
   } finally {
     await owner.ctx.close();
   }
+});
+
+test('Hoàng Anh Sprint 2: thông báo hai tab, mất mạng, capacity tuần, preview xóa và CSV', { timeout: 120000 }, async () => {
+  const owner = await context();
+  const member = await context();
+  const headers = { 'x-taskflow': '1' };
+  try {
+    await login(owner.page, 'mai.anh@nhom24.edu.vn');
+    await login(member.page, 'nhu@nhom24.edu.vn');
+    const wsResponse = await owner.ctx.request.post('/api/workspaces', { headers, data: { name: 'Hoàng Anh Sprint 2' } });
+    assert.equal(wsResponse.status(), 201);
+    const ws = (await wsResponse.json()).workspace._id;
+    await db.prisma.membership.create({ data: { workspace: ws, user: seed.users.nhu.id, role: 'member' } });
+    const projectResponse = await owner.ctx.request.post(`/api/workspaces/${ws}/projects`, { headers, data: { name: 'Cộng tác Sprint 2', members: [seed.users.nhu.id] } });
+    assert.equal(projectResponse.status(), 201);
+    const project = (await projectResponse.json()).project;
+    const make = async (fields) => {
+      const response = await owner.ctx.request.post(`/api/projects/${project._id}/tasks`, { headers, data: fields });
+      assert.equal(response.status(), 201);
+      return (await response.json()).task;
+    };
+    const parent = await make({ title: 'Sprint 2 parent', assignee: seed.users.nhu.id, estimateHours: 20, dueDate: new Date().toISOString() });
+    const child = await make({ title: 'Sprint 2 child', parent: parent._id, assignee: seed.users.nhu.id, estimateHours: 2, dueDate: new Date().toISOString() });
+    const dependent = await make({ title: 'Sprint 2 dependent', blockedBy: [child._id] });
+    const docResponse = await owner.ctx.request.post(`/api/projects/${project._id}/documents`, { headers, data: { name: 'Sprint 2 retained file', content: 'Giữ lại tài liệu khi xóa cây công việc.', task: parent._id } });
+    assert.equal(docResponse.status(), 201);
+    const doc = (await docResponse.json()).document;
+    for (const page of [owner.page, member.page]) {
+      await page.evaluate(({ ws, project }) => { localStorage.setItem('tf_ws', ws); localStorage.setItem('tf_project', project); }, { ws, project: project._id });
+    }
+    await member.page.goto('/notifications');
+    const second = await member.ctx.newPage();
+    await second.goto('/notifications');
+    const readAll = member.page.getByRole('button', { name: 'Đánh dấu tất cả đã đọc', exact: true });
+    await expect(readAll).toBeEnabled();
+    await member.page.getByRole('switch', { name: 'Nhắc trước hạn chót 24 giờ', exact: true }).click();
+    await expect.poll(async () => (await db.prisma.notificationPref.findUnique({ where: { user: seed.users.nhu.id } })).due_soon).toBe(false);
+    await readAll.click();
+    await expect(second.getByRole('button', { name: 'Đánh dấu tất cả đã đọc', exact: true })).toBeDisabled();
+    await member.page.screenshot({ path: path.join(artifacts, 'hoanganh-sprint2-notifications.png'), fullPage: true });
+    await member.page.setViewportSize({ width: 390, height: 844 });
+    assert.equal(await member.page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+    await member.page.screenshot({ path: path.join(artifacts, 'hoanganh-sprint2-notifications-mobile.png'), fullPage: true });
+    await member.page.setViewportSize({ width: 1366, height: 900 });
+    await member.ctx.setOffline(true);
+    await expect(member.page.getByRole('status').filter({ hasText: 'Đang kết nối lại cập nhật trực tiếp.' })).toBeVisible({ timeout: 15000 });
+    await member.ctx.setOffline(false);
+    await expect(member.page.getByRole('button', { name: 'Tải lại ngay', exact: true })).toHaveCount(0, { timeout: 15000 });
+    assert.equal((await member.ctx.request.get(`/api/documents/${doc._id}/download`)).status(), 200);
+
+    await owner.page.goto('/overview');
+    await owner.page.getByRole('button', { name: 'Chỉnh giờ khả dụng', exact: true }).nth(1).click();
+    await owner.page.getByRole('spinbutton', { name: `Giờ khả dụng ${seed.users.nhu.name}`, exact: true }).fill('0');
+    await owner.page.getByRole('button', { name: 'Lưu', exact: true }).click();
+    await expect(owner.page.getByRole('spinbutton', { name: /Giờ khả dụng/ })).toHaveCount(0);
+    const overview = await (await owner.ctx.request.get(`/api/projects/${project._id}/overview`)).json();
+    const load = overview.workload.find((w) => w.user._id === seed.users.nhu.id);
+    assert.equal(load.hours, 2, 'task cha không được tính lặp');
+    assert.equal(load.available, 0);
+    assert.equal(load.capacitySource, 'week');
+    await owner.page.screenshot({ path: path.join(artifacts, 'hoanganh-sprint2-weekly-capacity.png'), fullPage: true });
+
+    await owner.page.goto(`/board?task=${parent._id}`);
+    await owner.page.getByRole('button', { name: 'Thao tác công việc', exact: true }).click();
+    await owner.page.getByRole('button', { name: 'Xóa công việc', exact: true }).click();
+    const preview = owner.page.getByRole('dialog').last();
+    await expect(preview.getByText(/Xóa 2 công việc/)).toBeVisible();
+    const late = await make({ title: 'Task con vừa được thêm', parent: parent._id });
+    await preview.getByRole('button', { name: 'Xóa tất cả', exact: true }).click();
+    await expect(preview.getByText(late.title, { exact: false })).toBeVisible();
+    await owner.page.screenshot({ path: path.join(artifacts, 'hoanganh-sprint2-delete-preview.png'), fullPage: true });
+    await preview.getByRole('button', { name: 'Xóa tất cả', exact: true }).click();
+    await expect(owner.page.getByRole('dialog', { name: 'Chi tiết công việc', exact: true })).toHaveCount(0);
+    assert.equal((await db.prisma.document.findUnique({ where: { id: doc._id } })).task, null);
+    assert.deepEqual((await db.prisma.task.findUnique({ where: { id: dependent._id } })).blockedBy, []);
+
+    await owner.page.goto('/settings/activity');
+    await expect(owner.page.getByRole('button', { name: 'Xuất CSV', exact: true })).toBeVisible();
+    await owner.page.getByRole('button', { name: 'Xuất CSV', exact: true }).click();
+    const exportModal = owner.page.getByRole('dialog', { name: 'Xuất nhật ký ra CSV', exact: true });
+    const exportButton = exportModal.getByRole('button', { name: 'Xuất CSV', exact: true });
+    await expect(exportButton).toBeEnabled();
+    const [csv] = await Promise.all([owner.page.waitForEvent('download', { timeout: 10000 }), exportButton.click()]);
+    assert.match(await fs.readFile(await csv.path(), 'utf8'), /Xóa công việc/);
+    await owner.page.screenshot({ path: path.join(artifacts, 'hoanganh-sprint2-activity.png'), fullPage: true });
+    assert.deepEqual(errors, []);
+  } catch (error) {
+    await owner.page.screenshot({ path: path.join(artifacts, 'hoanganh-sprint2-failure.png'), fullPage: true });
+    await fs.writeFile(path.join(artifacts, 'hoanganh-sprint2-failure.txt'), await owner.page.locator('body').innerText());
+    throw error;
+  } finally { await owner.ctx.close(); await member.ctx.close(); }
 });
 
 test('SMTP bị từ chối: màn hình cho gửi lại, không báo thư đã gửi thành công', { timeout: 30000 }, async (t) => {

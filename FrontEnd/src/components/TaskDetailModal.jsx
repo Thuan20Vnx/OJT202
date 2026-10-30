@@ -150,6 +150,8 @@ export default function TaskDetailModal({ taskId, onClose }) {
   const [depOptions, setDepOptions] = useState([]);
   const [editing, setEditing] = useState(null);
   const [confirmDel, setConfirmDel] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+  const deleteLock = useRef(false);
   const [stale, setStale] = useState(false);
   const fileInput = useRef(null);
   const info = useProjectInfo(data?.task?.project);
@@ -207,6 +209,7 @@ export default function TaskDetailModal({ taskId, onClose }) {
     load();
     return () => { mounted.current = false; loadSequence.current++; };
   }, [load]);
+  useSocketEvent('dependencies:changed', () => load(), [load]);
   useSocketEvent(
     'access:changed',
     () => {
@@ -400,14 +403,28 @@ export default function TaskDetailModal({ taskId, onClose }) {
   };
 
   const remove = async (confirm) => {
+    if (deleteLock.current) return;
+    deleteLock.current = true;
+    setDeleting(true);
+    const current = () => mounted.current && activeTask.current === task._id;
     try {
-      await api.del(`/tasks/${task._id}${confirm ? '?confirm=true' : ''}`);
+      if (!confirm) {
+        const { impact } = await api.get(`/tasks/${task._id}/deletion-preview`);
+        if (current()) setConfirmDel(impact);
+        return;
+      }
+      await api.del(`/tasks/${task._id}?confirm=true&impact=${confirmDel.impactToken}`);
+      if (!current()) return;
       toast(tr("Đã xóa {0}", [task.key]));
       onClose();
     } catch (e) {
-      if (e.details?.code === 'CONFIRM_REQUIRED') setConfirmDel(e.message);
-      else toast(e.message, 'error');
-    }
+      if (!current()) return;
+      toast(e.message, 'error');
+      if (e.details?.code === 'DELETE_CHANGED') {
+        const { impact } = await api.get(`/tasks/${task._id}/deletion-preview`).catch(() => ({ impact: null }));
+        if (current()) setConfirmDel(impact);
+      }
+    } finally { deleteLock.current = false; setDeleting(false); }
   };
 
   const subDone = subtasks.filter((s) => s.status === 'done').length;
@@ -916,13 +933,17 @@ export default function TaskDetailModal({ taskId, onClose }) {
       </div>
       <Confirm
         open={!!confirmDel}
-        title={tr("Xóa công việc cha?")}
+        title={tr("Xóa công việc?")}
         danger
+        busy={deleting}
         confirmText={tr("Xóa tất cả")}
-        onClose={() => setConfirmDel(null)}
-        onConfirm={() => (setConfirmDel(null), remove(true))}
+        onClose={() => { if (!deleting) setConfirmDel(null); }}
+        onConfirm={() => remove(true)}
       >
-        {confirmDel}
+        {confirmDel && <>
+          <p>{tr("Xóa {0} công việc; gỡ {1} liên kết phụ thuộc. Giữ lại {2} tệp trong thư viện dự án.", [confirmDel.tasks.length, confirmDel.dependentCount, confirmDel.attachmentCount])}</p>
+          <ul className="mt-2 max-h-48 overflow-y-auto list-disc pl-5">{confirmDel.tasks.map((t) => <li key={t._id}>{t.key} — {t.title}</li>)}</ul>
+        </>}
       </Confirm>
     </Shell>
   );

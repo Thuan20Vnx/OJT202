@@ -110,6 +110,236 @@ test('U025: thống kê nguồn trực tiếp có ACL, bỏ task xóa và ảnh;
   assert.equal((await new Client().get(`/projects/${project.id}/ai/sources`)).status, 401);
 });
 
+describe('Hoàng Anh Sprint 2 — tài liệu, phụ thuộc, thông báo và review nghiệp vụ', () => {
+  test('U011-T3: kết hợp filter, phân trang/trang rỗng và project private', async () => {
+    const { owner, member, ws, pid, create } = await permissionFixture();
+    for (let i = 0; i < 2; i++) await create({ title: `Filter needle ${i}`, assignee: seed.users.nhu.id, status: 'in_progress', priority: 'high', dueDate: new Date().toISOString() });
+    await create({ title: 'Filter needle sai ưu tiên', assignee: seed.users.nhu.id, priority: 'low' });
+    const privateProject = await owner.post(`/workspaces/${ws}/projects`, { name: 'Private filter' });
+    await owner.post(`/projects/${privateProject.data.project._id}/tasks`, { title: 'Filter needle bí mật', priority: 'high', status: 'in_progress', dueDate: new Date().toISOString() });
+    const query = `/workspaces/${ws}/my-tasks?assignee=me&status=in_progress&priority=high&due=today&search=needle&limit=1`;
+    const first = await member.get(query);
+    const second = await member.get(`${query}&page=2`);
+    assert.equal(first.status, 200);
+    assert.equal(first.data.total, 2);
+    assert.equal(second.data.total, 2);
+    assert.notEqual(first.data.items[0]._id, second.data.items[0]._id);
+    assert.deepEqual((await member.get(`${query}&page=3`)).data.items, []);
+    const all = await member.get(`/workspaces/${ws}/my-tasks?assignee=all&search=needle&includeDone=true`);
+    assert.ok(all.data.items.every((t) => t.project._id === pid));
+  });
+
+  test('U015-T1: version bắt buộc, lưu đồng thời chỉ một bản thắng, revision không mất', async () => {
+    const { owner, member, pid } = await permissionFixture();
+    const created = await owner.post(`/projects/${pid}/documents`, { name: 'CAS', content: 'Ban đầu' });
+    const id = created.data.document._id;
+    assert.equal((await owner.patch(`/documents/${id}`, { content: 'Thiếu version' })).status, 400);
+    const results = await Promise.all([owner.patch(`/documents/${id}`, { content: 'Owner', version: 1 }), member.patch(`/documents/${id}`, { content: 'Member', version: 1 })]);
+    assert.deepEqual(results.map((r) => r.status).sort(), [200, 409]);
+    assert.equal(await db.prisma.documentRevision.count({ where: { document: id } }), 2);
+    assert.equal((await owner.get(`/documents/${id}/revisions/1`)).data.revision.content, 'Ban đầu');
+    assert.equal((await member.del(`/documents/${id}`)).status, 403, 'Member không xóa tài liệu người khác');
+    const viewer = await new Client().login('khanh.linh@nhom24.edu.vn');
+    assert.equal((await viewer.patch(`/documents/${id}`, { content: 'Không được ghi', version: 2 })).status, 403);
+  });
+
+  test('U015-T1: magic bytes đầy đủ, UTF-8 và biên tệp 10MB; rollback cả lô', async () => {
+    const { owner, pid } = await permissionFixture();
+    const upload = async (name, bytes, mime) => {
+      const form = new FormData();
+      form.append('files', new Blob([bytes], { type: mime }), name);
+      return fetch(`${base}/projects/${pid}/documents/upload`, { method: 'POST', headers: { 'x-taskflow': '1', cookie: Object.entries(owner.cookies).map(([k, v]) => `${k}=${v}`).join('; ') }, body: form });
+    };
+    for (const [name, bytes, mime] of [
+      ['fake.png', Buffer.from([137, 80, 78, 71, 0, 0, 0, 0]), 'image/png'],
+      ['fake.jpg', Buffer.from([255, 216, 0]), 'image/jpeg'],
+      ['fake.pdf', '%PDFjunk', 'application/pdf'],
+      ['bad.txt', Buffer.from([0xff, 0xfe, 0xff]), 'text/plain'],
+      ['run.exe', 'MZ', 'application/octet-stream'],
+    ]) assert.equal((await upload(name, bytes, mime)).status, 400, name);
+    assert.equal(await db.prisma.document.count({ where: { project: pid } }), 0);
+    assert.equal((await upload('large.txt', Buffer.alloc(10 * 1024 * 1024 + 1, 97), 'text/plain')).status, 400);
+    const exact = await upload('exact.txt', Buffer.alloc(10 * 1024 * 1024, 97), 'text/plain');
+    assert.equal(exact.status, 201);
+    const id = (await exact.json()).documents[0]._id;
+    const response = await fetch(`${base}/documents/${id}/download`, { headers: { cookie: Object.entries(owner.cookies).map(([k, v]) => `${k}=${v}`).join('; ') } });
+    assert.equal(response.headers.get('cache-control'), 'private, no-store');
+    assert.equal((await response.arrayBuffer()).byteLength, 10 * 1024 * 1024);
+  });
+
+  test('U015-T1: tạo/sửa/xóa phát invalidation sau commit, RAG đọc đúng nguồn mới', async (t) => {
+    const { owner, member, pid } = await permissionFixture();
+    const socket = await socketFor(member, t);
+    assert.equal((await join(socket, pid)).ok, true);
+    const events = [];
+    socket.on('documents:changed', (e) => events.push(e));
+    const { collectSources, sourceFingerprint } = await import('../src/services/ai/qa.js');
+    const created = await owner.post(`/projects/${pid}/documents`, { name: 'Nguồn', content: 'Nguồn v1' });
+    const id = created.data.document._id;
+    const before = sourceFingerprint(await collectSources(pid));
+    assert.equal((await owner.patch(`/documents/${id}`, { content: 'Nguồn v2', version: 1 })).status, 200);
+    const sources = await collectSources(pid);
+    assert.notEqual(sourceFingerprint(sources), before);
+    assert.ok(sources.some((s) => s.refId === id && s.text.includes('Nguồn v2')));
+    assert.equal((await owner.del(`/documents/${id}`)).status, 200);
+    await join(socket, pid);
+    assert.deepEqual(events.map((e) => e.action), ['create', 'update', 'delete']);
+    assert.ok(events.every((e) => e.sourceInvalidated && e.documentIds.includes(id)));
+    assert.ok(!(await collectSources(pid)).some((s) => s.refId === id));
+    assert.equal((await member.get(`/documents/${id}/download`)).status, 404);
+  });
+
+  test('U016-T2: nhiều tab khởi tạo preference đồng thời không lỗi unique', async () => {
+    const { member } = await permissionFixture();
+    await db.prisma.notificationPref.deleteMany({ where: { user: seed.users.nhu.id } });
+    const results = await Promise.all(Array.from({ length: 12 }, () => member.get('/me/notification-prefs')));
+    assert.ok(results.every((r) => r.status === 200), JSON.stringify(results.map((r) => r.data)));
+    assert.equal(await db.prisma.notificationPref.count({ where: { user: seed.users.nhu.id } }), 1);
+  });
+
+  test('U016-T2: đọc idempotent, read-all theo quyền, đồng bộ tab và không đổi thông báo người khác', async (t) => {
+    const { owner, member, ws, pid } = await permissionFixture();
+    const socket = await socketFor(member, t);
+    const events = [];
+    socket.on('notification:read', (e) => events.push(e));
+    const privateProject = await owner.post(`/workspaces/${ws}/projects`, { name: 'Private notifications' });
+    const [visible, hidden, other] = await Promise.all([
+      db.prisma.notification.create({ data: { user: seed.users.nhu.id, workspace: ws, project: pid, type: 'assigned', text: 'Visible', dedupeKey: `${ws}:visible` } }),
+      db.prisma.notification.create({ data: { user: seed.users.nhu.id, workspace: ws, project: privateProject.data.project._id, type: 'assigned', text: 'Hidden', dedupeKey: `${ws}:hidden` } }),
+      db.prisma.notification.create({ data: { user: seed.users.maianh.id, workspace: ws, type: 'assigned', text: 'Other', dedupeKey: `${ws}:other` } }),
+    ]);
+    await member.post(`/notifications/${visible.id}/read`);
+    const first = await db.prisma.notification.findUnique({ where: { id: visible.id } });
+    await member.post(`/notifications/${visible.id}/read`);
+    assert.deepEqual((await db.prisma.notification.findUnique({ where: { id: visible.id } })).readAt, first.readAt);
+    await member.post(`/notifications/${other.id}/read`);
+    await member.post('/notifications/read-all', { workspace: ws });
+    assert.equal((await db.prisma.notification.findUnique({ where: { id: hidden.id } })).readAt, null);
+    assert.equal((await db.prisma.notification.findUnique({ where: { id: other.id } })).readAt, null);
+    assert.equal((await member.get(`/notifications?workspace=${ws}`)).data.unread, 0);
+    await join(socket, pid);
+    assert.equal(events.length, 1);
+  });
+
+  test('U018-T1: dependency lặp không tăng version/audit; Blocked suy ra và không là trạng thái thứ năm', async () => {
+    const { owner, member, create } = await permissionFixture();
+    const blocker = await create({ status: 'review' });
+    const dependent = await create();
+    const url = `/tasks/${dependent._id}/dependencies`;
+    const added = await owner.post(url, { blockedBy: blocker._id });
+    assert.equal(added.status, 200);
+    assert.equal(added.data.task.isBlocked, true);
+    assert.equal((await owner.post(url, { blockedBy: blocker._id })).data.task.version, added.data.task.version);
+    assert.equal(await db.prisma.activity.count({ where: { entityId: dependent._id, action: 'Thêm phụ thuộc' } }), 1);
+    assert.equal((await member.post(url, { blockedBy: blocker._id })).status, 403);
+    assert.equal((await owner.patch(`/tasks/${dependent._id}`, { status: 'blocked', version: added.data.task.version })).status, 400);
+    assert.equal((await owner.patch(`/tasks/${blocker._id}`, { status: 'done', version: blocker.version })).status, 200);
+    assert.equal((await owner.get(`/tasks/${dependent._id}`)).data.task.isBlocked, false);
+    const removed = await owner.del(`${url}/${blocker._id}`);
+    assert.equal((await owner.del(`${url}/${blocker._id}`)).data.task.version, removed.data.task.version);
+  });
+
+  test('U013 review: preview xóa chính xác, phát hiện cây thay đổi; gỡ dependency có audit', async () => {
+    const { owner, member, create } = await permissionFixture();
+    const parent = await create();
+    assert.equal((await owner.patch(`/tasks/${parent._id}`, { parent: parent._id, version: parent.version })).status, 400, 'không cho tự làm cha qua trường PATCH không hỗ trợ');
+    await create({ parent: parent._id });
+    const dependent = await create({ blockedBy: [parent._id] });
+    const preview = `/tasks/${parent._id}/deletion-preview`;
+    assert.equal((await member.get(preview)).status, 403);
+    const old = (await owner.get(preview)).data.impact;
+    assert.equal(old.tasks.length, 2);
+    assert.equal(old.dependentCount, 1);
+    await create({ parent: parent._id });
+    assert.equal((await owner.del(`/tasks/${parent._id}?confirm=true&impact=${old.impactToken}`)).status, 409);
+    assert.equal((await db.prisma.task.findUnique({ where: { id: parent._id } })).deletedAt, null);
+    const fresh = (await owner.get(preview)).data.impact;
+    assert.equal((await owner.del(`/tasks/${parent._id}?confirm=true&impact=${fresh.impactToken}`)).status, 200);
+    const audit = await db.prisma.activity.findFirst({ where: { entityId: dependent._id, action: 'Gỡ phụ thuộc khi xóa công việc' } });
+    assert.deepEqual(audit.before, [parent._id]);
+    assert.deepEqual(audit.after, []);
+    assert.equal(audit.entityLabel, `${dependent.key} ${dependent.title}`);
+  });
+
+  test('U019 review: chỉ cộng task lá, bao gồm overdue; tách thiếu hạn/estimate, không lộ project khác', async () => {
+    const { owner, member, pid, create } = await permissionFixture();
+    const parent = await create({ assignee: seed.users.nhu.id, estimateHours: 50, dueDate: '2026-10-29' });
+    const child = await create({ parent: parent._id, assignee: seed.users.nhu.id, estimateHours: 3, dueDate: '2026-10-20' });
+    await create({ assignee: seed.users.nhu.id, estimateHours: 20 });
+    await create({ assignee: seed.users.nhu.id, dueDate: '2026-10-31' });
+    await create({ assignee: seed.users.nhu.id, estimateHours: 99, dueDate: '2026-11-02' });
+    const deleted = await create({ assignee: seed.users.nhu.id, estimateHours: 9, dueDate: '2026-10-30' });
+    await owner.del(`/tasks/${deleted._id}`);
+    const row = (await workload(pid, undefined, new Date('2026-10-30T00:00:00Z'))).find((w) => w.user.id === seed.users.nhu.id);
+    assert.equal(row.hours, 3);
+    assert.equal(row.missingDeadlines, 1);
+    assert.equal(row.missingEstimates, 1);
+    assert.ok(row.taskIds.includes(child._id));
+    assert.ok(!row.taskIds.includes(parent._id));
+    const privateProject = await owner.post(`/workspaces/${(await db.prisma.project.findUnique({ where: { id: pid } })).workspace}/projects`, { name: 'Private metrics' });
+    assert.equal((await member.get(`/projects/${privateProject.data.project._id}/overview`)).status, 404);
+  });
+
+  test('U019 review: capacity workspace/user/week, số 0, quyền và hai request cạnh tranh', async () => {
+    const { owner, member, admin, ws, pid, create } = await permissionFixture();
+    await create({ assignee: seed.users.nhu.id, estimateHours: 2, dueDate: '2026-10-30' });
+    const url = `/workspaces/${ws}/members/${seed.users.nhu.id}/capacity/2026-10-26`;
+    assert.equal((await member.patch(url, { hours: 0, version: 0 })).status, 403);
+    assert.equal((await owner.patch(url, { hours: 0, version: 0 })).status, 200);
+    const row = (await workload(pid, undefined, new Date('2026-10-30T00:00:00Z'))).find((w) => w.user.id === seed.users.nhu.id);
+    assert.equal(row.available, 0);
+    assert.equal(row.pct, null);
+    assert.equal(row.overloaded, true);
+    assert.equal((await member.get(url.replace('2026-10-26', '2026-11-02'))).data.capacity.hours, 20);
+    for (const hours of [-1, 81, '2']) assert.equal((await owner.patch(url, { hours, version: 1 })).status, 400);
+    assert.equal((await owner.patch(url.replace('2026-10-26', '2026-10-27'), { hours: 5, version: 0 })).status, 400);
+    const results = await Promise.all([owner.patch(url, { hours: 4, version: 1 }), owner.patch(url, { hours: 6, version: 1 })]);
+    assert.deepEqual(results.map((r) => r.status).sort(), [200, 409]);
+    assert.equal((await admin.patch(url.replace(seed.users.nhu.id, seed.users.maianh.id), { hours: 2, version: 0 })).status, 403);
+    assert.equal((await db.prisma.membership.findUnique({ where: { workspace_user: { workspace: ws, user: seed.users.nhu.id } } })).weeklyHours, 20);
+    assert.equal(await db.prisma.activity.count({ where: { workspace: ws, field: 'weeklyCapacity' } }), 2);
+  });
+
+  test('U019 review: migration chặn capacity sai và thay đổi capacity làm report stale', async () => {
+    const { owner, ws, pid } = await permissionFixture();
+    const user = seed.users.nhu.id;
+    await assert.rejects(db.prisma.weeklyCapacity.create({ data: { workspace: ws, user, weekStart: new Date('2026-10-26T00:00:00Z'), hours: 81 } }));
+    await assert.rejects(db.prisma.weeklyCapacity.create({ data: { workspace: ws, user, weekStart: new Date('2026-10-27T00:00:00Z'), hours: 4 } }));
+    assert.equal(await db.prisma.weeklyCapacity.count({ where: { workspace: ws } }), 0);
+    const { reportSourceRevision } = await import('../src/services/ai/qa.js');
+    const before = await reportSourceRevision(pid);
+    assert.equal((await owner.patch(`/workspaces/${ws}/members/${user}/capacity/2026-10-26`, { hours: 10, version: 0 })).status, 200);
+    assert.notEqual(await reportSourceRevision(pid), before);
+  });
+
+  test('U020-T2: CSV không cắt âm thầm sau 10.000 dòng', async () => {
+    const { member, ws, pid } = await permissionFixture();
+    await db.prisma.activity.createMany({ data: Array.from({ length: 10001 }, (_, i) => ({ workspace: ws, project: pid, entityType: 'task', action: 'CSV overflow', entityLabel: `Export ${i}` })) });
+    const response = await member.get(`/workspaces/${ws}/activity.csv?action=CSV%20overflow`);
+    assert.equal(response.status, 400);
+    assert.match(response.data.error, /10.000/);
+    const narrowed = await member.get(`/workspaces/${ws}/activity.csv?action=CSV%20overflow&search=Export%2010000`);
+    assert.equal(narrowed.status, 200);
+    assert.match(narrowed.data, /Export 10000/);
+  });
+
+  test('U020-T2: khoảng ngày/cột hợp lệ, CSV theo quyền và chống formula injection', async () => {
+    const { owner, member, ws, pid } = await permissionFixture();
+    await db.prisma.activity.create({ data: { workspace: ws, project: pid, actor: seed.users.maianh.id, action: 'CSV test', entityType: 'task', entityLabel: '=HYPERLINK("x")', before: '=1+1', createdAt: new Date('2026-10-29T16:59:59Z') } });
+    const privateProject = await owner.post(`/workspaces/${ws}/projects`, { name: 'Private CSV' });
+    await db.prisma.activity.create({ data: { workspace: ws, project: privateProject.data.project._id, action: 'Private-only', entityType: 'task', entityLabel: 'Hidden CSV' } });
+    const url = `/workspaces/${ws}/activity`;
+    for (const query of ['from=2026-10-31&to=2026-10-01', 'from=2026-02-30', 'project=bad', 'actor=bad']) assert.equal((await member.get(`${url}?${query}`)).status, 400);
+    for (const columns of ['bad', 'time,time', '']) assert.equal((await member.get(`${url}.csv?columns=${columns}`)).status, 400);
+    const csv = await member.get(`${url}.csv?from=2026-10-29&to=2026-10-29&columns=entity,before`);
+    assert.equal(csv.status, 200);
+    assert.match(csv.data, /'=HYPERLINK/);
+    assert.match(csv.data, /'=1\+1/);
+    assert.ok(!csv.data.includes('Hidden CSV'));
+    assert.ok(!(await member.get(url)).data.actions.includes('Private-only'));
+  });
+});
+
 describe('Xác thực & phiên (U003, U004, U005)', () => {
   test('sai mật khẩu và email không tồn tại trả cùng một lỗi chung', async () => {
     const c = new Client();
@@ -1475,9 +1705,9 @@ describe('Lộc: phân quyền và nghiệp vụ bổ sung', () => {
     const good = await upload([['ok.txt', 'Nội dung ban đầu', 'text/plain']]);
     assert.equal(good.status, 201);
     const did = good.data.documents[0]._id;
-    assert.equal((await owner.patch(`/documents/${did}`, { content: 'Phiên bản mới' })).status, 200);
+    assert.equal((await owner.patch(`/documents/${did}`, { content: 'Phiên bản mới', version: 1 })).status, 200);
     assert.equal((await owner.get(`/documents/${did}/download`)).data, 'Phiên bản mới');
-    assert.equal((await owner.patch(`/documents/${did}`, { restoreVersion: 999 })).status, 404);
+    assert.equal((await owner.patch(`/documents/${did}`, { restoreVersion: 999, version: 2 })).status, 404);
     assert.equal((await owner.patch(`/documents/${did}`, { content: 'Ghi đè từ bản cũ', version: 1 })).status, 409);
     assert.equal((await owner.get(`/documents/${did}/download`)).data, 'Phiên bản mới');
   });

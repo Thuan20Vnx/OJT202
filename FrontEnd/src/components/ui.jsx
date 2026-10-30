@@ -1,5 +1,5 @@
 import { t as tr, useI18n } from '../lib/i18n.js';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { PRIORITY, STATUS, initials } from '../lib/format.js';
 import Select from './Select.jsx';
 
@@ -142,6 +142,7 @@ export function Notice({ tone = 'info', icon, children, className = '' }) {
 
 export function Modal({ open, onClose, title, subtitle, icon, children, footer, width = 'max-w-lg', bodyClass = 'p-5' }) {
   useI18n();
+  const titleId = useId();
   useEffect(() => {
     if (!open) return;
     const onKey = (e) => e.key === 'Escape' && onClose?.();
@@ -151,7 +152,7 @@ export function Modal({ open, onClose, title, subtitle, icon, children, footer, 
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-[2px]" onMouseDown={(e) => e.target === e.currentTarget && onClose?.()}>
-      <div className={`animate-slide-in flex max-h-[92vh] w-full ${width} flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-pop`} role="dialog" aria-modal="true">
+      <div className={`animate-slide-in flex max-h-[92vh] w-full ${width} flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-pop`} role="dialog" aria-modal="true" aria-labelledby={title ? titleId : undefined}>
         {title && (
           <div className="flex items-start gap-3 border-b border-slate-100 px-5 py-4">
             {icon && (
@@ -160,7 +161,7 @@ export function Modal({ open, onClose, title, subtitle, icon, children, footer, 
               </span>
             )}
             <div className="min-w-0 flex-1">
-              <h2 className="text-headline-sm text-slate-900">{title}</h2>
+              <h2 id={titleId} className="text-headline-sm text-slate-900">{title}</h2>
               {subtitle && <p className="text-body-sm text-slate-500">{subtitle}</p>}
             </div>
             <button className="icon-btn -mr-2 -mt-1" onClick={onClose} aria-label={tr("Đóng")}>

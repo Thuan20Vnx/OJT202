@@ -1,6 +1,6 @@
 # ERD và từ điển dữ liệu
 
-Version 2026-10-29. Sinh từ `BackEnd/prisma/schema.prisma`; SQL migration là nguồn triển khai. Mảng UUID và JSONB không tự tạo FK; quan hệ bên dưới chỉ lấy từ `@relation(fields:...)` thật.
+Version 2026-10-30. Sinh từ `BackEnd/prisma/schema.prisma`; SQL migration là nguồn triển khai. Mảng UUID và JSONB không tự tạo FK; quan hệ bên dưới chỉ lấy từ `@relation(fields:...)` thật.
 
 ```mermaid
 erDiagram
@@ -63,6 +63,15 @@ erDiagram
     String user
     String title
     Float weeklyHours
+    DateTime createdAt
+    DateTime updatedAt
+  }
+  WeeklyCapacity {
+    String workspace
+    String user
+    DateTime weekStart
+    Float hours
+    Int version
     DateTime createdAt
     DateTime updatedAt
   }
@@ -287,6 +296,7 @@ erDiagram
   User ||--o{ Workspace : "owner"
   Workspace ||--o{ Membership : "workspace"
   User ||--o{ Membership : "user"
+  Membership ||--o{ WeeklyCapacity : "workspace, user"
   Workspace ||--o{ Invite : "workspace"
   User ||--o{ Invite : "invitedBy"
   Workspace ||--o{ Project : "workspace"
@@ -483,10 +493,30 @@ model Membership {
 
   workspaceRef Workspace @relation(fields: [workspace], references: [id], onDelete: Cascade)
   userRef      User      @relation(fields: [user], references: [id], onDelete: Cascade)
+  capacities   WeeklyCapacity[]
 
   @@unique([workspace, user])
   @@index([user])
   @@map("memberships")
+}
+```
+
+### WeeklyCapacity
+
+```prisma
+model WeeklyCapacity {
+  workspace String   @map("workspace_id") @db.Uuid
+  user      String   @map("user_id") @db.Uuid
+  weekStart DateTime @map("week_start") @db.Date
+  hours     Float
+  version   Int      @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  membershipRef Membership @relation(fields: [workspace, user], references: [workspace, user], onDelete: Cascade)
+
+  @@id([workspace, user, weekStart])
+  @@map("weekly_capacities")
 }
 ```
 

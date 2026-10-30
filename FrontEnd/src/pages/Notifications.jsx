@@ -34,6 +34,10 @@ function NotificationPage() {
   const activeScope = useRef(scope);
   activeScope.current = scope;
   const pendingReads = useRef(new Set());
+  const allReadLock = useRef(false);
+  const preferenceLock = useRef(false);
+  const [markingAll, setMarkingAll] = useState(false);
+  const [savingPreference, setSavingPreference] = useState(false);
   const moreRequest = useRef(null);
   const [moreScope, setMoreScope] = useState(null);
   const { data: loaded, error, loading, reload, setData } = useLoad(async () => ({
@@ -42,6 +46,7 @@ function NotificationPage() {
   const data = loaded?.scope === scope ? loaded : null;
   const prefs = useLoad(() => api.get('/me/notification-prefs'), []);
   useSocketEvent('notification:new', () => reload(), [reload]);
+  useSocketEvent('notification:read', () => reload(), [reload]);
 
   const markRead = async (n) => {
     if (n.readAt || pendingReads.current.has(n._id)) return;
@@ -59,12 +64,16 @@ function NotificationPage() {
     finally { pendingReads.current.delete(n._id); }
   };
   const readAll = async () => {
+    if (allReadLock.current) return;
+    allReadLock.current = true;
+    setMarkingAll(true);
     try {
       await api.post('/notifications/read-all', { workspace: wsId });
       toast(tr("Đã đánh dấu tất cả là đã đọc"));
       if (activeScope.current === scope) reload();
       refreshUnread();
     } catch (e) { toast(e.message, 'error'); }
+    finally { allReadLock.current = false; setMarkingAll(false); }
   };
   const openTask = (n) => {
     markRead(n);
@@ -72,10 +81,14 @@ function NotificationPage() {
     if (n.task) navigate({ pathname: '/board', search: `?task=${n.task._id}` });
   };
   const setPref = async (k, v) => {
+    if (preferenceLock.current) return;
+    preferenceLock.current = true;
+    setSavingPreference(true);
     try {
       const d = await api.patch('/me/notification-prefs', { [k]: v });
       prefs.setData(d);
     } catch (e) { toast(e.message, 'error'); }
+    finally { preferenceLock.current = false; setSavingPreference(false); }
   };
   const loadMore = async () => {
     if (!data?.nextCursor || loading || moreRequest.current?.scope === scope) return;
@@ -109,7 +122,7 @@ function NotificationPage() {
           <>{tr("Bạn có ")}<b className="text-blue-700">{data?.unread ?? 0}</b>{tr(" thông báo chưa đọc")}</>
         }
         actions={
-          <button className="btn-outline" onClick={readAll} disabled={!data?.unread}>
+          <button className="btn-outline" onClick={readAll} disabled={!data?.unread || markingAll}>
             <Icon name="done_all" size={16} />{tr(" Đánh dấu tất cả đã đọc")}</button>
         }
       />
@@ -182,7 +195,7 @@ function NotificationPage() {
                           </button>
                           <div className="flex shrink-0 flex-col items-end gap-1.5">
                             <span className="whitespace-nowrap text-label-md font-normal text-slate-400">{timeAgo(n.createdAt)}</span>
-                            <div className="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                            <div className="flex gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
                               {!n.readAt && (
                                 <button className="icon-btn h-7 w-7" onClick={() => markRead(n)} title={tr("Đánh dấu đã đọc")}>
                                   <Icon name="done" size={16} />
@@ -215,6 +228,7 @@ function NotificationPage() {
         </div>
         <div className="card h-fit p-4">
           <ErrorBox error={prefs.error} onRetry={prefs.reload} />
+          {prefs.loading && !prefs.data && <PageLoader />}
           <p className="mb-3 flex items-center gap-1.5 text-label-lg font-semibold text-slate-900">
             <Icon name="tune" size={18} className="text-blue-600" />{tr(" Cài đặt thông báo")}</p>
           {p && (
@@ -222,7 +236,7 @@ function NotificationPage() {
               <p className="section-label mb-2">{tr("Kênh nhận thông báo")}</p>
               <div className="mb-4 grid grid-cols-2 rounded-lg bg-slate-100 p-0.5">
                 <span className="rounded-md bg-white py-1.5 text-center text-label-md font-semibold text-slate-900 shadow-sm">{tr("Trong ứng dụng")}</span>
-                <button onClick={() => setPref('email', !p.email)} className={`rounded-md py-1.5 text-label-md ${p.email ? 'bg-white font-semibold text-slate-900 shadow-sm' : 'text-slate-500'}`}>
+                <button disabled={savingPreference} aria-pressed={p.email} onClick={() => setPref('email', !p.email)} className={`rounded-md py-1.5 text-label-md ${p.email ? 'bg-white font-semibold text-slate-900 shadow-sm' : 'text-slate-500'}`}>
                   Email {p.email ? '✓' : ''}
                 </button>
               </div>
@@ -240,7 +254,7 @@ function NotificationPage() {
                       <p className="text-body-sm font-medium text-slate-800">{t}</p>
                       <p className="text-label-md font-normal text-slate-500">{d}</p>
                     </div>
-                    <Toggle checked={p[k]} onChange={(v) => setPref(k, v)} label={t} />
+                    <Toggle checked={p[k]} disabled={savingPreference} onChange={(v) => setPref(k, v)} label={t} />
                   </div>
                 ))}
               </div>

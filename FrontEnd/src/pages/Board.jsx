@@ -120,6 +120,7 @@ export default function Board() {
   );
   useSocketEvent('task:deleted', ({ taskId }) => setData((d) => d && { tasks: d.tasks.filter((t) => t._id !== taskId) }), []);
   useSocketEvent('board:refresh', () => reload(), [reload]);
+  useSocketEvent('dependencies:changed', () => reload(), [reload]);
 
   const tasks = useMemo(() => {
     let list = data?.tasks || [];

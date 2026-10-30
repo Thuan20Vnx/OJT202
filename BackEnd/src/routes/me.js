@@ -101,7 +101,8 @@ router.post('/sessions/revoke-others', async (req, res) => {
 });
 
 router.get('/notification-prefs', async (req, res) => {
-  const pref = await prisma.notificationPref.upsert({ where: { user: req.user.id }, create: { user: req.user.id }, update: {} });
+  // A nonempty update lets Prisma use PostgreSQL ON CONFLICT when two tabs initialize together.
+  const pref = await prisma.notificationPref.upsert({ where: { user: req.user.id }, create: { user: req.user.id }, update: { user: req.user.id } });
   res.json({ prefs: pref });
 });
 
@@ -110,7 +111,7 @@ router.patch('/notification-prefs', async (req, res) => {
     z.object({ assigned: z.boolean(), mentioned: z.boolean(), due_soon: z.boolean(), status: z.boolean(), comment: z.boolean(), email: z.boolean() }).partial(),
     req.body,
   );
-  const pref = await prisma.notificationPref.upsert({ where: { user: req.user.id }, create: { user: req.user.id, ...body }, update: body });
+  const pref = await prisma.notificationPref.upsert({ where: { user: req.user.id }, create: { user: req.user.id, ...body }, update: { ...body, user: req.user.id } });
   res.json({ prefs: pref });
 });
 

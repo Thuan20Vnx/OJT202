@@ -244,7 +244,7 @@ function Sidebar({ collapsed, overlay, onClose }) {
       return;
     }
     if (overlay) onClose?.();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [loc.pathname, project?._id]);
 
   const { mounted, shown } = usePresence(!collapsed, 300);

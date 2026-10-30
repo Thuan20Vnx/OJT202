@@ -11,6 +11,7 @@ import { apiReplacer } from './services/serialize.js';
 import authRoutes from './routes/auth.js';
 import meRoutes from './routes/me.js';
 import workspaceRoutes from './routes/workspaces.js';
+import capacityRoutes from './routes/capacity.js';
 import projectRoutes from './routes/projects.js';
 import taskRoutes from './routes/tasks.js';
 import documentRoutes from './routes/documents.js';
@@ -35,6 +36,7 @@ export function createApp() {
   app.use('/api/auth', authRoutes);
   app.use('/api/me', meRoutes);
   app.use('/api/workspaces', workspaceRoutes);
+  app.use('/api/workspaces', capacityRoutes);
   app.use('/api/notifications', notificationRoutes);
   app.use('/api/admin', adminRoutes);
   if (!config.isProd) app.use('/api/dev', devRoutes);

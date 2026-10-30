@@ -95,7 +95,7 @@ export default function Select({ value, onChange, children, className = 'input',
       window.removeEventListener('resize', place);
       window.removeEventListener('scroll', place, true);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [open]);
 
   useLayoutEffect(() => {

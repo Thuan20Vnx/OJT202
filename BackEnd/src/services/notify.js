@@ -19,7 +19,7 @@ export async function notify({ user, actor, type, dedupeKey, ...rest }) {
   if ((pref?.[preference] ?? (preference !== 'comment')) === false) return null;
   try {
     const n = await prisma.notification.create({ data: { user, actor, type, dedupeKey, ...rest } });
-    emitUser(user, 'notification:new', { id: n.id, type, text: n.text }, rest.project);
+    emitUser(user, 'notification:new', { id: n.id, type, text: n.text, workspace: n.workspace, project: n.project }, rest.project);
     return n;
   } catch (e) {
     if (isUniqueError(e)) return null; // đã gửi trước đó
