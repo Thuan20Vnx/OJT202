@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { PRIORITY, STATUS, initials } from '../lib/format.js';
 import Select from './Select.jsx';
 
+/** @param {{name: string, className?: string, fill?: boolean, size?: number}} props */
 export const Icon = ({ name, className = '', fill = false, size }) => (
   <span className={`material-symbols-outlined ${fill ? 'icon-fill' : ''} ${className}`} style={size ? { fontSize: size } : undefined} aria-hidden="true">
     {name}
@@ -334,7 +335,7 @@ export function Dropdown({ trigger, children, align = 'right', width = 'w-56' })
   );
 }
 
-export const MenuItem = ({ icon, children, onClick, danger, disabled }) => (
+export const MenuItem = ({ icon, children, onClick, danger = false, disabled = false }) => (
   <button
     disabled={disabled}
     onClick={onClick}

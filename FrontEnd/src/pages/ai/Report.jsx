@@ -111,7 +111,7 @@ export default function Report({ project, onUsage, disabled }) {
             </Select>
           </Field>
           <Notice tone="warn">Số liệu được tính trực tiếp từ dữ liệu dự án, AI chỉ diễn giải.</Notice>
-          {!canManage && <Notice>Chỉ PM, Owner hoặc Admin của dự án đang hoạt động được tạo, sửa và chia sẻ báo cáo.</Notice>}
+          {!canManage && <Notice>Chỉ PM của dự án đang hoạt động được tạo, sửa và chia sẻ báo cáo.</Notice>}
           <button className="btn-primary h-10 w-full" onClick={generate} disabled={busy || disabled || !canManage}>
             {busy ? <Spinner /> : <Icon name="auto_awesome" size={18} />}
             Tạo báo cáo nháp

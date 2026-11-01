@@ -13,12 +13,9 @@ const ROLE_CHIP = {
 };
 
 const MATRIX = [
-  ['Quản lý thành viên', [1, 1, 0, 0]],
-  ['Tạo dự án', [1, 1, 1, 0]],
-  ['Tạo & giao việc', [1, 1, 1, 0]],
-  ['Kéo thả Kanban', [1, 1, 1, 0]],
-  ['Bình luận', [1, 1, 1, 0]],
-  ['Chỉ xem', [1, 1, 1, 1]],
+  ['Quản lý Member/Viewer', [1, 1, 0, 0]],
+  ['Quản lý Owner/Admin', [1, 0, 0, 0]],
+  ['Tạo dự án', [1, 1, 0, 0]],
 ];
 
 export function InviteModal({ open, onClose, onDone }) {
@@ -91,9 +88,9 @@ export function InviteModal({ open, onClose, onDone }) {
           <span className="label">Vai trò mặc định trong Workspace</span>
           <div className="grid grid-cols-2 gap-2">
             {[
-              ['member', 'Thành viên (Member)', 'Được tạo & nhận việc, kéo thả Kanban, bình luận và tải tài liệu.'],
-              ['viewer', 'Khách xem (Viewer)', 'Chỉ có quyền xem nội dung, không thể chỉnh sửa hay kéo thả.'],
-              ...(role === 'owner' ? [['admin', 'Quản trị (Admin)', 'Quản lý thành viên, dự án và cài đặt workspace.']] : []),
+              ['member', 'Thành viên (Member)', 'Khi được thêm vào dự án: nhận việc, cập nhật giờ còn lại và gửi Review. PM của dự án mới được tạo, giao và duyệt việc.'],
+              ['viewer', 'Khách xem (Viewer)', 'Chỉ xem nội dung dự án được cấp quyền, không thể chỉnh sửa hay kéo thả.'],
+              ...(role === 'owner' ? [['admin', 'Quản trị (Admin)', 'Quản lý Member/Viewer và tạo dự án. Chỉ truy cập dự án đã được thêm vào.']] : []),
             ].map(([v, t, d]) => (
               <button key={v} type="button" onClick={() => setRole(v)} className={`rounded-xl border p-3 text-left ${inviteRole === v ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500' : 'border-slate-200 hover:bg-slate-50'}`}>
                 <p className="flex items-center justify-between text-label-lg font-semibold text-slate-900">
@@ -173,7 +170,7 @@ export default function Members() {
   };
 
   return (
-    <div className="grid gap-5 xl:grid-cols-[1fr_300px]">
+    <div className="grid gap-5 xl:grid-cols-[1fr_360px]">
       <div className="min-w-0 space-y-4">
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           <StatCard label="Tổng thành viên" value={`${members.length}/20`} icon="group" />
@@ -288,13 +285,13 @@ export default function Members() {
         </div>
       </div>
       <div className="card h-fit p-4">
-        <p className="section-label mb-3">Ma trận quyền</p>
+        <p className="section-label mb-3">Quyền trong workspace</p>
         <table className="w-full text-body-sm">
           <thead>
             <tr className="text-label-sm text-slate-400">
               <th className="pb-2 text-left font-semibold" />
               {['Owner', 'Admin', 'Member', 'Viewer'].map((r) => (
-                <th key={r} className="pb-2 font-semibold">
+                <th key={r} className="px-1 pb-2 font-semibold">
                   {r}
                 </th>
               ))}
@@ -313,6 +310,14 @@ export default function Members() {
             ))}
           </tbody>
         </table>
+        <div className="mt-4 space-y-2 text-label-md font-normal text-slate-600">
+          <p className="font-semibold text-slate-900">Quyền trong từng dự án</p>
+          <p>Owner/Admin cũng cần được thêm vào dự án để xem nội dung.</p>
+          <p><strong>PM:</strong> quản lý thành viên, tạo và giao việc, đặt ước lượng, duyệt Done và mở lại công việc.</p>
+          <p><strong>Member:</strong> cập nhật giờ còn lại và trạng thái việc mình nhận đến Review; không tự duyệt Done.</p>
+          <p><strong>Viewer:</strong> chỉ đọc. Workspace Viewer không được nâng thành PM/Member trong dự án.</p>
+          <p>Dự án đã lưu trữ chỉ cho xem nội dung.</p>
+        </div>
         <p className="mt-3 rounded-lg bg-blue-50 px-3 py-2 text-label-md font-normal text-blue-800">Lưu ý: Quyền Owner không thể bị xóa nếu là Owner cuối cùng. Thu hồi quyền có hiệu lực ngay lập tức.</p>
       </div>
       <InviteModal open={inviting} onClose={() => setInviting(false)} onDone={reload} />

@@ -1,0 +1,33 @@
+Snapshot: 8aa32ab + Members.jsx role explanation correction; no .env or node_modules copied.
+v24.15.0
+11.12.1
+npm ci --prefix . --offline --no-audit --no-fund
+npm error code ENOTCACHED
+npm error request to https://registry.npmjs.org/playwright-core/-/playwright-core-1.64.1.tgz failed: cache mode is 'only-if-cached' but no cached response is available.
+npm error A complete log of this run can be found in: C:\Users\Lenovo\AppData\Local\Packages\sandbox.{***}\AC\npm-cache\_logs\2026-11-01T07_42_36_586Z-debug-0.log
+Retry with normal registry access; offline sandbox cache lacked playwright-core.
+npm ci --prefix . --no-audit --no-fund
+
+added 3 packages in 779ms
+npm ci --prefix BackEnd --no-audit --no-fund
+
+> taskflow-server@1.0.0 postinstall
+> prisma generate
+
+Prisma schema loaded from prisma\schema.prisma
+
+✔ Generated Prisma Client (v6.19.3) to .\node_modules\@prisma\client in 174ms
+
+Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+
+Tip: Want to turn off tips and other hints? https://pris.ly/tip-4-nohints
+
+
+added 180 packages in 16s
+npm ci --prefix AIService --no-audit --no-fund
+
+added 76 packages in 4s
+npm ci --prefix FrontEnd --no-audit --no-fund
+
+added 103 packages in 2s
+CLEAN INSTALL PASSED

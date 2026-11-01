@@ -19,10 +19,11 @@ AIService chỉ nhận dữ liệu đã lọc và trả kết quả AI (kế ho�
 
 ## Chạy nhanh
 
-Yêu cầu: Node.js ≥ 20.
+Yêu cầu: Node.js ≥ 24.15.0 (backend chạy trực tiếp các module TypeScript).
 
 ```bash
 cd taskflow
+npm ci                                      # TypeScript và công cụ kiểm thử ở root
 npm run install:all
 cp BackEnd/.env.example BackEnd/.env        # rồi đổi JWT_SECRET
 cp AIService/.env.example AIService/.env
@@ -33,6 +34,12 @@ npm run dev                                 # chạy cả AIService + BackEnd + 
 - Không cần cài PostgreSQL: khi `DATABASE_URL` để trống, API tự chạy PostgreSQL 17 nhúng (gói `embedded-postgres`, binary PostgreSQL thật) ở cổng `54329`. Dữ liệu dev lưu ở `BackEnd/.data/pg` nên khởi động lại không mất.
 - Mỗi lần khởi động, API tự áp dụng migration (`prisma migrate deploy`).
 - DB trống sẽ được seed dữ liệu demo của Nhóm 24 (`SEED_DEMO=true`).
+
+### Hợp đồng Sprint 1
+
+- API chuẩn là `/api/v1`; `/api` vẫn là alias tương thích và dùng chung middleware quyền, CSRF, rate limit. Frontend gọi `/api/v1`. Cookie refresh giới hạn trong path auth của API đã đăng nhập.
+- Tiêu chí nghiệm thu task dùng `acceptance_criteria: string` (tối đa 10.000 ký tự), lưu cột PostgreSQL `TEXT`. Migration ghép danh sách cũ bằng xuống dòng, giữ nội dung. API vẫn nhận/trả `acceptanceCriteria: string[]` cho client cũ; không gửi hai trường cùng lúc. Chuỗi rỗng xóa nội dung.
+- `npm run typecheck` kiểm tra strict cho backend bootstrap/validator và frontend entry/router/layout/API client/context. `npm run build` và CI bắt buộc chạy bước này. Các module JS/JSX còn lại chạy cùng TypeScript qua `allowJs`, chưa được kiểm tra strict; đây là thiết lập TypeScript cho kiến trúc ban đầu, không phải chuyển đổi toàn bộ repo. Xem [phạm vi TypeScript](docs/sprint1-loc/TYPESCRIPT.md).
 
 ### Tài khoản demo (chỉ môi trường phát triển)
 
@@ -99,7 +106,7 @@ Bảng, khóa ngoại, enum và chỉ mục được tạo bằng migration tron
 
 `BackEnd/prisma/schema.prisma` gồm 23 bảng: `users`, `sessions`, `tokens`, `workspaces`, `memberships`, `invites`, `projects`, `project_members`, `tasks`, `comments`, `documents`, `document_revisions`, `notifications`, `notification_prefs`, `activities`, `ai_calls`, `ai_drafts`, `ai_reports`, `ai_conversations`, `risk_resolutions`, `admin_audits`, `outbox`, `counters` (đánh số công việc).
 
-- Khóa chính `uuid` (`gen_random_uuid()`), khóa ngoại có `ON DELETE CASCADE / SET NULL` phù hợp (xóa công việc ⇒ xóa bình luận, tệp đính kèm giữ lại).
+- Khóa chính `uuid` (`gen_random_uuid()`), khóa ngoại có `ON DELETE CASCADE / SET NULL` phù hợp. API xóa công việc dùng xóa mềm (`deleted_at`): giữ task và bình luận để truy vết, gỡ phụ thuộc, chuyển tệp đính kèm về thư viện dự án và ghi audit trong cùng transaction.
 - Ràng buộc UNIQUE thay cho kiểm tra trong code: email, `(workspace, user)`, `(project, number)`, `(user, dedupeKey)` chống gửi trùng thông báo, `(project, aiDraftItem)` chống tạo trùng việc khi duyệt AI nhiều lần, `(document, version)`.
 - Danh sách id (thành viên dự án, phụ thuộc công việc, nhắc tên) là mảng `uuid[]` có chỉ mục GIN; dữ liệu lồng nhau ít truy vấn (checklist, cài đặt AI, sprint, nội dung bản nháp/báo cáo AI) là `JSONB`.
 - Cập nhật công việc kiểm tra `version` ngay trong câu `UPDATE … WHERE version = ?` nên hai người sửa cùng lúc không ghi đè nhau.
@@ -217,6 +224,8 @@ taskflow/
 - Chế độ tối là lớp ghi đè màu cơ bản, chưa tinh chỉnh từng màn hình.
 
 ## Thay đổi nhánh Loc (23/10/2026)
+
+**Bàn giao Sprint 1, 01/11/2026:** [hồ sơ rà soát và nghiệm thu phần Lộc](docs/sprint1-loc/REVIEW.md), kèm [SRS và bảng truy vết](docs/sprint1-loc/SRS.md), [kịch bản demo/staging](docs/sprint1-loc/ACCEPTANCE.md). Trạng thái kỹ thuật và xác nhận của nhóm được ghi riêng trong hồ sơ.
 
 **Cập nhật 29/10/2026:** [bàn giao code U003/U007/U009 của Lộc](docs/LOC_SPRINT1_COMPLETION_2026-10-29.md). Hoàn thiện SMTP, xóa mềm, giờ còn lại và giữ bản nháp khi realtime/xung đột phiên bản. Đạt 129 backend + 16 AIService + 36 frontend và 2 kịch bản browser. Người dùng chọn cấu hình Gmail sau; chưa xác nhận gửi Gmail thật hoặc nghiệm thu của nhóm.
 

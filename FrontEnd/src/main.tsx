@@ -1,7 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
-import App from './App.jsx';
+import App from './App.tsx';
 import { AppProvider, ToastProvider } from './lib/app.jsx';
 import { installRipple } from './lib/ripple.js';
 import '@fontsource-variable/inter';
@@ -10,7 +10,9 @@ import './index.css';
 
 installRipple();
 
-ReactDOM.createRoot(document.getElementById('root')).render(
+const root = document.getElementById('root');
+if (!root) throw new Error('Không tìm thấy phần tử root');
+ReactDOM.createRoot(root).render(
   <React.StrictMode>
     <BrowserRouter>
       <ToastProvider>

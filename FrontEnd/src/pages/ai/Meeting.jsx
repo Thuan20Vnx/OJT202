@@ -69,7 +69,7 @@ export default function Meeting({ project, onUsage, disabled }) {
             </button>
           )}
           <Notice tone="warn">Không rõ người hoặc hạn thì AI sẽ để trống, không tự đoán.</Notice>
-          {!info?.access?.canManage && <Notice>Chỉ PM, Owner hoặc Admin của dự án đang hoạt động được tạo và duyệt việc từ biên bản.</Notice>}
+          {!info?.access?.canManage && <Notice>Chỉ PM của dự án đang hoạt động được tạo và duyệt việc từ biên bản.</Notice>}
           <button className="btn-primary h-10 w-full" onClick={extract} disabled={busy || f.text.trim().length < 10 || disabled || !info?.access?.canManage}>
             {busy ? <Spinner /> : <Icon name="auto_awesome" size={18} />}
             Trích action items

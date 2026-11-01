@@ -1,0 +1,93 @@
+{
+  "date": "2026-11-01",
+  "base_commit": "8aa32ab9955853f926cef6bc00e2d7f8e7118a9c",
+  "code_files": [
+    {
+      "path": "BackEnd/src/services/activity.js",
+      "sha256": "6f183066f5ffdaa3f6421b4fc66dc0025afe802d886dd88ce59c353f5591113a",
+      "matches_clean_copy": true
+    },
+    {
+      "path": "BackEnd/test/api.test.js",
+      "sha256": "705de39ddc73622f0dbe17571a522de1fba15325474afa1bc8f47f9719bfea85",
+      "matches_clean_copy": true
+    },
+    {
+      "path": "BackEnd/test/auth-limit.test.js",
+      "sha256": "479e426c487e71c40e87fc92a8ab7157ba6db84f115dea20e1bbf3a904a72db9",
+      "matches_clean_copy": true
+    },
+    {
+      "path": "FrontEnd/src/pages/settings/Members.jsx",
+      "sha256": "417a0df5424dcfbc17c44c217e82e2c7d0b356e8acedc399ca1ae6cb6a212476",
+      "matches_clean_copy": true
+    }
+  ],
+  "e2e_capture_note": "Clean copy of test/e2e/sprint1.test.mjs additionally opens Members and captures desktop/mobile screenshots; application code otherwise matches the listed working tree files and base commit.",
+  "verification": {
+    "backend": 132,
+    "frontend": 36,
+    "ai_service": 16,
+    "e2e": 2,
+    "failures_final": 0,
+    "skipped_final": 0
+  },
+  "artifacts": [
+    {
+      "path": "docs/sprint1-loc/ACCEPTANCE.md",
+      "sha256": "2f2d3a1f608172938aebe4d61daa60376cd75569ac023a3fcd9b2aabea49828a"
+    },
+    {
+      "path": "docs/sprint1-loc/evidence/2026-11-01-backend-before-fix.txt",
+      "sha256": "b1673840efecd94e4613037000dab7b494c640aeb317727709c24a0217b47997"
+    },
+    {
+      "path": "docs/sprint1-loc/evidence/2026-11-01-backend-final.txt",
+      "sha256": "99c4b6d6411d02a53a67607e55f042949b66a83b97fdc033d8288eb00529b770"
+    },
+    {
+      "path": "docs/sprint1-loc/evidence/2026-11-01-backend-harness-retry.txt",
+      "sha256": "d34c2192117636c868778abf461a5deca49414314d399e6bdc502d96f5af1667"
+    },
+    {
+      "path": "docs/sprint1-loc/evidence/2026-11-01-clean-e2e-hidden-path.txt",
+      "sha256": "73ec703870ee640907497f0c88ea0a32fe111893fe4f098e15855dac5e986d15"
+    },
+    {
+      "path": "docs/sprint1-loc/evidence/2026-11-01-clean-e2e.txt",
+      "sha256": "c881da424854261758d5824952fe061ca78047720863398db992730f3cefacee"
+    },
+    {
+      "path": "docs/sprint1-loc/evidence/2026-11-01-clean-install.txt",
+      "sha256": "bb7ff2fa7a0b65dd3929332efa9c9c7d48496f01e7d4826cba274c5a62b9227b"
+    },
+    {
+      "path": "docs/sprint1-loc/evidence/2026-11-01-clean-tests.txt",
+      "sha256": "725a884f8a4ce9157fcd9e8440e6ac4a3c2f556369bf994fd80a653ae3169eeb"
+    },
+    {
+      "path": "docs/sprint1-loc/evidence/2026-11-01-secret-check.json",
+      "sha256": "3aa4893ccc9b1f57792f4490669b018fa184e087d1d5b415f9052f946c6eb42e"
+    },
+    {
+      "path": "docs/sprint1-loc/evidence/2026-11-01-tests.txt",
+      "sha256": "bab39635da230a92c2db8b7ab29c5d93390399c7eb355ad7922fad9d2511124d"
+    },
+    {
+      "path": "docs/sprint1-loc/evidence/members-desktop.png",
+      "sha256": "58afdf318e99c9639d04d566bab7c866e47edc7343665e679ea003ddd85504af"
+    },
+    {
+      "path": "docs/sprint1-loc/evidence/members-mobile.png",
+      "sha256": "813404cf5ac199d5475df76d7e75b2534c48f49964eda6582eb29510a12c186a"
+    },
+    {
+      "path": "docs/sprint1-loc/REVIEW.md",
+      "sha256": "c8830ae794b23f86afd081ea663589d9c423e2ccf18140c15c44a2bfdadc6456"
+    },
+    {
+      "path": "docs/sprint1-loc/SRS.md",
+      "sha256": "11aaccaec5e26a742a7f7a39b095303925cb66617fab8d495869aa8d1aab4f3f"
+    }
+  ]
+}

@@ -23,12 +23,18 @@ const TASK_FIELDS = {
   dueDate: 'Cập nhật hạn chót',
   priority: 'Đổi ưu tiên',
   title: 'Đổi tên',
+  description: 'Cập nhật mô tả',
+  acceptanceCriteria: 'Cập nhật tiêu chí nghiệm thu',
   estimateHours: 'Đổi ước lượng',
   remainingHours: 'Cập nhật thời gian còn lại',
+  spentHours: 'Cập nhật thời gian đã làm',
+  labels: 'Cập nhật nhãn',
+  sprint: 'Chuyển sprint',
+  checklist: 'Cập nhật checklist',
   order: 'Sắp xếp công việc',
 };
 
-const comparable = (v) => (v instanceof Date ? v.toISOString() : String(v ?? null));
+const comparable = (v) => (v instanceof Date ? v.toISOString() : JSON.stringify(v ?? null));
 
 /** So sánh trước/sau và ghi từng thay đổi chính của công việc. */
 export async function logTaskChanges({ task, actor, before, after, labels = {} }, tx) {

@@ -10,6 +10,7 @@ import { emitProject } from '../services/realtime.js';
 import { badRequest, conflict, forbidden, notFound, parse } from '../utils/http.js';
 import { plainText } from '../utils/security.js';
 import { BUSINESS_TIMEZONE, isDateInput, parseDate } from '../utils/dates.js';
+import { acceptanceCriteriaSchema, normalizeTaskInput } from '../services/acceptance-criteria.ts';
 
 const router = Router();
 router.use(requireAuth);
@@ -22,7 +23,7 @@ const optDate = z.union([z.string(), z.null()]).refine((s) => s === null || s ==
 const taskFields = {
   title: z.string({ required_error: 'Vui lòng nhập tên công việc' }).trim().min(1, 'Vui lòng nhập tên công việc').max(200),
   description: z.string().max(20000),
-  acceptanceCriteria: z.array(z.string().trim().min(1).max(300)).max(30),
+  acceptanceCriteria: acceptanceCriteriaSchema,
   status: z.enum(['todo', 'in_progress', 'review', 'done']),
   priority: z.enum(['low', 'medium', 'high']),
   assignee: z.string().nullable(),
@@ -129,7 +130,7 @@ router.post('/projects/:projectId/tasks', middlewareProject(), async (req, res) 
       parent: z.string().optional(),
       blockedBy: z.array(z.string()).optional(),
     }),
-    req.body,
+    normalizeTaskInput(req.body),
   );
   if (body.dueDate !== undefined) body.dueDate = body.dueDate ? parseDate(body.dueDate, req.user.timezone, true) : null;
   const { task, parent, project } = await withWorkspaceLock(req.pa.project.workspace, async (tx) => {
@@ -292,7 +293,7 @@ async function applyUpdate(req, before, project, patch) {
 router.patch('/tasks/:id', async (req, res) => {
   const access = await taskAccess(req.user.id, req.params.id);
   assertWrite(access);
-  const body = parse(z.object({ ...Object.fromEntries(Object.entries(taskFields).map(([k, v]) => [k, v.optional()])), version: z.number().int().min(1) }), req.body);
+  const body = parse(z.object({ ...Object.fromEntries(Object.entries(taskFields).map(([k, v]) => [k, v.optional()])), version: z.number().int().min(1) }), normalizeTaskInput(req.body));
   if (body.dueDate !== undefined) body.dueDate = body.dueDate ? parseDate(body.dueDate, req.user.timezone, true) : null;
   const { version, ...patch } = body;
   if (version !== access.task.version) throw conflict(STALE_MSG, { task: await loadTask(access.task.id) });

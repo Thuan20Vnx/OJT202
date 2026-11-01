@@ -129,10 +129,10 @@ router.post('/refresh', async (req, res) => {
   });
   if (!result?.next) {
     if (result?.revokedUser) await disconnectUser(result.revokedUser);
-    clearAuthCookies(res);
+    clearAuthCookies(res, req.baseUrl);
     throw unauthorized('Phiên đăng nhập không còn hiệu lực');
   }
-  setAuthCookies(res, signAccess(result.user.id, result.next.id), nextRaw, result.next);
+  setAuthCookies(res, signAccess(result.user.id, result.next.id), nextRaw, result.next, req.baseUrl);
   res.json({ ok: true });
 });
 
@@ -148,7 +148,7 @@ router.post('/logout', async (req, res) => {
       await disconnectUser(s.user);
     }
   }
-  clearAuthCookies(res);
+  clearAuthCookies(res, req.baseUrl);
   res.json({ ok: true });
 });
 
@@ -185,7 +185,7 @@ router.post('/reset-password', async (req, res) => {
     await tx.session.updateMany({ where: { user: token.user, revokedAt: null }, data: { revokedAt: new Date() } });
   });
   await disconnectUser(token.user);
-  clearAuthCookies(res);
+  clearAuthCookies(res, req.baseUrl);
   res.json({ ok: true });
 });
 

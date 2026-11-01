@@ -197,7 +197,7 @@ export async function seedDemo() {
       'Độ trễ cập nhật thẻ < 80ms trong cùng vùng mạng',
       'Khôi phục trạng thái và đồng bộ lại sau khi mất kết nối dưới 30s',
       'Mã hóa dữ liệu truyền tải qua WSS (TLS 1.3)',
-    ],
+    ].join('\n'),
     blockedBy: [T['TF-98'].id],
   });
   await mk(website, 104, {

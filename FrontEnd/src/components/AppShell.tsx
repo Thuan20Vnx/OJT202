@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import type { ProjectSummary } from '../lib/app-context.ts';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { useApp } from '../lib/app.jsx';
@@ -18,7 +19,7 @@ const NAV = [
   { to: '/reports', icon: 'bar_chart', label: 'Báo cáo', en: 'Reports' },
 ];
 
-const CRUMBS = {
+const CRUMBS: Record<string, string[]> = {
   '/overview': ['Tổng quan'],
   '/board': ['Bảng Kanban'],
   '/my-tasks': ['Việc của tôi'],
@@ -38,12 +39,12 @@ const PROJECT_SCOPED = ['/overview', '/board', '/calendar', '/documents', '/ai',
 function SearchBox() {
   const { wsId, setProjectId } = useApp();
   const [q, setQ] = useState('');
-  const [res, setRes] = useState(null);
+  const [res, setRes] = useState<{ projects: ProjectSummary[]; tasks: { _id: string; key: string; title: string; status: string; project: { _id: string } }[] } | null>(null);
   const [open, setOpen] = useState(false);
-  const ref = useRef(null);
+  const ref = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
   useEffect(() => {
-    const onKey = (e) => {
+    const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         ref.current?.focus();
@@ -54,7 +55,7 @@ function SearchBox() {
   }, []);
   useEffect(() => {
     if (!q.trim() || !wsId) return setRes(null);
-    const t = setTimeout(() => api.get(`/workspaces/${wsId}/search?q=${encodeURIComponent(q)}`).then(setRes).catch(() => {}), 200);
+    const t = setTimeout(() => api.get<NonNullable<typeof res>>(`/workspaces/${wsId}/search?q=${encodeURIComponent(q)}`).then(setRes).catch(() => {}), 200);
     return () => clearTimeout(t);
   }, [q, wsId]);
   return (
@@ -108,7 +109,7 @@ function SearchBox() {
   );
 }
 
-function TopBar({ onToggleSidebar, onCreate, sidebarOpen }) {
+function TopBar({ onToggleSidebar, onCreate, sidebarOpen }: { onToggleSidebar: () => void; onCreate: () => void; sidebarOpen: boolean }) {
   const { me, ws, role, unread, logout, theme, toggleTheme, project, canManageProject } = useApp();
   const [lang, setLang] = useState(me?.language || 'vi');
   const loc = useLocation();
@@ -116,9 +117,10 @@ function TopBar({ onToggleSidebar, onCreate, sidebarOpen }) {
   const base = '/' + loc.pathname.split('/')[1];
   const crumbs = CRUMBS[base] || [];
   const settingsTab = loc.pathname.split('/')[2];
-  const tail = base === '/settings' ? { members: 'Thành viên & Phân quyền', invites: 'Lời mời', ai: 'Cài đặt AI', activity: 'Nhật ký hoạt động', general: 'Thông tin chung' }[settingsTab] : null;
+  const settingsLabels: Record<string, string> = { members: 'Thành viên & Phân quyền', invites: 'Lời mời', ai: 'Cài đặt AI', activity: 'Nhật ký hoạt động', general: 'Thông tin chung' };
+  const tail = base === '/settings' ? settingsLabels[settingsTab] : null;
 
-  const changeLang = async (l) => {
+  const changeLang = async (l: string) => {
     setLang(l);
     await api.patch('/me', { language: l }).catch(() => {});
   };
@@ -189,7 +191,7 @@ function TopBar({ onToggleSidebar, onCreate, sidebarOpen }) {
               <Avatar user={me} size={32} />
               <span className="hidden flex-col text-left xl:flex">
                 <span className="whitespace-nowrap text-label-md font-semibold leading-none text-slate-900">{me?.name}</span>
-                <span className="whitespace-nowrap text-[11px] leading-tight text-slate-500">{me?.title || ROLE[role] || ''}</span>
+                <span className="whitespace-nowrap text-[11px] leading-tight text-slate-500">{me?.title || (role && ROLE[role]) || ''}</span>
               </span>
             </button>
           }
@@ -218,15 +220,15 @@ function TopBar({ onToggleSidebar, onCreate, sidebarOpen }) {
   );
 }
 
-function Sidebar({ collapsed, overlay, onClose }) {
+function Sidebar({ collapsed, overlay, onClose }: { collapsed: boolean; overlay: boolean; onClose: () => void }) {
   const { ws, workspaces, setWsId, activeProjects, project, setProjectId, me, role } = useApp();
-  const [mine, setMine] = useState(null);
+  const [mine, setMine] = useState(0);
   const navigate = useNavigate();
   const loc = useLocation();
   useEffect(() => {
     if (!ws) return;
     api
-      .get(`/workspaces/${ws.workspace._id}/my-tasks?limit=1`)
+      .get<{ summary: { today: number; overdue: number } }>(`/workspaces/${ws.workspace._id}/my-tasks?limit=1`)
       .then((d) => setMine(d.summary.today + d.summary.overdue))
       .catch(() => {});
   }, [ws, loc.pathname]);
@@ -371,7 +373,7 @@ function Sidebar({ collapsed, overlay, onClose }) {
 }
 
 /** Giữ phần tử trong DOM thêm `ms` khi đóng để chạy hiệu ứng ra; `shown` bật sau 1 khung hình để chạy hiệu ứng vào */
-function usePresence(open, ms) {
+function usePresence(open: boolean, ms: number) {
   const [mounted, setMounted] = useState(open);
   const [shown, setShown] = useState(open);
   useEffect(() => {

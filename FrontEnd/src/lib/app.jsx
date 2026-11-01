@@ -3,7 +3,8 @@ import { api, onUnauthorized } from './api.js';
 import { closeSocket, getSocket, joinProject } from './socket.js';
 import { setTimeZone } from './dates.js';
 
-export const AppCtx = createContext(null);
+import { AppCtx } from './app-context.ts';
+export { AppCtx, useApp } from './app-context.ts';
 const ToastCtx = createContext(() => {});
 
 const store = {
@@ -254,7 +255,6 @@ export function AppProvider({ children }) {
   return <AppCtx.Provider value={value}>{children}</AppCtx.Provider>;
 }
 
-export const useApp = () => useContext(AppCtx);
 
 /** Hook tải dữ liệu đơn giản: trả { data, error, loading, reload, setData } */
 export function useLoad(fn, deps) {

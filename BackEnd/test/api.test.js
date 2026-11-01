@@ -37,8 +37,9 @@ let realtime;
 
 class Client {
   cookies = {};
+  constructor(prefix = '') { this.prefix = prefix; }
   async req(method, url, body) {
-    const res = await fetch(base + url, {
+    const res = await fetch(base + this.prefix + url, {
       method,
       headers: {
         'content-type': 'application/json',
@@ -94,6 +95,48 @@ after(async () => {
   aiServer.close();
   await db.disconnectDb();
   if (path.dirname(testUploads) === os.tmpdir() && path.basename(testUploads).startsWith('taskflow-test-uploads-')) await fs.rm(testUploads, { recursive: true, force: true });
+});
+
+describe('Sprint 1: hợp đồng API v1 và acceptance_criteria văn bản', () => {
+  test('v1 dùng cùng ACL/CSRF, refresh/logout cookie đúng path và tương thích API cũ', async () => {
+    const owner = new Client('/v1');
+    const login = await owner.post('/auth/login', { email: seed.users.maianh.email, password: DEMO_PASSWORD });
+    assert.equal(login.status, 200);
+    assert.ok(login.setCookies.some((c) => c.startsWith('tf_rt=') && c.includes('Path=/api/v1/auth;')));
+    assert.equal((await owner.post('/auth/refresh')).status, 200);
+    const old = new Client();
+    old.cookies = { ...owner.cookies };
+    assert.deepEqual((await owner.get('/me')).data, (await old.get('/me')).data);
+    assert.equal((await new Client('/v1').get(`/projects/${seed.projects.website.id}`)).status, 401);
+    const viewer = await new Client('/v1').login(seed.users.linh.email);
+    assert.equal((await viewer.post(`/projects/${seed.projects.website.id}/tasks`, { title: 'Forbidden' })).status, 403);
+    const csrf = await fetch(`${base}/v1/auth/logout`, { method: 'POST', headers: { cookie: Object.entries(owner.cookies).map(([k, v]) => `${k}=${v}`).join('; ') } });
+    assert.equal(csrf.status, 403);
+    const logout = await owner.post('/auth/logout');
+    assert.equal(logout.status, 200);
+    assert.ok(logout.setCookies.some((c) => c.startsWith('tf_rt=;') && c.includes('Path=/api/v1/auth;')));
+    assert.equal((await old.get('/me')).status, 401);
+  });
+
+  test('văn bản nhiều dòng được lưu nguyên vẹn; validation, alias và xóa nội dung đúng', async () => {
+    const owner = await new Client('/v1').login(seed.users.maianh.email);
+    const text = 'Đúng quyền người nhận\n\nGiữ dấu, dấu phẩy và khoảng trắng  ';
+    const created = await owner.post(`/projects/${seed.projects.website.id}/tasks`, { title: 'Text AC contract', acceptance_criteria: text });
+    assert.equal(created.status, 201, JSON.stringify(created.data));
+    const task = created.data.task;
+    assert.equal(task.acceptance_criteria, text);
+    assert.deepEqual(task.acceptanceCriteria, text.split('\n'));
+    assert.equal((await db.prisma.task.findUnique({ where: { id: task._id } })).acceptanceCriteria, text);
+    assert.equal((await owner.get(`/tasks/${task._id}`)).data.task.acceptance_criteria, text);
+    for (const input of [{ acceptance_criteria: 'x'.repeat(10001) }, { acceptance_criteria: ['wrong'] }, { acceptance_criteria: 'text', acceptanceCriteria: ['duplicate'] }]) {
+      assert.equal((await owner.patch(`/tasks/${task._id}`, { ...input, version: task.version })).status, 400);
+    }
+    assert.equal((await owner.get(`/tasks/${task._id}`)).data.task.version, task.version);
+    const cleared = await owner.patch(`/tasks/${task._id}`, { acceptance_criteria: '', version: task.version });
+    assert.equal(cleared.status, 200);
+    assert.equal(cleared.data.task.acceptance_criteria, '');
+    assert.deepEqual(cleared.data.task.acceptanceCriteria, []);
+  });
 });
 
 describe('Xác thực & phiên (U003, U004, U005)', () => {
@@ -1888,6 +1931,68 @@ describe('AI: hạn biên bản và giới hạn kế hoạch', () => {
 });
 
 describe('Lộc Sprint 1: SMTP, giờ còn lại và xóa mềm', () => {
+  test('Sprint 1: token xác minh hết hạn không xác minh tài khoản hoặc tạo phiên', async () => {
+    const client = new Client();
+    const email = 'loc.expired-verification@example.test';
+    assert.equal((await client.post('/auth/register', { name: 'Expired verification', email, password: DEMO_PASSWORD, acceptTerms: true })).status, 201);
+    const user = await db.prisma.user.findUnique({ where: { email } });
+    const mail = await db.prisma.outbox.findFirst({ where: { to: email }, orderBy: { createdAt: 'desc' } });
+    const token = new URL(mail.link).searchParams.get('token');
+    await db.prisma.token.updateMany({ where: { user: user.id, type: 'verify' }, data: { expiresAt: new Date(Date.now() - 1000) } });
+    assert.equal((await client.post('/auth/verify-email', { token })).status, 400);
+    assert.equal((await db.prisma.user.findUnique({ where: { id: user.id } })).emailVerified, false);
+    assert.equal(await db.prisma.session.count({ where: { user: user.id } }), 0);
+    assert.equal((await client.post('/auth/login', { email, password: DEMO_PASSWORD })).status, 403);
+    assert.equal((await client.post('/auth/resend-verification', { email })).status, 200);
+    const freshMail = await db.prisma.outbox.findFirst({ where: { to: email }, orderBy: { createdAt: 'desc' } });
+    assert.equal((await client.post('/auth/verify-email', { token: new URL(freshMail.link).searchParams.get('token') })).status, 200);
+  });
+
+  test('Sprint 1: AC lưu qua create/read/update; tên rỗng và AC sai không ghi dữ liệu hoặc audit', async (t) => {
+    const { owner, member, pid, create } = await permissionFixture();
+    const acceptanceCriteria = ['Người nhận thuộc dự án', 'Giữ lịch sử khi xóa'];
+    const task = await create({ title: 'AC contract', assignee: seed.users.nhu.id, acceptanceCriteria });
+    assert.deepEqual((await owner.get(`/tasks/${task._id}`)).data.task.acceptanceCriteria, acceptanceCriteria);
+    assert.equal((await member.patch(`/tasks/${task._id}`, { acceptanceCriteria: ['Tự sửa AC'], version: task.version })).status, 403);
+    const taskCount = await db.prisma.task.count({ where: { project: pid } });
+    const auditCount = await db.prisma.activity.count({ where: { project: pid } });
+    for (const fields of [{ title: '  ' }, { title: 'Invalid AC', acceptanceCriteria: [' '] }, { title: 'Invalid AC', acceptanceCriteria: 'plain text' }]) {
+      assert.equal((await owner.post(`/projects/${pid}/tasks`, fields)).status, 400);
+    }
+    assert.equal((await owner.patch(`/tasks/${task._id}`, { title: ' ', version: task.version })).status, 400);
+    assert.equal(await db.prisma.task.count({ where: { project: pid } }), taskCount);
+    assert.equal(await db.prisma.activity.count({ where: { project: pid } }), auditCount);
+    const updated = await owner.patch(`/tasks/${task._id}`, { acceptanceCriteria: ['Đã thống nhất tiêu chí mới'], version: task.version });
+    assert.equal(updated.status, 200);
+    assert.deepEqual((await member.get(`/tasks/${task._id}`)).data.task.acceptanceCriteria, ['Đã thống nhất tiêu chí mới']);
+    assert.equal(updated.data.task.version, task.version + 1);
+    assert.ok(await db.prisma.activity.findFirst({ where: { entityId: task._id, field: 'acceptanceCriteria' } }));
+    // Arrays with identical comma-joined text are still different requirements.
+    let current = updated.data.task;
+    for (const criteria of [['A,B'], ['A', 'B']]) {
+      const saved = await owner.patch(`/tasks/${task._id}`, { acceptanceCriteria: criteria, version: current.version });
+      assert.equal(saved.status, 200);
+      current = saved.data.task;
+    }
+    assert.equal(await db.prisma.activity.count({ where: { entityId: task._id, field: 'acceptanceCriteria' } }), 3);
+    const original = db.prisma.$transaction;
+    const transact = original.bind(db.prisma);
+    t.after(() => { db.prisma.$transaction = original; });
+    db.prisma.$transaction = (callback, options) => transact(async (tx) => {
+      const createMany = tx.activity.createMany.bind(tx.activity);
+      tx.activity.createMany = (args) => {
+        if (args.data.some((entry) => entry.field === 'acceptanceCriteria')) throw new Error('Simulated AC audit failure');
+        return createMany(args);
+      };
+      return callback(tx);
+    }, options);
+    assert.equal((await owner.patch(`/tasks/${task._id}`, { acceptanceCriteria: ['Must roll back'], version: current.version })).status, 500);
+    db.prisma.$transaction = original;
+    const unchanged = (await owner.get(`/tasks/${task._id}`)).data.task;
+    assert.deepEqual(unchanged.acceptanceCriteria, ['A', 'B']);
+    assert.equal(unchanged.version, current.version);
+  });
+
   test('SMTP thực nhận email register/resend/verify và invite/resend/revoke/accept', async (t) => {
     const { messages } = await smtpSandbox(t, config);
     const client = new Client();

@@ -12,8 +12,8 @@ test('401 đang chờ từ phiên ẩn danh không đăng xuất phiên vừa x�
   let loggedOut = 0;
   t.after(onUnauthorized(() => loggedOut++));
   t.mock.method(globalThis, 'fetch', async (url) => {
-    if (url === '/api/auth/verify-email') return response(200);
-    if (url === '/api/auth/refresh') { refreshStarted(); return delayed; }
+    if (url === '/api/v1/auth/verify-email') return response(200);
+    if (url === '/api/v1/auth/refresh') { refreshStarted(); return delayed; }
     return response(401);
   });
   const oldIdentity = request('GET', '/me');
@@ -50,7 +50,7 @@ test('download làm mới phiên và tải đủ byte; refresh 503 không đăng
   let loggedOut = 0, downloads = 0, refreshed = false;
   t.after(onUnauthorized(() => loggedOut++));
   const fetch = t.mock.method(globalThis, 'fetch', async (url) => {
-    if (url === '/api/auth/refresh') { refreshed = true; return response(200); }
+    if (url === '/api/v1/auth/refresh') { refreshed = true; return response(200); }
     if (!refreshed) return response(401);
     return new Response('Tệp đầy đủ\nDòng cuối', { headers: { 'content-type': 'text/plain' } });
   });
@@ -63,7 +63,7 @@ test('download làm mới phiên và tải đủ byte; refresh 503 không đăng
   assert.equal(downloads, 1);
   assert.equal(await downloadedBlob.text(), 'Tệp đầy đủ\nDòng cuối');
   await new Promise((resolve) => setTimeout(resolve, 5));
-  fetch.mock.mockImplementation(async (url) => response(url === '/api/me' ? 503 : 401));
+  fetch.mock.mockImplementation(async (url) => response(url === '/api/v1/me' ? 503 : 401));
   await assert.rejects(download('/documents/a/download', 'a.txt'), (e) => e instanceof ApiError && e.status === 503);
   assert.equal(loggedOut, 0);
   assert.equal(downloads, 1);
@@ -75,10 +75,10 @@ test('refresh gặp 503 không đăng xuất người dùng và không xoay toke
   t.after(onUnauthorized(() => loggedOut++));
   t.mock.method(globalThis, 'fetch', async (url) => {
     calls.push(url);
-    return response(url === '/api/me' ? 503 : 401);
+    return response(url === '/api/v1/me' ? 503 : 401);
   });
   await assert.rejects(request('GET', '/projects'), (e) => e instanceof ApiError && e.status === 503);
-  assert.deepEqual(calls, ['/api/projects', '/api/me']);
+  assert.deepEqual(calls, ['/api/v1/projects', '/api/v1/me']);
   assert.equal(loggedOut, 0);
   await new Promise((resolve) => setTimeout(resolve, 5));
 });
@@ -87,7 +87,7 @@ test('lỗi mạng trong refresh hoặc retry được chuẩn hóa thành ApiEr
   let loggedOut = 0;
   t.after(onUnauthorized(() => loggedOut++));
   t.mock.method(globalThis, 'fetch', async (url) => {
-    if (url === '/api/me') throw new TypeError('fetch failed');
+    if (url === '/api/v1/me') throw new TypeError('fetch failed');
     return response(401);
   });
   await assert.rejects(request('GET', '/projects'), (e) => e instanceof ApiError && e.status === 0);
@@ -108,7 +108,7 @@ test('nhiều request 401 đồng thời chỉ xoay refresh một lần', async 
   let rotations = 0;
   let refreshed = false;
   t.mock.method(globalThis, 'fetch', async (url) => {
-    if (url === '/api/auth/refresh') { rotations++; refreshed = true; return response(200); }
+    if (url === '/api/v1/auth/refresh') { rotations++; refreshed = true; return response(200); }
     return response(refreshed ? 200 : 401, { ok: refreshed });
   });
   const results = await Promise.all([request('GET', '/a'), request('GET', '/b'), request('GET', '/c')]);

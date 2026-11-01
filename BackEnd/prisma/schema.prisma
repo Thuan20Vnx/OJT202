@@ -342,7 +342,7 @@ model Task {
   key                String
   title              String     @db.VarChar(200)
   description        String     @default("")
-  acceptanceCriteria String[]   @default([])
+  acceptanceCriteria String     @default("") @map("acceptance_criteria")
   status             TaskStatus @default(todo)
   priority           Priority   @default(medium)
   assignee           String?    @map("assignee_id") @db.Uuid

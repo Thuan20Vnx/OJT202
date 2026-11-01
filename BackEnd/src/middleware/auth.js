@@ -34,19 +34,19 @@ export async function startSession(res, req, user, { remember = false } = {}) {
       },
     });
   });
-  setAuthCookies(res, signAccess(user.id, session.id), refresh, session);
+  setAuthCookies(res, signAccess(user.id, session.id), refresh, session, req.baseUrl);
   return session;
 }
 
-export function setAuthCookies(res, access, refresh, session) {
+export function setAuthCookies(res, access, refresh, session, authPath = '/api/auth') {
   const remaining = Math.max(0, new Date(session.expiresAt).getTime() - Date.now());
   res.cookie(ACCESS_COOKIE, access, { ...cookieBase(), path: '/', ...(session.remember ? { maxAge: Math.min(config.accessTtlSec * 1000, remaining) } : {}) });
-  res.cookie(REFRESH_COOKIE, refresh, { ...cookieBase(), path: '/api/auth', ...(session.remember ? { maxAge: remaining } : {}) });
+  res.cookie(REFRESH_COOKIE, refresh, { ...cookieBase(), path: authPath, ...(session.remember ? { maxAge: remaining } : {}) });
 }
 
-export function clearAuthCookies(res) {
+export function clearAuthCookies(res, authPath = '/api/auth') {
   res.clearCookie(ACCESS_COOKIE, { ...cookieBase(), path: '/' });
-  res.clearCookie(REFRESH_COOKIE, { ...cookieBase(), path: '/api/auth' });
+  res.clearCookie(REFRESH_COOKIE, { ...cookieBase(), path: authPath });
 }
 
 /** Xác thực access token và kiểm tra phiên còn hiệu lực, tài khoản chưa bị khóa. */

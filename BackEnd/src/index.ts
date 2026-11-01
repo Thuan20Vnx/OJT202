@@ -1,7 +1,7 @@
 import http from 'node:http';
 import { config } from './config.js';
 import { connectDb, disconnectDb } from './db.js';
-import { createApp } from './app.js';
+import { createApp } from './app.ts';
 import { initRealtime } from './services/realtime.js';
 import { startJobs } from './services/jobs.js';
 import { seedDemo } from './seed.js';

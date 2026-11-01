@@ -149,7 +149,7 @@ export default function TaskDetailModal({ taskId, onClose }) {
       setForm({
         title: d.task.title,
         description: d.task.description,
-        acceptanceCriteria: d.task.acceptanceCriteria || [],
+        acceptanceCriteria: d.task.acceptance_criteria ?? (d.task.acceptanceCriteria || []).join('\n'),
         assignee: d.task.assignee?._id || '',
         dueDate: isoDate(d.task.dueDate),
         priority: d.task.priority,
@@ -270,7 +270,7 @@ export default function TaskDetailModal({ taskId, onClose }) {
       await patch({
         title: form.title,
         description: form.description,
-        acceptanceCriteria: form.acceptanceCriteria.filter((x) => x.trim()),
+        acceptance_criteria: form.acceptanceCriteria,
         assignee: form.assignee || null,
         dueDate: form.dueDate === isoDate(task.dueDate) ? task.dueDate : form.dueDate || null,
         priority: form.priority,
@@ -481,40 +481,15 @@ export default function TaskDetailModal({ taskId, onClose }) {
             />
             <div className="mt-3 rounded-lg border border-slate-100 bg-slate-50/60 p-3">
               <p className="mb-1.5 text-label-md font-semibold text-slate-700">Tiêu chí nghiệm thu</p>
-              {form.acceptanceCriteria.map((c, i) => (
-                <div key={i} className="flex items-center gap-2 py-0.5">
-                  <Icon name="check_circle" size={16} className="icon-fill text-blue-600" />
-                  <input
-                    disabled={!canWrite}
-                    className="flex-1 border-0 bg-transparent p-0 text-body-sm focus:ring-0"
-                    value={c}
-                    onChange={(e) =>
-                      setF(
-                        'acceptanceCriteria',
-                        form.acceptanceCriteria.map((x, j) => (j === i ? e.target.value : x)),
-                      )
-                    }
-                  />
-                  {canWrite && (
-                    <button
-                      className="text-slate-300 hover:text-rose-500"
-                      onClick={() =>
-                        setF(
-                          'acceptanceCriteria',
-                          form.acceptanceCriteria.filter((_, j) => j !== i),
-                        )
-                      }
-                    >
-                      <Icon name="close" size={14} />
-                    </button>
-                  )}
-                </div>
-              ))}
-              {canWrite && (
-                <button className="mt-1 text-label-md text-blue-600 hover:underline" onClick={() => setF('acceptanceCriteria', [...form.acceptanceCriteria, ''])}>
-                  + Thêm tiêu chí
-                </button>
-              )}
+              <textarea
+                aria-label="Tiêu chí nghiệm thu"
+                disabled={!canWrite}
+                className="textarea min-h-[100px]"
+                maxLength={10000}
+                value={form.acceptanceCriteria}
+                onChange={(e) => setF('acceptanceCriteria', e.target.value)}
+                placeholder="Chưa có tiêu chí nghiệm thu"
+              />
             </div>
           </Section>
 

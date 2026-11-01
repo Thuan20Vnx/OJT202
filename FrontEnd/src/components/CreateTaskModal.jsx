@@ -10,7 +10,7 @@ import { timeZone } from '../lib/dates.js';
 const empty = (status = 'todo') => ({
   title: '',
   description: '',
-  acceptanceCriteria: [],
+  acceptanceCriteria: '',
   subtasks: [],
   status: status === 'done' ? 'review' : status,
   assignee: '',
@@ -77,6 +77,7 @@ export function MemberPicker({ members = [], value, onChange, placeholder = 'Ch�
   );
 }
 
+/** @param {{open: boolean, onClose: () => void, defaultStatus?: string, projectId?: string, onCreated?: (task: {_id: string}) => void}} props */
 export default function CreateTaskModal({ open, onClose, defaultStatus, projectId: forcedProject, onCreated }) {
   const { project, me } = useApp();
   const pid = forcedProject || project?._id;
@@ -86,7 +87,6 @@ export default function CreateTaskModal({ open, onClose, defaultStatus, projectI
   const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState(false);
   const [more, setMore] = useState(false);
-  const [newCrit, setNewCrit] = useState('');
   const [newSub, setNewSub] = useState('');
   const [newLabel, setNewLabel] = useState('');
   const files = useRef(null);
@@ -110,7 +110,7 @@ export default function CreateTaskModal({ open, onClose, defaultStatus, projectI
       const { task } = await api.post(`/projects/${pid}/tasks`, {
         title: f.title,
         description: f.description,
-        acceptanceCriteria: f.acceptanceCriteria,
+        acceptance_criteria: f.acceptanceCriteria,
         status: f.status,
         priority: f.priority,
         assignee: f.assignee || null,
@@ -195,31 +195,14 @@ export default function CreateTaskModal({ open, onClose, defaultStatus, projectI
                 Tiêu chí nghiệm thu
               </span>
             </div>
-            <div className="space-y-1.5">
-              {f.acceptanceCriteria.map((c, i) => (
-                <div key={i} className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-body-sm">
-                  <Icon name="check_circle" size={16} className="text-emerald-500" />
-                  <span className="flex-1">{c}</span>
-                  <button className="text-slate-400 hover:text-rose-500" onClick={() => set('acceptanceCriteria')(f.acceptanceCriteria.filter((_, j) => j !== i))}>
-                    <Icon name="close" size={16} />
-                  </button>
-                </div>
-              ))}
-              <div className="flex gap-2">
-                <input
-                  className="input h-9"
-                  placeholder="Thêm tiêu chí rồi nhấn Enter"
-                  value={newCrit}
-                  onChange={(e) => setNewCrit(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && newCrit.trim()) {
-                      set('acceptanceCriteria')([...f.acceptanceCriteria, newCrit.trim()]);
-                      setNewCrit('');
-                    }
-                  }}
-                />
-              </div>
-            </div>
+            <textarea
+              aria-label="Tiêu chí nghiệm thu"
+              className="textarea min-h-[100px]"
+              maxLength={10000}
+              value={f.acceptanceCriteria}
+              onChange={set('acceptanceCriteria')}
+              placeholder="Nhập điều kiện cần đạt để nghiệm thu công việc..."
+            />
           </div>
           <div>
             <span className="label flex items-center gap-1.5">
@@ -284,7 +267,7 @@ export default function CreateTaskModal({ open, onClose, defaultStatus, projectI
                 </option>
               ))}
             </Select>
-            <p className="mt-1 text-label-md text-slate-500">Công việc cần được PM, Owner hoặc Admin duyệt từ Đang kiểm duyệt trước khi hoàn thành.</p>
+            <p className="mt-1 text-label-md text-slate-500">Công việc cần được PM của dự án duyệt từ Đang kiểm duyệt trước khi hoàn thành.</p>
           </Field>
           <Field label="Người nhận" error={errors.assignee}>
             <MemberPicker members={members} value={f.assignee} onChange={set('assignee')} />

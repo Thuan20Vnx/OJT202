@@ -208,7 +208,7 @@ router.post('/ai/drafts/:id/approve', async (req, res) => {
           key: `${project.keyPrefix}-${number}`,
           title: it.title,
           description: [it.description, it.excerpt ? `Trích biên bản: “${it.excerpt}”` : ''].filter(Boolean).join('\n\n'),
-          acceptanceCriteria: it.acceptanceCriteria || [],
+          acceptanceCriteria: (it.acceptanceCriteria || []).join('\n'),
           estimateHours: it.estimateHours ?? null,
           remainingHours: it.estimateHours ?? null,
           priority: it.priority || 'medium',

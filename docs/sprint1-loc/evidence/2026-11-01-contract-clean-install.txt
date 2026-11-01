@@ -1,0 +1,20 @@
+
+added 22 packages in 1s
+
+> taskflow-server@1.0.0 postinstall
+> prisma generate
+
+Prisma schema loaded from prisma\schema.prisma
+
+✔ Generated Prisma Client (v6.19.3) to .\node_modules\@prisma\client in 218ms
+
+Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+
+Tip: Need your database queries to be 1000x faster? Accelerate offers you that and more: https://pris.ly/tip-2-accelerate
+
+
+added 180 packages in 17s
+
+added 76 packages in 4s
+
+added 103 packages in 3s

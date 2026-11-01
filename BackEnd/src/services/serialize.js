@@ -22,6 +22,10 @@ export const meUser = (u) => ({
  * Trong server và database khóa là `id`; đổi tên tại một chỗ khi tuần tự hóa JSON (HTTP + Socket.io).
  */
 export function apiReplacer(_key, value) {
+  if (value && typeof value === 'object' && !Array.isArray(value) && 'id' in value && typeof value.acceptanceCriteria === 'string') {
+    // One text column is authoritative. Keep the array only as a legacy wire alias.
+    value = { ...value, acceptance_criteria: value.acceptanceCriteria, acceptanceCriteria: value.acceptanceCriteria ? value.acceptanceCriteria.split('\n') : [] };
+  }
   if (value && typeof value === 'object' && !Array.isArray(value) && 'id' in value && !('_id' in value)) {
     const { id, ...rest } = value;
     return { _id: id, ...rest };

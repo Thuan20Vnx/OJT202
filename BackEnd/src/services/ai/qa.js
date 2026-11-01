@@ -52,7 +52,7 @@ export async function collectSources(projectId) {
       t.dueDate ? `Hạn chót (${BUSINESS_TIMEZONE}): ${new Date(t.dueDate).toLocaleString('vi-VN', { timeZone: BUSINESS_TIMEZONE })}.` : 'Chưa có hạn chót.',
       (t.blockedBy || []).length ? `Bị chặn bởi: ${t.blockedBy.map((b) => `${b.key} ${b.title} (${STATUS_VI[b.status]})`).join(', ')}.` : '',
       t.description,
-      (t.acceptanceCriteria || []).join('. '),
+      t.acceptanceCriteria,
     ]
       .filter(Boolean)
       .join(' ');

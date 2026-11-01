@@ -1,7 +1,8 @@
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { lazy, Suspense } from 'react';
+import type { ReactNode } from 'react';
 import { useApp } from './lib/app.jsx';
-import AppShell from './components/AppShell.jsx';
+import AppShell from './components/AppShell.tsx';
 import { ErrorBox, PageLoader } from './components/ui.jsx';
 import Login from './pages/auth/Login.jsx';
 import ForgotPassword from './pages/auth/ForgotPassword.jsx';
@@ -35,7 +36,7 @@ function Connecting() {
   );
 }
 
-function RequireAuth({ children, needWorkspace = true }) {
+function RequireAuth({ children, needWorkspace = true }: { children: ReactNode; needWorkspace?: boolean }) {
   const { me, workspaces } = useApp();
   const loc = useLocation();
   if (me === undefined) return <Connecting />;
@@ -44,7 +45,7 @@ function RequireAuth({ children, needWorkspace = true }) {
   return children;
 }
 
-function PublicOnly({ children }) {
+function PublicOnly({ children }: { children: ReactNode }) {
   const { me } = useApp();
   const loc = useLocation();
   if (me === undefined) return <Connecting />;
@@ -52,7 +53,7 @@ function PublicOnly({ children }) {
   return children;
 }
 
-function WorkspaceGate({ children }) {
+function WorkspaceGate({ children }: { children: ReactNode }) {
   const { ws, workspaces, me, wsError, reloadWorkspace } = useApp();
   if (!workspaces.length && me?.isSystemAdmin) return <Navigate to="/admin" replace />;
   if (!ws && wsError) {

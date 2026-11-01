@@ -103,15 +103,21 @@ test('U003/U007/U009: SMTP register/invite → task → remaining hours → Revi
     await page.getByRole('button', { name: 'Tạo công việc', exact: true }).click();
     const create = page.getByRole('dialog');
     await create.getByLabel('Tên công việc').fill('Kiểm thử workflow Sprint 1');
+    await create.getByLabel('Tiêu chí nghiệm thu').fill('Lưu đúng tiêu chí bằng tiếng Việt\n\nPM duyệt trước khi Done');
     await create.getByRole('button', { name: 'Chọn người nhận' }).click();
     await create.getByRole('button', { name: /Như/ }).click();
+    await create.locator('.scroll-thin.overflow-y-auto').evaluate((el) => el.scrollTo(0, 0));
+    await create.screenshot({ path: path.join(artifacts, 'acceptance-create.png') });
     await create.getByRole('button', { name: 'Tạo công việc', exact: true }).click();
     await expect(create).not.toBeVisible();
     await expect(page.getByText('Kiểm thử workflow Sprint 1', { exact: true })).toBeVisible();
     const task = await db.prisma.task.findFirst({ where: { project: project.id, title: 'Kiểm thử workflow Sprint 1' } });
+    assert.equal(task.acceptanceCriteria, 'Lưu đúng tiêu chí bằng tiếng Việt\n\nPM duyệt trước khi Done');
 
     await member.page.goto(`/board?task=${task.id}`);
     await expect(member.page.getByRole('dialog', { name: 'Chi tiết công việc' })).toBeVisible();
+    await expect(member.page.getByLabel('Tiêu chí nghiệm thu')).toHaveValue(task.acceptanceCriteria);
+    await expect(member.page.getByLabel('Tiêu chí nghiệm thu')).toBeDisabled();
     await status(member.page, 'Đang thực hiện');
     await member.page.getByLabel('Giờ còn lại').fill('2.5');
     await member.page.getByRole('button', { name: 'Lưu giờ còn lại', exact: true }).click();
@@ -129,6 +135,13 @@ test('U003/U007/U009: SMTP register/invite → task → remaining hours → Revi
     await expect.poll(async () => (await db.prisma.task.findUnique({ where: { id: task.id } })).completedAt).not.toBeNull();
     await status(page, 'Đang thực hiện');
     assert.equal((await db.prisma.task.findUnique({ where: { id: task.id } })).completedAt, null);
+    const revisedCriteria = 'Nghiệm thu sau khi kiểm tra quyền\n\nGiữ nguyên dòng trống';
+    await page.getByLabel('Tiêu chí nghiệm thu').fill(revisedCriteria);
+    await page.getByRole('button', { name: 'Lưu thay đổi', exact: true }).click();
+    await expect.poll(async () => (await db.prisma.task.findUnique({ where: { id: task.id } })).acceptanceCriteria).toBe(revisedCriteria);
+    await page.reload();
+    await expect(page.getByLabel('Tiêu chí nghiệm thu')).toHaveValue(revisedCriteria);
+    await page.getByRole('dialog', { name: 'Chi tiết công việc' }).screenshot({ path: path.join(artifacts, 'acceptance-detail.png') });
     const title = page.getByRole('dialog').locator('textarea').first();
     await title.fill('Bản nháp chưa lưu của Lộc');
     const currentTask = await db.prisma.task.findUnique({ where: { id: task.id } });
@@ -179,6 +192,29 @@ test('U003/U007/U009: SMTP register/invite → task → remaining hours → Revi
     await owner.ctx.close();
     await member.ctx.close();
   }
+});
+
+test('API v1: browser giữ refresh cookie đúng path, tự refresh và logout thu hồi phiên', { timeout: 30000 }, async () => {
+  const user = await context();
+  try {
+    await login(user.page, 'mai.anh@nhom24.edu.vn');
+    const original = (await user.ctx.cookies()).find((c) => c.name === 'tf_rt');
+    assert.equal(original?.path, '/api/v1/auth');
+    assert.equal(original?.httpOnly, true);
+    await user.ctx.clearCookies({ name: 'tf_at' });
+    const refreshed = user.page.waitForResponse((r) => r.url().endsWith('/api/v1/auth/refresh') && r.status() === 200);
+    await user.page.reload();
+    await refreshed;
+    await expect(user.page).toHaveURL(/\/overview/);
+    const rotated = (await user.ctx.cookies()).find((c) => c.name === 'tf_rt');
+    assert.equal(rotated?.path, '/api/v1/auth');
+    assert.notEqual(rotated?.value, original?.value);
+    const logout = await user.ctx.request.post('/api/v1/auth/logout', { headers: { 'x-taskflow': '1' } });
+    assert.equal(logout.status(), 200);
+    assert.equal((await user.ctx.cookies()).filter((c) => ['tf_at', 'tf_rt'].includes(c.name)).length, 0);
+    await user.page.reload();
+    await expect(user.page).toHaveURL(/\/login/);
+  } finally { await user.ctx.close(); }
 });
 
 test('SMTP bị từ chối: màn hình cho gửi lại, không báo thư đã gửi thành công', { timeout: 30000 }, async (t) => {

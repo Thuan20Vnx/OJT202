@@ -122,7 +122,7 @@ export default function Planner({ project, onUsage, disabled }) {
             {busy ? <Spinner /> : <Icon name="auto_awesome" size={18} />}
             Tạo kế hoạch nháp
           </button>
-          {!canWrite && <p className="text-label-md font-normal text-slate-500">Chỉ PM, Owner hoặc Admin của dự án đang hoạt động được lập và duyệt kế hoạch.</p>}
+          {!canWrite && <p className="text-label-md font-normal text-slate-500">Chỉ PM của dự án đang hoạt động được lập và duyệt kế hoạch.</p>}
         </div>
         {error && <Notice tone={error.status === 429 ? 'warn' : 'danger'}>{error.message}</Notice>}
         <History items={history.data?.drafts || []} onOpen={open} activeId={draft?._id} />
