@@ -1,10 +1,12 @@
+import { listMyTasks } from '../services/my-tasks.js';
+import { taskSearch } from '../services/task-filters.js';
 import { saveProjectMembers } from '../services/project-members.js';
 import { Router } from 'express';
 import { z } from 'zod';
 import { config } from '../config.js';
-import { USER, countBy, ilike, isId, isUniqueError, populate, populateAll, prisma, subtaskCounts } from '../db.js';
+import { USER, ilike, isId, isUniqueError, populate, populateAll, prisma } from '../db.js';
 import { requireAuth } from '../middleware/auth.js';
-import { atLeast, taskPermissions, middlewareWorkspace, readableProjectsWhere, workspaceAccess } from '../middleware/access.js';
+import { atLeast, middlewareWorkspace, readableProjectsWhere, workspaceAccess } from '../middleware/access.js';
 import { logActivity, logActivityIn } from '../services/activity.js';
 import { aiServiceInfo } from '../services/ai/gateway.js';
 import { sendMail } from '../services/mailer.js';
@@ -13,7 +15,7 @@ import { unassignTasks, withWorkspaceLock } from '../services/membership.js';
 import { badRequest, conflict, forbidden, notFound, parse } from '../utils/http.js';
 import { pagination } from '../utils/http.js';
 import { randomToken, sha256, slugify, toCsv } from '../utils/security.js';
-import { addDays, isDateInput, parseDate, startOfDay, weekRange } from '../utils/dates.js';
+import { isDateInput, parseDate, startOfDay } from '../utils/dates.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -424,94 +426,17 @@ router.get('/:wsId/ai/calls.csv', middlewareWorkspace('wsId', 'admin'), async (r
 });
 
 // ---------- Việc của tôi & tìm kiếm ----------
-const TASK_STATUSES = ['todo', 'in_progress', 'review', 'done'];
-const PRIORITIES = ['low', 'medium', 'high'];
-const listParam = (v, allowed) =>
-  String(v)
-    .split(',')
-    .filter((x) => allowed.includes(x));
-
-router.get('/:wsId/my-tasks', middlewareWorkspace(), async (req, res) => {
-  const { workspace, role } = req.ws;
-  // Chỉ trả task thuộc dự án được phép đọc – điều kiện lồng trong cùng truy vấn
-  const readable = { projectRef: { memberships: { some: { user: req.user.id } } } };
-  const where = { workspace: workspace.id, ...readable };
-  const { assignee = 'me', status, priority, due, project, search } = req.query;
-  if (assignee === 'me') where.assignee = req.user.id;
-  else if (assignee === 'unassigned') where.assignee = null;
-  else if (isId(assignee)) where.assignee = assignee;
-  if (status) where.status = { in: listParam(status, TASK_STATUSES) };
-  else if (req.query.includeDone !== 'true') where.status = { not: 'done' };
-  if (priority) where.priority = { in: listParam(priority, PRIORITIES) };
-  if (project) where.project = { in: String(project).split(',').filter(isId) };
-  const now = new Date();
-  const sod = startOfDay(now, req.user.timezone);
-  const eod = addDays(sod, 1, req.user.timezone);
-  const { end: eow } = weekRange(now, req.user.timezone);
-  if (due === 'today') where.dueDate = { gte: sod, lt: eod };
-  else if (due === 'week') where.dueDate = { gte: sod, lt: eow };
-  else if (due === 'overdue') {
-    where.dueDate = { lt: now };
-    where.status = { ...where.status, not: 'done' };
-  } else if (due === 'none') where.dueDate = null;
-  if (search) where.OR = [{ title: ilike(search) }, { key: ilike(search) }];
-  const { page, limit } = pagination(req.query, 20);
-  const mine = { workspace: workspace.id, ...readable, assignee: req.user.id };
-  const open = { ...mine, status: { not: 'done' } };
-  const weekAgo = new Date(sod.getTime() - 6 * 86400000);
-  // Danh sách (kèm dữ liệu liên quan), tổng số và 4 chỉ số tóm tắt chạy song song
-  const [items, total, today, overdue, upcoming, doneWeek, actionable] = await Promise.all([
-    prisma.task
-      .findMany({ where: { ...where, deletedAt: null }, orderBy: [{ dueDate: { sort: 'asc', nulls: 'last' } }, { priority: 'desc' }, { number: 'asc' }], skip: (page - 1) * limit, take: limit })
-      .then(async (rows) => {
-        const ids = rows.map((t) => t.id);
-        const [, subs, comments] = await Promise.all([
-          populateAll(rows, [
-            ['assignee', 'user', USER],
-            ['project', 'project', { name: true, color: true, keyPrefix: true, manager: true, status: true, memberships: { where: { user: req.user.id } } }],
-            ['blockedBy', 'task', { key: true, title: true, status: true, dueDate: true }],
-          ]),
-          subtaskCounts(ids),
-          countBy('comment', 'task', { task: { in: ids } }),
-        ]);
-        return rows.map((t) => {
-          const projectRole = role === 'viewer' ? 'viewer' : t.project.memberships[0]?.role;
-          const canWrite = !!projectRole && projectRole !== 'viewer' && t.project.status !== 'archived';
-          const access = { project: t.project, projectRole, canWrite, canManage: canWrite && projectRole === 'pm' };
-          const permissions = taskPermissions(access, req.user.id, { ...t, assignee: t.assignee?.id });
-          return {
-            ...t, subtasks: subs[t.id] || { total: 0, done: 0 }, commentCount: comments[t.id] || 0,
-            permissions,
-            access: { canWrite: permissions.canUpdateProgress, canManage: access.canManage },
-          };
-        });
-      }),
-    prisma.task.count({ where: { ...where, deletedAt: null } }),
-    prisma.task.count({ where: { deletedAt: null, ...open, dueDate: { gte: sod, lt: eod } } }),
-    prisma.task.count({ where: { deletedAt: null, ...open, dueDate: { lt: now } } }),
-    prisma.task.count({ where: { deletedAt: null, ...open, dueDate: { gte: now, lt: eow } } }),
-    prisma.task.count({ where: { deletedAt: null, ...mine, status: 'done', completedAt: { gte: weekAgo } } }),
-    // Union of overdue and due today, so tasks overdue earlier today count once.
-    prisma.task.count({ where: { deletedAt: null, ...open, dueDate: { lt: eod } } }),
-  ]);
-  res.json({
-    items,
-    total,
-    page,
-    limit,
-    summary: { today, overdue, upcoming, doneWeek, actionable },
-  });
-});
+router.get('/:wsId/my-tasks', middlewareWorkspace(), listMyTasks);
 
 router.get('/:wsId/search', middlewareWorkspace(), async (req, res) => {
   const { workspace, role } = req.ws;
-  const s = String(req.query.q || '').trim();
+  const s = parse(z.string().trim().max(2000), req.query.q || '');
   if (!s) return res.json({ tasks: [], projects: [] });
   const readable = readableProjectsWhere(req.user.id, workspace.id, role);
   const [tasks, projects] = await Promise.all([
     prisma.task
       .findMany({
-        where: { deletedAt: null, projectRef: readable, OR: [{ title: ilike(s) }, { key: ilike(s) }] },
+        where: { deletedAt: null, projectRef: readable, OR: taskSearch(s) },
         select: { id: true, key: true, title: true, status: true, project: true },
         take: 8,
       })

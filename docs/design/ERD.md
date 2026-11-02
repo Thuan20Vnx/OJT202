@@ -1,6 +1,6 @@
 # ERD và từ điển dữ liệu
 
-Version 2026-11-01. Sinh từ `BackEnd/prisma/schema.prisma`; SQL migration là nguồn triển khai. Mảng UUID và JSONB không tự tạo FK; quan hệ bên dưới chỉ lấy từ `@relation(fields:...)` thật.
+Version 2026-11-02. Sinh từ `BackEnd/prisma/schema.prisma`; SQL migration là nguồn triển khai. Mảng UUID và JSONB không tự tạo FK; quan hệ bên dưới chỉ lấy từ `@relation(fields:...)` thật.
 
 ```mermaid
 erDiagram
@@ -129,7 +129,6 @@ erDiagram
     String labels
     String sprint
     String parent
-    Json checklist
     String blockedBy
     Float order
     Int version
@@ -139,7 +138,15 @@ erDiagram
     DateTime createdAt
     DateTime updatedAt
   }
+  ChecklistItem {
+    String id PK
+    String task
+    String title
+    Boolean isDone
+    Int position
+  }
   Comment {
+    DateTime deletedAt
     String id PK
     String task
     String project
@@ -315,6 +322,7 @@ erDiagram
   User |o--o{ Task : "assignee"
   User |o--o{ Task : "creator"
   Task |o--o{ Task : "parent"
+  Task ||--o{ ChecklistItem : "task"
   Task ||--o{ Comment : "task"
   Project ||--o{ Comment : "project"
   User ||--o{ Comment : "author"
@@ -635,9 +643,7 @@ model Task {
   deletedAt          DateTime?  @map("deleted_at")
   labels             String[]   @default([])
   sprint             String     @default("")
-  parent             String?    @map("parent_id") @db.Uuid
-  /// [{ text, done }]
-  checklist          Json       @default("[]")
+  parent             String?    @map("parent_task_id") @db.Uuid
   blockedBy          String[]   @default([]) @db.Uuid
   order              Float      @default(0)
   version            Int        @default(1)
@@ -655,6 +661,7 @@ model Task {
   parentRef     Task?          @relation("Subtasks", fields: [parent], references: [id], onDelete: Cascade)
   subtasks      Task[]         @relation("Subtasks")
   comments      Comment[]
+  checklistItems ChecklistItem[]
   documents     Document[]
   notifications Notification[]
 
@@ -662,6 +669,8 @@ model Task {
   // NULL không trùng nhau trong UNIQUE của PostgreSQL => chỉ ràng buộc việc tạo từ AI
   @@unique([project, aiDraftItem])
   @@index([project, status])
+  @@index([project, status, dueDate], map: "tasks_project_status_due_idx")
+  @@index([workspace, assignee, dueDate], map: "tasks_workspace_assignee_due_idx")
   @@index([project, deletedAt])
   @@index([assignee])
   @@index([parent])
@@ -670,10 +679,27 @@ model Task {
 }
 ```
 
+### ChecklistItem
+
+```prisma
+model ChecklistItem {
+  id       String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  task     String  @map("task_id") @db.Uuid
+  title    String  @db.VarChar(300)
+  isDone   Boolean @default(false) @map("is_done")
+  position Int     @default(0)
+  taskRef  Task    @relation(fields: [task], references: [id], onDelete: Cascade)
+
+  @@index([task, position])
+  @@map("checklist_items")
+}
+```
+
 ### Comment
 
 ```prisma
 model Comment {
+  deletedAt DateTime? @map("deleted_at")
   id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   task      String    @map("task_id") @db.Uuid
   project   String    @map("project_id") @db.Uuid

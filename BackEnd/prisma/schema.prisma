@@ -2,7 +2,7 @@
 // Quy ước: trường khóa ngoại giữ tên nghiệp vụ (user, project, assignee…) và lưu ở cột *_id;
 // trường quan hệ đi kèm có hậu tố "Ref" chỉ để Prisma tạo ràng buộc FOREIGN KEY.
 // Danh sách id (thành viên dự án, phụ thuộc, nhắc tên…) dùng mảng uuid[] có chỉ mục GIN.
-// Dữ liệu lồng nhau ít truy vấn (checklist, cài đặt AI, nội dung bản nháp AI…) lưu JSONB.
+// Dữ liệu lồng nhau ít truy vấn (cài đặt AI, nội dung bản nháp AI…) lưu JSONB; checklist có bảng riêng.
 
 generator client {
   provider        = "prisma-client-js"
@@ -371,9 +371,7 @@ model Task {
   deletedAt          DateTime?  @map("deleted_at")
   labels             String[]   @default([])
   sprint             String     @default("")
-  parent             String?    @map("parent_id") @db.Uuid
-  /// [{ text, done }]
-  checklist          Json       @default("[]")
+  parent             String?    @map("parent_task_id") @db.Uuid
   blockedBy          String[]   @default([]) @db.Uuid
   order              Float      @default(0)
   version            Int        @default(1)
@@ -391,6 +389,7 @@ model Task {
   parentRef     Task?          @relation("Subtasks", fields: [parent], references: [id], onDelete: Cascade)
   subtasks      Task[]         @relation("Subtasks")
   comments      Comment[]
+  checklistItems ChecklistItem[]
   documents     Document[]
   notifications Notification[]
 
@@ -398,6 +397,8 @@ model Task {
   // NULL không trùng nhau trong UNIQUE của PostgreSQL => chỉ ràng buộc việc tạo từ AI
   @@unique([project, aiDraftItem])
   @@index([project, status])
+  @@index([project, status, dueDate], map: "tasks_project_status_due_idx")
+  @@index([workspace, assignee, dueDate], map: "tasks_workspace_assignee_due_idx")
   @@index([project, deletedAt])
   @@index([assignee])
   @@index([parent])
@@ -405,7 +406,20 @@ model Task {
   @@map("tasks")
 }
 
+model ChecklistItem {
+  id       String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  task     String  @map("task_id") @db.Uuid
+  title    String  @db.VarChar(300)
+  isDone   Boolean @default(false) @map("is_done")
+  position Int     @default(0)
+  taskRef  Task    @relation(fields: [task], references: [id], onDelete: Cascade)
+
+  @@index([task, position])
+  @@map("checklist_items")
+}
+
 model Comment {
+  deletedAt DateTime? @map("deleted_at")
   id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   task      String    @map("task_id") @db.Uuid
   project   String    @map("project_id") @db.Uuid

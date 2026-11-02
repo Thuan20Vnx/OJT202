@@ -5,7 +5,8 @@ import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import helmet from 'helmet';
 import { config } from './config.js';
-import { csrfGuard } from './middleware/auth.js';
+import { csrfGuard, requireAuth } from './middleware/auth.js';
+import { myTasksFromQuery } from './services/my-tasks.js';
 import { errorHandler } from './utils/http.js';
 import { apiReplacer } from './services/serialize.js';
 import authRoutes from './routes/auth.js';
@@ -33,6 +34,7 @@ export function createApp(): express.Express {
   const api = express.Router();
   api.get('/health', (_req, res) => res.json({ ok: true, time: new Date().toISOString() }));
   api.use(csrfGuard);
+  api.get(['/tasks', '/me/tasks'], requireAuth, myTasksFromQuery);
   api.use('/auth', authRoutes);
   api.use('/me', meRoutes);
   api.use('/workspaces', workspaceRoutes, capacityRoutes);

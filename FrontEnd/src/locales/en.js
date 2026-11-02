@@ -1,5 +1,8 @@
 // Interface translations only; project content is preserved.
 export const english = {
+  'Ẩn bình luận vi phạm': 'Hide inappropriate comment',
+  'Xóa mục checklist {0}': 'Delete checklist item {0}',
+  'Tìm theo tên, mã hoặc mô tả công việc': 'Search task name, key or description',
   'Chỉ PM của dự án đang hoạt động được tạo, sửa và chia sẻ báo cáo.': 'Only a PM of an active project can create, edit and share reports.',
   'Chốt số liệu: {0}': 'Snapshot taken: {0}',
   'Chỉ PM của dự án đang hoạt động được lập và duyệt kế hoạch.': 'Only a PM of an active project can generate and approve plans.',

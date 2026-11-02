@@ -110,6 +110,7 @@ export async function seedDemo() {
 
   const T = {};
   const mk = async (project, number, data) => {
+    const { checklist = [], ...fields } = data;
     const t = await prisma.task.create({
       data: {
         workspace: ws.id,
@@ -119,7 +120,8 @@ export async function seedDemo() {
         creator: u.maianh.id,
         sprint: project.sprint?.name || '',
         order: number,
-        ...data,
+        ...fields,
+        checklistItems: { create: checklist.map((item, position) => ({ title: item.text, isDone: item.done, position })) },
         completedAt: data.status === 'done' ? data.completedAt || at(-1) : null,
       },
     });

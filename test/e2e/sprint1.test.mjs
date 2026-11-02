@@ -136,6 +136,51 @@ test('Như Sprint 2–4: My Tasks, comment retry/mention, nguồn tài liệu AI
   } finally { await ctx.close(); }
 });
 
+test('Lộc Sprint 2: tìm mô tả, checklist giữ draft khi lỗi, reload và PM ẩn bình luận', { timeout: 90000 }, async () => {
+  const { page, ctx } = await context();
+  try {
+    await login(page, 'mai.anh@nhom24.edu.vn');
+    const headers = { 'x-taskflow': '1' };
+    const response = await ctx.request.post(`/api/v1/workspaces/${seed.workspace.id}/projects`, { headers, data: { name: 'Loc Sprint2 E2E', keyPrefix: 'LSP', members: [seed.users.nhu.id] } });
+    assert.equal(response.status(), 201, await response.text());
+    const project = (await response.json()).project;
+    const created = await ctx.request.post(`/api/v1/projects/${project._id}/tasks`, { headers, data: { title: 'Nghiệm thu checklist', description: 'Từ khóa riêng loc2description', assignee: seed.users.maianh.id } });
+    assert.equal(created.status(), 201);
+    const task = (await created.json()).task;
+    await db.prisma.comment.create({ data: { task: task._id, project: project._id, author: seed.users.nhu.id, body: 'Bình luận để kiểm tra quyền ẩn' } });
+    await page.evaluate(({ ws, pid }) => { localStorage.setItem('tf_ws', ws); localStorage.setItem('tf_project', pid); }, { ws: seed.workspace.id, pid: project._id });
+    await page.goto('/my-tasks');
+    await page.getByRole('textbox', { name: 'Tìm công việc', exact: true }).fill('loc2description');
+    await page.getByRole('button', { name: task.title, exact: true }).click();
+    const dialog = page.getByRole('dialog', { name: 'Chi tiết công việc' });
+    const input = dialog.getByPlaceholder('+ Thêm mục checklist', { exact: true });
+    await input.fill('Checklist qua giao diện');
+    await page.route(`**/api/v1/tasks/${task._id}`, (route) => route.request().method() === 'PATCH' ? route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'Lỗi checklist để thử lại' }) }) : route.continue());
+    await input.press('Enter');
+    await expect(page.getByText('Lỗi checklist để thử lại', { exact: true })).toBeVisible();
+    await expect(input).toHaveValue('Checklist qua giao diện');
+    await page.unroute(`**/api/v1/tasks/${task._id}`);
+    await input.press('Enter');
+    await expect(input).toHaveValue('');
+    const check = dialog.getByRole('checkbox', { name: 'Checklist qua giao diện', exact: true });
+    // Controlled checkbox is confirmed by the server response, not optimistically.
+    await check.click();
+    await expect(check).toBeChecked();
+    await dialog.getByRole('button', { name: 'Ẩn bình luận vi phạm', exact: true }).click();
+    await expect(dialog.getByText('Bình luận để kiểm tra quyền ẩn', { exact: true })).toHaveCount(0);
+    await page.reload();
+    // My Tasks keeps ?task= in the URL, so reload restores the open dialog.
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole('checkbox', { name: 'Checklist qua giao diện', exact: true })).toBeChecked();
+    await expect(dialog.getByText('Bình luận để kiểm tra quyền ẩn', { exact: true })).toHaveCount(0);
+    await dialog.screenshot({ path: path.join(artifacts, 'loc-sprint2-checklist.png') });
+    const persisted = await db.prisma.checklistItem.findFirstOrThrow({ where: { task: task._id } });
+    assert.equal(persisted.isDone, true);
+    assert.equal(await db.prisma.activity.count({ where: { project: project._id, action: 'Ẩn bình luận vi phạm' } }), 1);
+    assert.deepEqual(errors, []);
+  } finally { await ctx.close(); }
+});
+
 test('Như U031: My Tasks phân trang trên dataset 10.000 task', { timeout: 120000 }, async () => {
   const { ctx, page } = await context();
   try {

@@ -349,7 +349,7 @@ export default function TaskDetailModal({ taskId, onClose }) {
   };
 
   const saveChecklist = async (checklist) => {
-    await patch({ checklist }).catch(() => {});
+    try { await patch({ checklist }); return true; } catch { return false; }
   };
 
   const openDeps = async () => {
@@ -635,17 +635,19 @@ export default function TaskDetailModal({ taskId, onClose }) {
                 <label key={c._id || i} className="flex items-center gap-2 text-body-sm">
                   <input
                     type="checkbox"
+                    aria-label={c.text}
                     disabled={!canWrite}
                     className="form-checkbox h-4 w-4 rounded text-blue-600"
                     checked={c.done}
-                    onChange={() => saveChecklist(task.checklist.map((x, j) => ({ text: x.text, done: j === i ? !x.done : x.done })))}
+                    onChange={() => saveChecklist(task.checklist.map((x, j) => ({ ...x, done: j === i ? !x.done : x.done })))}
                   />
                   <span className={`flex-1 ${c.done ? 'text-slate-400 line-through' : ''}`}>{c.text}</span>
                   {canWrite && (
                     <button
                       type="button"
+                      aria-label={tr('Xóa mục checklist {0}', [c.text])}
                       className="text-slate-300 hover:text-rose-500"
-                      onClick={() => saveChecklist(task.checklist.filter((_, j) => j !== i).map(({ text, done }) => ({ text, done })))}
+                      onClick={() => saveChecklist(task.checklist.filter((_, j) => j !== i))}
                     >
                       <Icon name="close" size={14} />
                     </button>
@@ -658,10 +660,12 @@ export default function TaskDetailModal({ taskId, onClose }) {
                   placeholder={tr("+ Thêm mục checklist")}
                   value={newCheck}
                   onChange={(e) => setNewCheck(e.target.value)}
-                  onKeyDown={(e) => {
+                  onKeyDown={async (e) => {
                     if (e.key === 'Enter' && newCheck.trim()) {
-                      saveChecklist([...(task.checklist || []).map(({ text, done }) => ({ text, done })), { text: newCheck.trim(), done: false }]);
-                      setNewCheck('');
+                      const submitted = newCheck;
+                      if (await saveChecklist([...(task.checklist || []), { text: submitted.trim(), done: false }])) {
+                        setNewCheck((value) => value === submitted ? '' : value);
+                      }
                     }
                   }}
                 />
@@ -728,9 +732,9 @@ export default function TaskDetailModal({ taskId, onClose }) {
                           {timeAgo(c.createdAt)}
                           {c.editedAt && tr(" · đã sửa")}
                         </span>
-                        {access.canWrite && c.author?._id === me?._id && editing !== c._id && (
+                        {access.canWrite && (c.author?._id === me?._id || canWrite) && editing !== c._id && (
                           <span className="ml-auto flex gap-2 text-label-md">
-                            <button className="text-slate-400 hover:text-blue-600" onClick={() => setEditing(c._id)}>{tr("Sửa")}</button>
+                            {c.author?._id === me?._id && <button className="text-slate-400 hover:text-blue-600" onClick={() => setEditing(c._id)}>{tr("Sửa")}</button>}
                             <button
                               className="text-slate-400 hover:text-rose-600"
                               onClick={async () => {
@@ -739,7 +743,7 @@ export default function TaskDetailModal({ taskId, onClose }) {
                                   setComments((cs) => cs.filter((x) => x._id !== c._id));
                                 } catch (e) { toast(e.message, 'error'); }
                               }}
-                            >{tr("Xóa")}</button>
+                            >{tr(c.author?._id === me?._id ? 'Xóa' : 'Ẩn bình luận vi phạm')}</button>
                           </span>
                         )}
                       </div>

@@ -110,7 +110,7 @@ Bảng, khóa ngoại, enum và chỉ mục được tạo bằng migration tron
 
 - Khóa chính `uuid` (`gen_random_uuid()`), khóa ngoại có `ON DELETE CASCADE / SET NULL` phù hợp. API xóa công việc dùng xóa mềm (`deleted_at`): giữ task và bình luận để truy vết, gỡ phụ thuộc, chuyển tệp đính kèm về thư viện dự án và ghi audit trong cùng transaction.
 - Ràng buộc UNIQUE thay cho kiểm tra trong code: email, `(workspace, user)`, `(project, number)`, `(user, dedupeKey)` chống gửi trùng thông báo, `(project, aiDraftItem)` chống tạo trùng việc khi duyệt AI nhiều lần, `(document, version)`.
-- Danh sách id (thành viên dự án, phụ thuộc công việc, nhắc tên) là mảng `uuid[]` có chỉ mục GIN; dữ liệu lồng nhau ít truy vấn (checklist, cài đặt AI, sprint, nội dung bản nháp/báo cáo AI) là `JSONB`.
+- Danh sách id (thành viên dự án, phụ thuộc công việc, nhắc tên) là mảng `uuid[]` có chỉ mục GIN; dữ liệu lồng nhau ít truy vấn (cài đặt AI, sprint, nội dung bản nháp/báo cáo AI) là `JSONB`. Checklist lưu ở bảng `checklist_items`, có khóa ngoại tới task, thứ tự và trạng thái từng mục.
 - Cập nhật công việc kiểm tra `version` ngay trong câu `UPDATE … WHERE version = ?` nên hai người sửa cùng lúc không ghi đè nhau.
 - API vẫn trả khóa `_id` như trước (đổi tên `id → _id` tại một chỗ khi tuần tự hóa JSON) nên frontend không phải sửa.
 
@@ -230,6 +230,8 @@ taskflow/
 ## Thay đổi nhánh Loc (23/10/2026)
 
 **Bàn giao Sprint 1, 01/11/2026:** [hồ sơ rà soát và nghiệm thu phần Lộc](docs/sprint1-loc/REVIEW.md), kèm [SRS và bảng truy vết](docs/sprint1-loc/SRS.md), [kịch bản demo/staging](docs/sprint1-loc/ACCEPTANCE.md). Trạng thái kỹ thuật và xác nhận của nhóm được ghi riêng trong hồ sơ.
+
+**Sprint 2 của Lộc, 02/11/2026:** [phạm vi 5 task trực tiếp, 5 task review và bàn giao local](docs/sprint2-loc/REVIEW.md). Bổ sung search mô tả, API checklist với bảng dữ liệu riêng/version/audit, PM ẩn bình luận và dataset kiểm chứng. Generate lại Prisma sau pull; backend tự áp dụng migration `20261102090000_sprint2_checklist_search`.
 
 **Cập nhật 29/10/2026:** [bàn giao code U003/U007/U009 của Lộc](docs/LOC_SPRINT1_COMPLETION_2026-10-29.md). Hoàn thiện SMTP, xóa mềm, giờ còn lại và giữ bản nháp khi realtime/xung đột phiên bản. Đạt 129 backend + 16 AIService + 36 frontend và 2 kịch bản browser. Người dùng chọn cấu hình Gmail sau; chưa xác nhận gửi Gmail thật hoặc nghiệm thu của nhóm.
 

@@ -11,6 +11,8 @@ import { badRequest, conflict, forbidden, notFound, parse } from '../utils/http.
 import { plainText, sha256 } from '../utils/security.js';
 import { BUSINESS_TIMEZONE, isDateInput, parseDate } from '../utils/dates.js';
 import { acceptanceCriteriaSchema, normalizeTaskInput } from '../services/acceptance-criteria.ts';
+import { checklistMap, checklistSchema, readChecklist, saveChecklist } from '../services/checklists.js';
+import { applyDueFilter, taskFilters, taskSearch } from '../services/task-filters.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -33,7 +35,7 @@ const taskFields = {
   spentHours: z.number().min(0).max(1000),
   labels: z.array(z.string().trim().min(1).max(40)).max(20),
   sprint: z.string().max(60),
-  checklist: z.array(z.object({ text: z.string().trim().min(1).max(300), done: z.boolean().default(false) })).max(50),
+  checklist: checklistSchema,
 };
 
 const STALE_MSG = 'Công việc vừa được người khác cập nhật. Dữ liệu đã được tải lại.';
@@ -42,18 +44,20 @@ const STALE_MSG = 'Công việc vừa được người khác cập nhật. Dữ
 async function enrich(tasks, access, userId) {
   const permissions = access ? new Map(tasks.map((t) => [t.id, taskPermissions(access, userId, t)])) : null;
   const ids = tasks.map((t) => t.id);
-  const [, subs, comments, files] = await Promise.all([
+  const [, subs, comments, files, checklists] = await Promise.all([
     populateAll(tasks, [
       ['assignee', 'user', USER],
       ['creator', 'user', USER],
       ['blockedBy', 'task', { key: true, title: true, status: true, dueDate: true, assignee: true }],
     ]),
     subtaskCounts(ids),
-    countBy('comment', 'task', { task: { in: ids } }),
+    countBy('comment', 'task', { task: { in: ids }, deletedAt: null }),
     countBy('document', 'task', { task: { in: ids } }),
+    checklistMap(ids),
   ]);
   return tasks.map((t) => ({
     ...t,
+    checklist: checklists.get(t.id) || [],
     ...(permissions && { permissions: permissions.get(t.id) }),
     subtasks: subs[t.id] || { total: 0, done: 0 },
     commentCount: comments[t.id] || 0,
@@ -87,11 +91,14 @@ const listParam = (v, allowed) =>
 // ---------- Bảng công việc ----------
 router.get('/projects/:projectId/tasks', middlewareProject(), async (req, res) => {
   const where = { project: req.pa.project.id, parent: null };
-  const { assignee, priority, search } = req.query;
+  const { assignee, priority, search, status, due } = taskFilters(req.query);
   if (assignee === 'me') where.assignee = req.user.id;
+  else if (assignee === 'unassigned') where.assignee = null;
   else if (isId(assignee)) where.assignee = assignee;
   if (priority) where.priority = { in: listParam(priority, ['low', 'medium', 'high']) };
-  if (search) where.OR = [{ title: ilike(search) }, { key: ilike(search) }];
+  if (status) where.status = { in: listParam(status, Object.keys(STATUS_VI)) };
+  applyDueFilter(where, due, req.user.timezone);
+  if (search) where.OR = taskSearch(search);
   const tasks = await prisma.task.findMany({ where: { ...where, deletedAt: null }, orderBy: [{ order: 'asc' }, { number: 'asc' }] });
   res.json({ tasks: await enrich(tasks, req.pa, req.user.id) });
 });
@@ -145,7 +152,7 @@ router.post('/projects/:projectId/tasks', middlewareProject(), async (req, res) 
       if (!parent) throw badRequest('Công việc cha không thuộc dự án');
       if (parent.parent) throw badRequest('Công việc con chỉ được tối đa 1 cấp');
     }
-    const { blockedBy, ...fields } = body;
+    const { blockedBy, checklist = [], ...fields } = body;
     // Kiểm tra phụ thuộc trước khi cấp số thứ tự để lỗi không làm nhảy số
     const deps = { id: null, project: project.id, blockedBy: [] };
     for (const dep of blockedBy || []) await addDependency(deps, dep, tx);
@@ -170,6 +177,7 @@ router.post('/projects/:projectId/tasks', middlewareProject(), async (req, res) 
         reviewSince: body.status === 'review' ? new Date() : null,
       },
     });
+    await saveChecklist(task.id, checklist, tx);
     await logActivityIn(tx, {
       workspace: task.workspace,
       project: task.project,
@@ -254,8 +262,14 @@ async function applyUpdate(req, before, project, patch) {
       patch.reviewSince = patch.status === 'review' ? new Date() : null;
     }
     // UPDATE … RETURNING: cập nhật và lấy bản mới trong cùng một câu lệnh
-    const [task] = await tx.task.updateManyAndReturn({ where: { id: before.id, version: before.version }, data: { ...patch, version: { increment: 1 } } });
+    const { checklist, ...fields } = patch;
+    const priorChecklist = checklist === undefined ? undefined : await readChecklist(before.id, tx);
+    const [task] = await tx.task.updateManyAndReturn({ where: { id: before.id, version: before.version }, data: { ...fields, version: { increment: 1 } } });
     if (!task) throw conflict(STALE_MSG, { task: await loadTask(before.id) });
+    if (checklist !== undefined) {
+      before = { ...before, checklist: priorChecklist };
+      task.checklist = await saveChecklist(task.id, checklist, tx);
+    }
     await logTaskChanges({ task, actor: req.user.id, before, after: task, labels: ACTIVITY_LABELS }, tx);
     return task;
   });
@@ -299,6 +313,43 @@ router.patch('/tasks/:id', async (req, res) => {
   const { version, ...patch } = body;
   if (version !== access.task.version) throw conflict(STALE_MSG, { task: await loadTask(access.task.id) });
   res.json({ task: await applyUpdate(req, access.task, access.project, patch) });
+});
+
+router.get('/tasks/:id/checklist', async (req, res) => {
+  const { task } = await taskAccess(req.user.id, req.params.id);
+  res.json({ items: await readChecklist(task.id), version: task.version });
+});
+
+router.post('/tasks/:id/checklist', async (req, res) => {
+  const access = await taskAccess(req.user.id, req.params.id);
+  assertManage(access);
+  const { version, ...item } = parse(z.object({ version: z.number().int().positive(), text: z.string().trim().min(1).max(300), done: z.boolean().default(false) }).strict(), req.body);
+  const items = parse(checklistSchema, [...await readChecklist(access.task.id), item]);
+  const task = await applyUpdate(req, { ...access.task, version }, access.project, { checklist: items });
+  res.status(201).json({ task });
+});
+
+async function checklistAccess(req) {
+  const item = isId(req.params.id) ? await prisma.checklistItem.findUnique({ where: { id: req.params.id } }) : null;
+  if (!item) throw notFound('Không tìm thấy mục checklist');
+  const access = await taskAccess(req.user.id, item.task);
+  assertManage(access);
+  return { item, access };
+}
+
+router.patch('/checklist/:id', async (req, res) => {
+  const { item, access } = await checklistAccess(req);
+  const { version, ...patch } = parse(z.object({ version: z.number().int().positive(), text: z.string().trim().min(1).max(300).optional(), done: z.boolean().optional() }).strict(), req.body);
+  if (!Object.keys(patch).length) throw badRequest('Chưa có thay đổi checklist');
+  const items = (await readChecklist(item.task)).map((current) => current._id === item.id ? { ...current, ...patch } : current);
+  res.json({ task: await applyUpdate(req, { ...access.task, version }, access.project, { checklist: items }) });
+});
+
+router.delete('/checklist/:id', async (req, res) => {
+  const { item, access } = await checklistAccess(req);
+  const { version } = parse(z.object({ version: z.string().regex(/^[1-9]\d*$/).transform(Number).refine(Number.isSafeInteger) }), req.query);
+  const items = (await readChecklist(item.task)).filter((current) => current._id !== item.id);
+  res.json({ task: await applyUpdate(req, { ...access.task, version }, access.project, { checklist: items }) });
 });
 
 // Kéo thả trên Kanban
@@ -466,7 +517,7 @@ router.delete('/tasks/:id/dependencies/:depId', async (req, res) => {
 // ---------- Bình luận & nhắc tên ----------
 router.get('/tasks/:id/comments', async (req, res) => {
   const { task } = await taskAccess(req.user.id, req.params.id);
-  const comments = await prisma.comment.findMany({ where: { task: task.id }, orderBy: { createdAt: 'asc' } });
+  const comments = await prisma.comment.findMany({ where: { task: task.id, deletedAt: null }, orderBy: { createdAt: 'asc' } });
   await populateAll(comments, [
     ['author', 'user', USER],
     ['mentions', 'user', USER],
@@ -475,14 +526,14 @@ router.get('/tasks/:id/comments', async (req, res) => {
 });
 
 async function resolveMentions(project, body, explicit = [], db = prisma) {
-  const members = await db.user.findMany({ where: { id: { in: project.members } }, select: { id: true, name: true } });
+  const members = await db.user.findMany({ where: { id: { in: project.members }, isLocked: false }, select: { id: true, name: true } });
   const ids = new Set(explicit.filter((id) => members.some((m) => m.id === id)));
   for (const m of members) if (body.includes(`@${m.name}`)) ids.add(m.id); // chỉ người trong dự án
   return [...ids];
 }
 
 const commentAccess = async (req, db = prisma) => {
-  const comment = isId(req.params.id) ? await db.comment.findUnique({ where: { id: req.params.id } }) : null;
+  const comment = isId(req.params.id) ? await db.comment.findUnique({ where: { id: req.params.id, deletedAt: null } }) : null;
   if (!comment) throw notFound('Không tìm thấy bình luận');
   return { comment, access: await taskAccess(req.user.id, comment.task, db) };
 };
@@ -537,19 +588,22 @@ router.patch('/comments/:id', async (req, res) => {
 
 router.delete('/comments/:id', async (req, res) => {
   const { comment, access } = await commentAccess(req);
-  if (comment.author !== req.user.id) throw forbidden('Chỉ được xóa bình luận của mình');
+  if (comment.author !== req.user.id && !access.canManage) throw forbidden('Chỉ được xóa bình luận của mình');
   await withWorkspaceLock(access.project.workspace, async (tx) => {
-    assertWrite((await commentAccess(req, tx)).access);
-    await tx.comment.delete({ where: { id: comment.id } });
+    const fresh = await commentAccess(req, tx);
+    assertWrite(fresh.access);
+    if (fresh.comment.author !== req.user.id && !fresh.access.canManage) throw forbidden('Chỉ PM được ẩn bình luận của người khác');
+    await tx.comment.update({ where: { id: comment.id }, data: { deletedAt: new Date() } });
     await logActivityIn(tx, {
       workspace: access.task.workspace,
       project: access.project.id,
       actor: req.user.id,
-      action: 'Xóa bình luận',
+      action: comment.author === req.user.id ? 'Xóa bình luận' : 'Ẩn bình luận vi phạm',
       entityType: 'comment',
       entityId: access.task.id,
       entityLabel: `${access.task.key} ${access.task.title}`,
       before: '(nội dung đã xóa)',
+      after: { commentId: comment.id, author: comment.author, hidden: true },
     });
   });
   emitProject(access.project.id, 'comment:deleted', { taskId: comment.task, commentId: comment.id });

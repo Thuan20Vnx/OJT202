@@ -1,0 +1,47 @@
+[seed] Tạo dữ liệu demo Nhóm 24…
+[seed] Xong. Đăng nhập: mai.anh@nhom24.edu.vn / TaskFlow@2026  (System Admin: admin@taskflow.local)
+✖ Lộc Sprint 2: tìm mô tả, checklist giữ draft khi lỗi, reload và PM ẩn bình luận (78189.4302ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 80613.5407
+
+✖ failing tests:
+
+test at test\e2e\sprint1.test.mjs:139:1
+✖ Lộc Sprint 2: tìm mô tả, checklist giữ draft khi lỗi, reload và PM ẩn bình luận (78189.4302ms)
+  locator.click: Timeout 30000ms exceeded.
+  Call log:
+  [2m  - waiting for getByRole('button', { name: 'Nghiệm thu checklist', exact: true })[22m
+  [2m    - locator resolved to <button title="Nghiệm thu checklist" class="order-first w-full min-w-0 truncate text-left text-body-md text-slate-900 hover:text-blue-700 sm:order-none sm:w-auto sm:flex-1">Nghiệm thu checklist</button>[22m
+  [2m  - attempting click action[22m
+  [2m    2 × waiting for element to be visible, enabled and stable[22m
+  [2m      - element is visible, enabled and stable[22m
+  [2m      - scrolling into view if needed[22m
+  [2m      - done scrolling[22m
+  [2m      - <section>…</section> from <div class="fixed inset-0 z-[55] flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-[2px]">…</div> subtree intercepts pointer events[22m
+  [2m    - retrying click action[22m
+  [2m    - waiting 20ms[22m
+  [2m    2 × waiting for element to be visible, enabled and stable[22m
+  [2m      - element is visible, enabled and stable[22m
+  [2m      - scrolling into view if needed[22m
+  [2m      - done scrolling[22m
+  [2m      - <section>…</section> from <div class="fixed inset-0 z-[55] flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-[2px]">…</div> subtree intercepts pointer events[22m
+  [2m    - retrying click action[22m
+  [2m      - waiting 100ms[22m
+  [2m    57 × waiting for element to be visible, enabled and stable[22m
+  [2m       - element is visible, enabled and stable[22m
+  [2m       - scrolling into view if needed[22m
+  [2m       - done scrolling[22m
+  [2m       - <section>…</section> from <div class="fixed inset-0 z-[55] flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-[2px]">…</div> subtree intercepts pointer events[22m
+  [2m     - retrying click action[22m
+  [2m       - waiting 500ms[22m
+  
+      at TestContext.<anonymous> (D:\Desktop\Nhom24\OJT202\test\e2e\sprint1.test.mjs:172:71) {
+    name: 'TimeoutError',
+    log: [ "  - waiting for getByRole('button', { name: 'Nghiệm thu checklist', exact: true })", '    - locator resolved to <button title="Nghiệm thu checklist" class="order-first w-full min-w-0 truncate text-left text-body-md text-slate-900 hover:text-blue-700 sm:order-none sm:w-auto sm:flex-1">Nghiệm thu checklist</button>', '  - attempting click action', '    2 × waiting for element to be visible, enabled and stable', '      - element is visible, enabled and stable', '      - scrolling into view if needed', '      - done scrolling', '      - <section>…</section> from <div class="fixed inset-0 z-[55] flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-[2px]">…</div> subtree intercepts pointer events', '    - retrying click action', '    - waiting 20ms', '    2 × waiting for element to be visible, enabled and stable', '      - element is visible, enabled and stable', '      - scrolling into view if needed', '      - done scrolling', '      - <section>…</section> from <div class="fixed inset-0 z-[55] flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-[2px]">…</div> subtree intercepts pointer events', '    - retrying click action', '      - waiting 100ms', '    57 × waiting for element to be visible, enabled and stable', '       - element is visible, enabled and stable', '       - scrolling into view if needed', '       - done scrolling', '       - <section>…</section> from <div class="fixed inset-0 z-[55] flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-[2px]">…</div> subtree intercepts pointer events', '     - retrying click action', '       - waiting 500ms' ]
+  }

@@ -38,6 +38,7 @@ for (const [file, prefix] of Object.entries(files)) {
 const object = (properties, required = []) => ({ type: 'object', properties, required });
 const str = { type: 'string' };
 const version = { type: 'integer', minimum: 1 };
+const checklistItem = { ...object({ _id: { type: 'string', format: 'uuid' }, text: { type: 'string', minLength: 1, maxLength: 300 }, done: { type: 'boolean' } }, ['text']), additionalProperties: false };
 const sourceVersion = { type: 'string', pattern: '^[a-f0-9]{64}$' };
 const draftItem = { ...object({
   key: { type: 'string', minLength: 1, maxLength: 100 }, title: { type: 'string', minLength: 1, maxLength: 200 },
@@ -47,6 +48,11 @@ const draftItem = { ...object({
 }, ['key']), additionalProperties: false };
 const taskFields = { acceptance_criteria: { type: 'string', maxLength: 10000, description: 'Tiêu chí nghiệm thu dạng văn bản nhiều dòng; chuỗi rỗng xóa nội dung. Không gửi đồng thời acceptanceCriteria.' }, acceptanceCriteria: { type: 'array', maxItems: 30, items: { type: 'string', minLength: 1, maxLength: 300 }, deprecated: true, description: 'Alias cho client cũ, được ghép bằng xuống dòng khi lưu.' }, title: { type: 'string', maxLength: 200 }, description: str, assignee: { type: ['string', 'null'] }, priority: { enum: ['low', 'medium', 'high'] }, dueDate: { type: ['string', 'null'] }, estimateHours: { type: ['number', 'null'], minimum: 0 }, remainingHours: { type: ['number', 'null'], minimum: 0 } };
 const bodies = {
+  '/auth/forgot-password:post': object({ email: { type: 'string', format: 'email' } }, ['email']),
+  '/auth/reset-password:post': object({ token: str, password: str }, ['token', 'password']),
+  '/me:patch': { ...object({ name: { type: 'string', minLength: 1, maxLength: 80 }, title: { type: 'string', maxLength: 60 }, timezone: { type: 'string', description: 'Valid IANA timezone' }, language: { enum: ['vi', 'en'] } }), additionalProperties: false },
+  '/tasks/{id}/checklist:post': { ...object({ version, text: checklistItem.properties.text, done: { type: 'boolean', default: false } }, ['version', 'text']), additionalProperties: false },
+  '/checklist/{id}:patch': { ...object({ version, text: checklistItem.properties.text, done: { type: 'boolean' } }, ['version']), additionalProperties: false, description: 'At least text or done is required.' },
   '/auth/login:post': object({ email: { type: 'string', format: 'email' }, password: str, remember: { type: 'boolean' } }, ['email', 'password']),
   '/projects/{projectId}/tasks:post': object(taskFields, ['title']),
   '/tasks/{id}:patch': object({ ...taskFields, version: { type: 'integer', minimum: 1 }, status: { enum: ['todo', 'in_progress', 'review', 'done'] } }, ['version']),
@@ -62,6 +68,9 @@ const bodies = {
   '/ai/drafts/{id}/discard:post': { ...object({ version }, ['version']), additionalProperties: false },
   '/projects/{projectId}/risks/resolve:post': { ...object({ key: { type: 'string', minLength: 1, maxLength: 100000 }, sourceVersion, reason: { type: 'string', minLength: 3, maxLength: 1000 }, title: { type: 'string', maxLength: 300, description: 'Tương thích client cũ; server dùng tiêu đề cảnh báo thật.' } }, ['key', 'sourceVersion', 'reason']), additionalProperties: false },
 };
+taskFields.checklist = { type: 'array', maxItems: 50, items: checklistItem, description: 'Stored in checklist_items; send existing _id to preserve identity. No IDs remains supported for old clients.' };
+// The PATCH schema copies taskFields above, so include checklist explicitly there too.
+bodies['/tasks/{id}:patch'].properties.checklist = taskFields.checklist;
 for (const [key, schema] of Object.entries(bodies)) {
   const [route, method] = key.split(':');
   if (!paths[route]?.[method]) throw new Error(`Contract thiếu route ${key}`);
@@ -78,6 +87,20 @@ paths['/workspaces/{wsId}/members/{userId}/capacity/{week}'].patch.description =
 for (const p of paths['/workspaces/{wsId}/members/{userId}/capacity/{week}'].get.parameters) if (p.name === 'week') p.schema = { type: 'string', format: 'date' };
 paths['/workspaces/{wsId}/activity.csv'].get.responses['200'] = { description: 'CSV theo đúng quyền và bộ lọc ngày, chống formula injection. Vượt 10.000 bản ghi trả 400 để thu hẹp bộ lọc; không xuất thiếu âm thầm.', content: { 'text/csv': { schema: { type: 'string' } } } };
 const query = (name, schema, description) => ({ in: 'query', name, required: false, schema, ...(description && { description }) });
+const taskFilters = [
+  query('assignee', str, 'me (default for My Tasks), all, unassigned, or UUID'),
+  query('status', str, 'Comma-separated todo,in_progress,review,done'),
+  query('priority', str, 'Comma-separated low,medium,high'),
+  query('due', { enum: ['today', 'week', 'overdue', 'none'] }, 'Profile timezone; week starts today and ends at next Monday.'),
+  query('search', { type: 'string', maxLength: 2000 }, 'Case-insensitive title, key, description'),
+];
+const myTasks = paths['/workspaces/{wsId}/my-tasks'].get;
+myTasks.parameters.push(...taskFilters, query('project', str, 'Comma-separated project UUIDs'), query('includeDone', { enum: ['true', 'false'] }), query('page', { type: 'integer', minimum: 1 }), query('limit', { type: 'integer', minimum: 1, maximum: 100 }));
+for (const url of ['/tasks', '/me/tasks']) paths[url] = { get: { ...structuredClone(myTasks), operationId: `my_tasks_${url.replaceAll('/', '_')}`, summary: `GET ${url}`, 'x-source': 'BackEnd/src/services/my-tasks.js', parameters: [...myTasks.parameters.filter((p) => p.in !== 'path'), { ...query('workspace', { type: 'string', format: 'uuid' }), required: true }], description: 'Canonical My Tasks alias; workspace required. Same project ACL, filters, pagination and summary as workspace route. Private/deleted tasks excluded.' } };
+paths['/projects/{projectId}/tasks'].get.parameters.push(...taskFilters);
+paths['/checklist/{id}'].delete.parameters.push({ ...query('version', version), required: true });
+for (const route of ['/checklist/{id}', '/tasks/{id}/checklist']) for (const [method, operation] of Object.entries(paths[route])) operation.description = method === 'get' ? 'Readable project membership required. Returns items and task version.' : 'Project PM only, active project. Task version CAS; stale 409. Changes, task version and audit committed together. Response task includes checklist.';
+paths['/comments/{id}'].delete.description = 'Author may delete own comment; project PM may hide others. Active writable project required. Soft-delete and audit in the same transaction; hidden comments excluded from reads/counts.';
 paths['/projects/{projectId}/risks/resolve'].delete.parameters.push({ ...query('key', str), required: true }, { ...query('sourceVersion', sourceVersion), required: true });
 paths['/projects/{projectId}/risks/resolve'].post.description = 'Project PM/Member active. Lý do trim 3–1000 ký tự và sourceVersion bắt buộc. Khóa workspace, kiểm lại ACL/nguồn; stale 409 RISK_SOURCES_CHANGED; request lặp cùng nguồn không nhân audit. Snapshot/lý do lưu cùng transaction. Nguồn hoặc ngưỡng thay đổi thì cảnh báo xuất hiện lại.';
 paths['/projects/{projectId}/risks'].get.responses['200'] = { description: 'open: key/type/severity/rule/title/explanation/tasks/owner/sourceVersion/snapshot/generatedAt. resolved: tối đa 10 lần xử lý gần đây kèm reason/sourceVersion/snapshot/current. rulesVersion tăng khi ngưỡng thay đổi; engineVersion định danh bộ quy tắc. Mọi nguồn trong phạm vi dự án được đọc.' };
@@ -100,10 +123,10 @@ paths['/projects/{projectId}/documents/upload'].post.description = 'Project PM/M
 paths['/tasks/{id}/dependencies'].post.requestBody = { required: true, content: { 'application/json': { schema: object({ blockedBy: { type: 'string', format: 'uuid' } }, ['blockedBy']) } } };
 paths['/tasks/{id}/dependencies'].post.description = 'Chỉ PM active. Cùng project, không self-link/chu trình; khóa workspace và kiểm lại quyền. Thêm lặp là no-op, không tăng version/audit.';
 manifest['BackEnd/prisma/schema.prisma'] = crypto.createHash('sha256').update(schemaSource).digest('hex');
-const spec = { openapi: '3.1.0', info: { title: 'TaskFlow API — inventory và contract luồng chính', version: '2026-11-01', description: 'Base /api/v1; /api là alias tương thích. Cookie HttpOnly tf_at; refresh tf_rt. UUID nội bộ id được serialize thành _id. Inventory bao phủ tuyến REST được khai báo trực tiếp; request/response chi tiết mới đặc tả các luồng chính, xem x-source cho phần còn lại. Các response lỗi chung là khả năng, không phải mọi endpoint đều trả mọi mã.' }, servers: [{ url: '/api/v1' }, { url: '/api', description: 'Legacy alias' }], security: [{ cookieAuth: [] }], paths, components: { securitySchemes: { cookieAuth: { type: 'apiKey', in: 'cookie', name: 'tf_at' } }, schemas: { Error: object({ error: str, details: { type: 'object', additionalProperties: true } }, ['error']) } } };
+const spec = { openapi: '3.1.0', info: { title: 'TaskFlow API — inventory và contract luồng chính', version: '2026-11-02', description: 'Base /api/v1; /api là alias tương thích. Cookie HttpOnly tf_at; refresh tf_rt. UUID nội bộ id được serialize thành _id. Inventory bao phủ tuyến REST được khai báo trực tiếp; request/response chi tiết mới đặc tả các luồng chính, xem x-source cho phần còn lại. Các response lỗi chung là khả năng, không phải mọi endpoint đều trả mọi mã.' }, servers: [{ url: '/api/v1' }, { url: '/api', description: 'Legacy alias' }], security: [{ cookieAuth: [] }], paths, components: { securitySchemes: { cookieAuth: { type: 'apiKey', in: 'cookie', name: 'tf_at' } }, schemas: { Error: object({ error: str, details: { type: 'object', additionalProperties: true } }, ['error']) } } };
 await fs.writeFile(path.join(out, 'openapi.json'), JSON.stringify(spec, null, 2) + '\n');
 const models = [...schemaSource.matchAll(/model (\w+) \{([\s\S]*?)\n\}/g)];
-let erd = '# ERD và từ điển dữ liệu\n\nVersion 2026-11-01. Sinh từ `BackEnd/prisma/schema.prisma`; SQL migration là nguồn triển khai. Mảng UUID và JSONB không tự tạo FK; quan hệ bên dưới chỉ lấy từ `@relation(fields:...)` thật.\n\n```mermaid\nerDiagram\n';
+let erd = '# ERD và từ điển dữ liệu\n\nVersion 2026-11-02. Sinh từ `BackEnd/prisma/schema.prisma`; SQL migration là nguồn triển khai. Mảng UUID và JSONB không tự tạo FK; quan hệ bên dưới chỉ lấy từ `@relation(fields:...)` thật.\n\n```mermaid\nerDiagram\n';
 for (const [, name, body] of models) {
   erd += `  ${name} {\n`;
   for (const line of body.split('\n')) {

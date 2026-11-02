@@ -25,6 +25,19 @@ test('migration nâng dữ liệu project cũ, giữ member/Viewer, PM và giờ
   await db.prisma.$executeRaw`UPDATE tasks SET "acceptanceCriteria" = ARRAY['Dòng một, có dấu', 'Dòng hai', '']::TEXT[] WHERE id = ${sample.id}::uuid`;
   originalCriteria.set(sample.id, 'Dòng một, có dấu\nDòng hai\n');
   await db.prisma.$executeRaw`DELETE FROM _prisma_migrations WHERE migration_name = '20261101090000_acceptance_criteria_text'`;
+  const checklistData = await db.prisma.checklistItem.findMany({ orderBy: [{ task: 'asc' }, { position: 'asc' }] });
+  const parents = new Map((await db.prisma.$queryRaw`SELECT id, parent_task_id FROM tasks`).map((row) => [row.id, row.parent_task_id]));
+  assert.ok(checklistData.length > 0, 'upgrade fixture includes populated checklists');
+  await db.prisma.$executeRawUnsafe(`ALTER TABLE tasks ADD COLUMN checklist JSONB NOT NULL DEFAULT '[]'::jsonb`);
+  await db.prisma.$executeRawUnsafe(`UPDATE tasks t SET checklist = (SELECT jsonb_agg(jsonb_build_object('text', c.title, 'done', c.is_done) ORDER BY c.position) FROM checklist_items c WHERE c.task_id = t.id) WHERE EXISTS (SELECT 1 FROM checklist_items c WHERE c.task_id = t.id)`);
+  await db.prisma.$executeRawUnsafe('DROP TABLE checklist_items');
+  await db.prisma.$executeRawUnsafe('ALTER TABLE tasks RENAME COLUMN parent_task_id TO parent_id');
+  await db.prisma.$executeRawUnsafe('ALTER TABLE tasks RENAME CONSTRAINT tasks_parent_task_id_fkey TO tasks_parent_id_fkey');
+  await db.prisma.$executeRawUnsafe('ALTER INDEX tasks_parent_task_id_idx RENAME TO tasks_parent_id_idx');
+  await db.prisma.$executeRawUnsafe('DROP INDEX tasks_project_status_due_idx');
+  await db.prisma.$executeRawUnsafe('DROP INDEX tasks_workspace_assignee_due_idx');
+  await db.prisma.$executeRawUnsafe('ALTER TABLE comments DROP COLUMN deleted_at');
+  await db.prisma.$executeRaw`DELETE FROM _prisma_migrations WHERE migration_name = '20261102090000_sprint2_checklist_search'`;
   // Restore only the old schema inside this test's isolated, disposable database.
   await db.prisma.$executeRawUnsafe('DROP TABLE project_members');
   await db.prisma.$executeRawUnsafe('DROP TYPE "ProjectRole"');
@@ -49,5 +62,12 @@ test('migration nâng dữ liệu project cũ, giữ member/Viewer, PM và giờ
   }
   const [column] = await db.prisma.$queryRaw`SELECT data_type FROM information_schema.columns WHERE table_name = 'tasks' AND column_name = 'acceptance_criteria'`;
   assert.equal(column.data_type, 'text');
+  const migratedChecklist = await db.prisma.checklistItem.findMany({ orderBy: [{ task: 'asc' }, { position: 'asc' }] });
+  const values = (rows) => rows.map(({ task, title, isDone, position }) => ({ task, title, isDone, position }));
+  assert.deepEqual(values(migratedChecklist), values(checklistData), 'Sprint 2 preserves checklist text, completion and order');
+  for (const task of await db.prisma.task.findMany()) assert.equal(task.parent, parents.get(task.id));
+  assert.equal(await db.prisma.comment.count({ where: { deletedAt: { not: null } } }), 0);
+  const indexes = await db.prisma.$queryRaw`SELECT indexname FROM pg_indexes WHERE tablename = 'tasks'`;
+  for (const name of ['tasks_project_status_due_idx', 'tasks_workspace_assignee_due_idx', 'tasks_parent_task_id_idx']) assert.ok(indexes.some((i) => i.indexname === name));
   assert.equal(await db.prisma.projectMember.count({ where: { project: seed.projects.mobile.id, user: seed.users.hoanganh.id } }), 0, 'không tự thêm Admin vào project private');
 });
