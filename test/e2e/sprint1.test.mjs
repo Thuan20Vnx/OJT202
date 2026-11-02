@@ -136,7 +136,7 @@ test('Như Sprint 2–4: My Tasks, comment retry/mention, nguồn tài liệu AI
   } finally { await ctx.close(); }
 });
 
-test('Lộc Sprint 2: tìm mô tả, checklist giữ draft khi lỗi, reload và PM ẩn bình luận', { timeout: 90000 }, async () => {
+test('Lộc Sprint 2: tìm mô tả, checklist, PM ẩn bình luận và phụ thuộc thử lại khi lỗi', { timeout: 90000 }, async () => {
   const { page, ctx } = await context();
   try {
     await login(page, 'mai.anh@nhom24.edu.vn');
@@ -174,6 +174,25 @@ test('Lộc Sprint 2: tìm mô tả, checklist giữ draft khi lỗi, reload và
     await expect(dialog.getByRole('checkbox', { name: 'Checklist qua giao diện', exact: true })).toBeChecked();
     await expect(dialog.getByText('Bình luận để kiểm tra quyền ẩn', { exact: true })).toHaveCount(0);
     await dialog.screenshot({ path: path.join(artifacts, 'loc-sprint2-checklist.png') });
+    const dependency = await ctx.request.post(`/api/v1/projects/${project._id}/tasks`, { headers, data: { title: 'Blocker Sprint2' } });
+    assert.equal(dependency.status(), 201);
+    const blocker = (await dependency.json()).task;
+    const listUrl = `**/api/v1/projects/${project._id}/tasks`;
+    await page.route(listUrl, (route) => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'Lỗi tải phụ thuộc để thử lại' }) }));
+    await dialog.getByRole('button', { name: '+ Thêm phụ thuộc', exact: true }).click();
+    await expect(dialog.getByRole('alert').filter({ hasText: 'Lỗi tải phụ thuộc để thử lại' })).toBeVisible();
+    await page.unroute(listUrl);
+    await dialog.getByRole('button', { name: 'Thử lại', exact: true }).click();
+    await dialog.getByRole('button').filter({ hasText: 'Blocker Sprint2' }).click();
+    await expect(dialog.getByText('Bị chặn bởi', { exact: true })).toBeVisible();
+    const removeUrl = `**/api/v1/tasks/${task._id}/dependencies/${blocker._id}`;
+    await page.route(removeUrl, (route) => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'Lỗi gỡ phụ thuộc để thử lại' }) }));
+    await dialog.getByTitle('Gỡ phụ thuộc', { exact: true }).click();
+    await expect(page.getByText('Lỗi gỡ phụ thuộc để thử lại', { exact: true })).toBeVisible();
+    await expect(dialog.getByText('Bị chặn bởi', { exact: true })).toBeVisible();
+    await page.unroute(removeUrl);
+    await dialog.getByTitle('Gỡ phụ thuộc', { exact: true }).click();
+    await expect(dialog.getByText('Chưa có phụ thuộc', { exact: true })).toBeVisible();
     const persisted = await db.prisma.checklistItem.findFirstOrThrow({ where: { task: task._id } });
     assert.equal(persisted.isDone, true);
     assert.equal(await db.prisma.activity.count({ where: { project: project._id, action: 'Ẩn bình luận vi phạm' } }), 1);

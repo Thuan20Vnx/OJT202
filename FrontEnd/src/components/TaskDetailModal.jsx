@@ -164,6 +164,11 @@ export default function TaskDetailModal({ taskId, onClose }) {
   const [newCheck, setNewCheck] = useState('');
   const [depOpen, setDepOpen] = useState(false);
   const [depOptions, setDepOptions] = useState([]);
+  const depRequest = useRef(null);
+  const [depLoading, setDepLoading] = useState(false);
+  const [depError, setDepError] = useState(null);
+  const subMutations = useRef(new Set());
+  const [busySubs, setBusySubs] = useState(new Set());
   const [editing, setEditing] = useState(null);
   const [confirmDel, setConfirmDel] = useState(null);
   const [deleting, setDeleting] = useState(false);
@@ -173,10 +178,28 @@ export default function TaskDetailModal({ taskId, onClose }) {
   const info = useProjectInfo(data?.task?.project);
   const members = info?.project?.members || [];
 
+  const invalidateRequests = useCallback(() => {
+    taskScope.current++;
+    mutation.current = null;
+    subRequest.current = null;
+    depRequest.current = null;
+    subMutations.current = new Set();
+    deleteLock.current = false;
+    setUpdating(false);
+    setSaving(false);
+    setDeleting(false);
+    setBusySubs(new Set());
+    setDepOpen(false);
+    setDepLoading(false);
+    setDepError(null);
+  }, []);
+
   const load = useCallback(async ({ discard = false } = {}) => {
+    if (!mounted.current || activeTask.current !== taskId) return;
+    const scope = taskScope.current;
     const sequence = ++loadSequence.current;
     const revision = editRevision.current;
-    const current = () => mounted.current && activeTask.current === taskId && sequence === loadSequence.current;
+    const current = () => mounted.current && activeTask.current === taskId && scope === taskScope.current && sequence === loadSequence.current;
     try {
       setError(null);
       const d = await api.get(`/tasks/${taskId}`);
@@ -223,11 +246,7 @@ export default function TaskDetailModal({ taskId, onClose }) {
 
   useEffect(() => {
     mounted.current = true;
-    taskScope.current++;
-    mutation.current = null;
-    subRequest.current = null;
-    setUpdating(false);
-    setSaving(false);
+    invalidateRequests();
     setNewCheck('');
     setNewSub('');
     setEditing(null);
@@ -243,11 +262,12 @@ export default function TaskDetailModal({ taskId, onClose }) {
     setDepOptions([]);
     load();
     return () => { mounted.current = false; loadSequence.current++; };
-  }, [load]);
+  }, [load, invalidateRequests]);
   useSocketEvent('dependencies:changed', () => load(), [load]);
   useSocketEvent(
     'access:changed',
     () => {
+      invalidateRequests();
       dirtyRef.current = false;
       editRevision.current++;
       setDirty(false);
@@ -257,7 +277,7 @@ export default function TaskDetailModal({ taskId, onClose }) {
       setDepOptions([]);
       load();
     },
-    [load],
+    [load, invalidateRequests],
   );
   useEffect(() => {
     if (data?.task?.project) {
@@ -399,13 +419,22 @@ export default function TaskDetailModal({ taskId, onClose }) {
     }
   };
   const toggleSub = async (s) => {
+    if (subMutations.current.has(s._id)) return;
+    const scope = taskScope.current;
+    const current = () => mounted.current && activeTask.current === taskId && scope === taskScope.current;
+    subMutations.current.add(s._id);
+    setBusySubs(new Set(subMutations.current));
     try {
       const next = s.status === 'done' ? 'todo' : s.status === 'review' && access.canManage ? 'done' : 'review';
       await api.patch(`/tasks/${s._id}`, { status: next, version: s.version });
-      load();
+      if (current()) await load();
     } catch (e) {
-      toast(e.message, 'error');
-      load();
+      if (current()) { toast(e.message, 'error'); await load(); }
+    } finally {
+      if (current()) {
+        subMutations.current.delete(s._id);
+        setBusySubs(new Set(subMutations.current));
+      }
     }
   };
 
@@ -417,38 +446,63 @@ export default function TaskDetailModal({ taskId, onClose }) {
     } catch { return false; }
   };
 
-  const openDeps = async () => {
-    setDepOpen((o) => !o);
-    if (!depOptions.length) {
-      const d = await api.get(`/projects/${task.project}/tasks`);
-      setDepOptions(d.tasks.filter((t) => t._id !== task._id));
-    }
-  };
-  const addDep = async (id) => {
+  const loadDeps = async () => {
+    if (depRequest.current) return;
+    const request = { scope: taskScope.current };
+    depRequest.current = request;
+    const current = () => mounted.current && activeTask.current === taskId && request.scope === taskScope.current && depRequest.current === request;
+    setDepLoading(true);
+    setDepError(null);
     try {
-      const { task: t } = await api.post(`/tasks/${task._id}/dependencies`, { blockedBy: id });
-      setData((d) => ({ ...d, task: t }));
-      setDepOpen(false);
+      const d = await api.get(`/projects/${task.project}/tasks`);
+      if (current()) setDepOptions(d.tasks.filter((t) => t._id !== task._id));
     } catch (e) {
-      toast(e.message, 'error');
+      if (current()) setDepError(e.message);
+    } finally {
+      if (current()) { depRequest.current = null; setDepLoading(false); }
     }
   };
-  const removeDep = async (id) => {
-    const { task: t } = await api.del(`/tasks/${task._id}/dependencies/${id}`);
-    setData((d) => ({ ...d, task: t }));
+  const openDeps = () => {
+    setDepOpen((open) => !open);
+    if (!depOpen && !depOptions.length) return loadDeps();
   };
+  const changeDependency = async (request) => {
+    if (mutation.current) return;
+    const operation = { scope: taskScope.current };
+    mutation.current = operation;
+    setUpdating(true);
+    const current = () => mounted.current && activeTask.current === taskId && operation.scope === taskScope.current;
+    try {
+      await request();
+      if (current()) {
+        setDepOpen(false);
+        // Reload refreshes a clean form; an unsaved draft keeps its original
+        // version and requires explicit reload, preserving conflict detection.
+        await load();
+      }
+    } catch (e) {
+      if (current()) toast(e.message, 'error');
+    } finally {
+      if (current() && mutation.current === operation) { mutation.current = null; setUpdating(false); }
+    }
+  };
+  const addDep = (id) => changeDependency(() => api.post(`/tasks/${task._id}/dependencies`, { blockedBy: id }));
+  const removeDep = (id) => changeDependency(() => api.del(`/tasks/${task._id}/dependencies/${id}`));
 
   const upload = async (list) => {
     if (!list?.length) return;
+    const scope = taskScope.current;
+    const current = () => mounted.current && activeTask.current === taskId && scope === taskScope.current;
     const fd = new FormData();
     [...list].forEach((f) => fd.append('files', f));
     fd.append('task', task._id);
     try {
       await api.upload(`/projects/${task.project}/documents/upload`, fd);
+      if (!current()) return;
       toast(tr("Đã tải tệp lên"));
       load();
     } catch (e) {
-      toast(e.message, 'error');
+      if (current()) toast(e.message, 'error');
     }
   };
 
@@ -474,7 +528,8 @@ export default function TaskDetailModal({ taskId, onClose }) {
     if (deleteLock.current) return;
     deleteLock.current = true;
     setDeleting(true);
-    const current = () => mounted.current && activeTask.current === task._id;
+    const scope = taskScope.current;
+    const current = () => mounted.current && activeTask.current === task._id && scope === taskScope.current;
     try {
       if (!confirm) {
         const { impact } = await api.get(`/tasks/${task._id}/deletion-preview`);
@@ -492,7 +547,7 @@ export default function TaskDetailModal({ taskId, onClose }) {
         const { impact } = await api.get(`/tasks/${task._id}/deletion-preview`).catch(() => ({ impact: null }));
         if (current()) setConfirmDel(impact);
       }
-    } finally { deleteLock.current = false; setDeleting(false); }
+    } finally { if (current()) { deleteLock.current = false; setDeleting(false); } }
   };
 
   const subDone = subtasks.filter((s) => s.status === 'done').length;
@@ -609,9 +664,12 @@ export default function TaskDetailModal({ taskId, onClose }) {
                     {depOpen && (
                       <div className="absolute right-0 z-20 mt-1 max-h-64 w-80 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-pop">
                         <p className="px-2 py-1 text-label-md font-normal text-slate-400">{tr("Công việc này bị chặn bởi…")}</p>
+                        {depLoading && <div role="status" className="px-2 py-2"><Spinner /></div>}
+                        {depError && <div className="px-2 py-2"><p role="alert" className="text-body-sm text-rose-700">{depError}</p><button className="btn-outline btn-sm mt-2" onClick={loadDeps}>{tr('Thử lại')}</button></div>}
                         {depOptions.map((t) => (
                           <button
                             key={t._id}
+                            disabled={updating}
                             onClick={() => addDep(t._id)}
                             className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-body-sm hover:bg-slate-50"
                           >
@@ -638,7 +696,7 @@ export default function TaskDetailModal({ taskId, onClose }) {
                     <span className="flex-1 truncate text-slate-600">{b.title}</span>
                     <StatusChip status={b.status} />
                     {canWrite && (
-                      <button className="text-slate-400 hover:text-rose-500" onClick={() => removeDep(b._id)} title={tr("Gỡ phụ thuộc")}>
+                      <button disabled={updating} className="text-slate-400 hover:text-rose-500" onClick={() => removeDep(b._id)} title={tr("Gỡ phụ thuộc")}>
                         <Icon name="link_off" size={16} />
                       </button>
                     )}
@@ -672,7 +730,8 @@ export default function TaskDetailModal({ taskId, onClose }) {
                   <div key={s._id} className="flex items-center gap-3 rounded-lg border border-slate-200 px-3 py-2 text-body-sm">
                     <input
                       type="checkbox"
-                      disabled={!canWrite}
+                      aria-label={s.title}
+                      disabled={!canWrite || busySubs.has(s._id)}
                       className="form-checkbox h-4 w-4 rounded text-blue-600"
                       checked={s.status === 'done'}
                       onChange={() => toggleSub(s)}

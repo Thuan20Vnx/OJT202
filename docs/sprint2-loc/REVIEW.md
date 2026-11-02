@@ -1,5 +1,7 @@
 # Sprint 2 — Nguyễn Bảo Lộc
 
+**Cập nhật mới nhất 03/11/2026:** xem [đợt hoàn thiện tiếp về phụ thuộc, subtask và phản hồi chậm](FOLLOWUP_2026-11-03.md). Các mốc bên dưới được giữ để truy vết.
+
 **Bản rà soát bổ sung:** xem [các lỗi đã tái hiện và sửa](HARDENING.md). Bộ test hiện tại tăng lên 285 ca; số liệu 277 ca phía dưới là mốc bàn giao ban đầu và được giữ để truy vết.
 
 Ngày đối chiếu: 02/11/2026. Baseline trước triển khai: `396bb28aed1895d10f95705e9958b699bf8c8475` trên nhánh `Loc`, đã chứa code mới từ main của nhóm.
