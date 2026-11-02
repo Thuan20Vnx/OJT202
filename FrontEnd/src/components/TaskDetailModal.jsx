@@ -141,10 +141,26 @@ export default function TaskDetailModal({ taskId, onClose }) {
   const activeTask = useRef(taskId);
   activeTask.current = taskId;
   const mounted = useRef(false);
+  const taskScope = useRef(0);
+  const mutation = useRef(null);
+  const [updating, setUpdating] = useState(false);
   const [comments, setComments] = useState([]);
+  const commentRevision = useRef(0);
+  const commentChanges = useRef(new Map());
+  const receiveComment = useCallback((id, comment) => {
+    // There is no restore API: a delayed response/event cannot undo deletion.
+    if (comment && commentChanges.current.get(id)?.comment === null) return;
+    commentChanges.current.set(id, { revision: ++commentRevision.current, comment });
+    setComments((rows) => {
+      const result = new Map(rows.map((row) => [row._id, row]));
+      if (comment) result.set(id, comment); else result.delete(id);
+      return [...result.values()];
+    });
+  }, []);
   const [tab, setTab] = useState('comments');
   const [saving, setSaving] = useState(false);
   const [newSub, setNewSub] = useState('');
+  const subRequest = useRef(null);
   const [newCheck, setNewCheck] = useState('');
   const [depOpen, setDepOpen] = useState(false);
   const [depOptions, setDepOptions] = useState([]);
@@ -187,8 +203,16 @@ export default function TaskDetailModal({ taskId, onClose }) {
       setDirty(false);
       dirtyRef.current = false;
       setStale(false);
+      const commentsAtRequest = commentRevision.current;
       const c = await api.get(`/tasks/${taskId}/comments`);
-      if (current()) setComments(c.comments);
+      if (current()) {
+        const result = new Map(c.comments.map((comment) => [comment._id, comment]));
+        for (const [id, change] of commentChanges.current) {
+          if (change.revision <= commentsAtRequest) continue;
+          if (change.comment) result.set(id, change.comment); else result.delete(id);
+        }
+        setComments([...result.values()]);
+      }
     } catch (e) {
       if (current()) {
         if ([403, 404].includes(e.status)) { setData(null); setForm(null); setComments([]); }
@@ -199,12 +223,23 @@ export default function TaskDetailModal({ taskId, onClose }) {
 
   useEffect(() => {
     mounted.current = true;
+    taskScope.current++;
+    mutation.current = null;
+    subRequest.current = null;
+    setUpdating(false);
+    setSaving(false);
+    setNewCheck('');
+    setNewSub('');
+    setEditing(null);
+    setConfirmDel(null);
     dirtyRef.current = false;
     editRevision.current++;
     setDirty(false);
     setData(null);
     setForm(null);
     setComments([]);
+    commentChanges.current.clear();
+    commentRevision.current = 0;
     setDepOptions([]);
     load();
     return () => { mounted.current = false; loadSequence.current++; };
@@ -242,9 +277,9 @@ export default function TaskDetailModal({ taskId, onClose }) {
     },
     [taskId, dirty, data?.task?.version, load],
   );
-  useSocketEvent('comment:new', ({ taskId: t, comment }) => t === taskId && setComments((cs) => (cs.some((c) => c._id === comment._id) ? cs : [...cs, comment])), [taskId]);
-  useSocketEvent('comment:updated', ({ comment }) => setComments((cs) => cs.map((c) => (c._id === comment._id ? comment : c))), []);
-  useSocketEvent('comment:deleted', ({ commentId }) => setComments((cs) => cs.filter((c) => c._id !== commentId)), []);
+  useSocketEvent('comment:new', ({ taskId: t, comment }) => t === taskId && receiveComment(comment._id, comment), [taskId, receiveComment]);
+  useSocketEvent('comment:updated', ({ taskId: t, comment }) => t === taskId && receiveComment(comment._id, comment), [taskId, receiveComment]);
+  useSocketEvent('comment:deleted', ({ taskId: t, commentId }) => t === taskId && receiveComment(commentId, null), [taskId, receiveComment]);
   useSocketEvent('task:deleted', ({ taskId: t }) => t === taskId && onClose(), [taskId]);
 
   if (error) {
@@ -277,26 +312,39 @@ export default function TaskDetailModal({ taskId, onClose }) {
   };
 
   const patch = async (body) => {
+    if (mutation.current) throw new Error(tr('Đang lưu thay đổi, vui lòng chờ.'));
+    const operation = { scope: taskScope.current };
+    mutation.current = operation;
+    setUpdating(true);
+    const current = () => mounted.current && activeTask.current === taskId && taskScope.current === operation.scope;
     loadSequence.current++; // invalidate loads started before this mutation
     try {
       const { task: t } = await api.patch(`/tasks/${task._id}`, { ...body, version: task.version });
-      if (!mounted.current || activeTask.current !== taskId) return t;
+      if (!current()) return t;
       loadSequence.current++;
       setData((d) => ({ ...d, task: t }));
       return t;
     } catch (e) {
+      if (!current()) throw e;
       if (e.status === 409) {
         setStale(true);
         toast(tr("Công việc vừa được cập nhật. Nội dung đang nhập được giữ lại; hãy sao chép phần cần giữ trước khi tải lại."), 'info');
       } else toast(e.message, 'error');
       throw e;
+    } finally {
+      if (current() && mutation.current === operation) {
+        mutation.current = null;
+        setUpdating(false);
+      }
     }
   };
 
   const save = async () => {
+    if (mutation.current) return;
     if (!form.title.trim()) return toast(tr("Vui lòng nhập tên công việc"), 'error');
     setSaving(true);
     const revision = editRevision.current;
+    const scope = taskScope.current;
     try {
       await patch({
         title: form.title,
@@ -310,7 +358,8 @@ export default function TaskDetailModal({ taskId, onClose }) {
         remainingHours: form.remainingHours === '' ? null : Number(form.remainingHours),
         labels: form.labels,
       });
-      if (mounted.current && activeTask.current === taskId && revision === editRevision.current) {
+      if (!mounted.current || activeTask.current !== taskId || scope !== taskScope.current) return;
+      if (revision === editRevision.current) {
         dirtyRef.current = false;
         setDirty(false);
         setStale(false);
@@ -319,22 +368,34 @@ export default function TaskDetailModal({ taskId, onClose }) {
     } catch {
       /* đã báo lỗi */
     } finally {
-      setSaving(false);
+      if (mounted.current && scope === taskScope.current) setSaving(false);
     }
   };
 
   const changeStatus = async (status) => {
-    try { await patch({ status }); await load(); } catch { /* patch hiển thị lỗi */ }
+    const scope = taskScope.current;
+    try {
+      await patch({ status });
+      if (mounted.current && activeTask.current === taskId && scope === taskScope.current) await load();
+    } catch { /* patch hiển thị lỗi */ }
   };
 
   const addSub = async () => {
-    if (!newSub.trim()) return;
+    if (!newSub.trim() || subRequest.current) return;
+    const operation = { scope: taskScope.current };
+    subRequest.current = operation;
+    const submitted = newSub;
+    const current = () => mounted.current && activeTask.current === taskId && operation.scope === taskScope.current;
     try {
-      await api.post(`/projects/${task.project}/tasks`, { title: newSub.trim(), parent: task._id, assignee: task.assignee?._id || null });
-      setNewSub('');
-      load();
+      await api.post(`/projects/${task.project}/tasks`, { title: submitted.trim(), parent: task._id, assignee: task.assignee?._id || null });
+      if (current()) {
+        setNewSub((value) => value === submitted ? '' : value);
+        await load();
+      }
     } catch (e) {
-      toast(e.message, 'error');
+      if (current()) toast(e.message, 'error');
+    } finally {
+      if (current() && subRequest.current === operation) subRequest.current = null;
     }
   };
   const toggleSub = async (s) => {
@@ -349,7 +410,11 @@ export default function TaskDetailModal({ taskId, onClose }) {
   };
 
   const saveChecklist = async (checklist) => {
-    try { await patch({ checklist }); return true; } catch { return false; }
+    const scope = taskScope.current;
+    try {
+      await patch({ checklist });
+      return mounted.current && activeTask.current === taskId && scope === taskScope.current;
+    } catch { return false; }
   };
 
   const openDeps = async () => {
@@ -388,17 +453,20 @@ export default function TaskDetailModal({ taskId, onClose }) {
   };
 
   const sendComment = async (body) => {
+    const scope = taskScope.current;
     try {
       const { comment } = await api.post(`/tasks/${task._id}/comments`, { body });
-      setComments((cs) => (cs.some((c) => c._id === comment._id) ? cs : [...cs, comment]));
+      if (mounted.current && activeTask.current === taskId && scope === taskScope.current) receiveComment(comment._id, comment);
     } catch (e) {
       toast(e.message, 'error');
       throw e;
     }
   };
   const updateComment = async (id, body) => {
+    const scope = taskScope.current;
     const { comment } = await api.patch(`/comments/${id}`, { body });
-    setComments((cs) => cs.map((c) => (c._id === id ? comment : c)));
+    if (!mounted.current || activeTask.current !== taskId || scope !== taskScope.current) return;
+    receiveComment(id, comment);
     setEditing(null);
   };
 
@@ -622,7 +690,11 @@ export default function TaskDetailModal({ taskId, onClose }) {
                     placeholder={tr("+ Thêm công việc con rồi nhấn Enter (tối đa 1 cấp)")}
                     value={newSub}
                     onChange={(e) => setNewSub(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && addSub()}
+                    onKeyDown={(e) => {
+                      if (e.key !== 'Enter' || e.nativeEvent?.isComposing) return;
+                      e.preventDefault();
+                      return addSub();
+                    }}
                   />
                 )}
               </div>
@@ -636,7 +708,7 @@ export default function TaskDetailModal({ taskId, onClose }) {
                   <input
                     type="checkbox"
                     aria-label={c.text}
-                    disabled={!canWrite}
+                    disabled={!canWrite || updating}
                     className="form-checkbox h-4 w-4 rounded text-blue-600"
                     checked={c.done}
                     onChange={() => saveChecklist(task.checklist.map((x, j) => ({ ...x, done: j === i ? !x.done : x.done })))}
@@ -646,6 +718,7 @@ export default function TaskDetailModal({ taskId, onClose }) {
                     <button
                       type="button"
                       aria-label={tr('Xóa mục checklist {0}', [c.text])}
+                      disabled={updating}
                       className="text-slate-300 hover:text-rose-500"
                       onClick={() => saveChecklist(task.checklist.filter((_, j) => j !== i))}
                     >
@@ -661,7 +734,9 @@ export default function TaskDetailModal({ taskId, onClose }) {
                   value={newCheck}
                   onChange={(e) => setNewCheck(e.target.value)}
                   onKeyDown={async (e) => {
+                    if (e.nativeEvent?.isComposing || mutation.current) return;
                     if (e.key === 'Enter' && newCheck.trim()) {
+                      e.preventDefault();
                       const submitted = newCheck;
                       if (await saveChecklist([...(task.checklist || []), { text: submitted.trim(), done: false }])) {
                         setNewCheck((value) => value === submitted ? '' : value);
@@ -738,9 +813,10 @@ export default function TaskDetailModal({ taskId, onClose }) {
                             <button
                               className="text-slate-400 hover:text-rose-600"
                               onClick={async () => {
+                                const scope = taskScope.current;
                                 try {
                                   await api.del(`/comments/${c._id}`);
-                                  setComments((cs) => cs.filter((x) => x._id !== c._id));
+                                  if (mounted.current && scope === taskScope.current && activeTask.current === taskId) receiveComment(c._id, null);
                                 } catch (e) { toast(e.message, 'error'); }
                               }}
                             >{tr(c.author?._id === me?._id ? 'Xóa' : 'Ẩn bình luận vi phạm')}</button>
@@ -907,7 +983,7 @@ export default function TaskDetailModal({ taskId, onClose }) {
         {canWrite && (
           <span className="ml-auto flex gap-2">
             <button className="btn-outline" onClick={() => load({ discard: true })} disabled={!dirty}>{tr("Hủy")}</button>
-            <button className="btn-primary" onClick={save} disabled={!dirty || saving}>
+            <button className="btn-primary" onClick={save} disabled={!dirty || saving || updating}>
               {saving && <Spinner />}{tr("Lưu thay đổi")}</button>
           </span>
         )}

@@ -243,11 +243,17 @@ const ACTIVITY_LABELS = {
  * Cập nhật có kiểm tra version ngay trong câu UPDATE (… WHERE id = ? AND version = ?):
  * hai người cùng sửa thì người sau nhận 409 kèm bản mới để UI tải lại, không ghi đè lẫn nhau.
  */
-async function applyUpdate(req, before, project, patch) {
+async function applyUpdate(req, before, project, patch, prepare) {
   const task = await withWorkspaceLock(project.workspace, async (tx) => {
     const access = await taskAccess(req.user.id, before.id, tx);
     assertWrite(access);
     if (access.task.version !== before.version) throw conflict(STALE_MSG, { task: await loadTask(before.id) });
+    // Checklist read-modify-write must use the same lock and version as the write.
+    before = access.task;
+    if (prepare) {
+      assertManage(access);
+      patch = await prepare(tx);
+    }
     const permissions = taskPermissions(access, req.user.id);
     if (!permissions.canUpdateProgress) throw forbidden('Chỉ được cập nhật công việc được giao cho mình');
     if (!access.canManage && Object.keys(patch).some((k) => !['status', 'order', 'remainingHours'].includes(k))) throw forbidden('Chỉ PM được sửa nội dung công việc');
@@ -316,16 +322,20 @@ router.patch('/tasks/:id', async (req, res) => {
 });
 
 router.get('/tasks/:id/checklist', async (req, res) => {
-  const { task } = await taskAccess(req.user.id, req.params.id);
-  res.json({ items: await readChecklist(task.id), version: task.version });
+  const result = await prisma.$transaction(async (tx) => {
+    const { task } = await taskAccess(req.user.id, req.params.id, tx);
+    return { items: await readChecklist(task.id, tx), version: task.version };
+  }, { isolationLevel: 'RepeatableRead' });
+  res.json(result);
 });
 
 router.post('/tasks/:id/checklist', async (req, res) => {
   const access = await taskAccess(req.user.id, req.params.id);
   assertManage(access);
   const { version, ...item } = parse(z.object({ version: z.number().int().positive(), text: z.string().trim().min(1).max(300), done: z.boolean().default(false) }).strict(), req.body);
-  const items = parse(checklistSchema, [...await readChecklist(access.task.id), item]);
-  const task = await applyUpdate(req, { ...access.task, version }, access.project, { checklist: items });
+  const task = await applyUpdate(req, { ...access.task, version }, access.project, {}, async (tx) => ({
+    checklist: parse(checklistSchema, [...await readChecklist(access.task.id, tx), item]),
+  }));
   res.status(201).json({ task });
 });
 
@@ -341,15 +351,23 @@ router.patch('/checklist/:id', async (req, res) => {
   const { item, access } = await checklistAccess(req);
   const { version, ...patch } = parse(z.object({ version: z.number().int().positive(), text: z.string().trim().min(1).max(300).optional(), done: z.boolean().optional() }).strict(), req.body);
   if (!Object.keys(patch).length) throw badRequest('Chưa có thay đổi checklist');
-  const items = (await readChecklist(item.task)).map((current) => current._id === item.id ? { ...current, ...patch } : current);
-  res.json({ task: await applyUpdate(req, { ...access.task, version }, access.project, { checklist: items }) });
+  const task = await applyUpdate(req, { ...access.task, version }, access.project, {}, async (tx) => {
+    const items = await readChecklist(item.task, tx);
+    if (!items.some((current) => current._id === item.id)) throw notFound('Không tìm thấy mục checklist');
+    return { checklist: items.map((current) => current._id === item.id ? { ...current, ...patch } : current) };
+  });
+  res.json({ task });
 });
 
 router.delete('/checklist/:id', async (req, res) => {
   const { item, access } = await checklistAccess(req);
   const { version } = parse(z.object({ version: z.string().regex(/^[1-9]\d*$/).transform(Number).refine(Number.isSafeInteger) }), req.query);
-  const items = (await readChecklist(item.task)).filter((current) => current._id !== item.id);
-  res.json({ task: await applyUpdate(req, { ...access.task, version }, access.project, { checklist: items }) });
+  const task = await applyUpdate(req, { ...access.task, version }, access.project, {}, async (tx) => {
+    const items = await readChecklist(item.task, tx);
+    if (!items.some((current) => current._id === item.id)) throw notFound('Không tìm thấy mục checklist');
+    return { checklist: items.filter((current) => current._id !== item.id) };
+  });
+  res.json({ task });
 });
 
 // Kéo thả trên Kanban

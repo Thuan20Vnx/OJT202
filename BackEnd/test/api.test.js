@@ -2570,6 +2570,47 @@ describe('Lộc Sprint 1: SMTP, giờ còn lại và xóa mềm', () => {
 });
 
 describe('Lộc Sprint 2', () => {
+  test('Sprint2 hardening: checklist stale ưu tiên 409 và 50 mục không ghi dở', async () => {
+    const { owner, create } = await permissionFixture();
+    const task = await create({ checklist: Array.from({ length: 50 }, (_, i) => ({ text: `Mục ${i}` })) });
+    assert.equal((await owner.patch(`/tasks/${task._id}`, { version: 1, title: 'Đã sửa' })).status, 200);
+    assert.equal((await owner.post(`/tasks/${task._id}/checklist`, { version: 1, text: 'Mục mới' })).status, 409);
+    assert.equal((await owner.post(`/tasks/${task._id}/checklist`, { version: 2, text: 'Mục 51' })).status, 400);
+    const current = (await owner.get(`/tasks/${task._id}/checklist`)).data;
+    assert.equal(current.version, 2);
+    assert.equal(current.items.length, 50);
+  });
+
+  test('Sprint2 hardening: GET checklist đọc items và version cùng snapshot khi có writer', async (t) => {
+    const { owner, create } = await permissionFixture();
+    const task = await create({ checklist: [{ text: 'Trước thay đổi' }] });
+    let changed = false;
+    const beforeRead = async () => {
+      if (changed) return;
+      changed = true;
+      await originalTransaction.call(db.prisma, async (tx) => {
+        await tx.task.update({ where: { id: task._id }, data: { version: { increment: 1 } } });
+        await tx.checklistItem.update({ where: { id: task.checklist[0]._id }, data: { title: 'Sau thay đổi' } });
+      });
+    };
+    const originalTransaction = db.prisma.$transaction;
+    const originalRead = db.prisma.checklistItem.findMany;
+    t.after(() => { db.prisma.$transaction = originalTransaction; db.prisma.checklistItem.findMany = originalRead; });
+    db.prisma.checklistItem.findMany = async (args) => { await beforeRead(); return originalRead.call(db.prisma.checklistItem, args); };
+    db.prisma.$transaction = (callback, options) => originalTransaction.call(db.prisma, async (tx) => {
+      const read = tx.checklistItem.findMany.bind(tx.checklistItem);
+      tx.checklistItem.findMany = async (args) => { await beforeRead(); return read(args); };
+      return callback(tx);
+    }, options);
+    const result = await owner.get(`/tasks/${task._id}/checklist`);
+    assert.equal(result.status, 200);
+    assert.equal(changed, true);
+    assert.equal(result.data.items[0].text, result.data.version === 1 ? 'Trước thay đổi' : 'Sau thay đổi', 'never pair old version with new checklist');
+    db.prisma.$transaction = originalTransaction;
+    db.prisma.checklistItem.findMany = originalRead;
+    assert.equal((await owner.get(`/tasks/${task._id}/checklist`)).data.version, 2);
+  });
+
   test('U005-T1/T3: SMTP reset một lần, hết hạn, đúng mục đích, thu hồi mọi phiên; profile whitelist', async (t) => {
     const { messages } = await smtpSandbox(t, config);
     const client = new Client('/v1');

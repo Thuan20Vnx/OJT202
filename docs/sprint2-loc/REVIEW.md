@@ -1,5 +1,7 @@
 # Sprint 2 — Nguyễn Bảo Lộc
 
+**Bản rà soát bổ sung:** xem [các lỗi đã tái hiện và sửa](HARDENING.md). Bộ test hiện tại tăng lên 285 ca; số liệu 277 ca phía dưới là mốc bàn giao ban đầu và được giữ để truy vết.
+
 Ngày đối chiếu: 02/11/2026. Baseline trước triển khai: `396bb28aed1895d10f95705e9958b699bf8c8475` trên nhánh `Loc`, đã chứa code mới từ main của nhóm.
 
 Nguồn phân công: **DN26_CPL_Mock_Project_Nhom24 (1).xlsx** do người dùng cung cấp, SHA-256 `7FDC04FAEAF146EE068A3397288C6A1203CE27AAA611AC59E0B1706444BCC371`. Các dòng dưới đây thuộc sheet **Detail Plan** của đúng workbook này. File Excel giữ nguyên; trạng thái Open trong workbook không được tự đổi thành xác nhận nghiệm thu của nhóm.
