@@ -19,6 +19,8 @@ AIService chỉ nhận dữ liệu đã lọc và trả kết quả AI (kế ho�
 
 ## Chạy nhanh
 
+Hướng dẫn cài mới trên PowerShell: [cài đặt và bàn giao](docs/design/INSTALL.md). Đối chiếu toàn bộ nhiệm vụ Hoàng Thị Hải Như: [phân công, thay đổi và giới hạn nghiệm thu](docs/NHU_ALL_SPRINTS_2026-10-29.md). Bộ thiết kế hiện tại: [SRS/quyền/workflow](docs/design/SRS.md), [ERD](docs/design/ERD.md), [OpenAPI](docs/design/openapi.json).
+
 Yêu cầu: Node.js ≥ 24.15.0 (backend chạy trực tiếp các module TypeScript).
 
 ```bash
@@ -115,6 +117,8 @@ Bảng, khóa ngoại, enum và chỉ mục được tạo bằng migration tron
 Xem/sửa dữ liệu trực quan: `npm --prefix BackEnd run db:studio` (Prisma Studio).
 
 ## Lệnh
+
+Frontend hỗ trợ chuyển dần sang TypeScript: entry ở `FrontEnd/src/main.tsx`, component JS/JSX cũ tiếp tục chạy. Kiểm tra với `npm --prefix FrontEnd run lint` và `npm --prefix FrontEnd run typecheck`; CI chạy cả hai. Báo cáo nhiệm vụ Như đến 28/10: [phân công, sửa đổi và minh chứng](docs/NHU_SPRINT1_2026-10-28.md).
 
 | Lệnh | Mô tả |
 |---|---|
@@ -244,3 +248,11 @@ Giữ thư mục `shared/` khi sao chép dự án. Cài lại dependency và gen
 Production cần `NODE_ENV=production`, `SEED_DEMO=false`, JWT_SECRET ít nhất 32 ký tự ngẫu nhiên, AI_SERVICE_KEY và cấu hình SMTP ở trên. Mặc định không tin header proxy; đặt `TRUST_PROXY` thành IP/CIDR của reverse proxy thực tế (ví dụ `loopback` nếu proxy cùng máy), không bật tin mọi địa chỉ. `npm start` tự nó không đặt NODE_ENV. Không coi outbox demo là email đã gửi.
 
 Ngày chót chỉ nhập ngày được hiểu hết ngày theo timezone hồ sơ; báo cáo, quota và số liệu chung dùng giờ Việt Nam. Không thay đổi ngầm timestamp các deadline cũ.
+
+## Hoàng Anh — Sprint 2 (30/10/2026)
+
+Đối chiếu U011-T3, U015-T1, U016-T2, U018-T1, U020-T2 và các task được giao review: [báo cáo triển khai, API, migration và bằng chứng](docs/HOANG_ANH_SPRINT2_2026-10-30.md). Gồm tài liệu có version bắt buộc, thông báo nhiều tab, dependency/preview xóa, workload task lá và capacity từng tuần, activity/CSV theo quyền. Cài lại dependency sau pull; backend tự áp dụng migration `20261030090000_weekly_capacity`.
+
+## Hoàng Anh — Sprint 3 (30/10/2026)
+
+[Báo cáo triển khai và kiểm chứng Sprint 3](docs/HOANG_ANH_SPRINT3_2026-10-30.md): planner kiểm schema/giới hạn, chọn người thủ công, version chống ghi đè và duyệt một lần; risk có snapshot/sourceVersion/lý do xử lý; report chốt generatedAt và phát hiện risk resolution thay đổi; hoàn thiện luồng ghi chú họp có chứng cứ. API sửa/duyệt/hủy nháp bắt buộc `version`; xử lý/mở lại risk bắt buộc `sourceVersion`, xử lý cần `reason`. Backend tự áp dụng migration `20261030100000_sprint3_draft_risk_versions`; generate lại Prisma sau pull. Phản hồi demo 3 người thật cần nghiệm thu riêng, không được suy ra từ kết quả test tự động.

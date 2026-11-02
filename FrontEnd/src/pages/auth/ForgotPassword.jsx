@@ -1,3 +1,4 @@
+import { t as tr, useI18n } from '../../lib/i18n.js';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import AuthLayout from './AuthLayout.jsx';
@@ -6,7 +7,8 @@ import { Field, Icon, Notice, Spinner } from '../../components/ui.jsx';
 import { api } from '../../lib/api.js';
 
 function Steps({ step }) {
-  const items = ['Yêu cầu', 'Kiểm tra email', 'Mật khẩu mới'];
+  useI18n();
+  const items = [tr("Yêu cầu"), tr("Kiểm tra email"), tr("Mật khẩu mới")];
   return (
     <div className="mb-6 flex items-center">
       {items.map((label, i) => (
@@ -27,6 +29,7 @@ function Steps({ step }) {
 const mask = (email) => email.replace(/^(.)(.*)(@.*)$/, (_, a, b, c) => `${a}${'*'.repeat(Math.min(3, b.length))}${c}`);
 
 export default function ForgotPassword() {
+  useI18n();
   const [params] = useSearchParams();
   const token = params.get('token');
   const navigate = useNavigate();
@@ -51,7 +54,7 @@ export default function ForgotPassword() {
 
   const request = async (e) => {
     e?.preventDefault();
-    if (!/^\S+@\S+\.\S+$/.test(email)) return setError('Vui lòng nhập email hợp lệ');
+    if (!/^\S+@\S+\.\S+$/.test(email)) return setError(tr("Vui lòng nhập email hợp lệ"));
     setBusy(true);
     setError('');
     try {
@@ -67,7 +70,7 @@ export default function ForgotPassword() {
 
   const reset = async (e) => {
     e.preventDefault();
-    if (pw !== pw2) return setError('Mật khẩu xác nhận không khớp');
+    if (pw !== pw2) return setError(tr("Mật khẩu xác nhận không khớp"));
     setBusy(true);
     setError('');
     try {
@@ -88,29 +91,24 @@ export default function ForgotPassword() {
         {step === 1 && (
           <form onSubmit={request} className="space-y-4">
             <Link to="/login" className="inline-flex items-center gap-1 text-body-sm text-slate-500 hover:text-slate-800">
-              <Icon name="arrow_back" size={16} /> Quay lại đăng nhập
-            </Link>
+              <Icon name="arrow_back" size={16} />{tr(" Quay lại đăng nhập")}</Link>
             <div>
-              <h2 className="text-headline-md text-slate-900">Quên mật khẩu?</h2>
-              <p className="text-body-sm text-slate-500">Nhập email, chúng tôi sẽ gửi liên kết đặt lại mật khẩu.</p>
+              <h2 className="text-headline-md text-slate-900">{tr("Quên mật khẩu?")}</h2>
+              <p className="text-body-sm text-slate-500">{tr("Nhập email, chúng tôi sẽ gửi liên kết đặt lại mật khẩu.")}</p>
             </div>
             {error && <Notice tone="danger">{error}</Notice>}
-            <Field label="Email công việc" required>
+            <Field label={tr("Email công việc")} required>
               <div className="relative">
                 <Icon name="mail" size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input type="email" className="input pl-9" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="ban@congty.com" />
               </div>
             </Field>
             <button className="btn-primary h-10 w-full" disabled={busy}>
-              {busy && <Spinner />}
-              Gửi liên kết đặt lại
-              <Icon name="send" size={16} />
+              {busy && <Spinner />}{tr("Gửi liên kết đặt lại")}<Icon name="send" size={16} />
             </button>
             <div className="flex justify-between text-body-sm">
-              <span className="text-slate-400">Đã nhớ mật khẩu?</span>
-              <Link to="/login" className="font-semibold text-blue-600">
-                Đăng nhập ngay
-              </Link>
+              <span className="text-slate-400">{tr("Đã nhớ mật khẩu?")}</span>
+              <Link to="/login" className="font-semibold text-blue-600">{tr("Đăng nhập ngay")}</Link>
             </div>
           </form>
         )}
@@ -120,30 +118,21 @@ export default function ForgotPassword() {
               <Icon name="mail" size={30} />
             </span>
             <div>
-              <h2 className="text-headline-md text-slate-900">Kiểm tra hộp thư của bạn</h2>
-              <p className="mt-1 text-body-sm text-slate-500">
-                Nếu email tồn tại trong hệ thống, liên kết đặt lại đã được gửi tới <b>{mask(email)}</b>. Liên kết chỉ dùng được một lần và hết hạn sau 30 phút.
-              </p>
+              <h2 className="text-headline-md text-slate-900">{tr("Kiểm tra hộp thư của bạn")}</h2>
+              <p className="mt-1 text-body-sm text-slate-500">{tr("Nếu email tồn tại trong hệ thống, liên kết đặt lại đã được gửi tới ")}<b>{mask(email)}</b>{tr(". Liên kết chỉ dùng được một lần và hết hạn sau 30 phút.")}</p>
             </div>
             <a className="btn-outline w-full" href="mailto:">
-              <Icon name="open_in_new" size={16} /> Mở ứng dụng email
-            </a>
-            <p className="text-body-sm text-slate-500">
-              Chưa nhận được?{' '}
+              <Icon name="open_in_new" size={16} />{tr(" Mở ứng dụng email")}</a>
+            <p className="text-body-sm text-slate-500">{tr("Chưa nhận được?")}{' '}
               {cool > 0 ? (
-                <span>Gửi lại sau 00:{String(cool).padStart(2, '0')}</span>
+                <span>{tr("Gửi lại sau 00:")}{String(cool).padStart(2, '0')}</span>
               ) : (
-                <button className="font-semibold text-blue-600" onClick={request}>
-                  Gửi lại
-                </button>
+                <button className="font-semibold text-blue-600" onClick={request}>{tr("Gửi lại")}</button>
               )}
             </p>
-            <p className="text-label-md font-normal text-slate-400">
-              Bản phát triển: mở liên kết trong <Link className="text-blue-600 underline" to="/dev/outbox">hộp thư dev</Link>
+            <p className="text-label-md font-normal text-slate-400">{tr("Bản phát triển: mở liên kết trong ")}<Link className="text-blue-600 underline" to="/dev/outbox">{tr("hộp thư dev")}</Link>
             </p>
-            <button className="text-body-sm text-slate-500 hover:text-slate-800" onClick={() => setStep(1)}>
-              ← Quay lại
-            </button>
+            <button className="text-body-sm text-slate-500 hover:text-slate-800" onClick={() => setStep(1)}>{tr("← Quay lại")}</button>
           </div>
         )}
         {step === 3 &&
@@ -152,37 +141,31 @@ export default function ForgotPassword() {
               <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
                 <Icon name="check_circle" size={32} fill />
               </span>
-              <h2 className="text-headline-md text-slate-900">Đặt lại mật khẩu thành công</h2>
-              <p className="text-body-sm text-slate-500">Bạn đã được đăng xuất khỏi tất cả thiết bị. Hãy đăng nhập bằng mật khẩu mới.</p>
-              <button className="btn-primary w-full" onClick={() => navigate('/login')}>
-                Đăng nhập
-              </button>
+              <h2 className="text-headline-md text-slate-900">{tr("Đặt lại mật khẩu thành công")}</h2>
+              <p className="text-body-sm text-slate-500">{tr("Bạn đã được đăng xuất khỏi tất cả thiết bị. Hãy đăng nhập bằng mật khẩu mới.")}</p>
+              <button className="btn-primary w-full" onClick={() => navigate('/login')}>{tr("Đăng nhập")}</button>
             </div>
           ) : expired ? (
             <div className="space-y-4">
-              <Notice tone="danger">Liên kết đã hết hạn hoặc đã được sử dụng.</Notice>
-              <button className="btn-primary w-full" onClick={() => (setStep(1), setExpired(false), navigate('/forgot-password'))}>
-                Gửi liên kết mới
-              </button>
+              <Notice tone="danger">{tr("Liên kết đã hết hạn hoặc đã được sử dụng.")}</Notice>
+              <button className="btn-primary w-full" onClick={() => (setStep(1), setExpired(false), navigate('/forgot-password'))}>{tr("Gửi liên kết mới")}</button>
             </div>
           ) : (
             <form onSubmit={reset} className="space-y-4">
               <div>
-                <h2 className="text-headline-md text-slate-900">Đặt mật khẩu mới</h2>
-                <p className="text-body-sm text-slate-500">Bạn sẽ được đăng xuất khỏi tất cả thiết bị sau khi đặt lại.</p>
+                <h2 className="text-headline-md text-slate-900">{tr("Đặt mật khẩu mới")}</h2>
+                <p className="text-body-sm text-slate-500">{tr("Bạn sẽ được đăng xuất khỏi tất cả thiết bị sau khi đặt lại.")}</p>
               </div>
               {error && <Notice tone="danger">{error}</Notice>}
-              <Field label="Mật khẩu mới" required>
+              <Field label={tr("Mật khẩu mới")} required>
                 <PasswordInput value={pw} onChange={(e) => setPw(e.target.value)} autoComplete="new-password" />
                 <PasswordStrength value={pw} />
               </Field>
-              <Field label="Xác nhận mật khẩu" required error={pw2 && pw !== pw2 ? 'Mật khẩu xác nhận không khớp' : ''}>
+              <Field label={tr("Xác nhận mật khẩu")} required error={pw2 && pw !== pw2 ? tr("Mật khẩu xác nhận không khớp") : ''}>
                 <PasswordInput value={pw2} onChange={(e) => setPw2(e.target.value)} autoComplete="new-password" />
               </Field>
               <button className="btn-primary h-10 w-full" disabled={busy}>
-                {busy && <Spinner />}
-                Đặt lại mật khẩu
-              </button>
+                {busy && <Spinner />}{tr("Đặt lại mật khẩu")}</button>
             </form>
           ))}
       </div>

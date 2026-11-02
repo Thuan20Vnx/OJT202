@@ -16,7 +16,7 @@ const router = Router();
 const limiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: config.isProd ? 30 : 1000, standardHeaders: true, legacyHeaders: false });
 router.use(limiter);
 
-const email = z.string({ required_error: 'Vui lòng nhập email' }).trim().toLowerCase().email('Email không hợp lệ');
+const email = z.string({ error: 'Vui lòng nhập email' }).trim().toLowerCase().email('Email không hợp lệ');
 const strongPassword = z.string().superRefine((pw, ctx) => {
   const issues = passwordIssues(pw);
   if (issues.length) ctx.addIssue({ code: 'custom', message: `Mật khẩu cần ${issues.join(', ')}` });
@@ -37,10 +37,10 @@ async function sendVerification(user) {
 router.post('/register', async (req, res) => {
   const body = parse(
     z.object({
-      name: z.string({ required_error: 'Vui lòng nhập họ tên' }).trim().min(1, 'Vui lòng nhập họ tên').max(80),
+      name: z.string({ error: 'Vui lòng nhập họ tên' }).trim().min(1, 'Vui lòng nhập họ tên').max(80),
       email,
       password: strongPassword,
-      acceptTerms: z.literal(true, { errorMap: () => ({ message: 'Bạn cần đồng ý điều khoản' }) }),
+      acceptTerms: z.literal(true, { error: 'Bạn cần đồng ý điều khoản' }),
     }),
     req.body,
   );

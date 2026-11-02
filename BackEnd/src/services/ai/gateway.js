@@ -3,6 +3,7 @@ import { prisma } from '../../db.js';
 import { HttpError } from '../../utils/http.js';
 import { startOfDay } from '../metrics.js';
 import { withWorkspaceLock } from '../membership.js';
+import { validateAiResult } from './contracts.js';
 
 const headers = () => ({ 'content-type': 'application/json', ...(config.ai.serviceKey && { 'x-ai-service-key': config.ai.serviceKey }) });
 
@@ -76,9 +77,10 @@ export async function runAi({ workspaceId, userId, feature, payload }) {
     attempt += 1;
     try {
       const out = await withTimeout((signal) => callAiService(feature, payload, signal), timeoutMs);
+      const result = validateAiResult(feature, out.result, payload);
       const latencyMs = Date.now() - started;
       await log({ model: out.model, status: attempt > 1 ? 'retried_success' : 'success', inputTokens: out.inputTokens || 0, outputTokens: out.outputTokens || 0, latencyMs });
-      return { ...out.result, _meta: { model: out.model, provider: out.provider, latencyMs } };
+      return { ...result, _meta: { model: out.model, provider: out.provider, latencyMs } };
     } catch (e) {
       if (e instanceof Timeout && attempt < 2) continue; // thử lại tối đa 1 lần
       await log({ model: e.model || '-', status: e instanceof Timeout ? 'timeout' : 'error', latencyMs: Date.now() - started, error: String(e.message).slice(0, 300) });

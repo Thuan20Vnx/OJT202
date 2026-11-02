@@ -1,0 +1,119 @@
+/* Shared surfaces cover both Tailwind utilities and components using @apply.
+   Keep white text and saturated action/status fills intact in both themes. */
+:root {
+  color-scheme: light;
+  --tf-chart-grid: #e2e8f0;
+  --tf-chart-label: #64748b;
+  --tf-chart-line: #2563eb;
+  --tf-chart-track: #f1f5f9;
+  --tf-chart-surface: #ffffff;
+}
+
+:root.dark {
+  color-scheme: dark;
+  --tf-canvas: #0b1220;
+  --tf-surface: #141e30;
+  --tf-subtle: #101a2b;
+  --tf-raised: #1e2b41;
+  --tf-hover: #253650;
+  --tf-border: #33445e;
+  --tf-divider: #26364d;
+  --tf-text: #edf2fa;
+  --tf-secondary: #c5d1e2;
+  --tf-muted: #a3b2c8;
+  --tf-faint: #91a2bc;
+  --tf-chart-grid: #33445e;
+  --tf-chart-label: #a3b2c8;
+  --tf-chart-line: #60a5fa;
+  --tf-chart-track: #26364d;
+  --tf-chart-surface: #141e30;
+  background: var(--tf-canvas);
+  accent-color: #60a5fa;
+}
+
+.dark body { background: var(--tf-canvas); color: var(--tf-text); }
+.dark :is(.bg-white, .card, .btn-outline) { background-color: var(--tf-surface); }
+.dark :is(.bg-slate-50, .bg-slate-50\/60, .bg-slate-50\/70) { background-color: var(--tf-subtle); }
+.dark :is(.bg-slate-100, .bg-slate-100\/70) { background-color: var(--tf-raised); }
+.dark .bg-slate-200 { background-color: #30415b; }
+.dark .bg-slate-300 { background-color: #4a5e7a; }
+.dark :is(.bg-slate-900\/30, .bg-slate-900\/40) { background-color: rgb(2 6 15 / 70%); }
+
+.dark :is(.border, .card, .btn-outline, .chip, .input, .textarea, .border-slate-200, .border-slate-300) { border-color: var(--tf-border); }
+.dark :is(.border-slate-100, .border-l, .border-t, .border-b) { border-color: var(--tf-divider); }
+.dark .border-slate-400 { border-color: #647b9c; }
+.dark :is(.divide-slate-100, .divide-slate-200) > :not(:last-child) { border-color: var(--tf-divider); }
+.dark .ring-white { --tw-ring-color: var(--tf-surface); }
+.dark .ring-blue-100 { --tw-ring-color: #345b87; }
+
+.dark :is(.text-slate-900, .text-slate-800) { color: var(--tf-text); }
+.dark :is(.text-slate-700, .text-slate-600, .label, .btn-outline, .btn-ghost, .nav-item, .pill-tab) { color: var(--tf-secondary); }
+.dark :is(.text-slate-500, .tab, .icon-btn) { color: var(--tf-muted); }
+.dark :is(.text-slate-400, .section-label, .table-th) { color: var(--tf-faint); }
+.dark .text-slate-300 { color: #7185a2; }
+
+.dark :is(.input, .textarea) {
+  background-color: var(--tf-canvas);
+  color: var(--tf-text);
+  border-color: var(--tf-border);
+}
+.dark :is(.input, .textarea)::placeholder { color: var(--tf-faint); opacity: 1; }
+.dark :is(.input, .textarea):focus {
+  border-color: #60a5fa;
+  --tw-ring-color: rgb(96 165 250 / 22%);
+}
+.dark :is(.input, .textarea):disabled { background-color: var(--tf-raised); color: var(--tf-muted); }
+.dark .input-error { border-color: #fb7185; }
+.dark .input-error:focus { border-color: #fb7185; --tw-ring-color: rgb(251 113 133 / 22%); }
+.dark input:is([type='checkbox'], [type='radio']):not(:checked) { background-color: var(--tf-canvas); border-color: #647b9c; }
+.dark input:is([type='checkbox'], [type='radio']):checked { background-color: #2563eb; border-color: #60a5fa; }
+.dark select option { background: var(--tf-surface); color: var(--tf-text); }
+
+.dark :is(.btn-outline, .btn-ghost, .icon-btn, .nav-item, .pill-tab):hover,
+.dark .hover\:bg-slate-50:hover,
+.dark .hover\:bg-slate-100:hover { background-color: var(--tf-hover); }
+.dark :is(.btn-ghost, .icon-btn, .nav-item, .tab):hover,
+.dark .hover\:text-slate-800:hover,
+.dark .hover\:text-slate-900:hover { color: var(--tf-text); }
+.dark :is(.nav-item-active, .tab-active) { color: #93c5fd; }
+.dark .nav-item-active { background: #192f50; border-color: #345b87; }
+.dark .nav-item-active:hover { background: #203d63; color: #bfdbfe; }
+.dark .tab-active { border-color: #60a5fa; }
+.dark .pill-tab-active { background: #2563eb; color: #ffffff; }
+.dark .pill-tab-active:hover { background: #1d4ed8; }
+.dark .btn-primary { color: #ffffff; }
+.dark .btn-danger { color: #ffffff; }
+
+/* Soft status surfaces: keep the meaning of color without bright pastel panels. */
+.dark :is(.bg-blue-50, .bg-blue-50\/40, .bg-blue-50\/50, .bg-blue-50\/60, .bg-blue-100, .btn-secondary) { background-color: #192f50; }
+.dark :is(.text-blue-600, .text-blue-700, .text-blue-800, .btn-secondary) { color: #93c5fd; }
+.dark :is(.border-blue-100, .border-blue-200, .border-blue-300, .btn-secondary) { border-color: #345b87; }
+.dark :is(.hover\:bg-blue-50:hover, .hover\:bg-blue-50\/40:hover, .hover\:bg-blue-100:hover, .btn-secondary:hover) { background-color: #203d63; }
+.dark :is(.hover\:text-blue-600:hover, .hover\:text-blue-700:hover) { color: #bfdbfe; }
+
+.dark :is(.bg-emerald-50, .bg-emerald-100) { background-color: #11382f; }
+.dark :is(.text-emerald-500, .text-emerald-600, .text-emerald-700, .text-emerald-800) { color: #6ee7b7; }
+.dark .border-emerald-200 { border-color: #28654e; }
+
+.dark :is(.bg-amber-50, .bg-amber-50\/40, .bg-amber-50\/50, .bg-amber-100) { background-color: #3c2e16; }
+.dark :is(.text-amber-500, .text-amber-600, .text-amber-700, .text-amber-800, .text-amber-900) { color: #fcd477; }
+.dark :is(.border-amber-200, .border-amber-300) { border-color: #7b602d; }
+
+.dark :is(.bg-rose-50, .bg-rose-50\/40, .bg-rose-50\/60, .bg-rose-100) { background-color: #402333; }
+.dark :is(.text-rose-500, .text-rose-600, .text-rose-700, .field-error) { color: #fda4af; }
+.dark :is(.border-rose-200, .border-rose-300) { border-color: #855068; }
+.dark .hover\:bg-rose-50:hover { background-color: #54283b; }
+.dark :is(.hover\:text-rose-500:hover, .hover\:text-rose-600:hover) { color: #fecdd3; }
+
+.dark :is(.bg-purple-50, .bg-purple-50\/50, .bg-purple-100) { background-color: #302347; }
+.dark :is(.text-purple-500, .text-purple-600, .text-purple-700, .text-purple-800) { color: #d8b4fe; }
+.dark :is(.border-purple-200, .border-purple-300) { border-color: #675086; }
+.dark .bg-indigo-100 { background-color: #272b53; }
+.dark .text-indigo-700 { color: #b6befe; }
+.dark :is(.bg-cyan-50, .bg-cyan-100) { background-color: #153844; }
+.dark :is(.text-cyan-600, .text-cyan-700) { color: #67e8f9; }
+
+.dark .scroll-thin { scrollbar-color: #4a5e7a transparent; }
+.dark .scroll-thin::-webkit-scrollbar-thumb { background: #4a5e7a; }
+.dark ::selection { background: #345b87; color: #ffffff; }
+.dark :is(.shadow-pop, .shadow-drag) { --tw-shadow-color: rgb(0 0 0 / 38%); }

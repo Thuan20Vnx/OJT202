@@ -1,3 +1,4 @@
+import { t as tr, useI18n } from '../../lib/i18n.js';
 import { useState } from 'react';
 import { Avatar, Confirm, Dropdown, ErrorBox, Field, Icon, MenuItem, Modal, Notice, PageLoader, Select, Spinner, StatCard } from '../../components/ui.jsx';
 import { api } from '../../lib/api.js';
@@ -12,13 +13,14 @@ const ROLE_CHIP = {
   viewer: 'border-slate-200 bg-slate-50 text-slate-600',
 };
 
-const MATRIX = [
-  ['Quản lý Member/Viewer', [1, 1, 0, 0]],
-  ['Quản lý Owner/Admin', [1, 0, 0, 0]],
-  ['Tạo dự án', [1, 1, 0, 0]],
+const getPermissionMatrix = () => [
+  [tr('Quản lý Member/Viewer'), [1, 1, 0, 0]],
+  [tr('Quản lý Owner/Admin'), [1, 0, 0, 0]],
+  [tr('Tạo dự án'), [1, 1, 0, 0]],
 ];
 
 export function InviteModal({ open, onClose, onDone }) {
+  useI18n();
   const { ws, role, projects } = useApp();
   const toast = useToast();
   const [emails, setEmails] = useState([]);
@@ -30,7 +32,7 @@ export function InviteModal({ open, onClose, onDone }) {
   const add = () => {
     const v = input.trim().replace(/,$/, '');
     if (!v) return;
-    if (!/^\S+@\S+\.\S+$/.test(v)) return setErr(`“${v}” không phải email hợp lệ`);
+    if (!/^\S+@\S+\.\S+$/.test(v)) return setErr(tr("“{0}” không phải email hợp lệ", [v]));
     if (!emails.includes(v)) setEmails([...emails, v]);
     setInput('');
     setErr('');
@@ -39,7 +41,7 @@ export function InviteModal({ open, onClose, onDone }) {
     setBusy(true);
     try {
       const d = await api.post(`/workspaces/${ws.workspace._id}/invites`, { emails, role: inviteRole, projects: sel });
-      toast(`Đã gửi ${d.created.length} lời mời${d.skipped.length ? `, bỏ qua ${d.skipped.length} (đã là thành viên)` : ''}`);
+      toast(tr("Đã gửi {0} lời mời{1}", [d.created.length, d.skipped.length ? tr(", bỏ qua {0} (đã là thành viên)", [d.skipped.length]) : '']));
       setEmails([]);
       setSel([]);
       onDone?.();
@@ -54,24 +56,20 @@ export function InviteModal({ open, onClose, onDone }) {
     <Modal
       open={open}
       onClose={onClose}
-      title="Mời thành viên vào Workspace"
-      subtitle={`Gửi lời mời tham gia ${ws.workspace.name}`}
+      title={tr("Mời thành viên vào Workspace")}
+      subtitle={tr("Gửi lời mời tham gia {0}", [ws.workspace.name])}
       icon="person_add"
       footer={
         <>
-          <span className="mr-auto text-label-md font-normal text-slate-400">Đã chọn {emails.length} email</span>
-          <button className="btn-outline" onClick={onClose}>
-            Hủy
-          </button>
+          <span className="mr-auto text-label-md font-normal text-slate-400">{tr("Đã chọn ")}{emails.length} email</span>
+          <button className="btn-outline" onClick={onClose}>{tr("Hủy")}</button>
           <button className="btn-primary" onClick={submit} disabled={busy || !emails.length}>
-            {busy ? <Spinner /> : <Icon name="send" size={16} />}
-            Gửi lời mời
-          </button>
+            {busy ? <Spinner /> : <Icon name="send" size={16} />}{tr("Gửi lời mời")}</button>
         </>
       }
     >
       <div className="space-y-4">
-        <Field label="Địa chỉ email thành viên" required error={err}>
+        <Field label={tr("Địa chỉ email thành viên")} required error={err}>
           <div className="flex min-h-[42px] flex-wrap items-center gap-1.5 rounded-lg border border-slate-200 px-2 py-1.5 focus-within:border-blue-600">
             {emails.map((e) => (
               <span key={e} className="chip border-blue-200 bg-blue-50 text-blue-700">
@@ -81,16 +79,16 @@ export function InviteModal({ open, onClose, onDone }) {
                 </button>
               </span>
             ))}
-            <input className="min-w-[160px] flex-1 border-0 p-0 text-body-sm focus:ring-0" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => (e.key === 'Enter' || e.key === ',') && (e.preventDefault(), add())} onBlur={add} placeholder="Nhập email rồi nhấn Enter..." />
+            <input className="min-w-[160px] flex-1 border-0 p-0 text-body-sm focus:ring-0" value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => (e.key === 'Enter' || e.key === ',') && (e.preventDefault(), add())} onBlur={add} placeholder={tr("Nhập email rồi nhấn Enter...")} />
           </div>
         </Field>
         <div>
-          <span className="label">Vai trò mặc định trong Workspace</span>
+          <span className="label">{tr("Vai trò mặc định trong Workspace")}</span>
           <div className="grid grid-cols-2 gap-2">
             {[
-              ['member', 'Thành viên (Member)', 'Khi được thêm vào dự án: nhận việc, cập nhật giờ còn lại và gửi Review. PM của dự án mới được tạo, giao và duyệt việc.'],
-              ['viewer', 'Khách xem (Viewer)', 'Chỉ xem nội dung dự án được cấp quyền, không thể chỉnh sửa hay kéo thả.'],
-              ...(role === 'owner' ? [['admin', 'Quản trị (Admin)', 'Quản lý Member/Viewer và tạo dự án. Chỉ truy cập dự án đã được thêm vào.']] : []),
+              ['member', tr('Thành viên (Member)'), tr('Khi được thêm vào dự án: nhận việc, cập nhật giờ còn lại và gửi Review. PM của dự án mới được tạo, giao và duyệt việc.')],
+              ['viewer', tr('Khách xem (Viewer)'), tr('Chỉ xem nội dung dự án được cấp quyền, không thể chỉnh sửa hay kéo thả.')],
+              ...(role === 'owner' ? [['admin', tr('Quản trị (Admin)'), tr('Quản lý Member/Viewer và tạo dự án. Chỉ truy cập dự án đã được thêm vào.')]] : []),
             ].map(([v, t, d]) => (
               <button key={v} type="button" onClick={() => setRole(v)} className={`rounded-xl border p-3 text-left ${inviteRole === v ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500' : 'border-slate-200 hover:bg-slate-50'}`}>
                 <p className="flex items-center justify-between text-label-lg font-semibold text-slate-900">
@@ -102,7 +100,7 @@ export function InviteModal({ open, onClose, onDone }) {
           </div>
         </div>
         <div>
-          <span className="label">Chỉ định dự án tham gia ngay</span>
+          <span className="label">{tr("Chỉ định dự án tham gia ngay")}</span>
           <div className="space-y-1.5 rounded-lg border border-slate-200 p-2.5">
             {projects
               .filter((p) => p.status === 'active')
@@ -115,13 +113,14 @@ export function InviteModal({ open, onClose, onDone }) {
               ))}
           </div>
         </div>
-        <Notice tone="warn">Lưu ý: Lời mời sẽ tự động hết hạn sau 72 giờ kể từ khi gửi email.</Notice>
+        <Notice tone="warn">{tr("Lưu ý: Lời mời sẽ tự động hết hạn sau 72 giờ kể từ khi gửi email.")}</Notice>
       </div>
     </Modal>
   );
 }
 
 export default function Members() {
+  useI18n();
   const { ws, role, me, reloadWorkspace } = useApp();
   const toast = useToast();
   const isAdmin = ['owner', 'admin'].includes(role);
@@ -139,7 +138,7 @@ export default function Members() {
   const changeRole = async (m, r) => {
     try {
       await api.patch(`/workspaces/${ws.workspace._id}/members/${m.user._id}`, { role: r });
-      toast(`Đã đổi vai trò ${m.user.name} thành ${ROLE[r]}`);
+      toast(tr("Đã đổi vai trò {0} thành {1}", [m.user.name, ROLE[r]]));
       reload();
     } catch (e) {
       toast(e.message, 'error');
@@ -150,7 +149,7 @@ export default function Members() {
       const full = await api.get(`/projects/${p._id}`);
       await api.patch(`/projects/${p._id}`, { members: full.project.members.map((x) => x._id).filter((id) => id !== m.user._id) });
       invalidateProject(p._id);
-      toast(`Đã gỡ ${m.user.name} khỏi ${p.name}`);
+      toast(tr("Đã gỡ {0} khỏi {1}", [m.user.name, p.name]));
       reload();
     } catch (e) {
       toast(e.message, 'error');
@@ -159,7 +158,7 @@ export default function Members() {
   const remove = async () => {
     try {
       await api.del(`/workspaces/${ws.workspace._id}/members/${removing.user._id}`);
-      toast(`Đã thu hồi quyền của ${removing.user.name} (hiệu lực ngay)`);
+      toast(tr("Đã thu hồi quyền của {0} (hiệu lực ngay)", [removing.user.name]));
       setRemoving(null);
       reload();
       reloadWorkspace();
@@ -173,7 +172,7 @@ export default function Members() {
     <div className="grid gap-5 xl:grid-cols-[1fr_360px]">
       <div className="min-w-0 space-y-4">
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          <StatCard label="Tổng thành viên" value={`${members.length}/20`} icon="group" />
+          <StatCard label={tr("Tổng thành viên")} value={`${members.length}/20`} icon="group" />
           <StatCard label="Owner / Admin" value={count('owner') + count('admin')} icon="shield_person" tone="purple" />
           <StatCard label="Member" value={count('member')} icon="person" tone="green" />
           <StatCard label="Viewer" value={count('viewer')} icon="visibility" tone="slate" />
@@ -183,10 +182,10 @@ export default function Members() {
           <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 p-3">
             <div className="relative flex-1">
               <Icon name="search" size={16} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input className="input h-9 pl-8 text-body-sm" placeholder="Tìm theo tên hoặc email" value={search} onChange={(e) => setSearch(e.target.value)} />
+              <input className="input h-9 pl-8 text-body-sm" placeholder={tr("Tìm theo tên hoặc email")} value={search} onChange={(e) => setSearch(e.target.value)} />
             </div>
             <Select className="input h-9 w-auto text-body-sm" value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}>
-              <option value="">Mọi vai trò</option>
+              <option value="">{tr("Mọi vai trò")}</option>
               {Object.entries(ROLE).map(([k, v]) => (
                 <option key={k} value={k}>
                   {v}
@@ -195,19 +194,18 @@ export default function Members() {
             </Select>
             {isAdmin && (
               <button className="btn-primary" onClick={() => setInviting(true)}>
-                <Icon name="person_add" size={16} /> Mời thành viên
-              </button>
+                <Icon name="person_add" size={16} />{tr(" Mời thành viên")}</button>
             )}
           </div>
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="border-b border-slate-100">
                 <tr>
-                  <th className="table-th">Thành viên</th>
-                  <th className="table-th">Vai trò</th>
-                  <th className="table-th">Dự án được gán</th>
-                  <th className="table-th">Hoạt động gần nhất</th>
-                  {isAdmin && <th className="table-th text-right">Thao tác</th>}
+                  <th className="table-th">{tr("Thành viên")}</th>
+                  <th className="table-th">{tr("Vai trò")}</th>
+                  <th className="table-th">{tr("Dự án được gán")}</th>
+                  <th className="table-th">{tr("Hoạt động gần nhất")}</th>
+                  {isAdmin && <th className="table-th text-right">{tr("Thao tác")}</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -221,7 +219,7 @@ export default function Members() {
                           <Avatar user={m.user} size={32} />
                           <div className="min-w-0">
                             <p className="font-semibold text-slate-900">
-                              {m.user.name} {m.user._id === me._id && <span className="font-normal text-slate-400">(bạn)</span>}
+                              {m.user.name} {m.user._id === me._id && <span className="font-normal text-slate-400">{tr("(bạn)")}</span>}
                             </p>
                             <p className="truncate text-label-md font-normal text-slate-500">{m.user.email}</p>
                           </div>
@@ -237,7 +235,7 @@ export default function Members() {
                             ))}
                           </Select>
                         ) : (
-                          <span className={`chip ${ROLE_CHIP[m.role]}`} title={lastOwner ? 'Không thể xóa hoặc hạ quyền Owner cuối cùng' : ''}>
+                          <span className={`chip ${ROLE_CHIP[m.role]}`} title={lastOwner ? tr("Không thể xóa hoặc hạ quyền Owner cuối cùng") : ''}>
                             {lastOwner && <Icon name="lock" size={12} />}
                             {ROLE[m.role]}
                           </span>
@@ -255,23 +253,20 @@ export default function Members() {
                           {!m.projects.length && <span className="text-slate-300">—</span>}
                         </div>
                       </td>
-                      <td className="table-td whitespace-nowrap text-slate-500">{m.lastActiveAt ? timeAgo(m.lastActiveAt) : 'Chưa đăng nhập'}</td>
+                      <td className="table-td whitespace-nowrap text-slate-500">{m.lastActiveAt ? timeAgo(m.lastActiveAt) : tr("Chưa đăng nhập")}</td>
                       {isAdmin && (
                         <td className="table-td text-right">
                           {lastOwner || !canEditRole ? (
-                            <span className="text-label-md font-normal text-slate-400" title="Không thể xóa Owner cuối cùng">
+                            <span className="text-label-md font-normal text-slate-400" title={tr("Không thể xóa Owner cuối cùng")}>
                               <Icon name="lock" size={16} />
                             </span>
                           ) : (
                             <Dropdown trigger={<button className="icon-btn h-8 w-8"><Icon name="more_vert" /></button>}>
                               {m.projects.map((p) => (
-                                <MenuItem key={p._id} icon="folder_off" onClick={() => removeFromProject(m, p)}>
-                                  Gỡ khỏi {p.name}
+                                <MenuItem key={p._id} icon="folder_off" onClick={() => removeFromProject(m, p)}>{tr("Gỡ khỏi ")}{p.name}
                                 </MenuItem>
                               ))}
-                              <MenuItem icon="person_remove" danger disabled={m.user._id === me._id} onClick={() => setRemoving(m)}>
-                                Thu hồi quyền (hiệu lực ngay)
-                              </MenuItem>
+                              <MenuItem icon="person_remove" danger disabled={m.user._id === me._id} onClick={() => setRemoving(m)}>{tr("Thu hồi quyền (hiệu lực ngay)")}</MenuItem>
                             </Dropdown>
                           )}
                         </td>
@@ -285,7 +280,7 @@ export default function Members() {
         </div>
       </div>
       <div className="card h-fit p-4">
-        <p className="section-label mb-3">Quyền trong workspace</p>
+        <p className="section-label mb-3">{tr('Quyền trong workspace')}</p>
         <table className="w-full text-body-sm">
           <thead>
             <tr className="text-label-sm text-slate-400">
@@ -298,7 +293,7 @@ export default function Members() {
             </tr>
           </thead>
           <tbody>
-            {MATRIX.map(([label, v]) => (
+            {getPermissionMatrix().map(([label, v]) => (
               <tr key={label} className="border-t border-slate-100">
                 <td className="py-2 text-slate-700">{label}</td>
                 {v.map((ok, i) => (
@@ -311,19 +306,18 @@ export default function Members() {
           </tbody>
         </table>
         <div className="mt-4 space-y-2 text-label-md font-normal text-slate-600">
-          <p className="font-semibold text-slate-900">Quyền trong từng dự án</p>
-          <p>Owner/Admin cũng cần được thêm vào dự án để xem nội dung.</p>
-          <p><strong>PM:</strong> quản lý thành viên, tạo và giao việc, đặt ước lượng, duyệt Done và mở lại công việc.</p>
-          <p><strong>Member:</strong> cập nhật giờ còn lại và trạng thái việc mình nhận đến Review; không tự duyệt Done.</p>
-          <p><strong>Viewer:</strong> chỉ đọc. Workspace Viewer không được nâng thành PM/Member trong dự án.</p>
-          <p>Dự án đã lưu trữ chỉ cho xem nội dung.</p>
+          <p className="font-semibold text-slate-900">{tr('Quyền trong từng dự án')}</p>
+          <p>{tr('Owner/Admin cũng cần được thêm vào dự án để xem nội dung.')}</p>
+          <p><strong>PM:</strong> {tr('quản lý thành viên, tạo và giao việc, đặt ước lượng, duyệt Done và mở lại công việc.')}</p>
+          <p><strong>Member:</strong> {tr('cập nhật giờ còn lại và trạng thái việc mình nhận đến Review; không tự duyệt Done.')}</p>
+          <p><strong>Viewer:</strong> {tr('chỉ đọc. Workspace Viewer không được nâng thành PM/Member trong dự án.')}</p>
+          <p>{tr('Dự án đã lưu trữ chỉ cho xem nội dung.')}</p>
         </div>
-        <p className="mt-3 rounded-lg bg-blue-50 px-3 py-2 text-label-md font-normal text-blue-800">Lưu ý: Quyền Owner không thể bị xóa nếu là Owner cuối cùng. Thu hồi quyền có hiệu lực ngay lập tức.</p>
+        <p className="mt-3 rounded-lg bg-blue-50 px-3 py-2 text-label-md font-normal text-blue-800">{tr('Lưu ý: Quyền Owner không thể bị xóa nếu là Owner cuối cùng. Thu hồi quyền có hiệu lực ngay lập tức.')}</p>
       </div>
       <InviteModal open={inviting} onClose={() => setInviting(false)} onDone={reload} />
-      <Confirm open={!!removing} danger title="Thu hồi quyền truy cập?" confirmText="Thu hồi quyền" onClose={() => setRemoving(null)} onConfirm={remove}>
-        {removing?.user.name} sẽ bị gỡ khỏi workspace và mọi dự án, mất quyền truy cập ngay lập tức. Các công việc đang giao sẽ chuyển về Chưa giao; lịch sử được giữ lại. Nếu là PM, người này cũng được gỡ khỏi vai trò PM.
-      </Confirm>
+      <Confirm open={!!removing} danger title={tr("Thu hồi quyền truy cập?")} confirmText={tr("Thu hồi quyền")} onClose={() => setRemoving(null)} onConfirm={remove}>
+        {removing?.user.name}{tr(" sẽ bị gỡ khỏi workspace và mọi dự án, mất quyền truy cập ngay lập tức. Các công việc đang giao sẽ chuyển về Chưa giao; lịch sử được giữ lại. Nếu là PM, người này cũng được gỡ khỏi vai trò PM.")}</Confirm>
     </div>
   );
 }

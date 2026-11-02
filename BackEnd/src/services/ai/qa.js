@@ -9,7 +9,7 @@ export const sourceFingerprint = (sources) =>
 
 export function annotateConversation(conversation, sources) {
   const revision = sourceFingerprint(sources);
-  const refs = new Set(sources.map((s) => `${s.kind}:${s.refId}`));
+  const refs = new Map(sources.map((s) => [`${s.kind}:${s.refId}`, s]));
   return {
     ...conversation,
     messages: conversation.messages.map((m) =>
@@ -18,7 +18,10 @@ export function annotateConversation(conversation, sources) {
         : {
             ...m,
             sourceState: !m.sourceRevision ? 'unknown' : m.sourceRevision === revision ? 'current' : 'changed',
-            citations: (m.citations || []).map((c) => ({ ...c, available: refs.has(`${c.kind}:${c.refId}`) })),
+            citations: (m.citations || []).map((c) => {
+              const source = refs.get(`${c.kind}:${c.refId}`);
+              return { ...c, available: !!source, currentUpdatedAt: source?.updatedAt || null, currentVersion: source?.version ?? null };
+            }),
           },
     ),
   };
@@ -75,13 +78,17 @@ export async function collectSources(projectId) {
       .split(/\n\s*\n/)
       .map((p) => p.trim())
       .filter(Boolean);
-    paras.forEach((p, i) => sources.push({ kind: 'document', refId: d.id, label: `${d.name} · đoạn ${i + 1}`, text: p, version: d.version }));
+    paras.forEach((p, i) => sources.push({ kind: 'document', refId: d.id, label: `${d.name} · đoạn ${i + 1}`, text: p, version: d.version, updatedAt: d.updatedAt }));
   }
   return sources;
 }
 
 export async function reportSourceRevision(projectId) {
   const [sources, project] = await Promise.all([collectSources(projectId), prisma.project.findUnique({ where: { id: projectId } })]);
-  const memberships = await prisma.membership.findMany({ where: { workspace: project.workspace }, orderBy: { id: 'asc' } });
-  return sourceFingerprint([...sources, { project, memberships }]);
+  const [memberships, capacities, resolutions] = await Promise.all([
+    prisma.membership.findMany({ where: { workspace: project.workspace }, orderBy: { id: 'asc' } }),
+    prisma.weeklyCapacity.findMany({ where: { workspace: project.workspace, user: { in: project.members } }, orderBy: [{ user: 'asc' }, { weekStart: 'asc' }] }),
+    prisma.riskResolution.findMany({ where: { project: projectId }, select: { key: true, sourceVersion: true, updatedAt: true }, orderBy: { key: 'asc' } }),
+  ]);
+  return sourceFingerprint([...sources, { project, memberships, capacities, resolutions }]);
 }

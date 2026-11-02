@@ -55,7 +55,7 @@ const FEATURES = {
     schema: z.object({
       project: z.object({ name: z.string() }),
       data: z.object({
-        stats: z.record(z.any()),
+        stats: z.record(z.string(), z.any()),
         sections: z.array(z.object({ title: z.string(), body: z.string() })),
         risks: z.array(z.object({ title: z.string(), type: z.string() })),
       }),

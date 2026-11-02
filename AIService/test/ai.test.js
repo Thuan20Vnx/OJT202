@@ -39,6 +39,37 @@ before(async () => {
 after(() => server.close());
 
 describe('Bộ AI nội bộ', () => {
+  test('U021: provider phải trả đúng 5–15 mục đầy đủ AC, không tự cắt hoặc chấp nhận JSON lỗi', async () => {
+    const valid = { title: 'Viết API', description: 'API có phân quyền', acceptanceCriteria: ['Member chỉ thấy dự án của mình'], estimateHours: 1, priority: 'medium', assigneeId: null, dueDate: null };
+    const input = { goal: 'Xây dựng API', members, deadline: null };
+    for (const output of [[], [valid], Array(16).fill(valid), Array(5).fill({ ...valid, description: '' }), Array(5).fill({ ...valid, acceptanceCriteria: [] }), Array(5).fill({ ...valid, estimateHours: 0 }), Array(5).fill({ ...valid, title: {} }), '{broken']) {
+      const llm = { complete: async () => ({ text: typeof output === 'string' ? output : JSON.stringify(output) }) };
+      await assert.rejects(llmPlan(llm, input));
+    }
+    for (const count of [5, 15]) {
+      const result = await llmPlan({ complete: async () => ({ text: JSON.stringify(Array(count).fill(valid)) }) }, input);
+      assert.equal(result.items.length, count);
+      assert.ok(result.items.every((it) => it.dueDate === null));
+    }
+  });
+
+  test('U027: không đoán người/hạn từ provider khi trích đoạn không chứng minh được', async () => {
+    const text = 'Cần ai đó kiểm thử API.\nThuận: mình sẽ viết tài liệu ngày 15/02/2099';
+    const result = await extractActions({ complete: async () => ({ text: JSON.stringify([
+      { title: 'Kiểm thử', excerpt: 'Cần ai đó kiểm thử API.', assigneeId: 'a', dueDate: '2099-02-15' },
+      { title: 'Viết tài liệu', excerpt: 'Thuận: mình sẽ viết tài liệu ngày 15/02/2099', assigneeId: 'a', dueDate: '2099-02-16' },
+    ]) }) }, { text, members });
+    assert.equal(result.items[0].assignee, undefined);
+    assert.equal(result.items[0].dueDate, null);
+    assert.equal(result.items[1].assignee, 'a');
+    assert.equal(result.items[1].dueDate, null);
+  });
+
+  test('U027: câu phủ định không tạo action nhưng người tên Huy vẫn được nhận diện', () => {
+    for (const text of ['Lộc: Không cần triển khai API nữa, hủy công việc này.', 'Lộc: tạm dừng kiểm thử', 'Lộc: chưa cần viết tài liệu']) assert.equal(localMeeting(text, members).length, 0);
+    assert.equal(localMeeting('Huy: mình sẽ viết API', [{ id: 'h', name: 'Huy' }])[0].assignee, 'h');
+  });
+
   test('ghi chú họp: không rõ người/hạn thì để trống', () => {
     const items = localMeeting('Thuận: mình sẽ xong API WebSocket trước thứ 6\nMai Anh: cần ai đó kiểm thử bảo mật thanh toán\nNhư: cập nhật wireframe Thông báo', members);
     assert.equal(items.length, 3);
@@ -108,8 +139,8 @@ describe('Bộ AI nội bộ', () => {
 
   test('provider không được trả kế hoạch quá giờ, giờ vô hạn hoặc hạn sai', async () => {
     const input = { goal: 'Xây dựng API', maxHours: 1, members, deadline: parseDate('2099-02-15', undefined, true) };
-    const provider = (item) => ({ complete: async () => ({ text: JSON.stringify([item]), inputTokens: 1, outputTokens: 1 }) });
-    const valid = { title: 'Viết API', estimateHours: 1, dueDate: '2099-02-15', assigneeId: 'a' };
+    const provider = (item) => ({ complete: async () => ({ text: JSON.stringify(Array.from({ length: 5 }, () => item)), inputTokens: 1, outputTokens: 1 }) });
+    const valid = { title: 'Viết API', description: 'API xác thực', acceptanceCriteria: ['Kiểm quyền truy cập'], priority: 'high', estimateHours: 0.2, dueDate: '2099-02-15', assigneeId: 'a' };
     for (const patch of [
       { estimateHours: 2 },
       { estimateHours: -1 },
@@ -121,21 +152,21 @@ describe('Bộ AI nội bộ', () => {
       await assert.rejects(llmPlan(provider({ ...valid, ...patch }), input));
     const result = await llmPlan(provider(valid), input);
     assert.equal(result.items[0].dueDate.getTime(), input.deadline.getTime());
-    assert.equal(result.items[0].estimateHours, 1);
+    assert.equal(result.items[0].estimateHours, 0.2);
   });
 
   test('provider biên bản: ngày sai để trống, ngày hợp lệ đổi về cuối ngày profile', async () => {
     const llm = {
       complete: async () => ({
         text: JSON.stringify([
-          { title: 'Sai ngày', dueDate: '2027-02-31', assigneeId: 'a' },
-          { title: 'Đúng ngày', dueDate: '2027-02-15', assigneeId: 'ngoài-dự-án' },
+          { title: 'Sai ngày', excerpt: 'Thuận: mình sẽ viết API ngày 31/02/2027', dueDate: '2027-02-31', assigneeId: 'a' },
+          { title: 'Đúng ngày', excerpt: 'Cần ai đó kiểm thử ngày 15/02/2027', dueDate: '2027-02-15', assigneeId: 'ngoài-dự-án' },
         ]),
         inputTokens: 1,
         outputTokens: 1,
       }),
     };
-    const { items } = await extractActions(llm, { text: 'Biên bản thử', members, timezone: 'America/New_York' });
+    const { items } = await extractActions(llm, { text: 'Thuận: mình sẽ viết API ngày 31/02/2027\nCần ai đó kiểm thử ngày 15/02/2027', members, timezone: 'America/New_York' });
     assert.equal(items[0].dueDate, null);
     assert.equal(items[1].dueDate.toISOString(), '2027-02-16T04:59:59.999Z');
     assert.equal(items[1].assignee, undefined);

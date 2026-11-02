@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@import './dark.css';
 @config '../tailwind.config.js';
 
 @utility btn {
@@ -244,53 +245,25 @@
   }
 }
 
-/* ---------- Chế độ tối (ghi đè các lớp nền/chữ/viền phổ biến) ---------- */
-.dark body {
-  background: #0b1120;
-  color: #cbd5e1;
-}
-.dark .bg-white {
-  background-color: #111827 !important;
-}
-.dark .bg-slate-50,
-.dark .hover\:bg-slate-50:hover {
-  background-color: #0f172a !important;
-}
-.dark .bg-slate-100,
-.dark .hover\:bg-slate-100:hover {
-  background-color: #1e293b !important;
-}
-.dark .border-slate-200,
-.dark .border-slate-100,
-.dark .divide-slate-100 > * + *,
-.dark .divide-slate-200 > * + * {
-  border-color: #1f2937 !important;
-}
-.dark .text-slate-900,
-.dark .text-slate-800 {
-  color: #f1f5f9 !important;
-}
-.dark .text-slate-700,
-.dark .text-slate-600 {
-  color: #cbd5e1 !important;
-}
-.dark .input,
-.dark .textarea {
-  background-color: #0f172a !important;
-  color: #e2e8f0;
-}
-.dark .bg-blue-50 {
-  background-color: rgba(37, 99, 235, 0.15) !important;
-}
-.dark .border-blue-100 {
-  border-color: rgba(37, 99, 235, 0.3) !important;
-}
-
 @keyframes auth-progress {
   from {
     width: 0;
   }
   to {
     width: 100%;
+  }
+}
+
+/* Thao tác bàn phím phải nhìn thấy trên mọi màn hình. */
+:where(button, a, input, textarea, select):focus-visible {
+  outline: 2px solid #1d4ed8;
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }

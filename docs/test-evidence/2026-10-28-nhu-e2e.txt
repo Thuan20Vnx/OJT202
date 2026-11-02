@@ -1,0 +1,45 @@
+
+> test:e2e
+> npm run build && node --test --test-concurrency=1 test/e2e/sprint1.test.mjs
+
+
+> build
+> npm --prefix FrontEnd run build
+
+
+> taskflow-client@1.0.0 build
+> vite build
+
+vite v6.4.5 building for production...
+transforming...
+✓ 125 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                                          0.78 kB │ gzip:   0.50 kB
+dist/assets/inter-vietnamese-wght-normal-CBcvBZtf.woff2                 10.25 kB
+dist/assets/inter-greek-ext-wght-normal-DlzME5K_.woff2                  11.23 kB
+dist/assets/inter-cyrillic-wght-normal-DqGufNeO.woff2                   18.75 kB
+dist/assets/inter-greek-wght-normal-CkhJZR-_.woff2                      19.00 kB
+dist/assets/inter-cyrillic-ext-wght-normal-BOeWTOD4.woff2               25.96 kB
+dist/assets/inter-latin-wght-normal-Dx4kXJAl.woff2                      48.26 kB
+dist/assets/inter-latin-ext-wght-normal-DO1Apj_S.woff2                  85.07 kB
+dist/assets/material-symbols-outlined-latin-400-normal-BhEvR8fk.woff2  323.33 kB
+dist/assets/material-symbols-outlined-latin-400-normal-QdgSk6Ss.woff   379.56 kB
+dist/assets/index-o3EHKlL-.css                                          69.12 kB │ gzip:  11.90 kB
+dist/assets/Admin-BHeefml_.js                                            9.83 kB │ gzip:   3.36 kB
+dist/assets/Documents-GYLIyt8O.js                                       13.66 kB │ gzip:   4.71 kB
+dist/assets/Ai-xrWNFJeu.js                                              38.24 kB │ gzip:  10.32 kB
+dist/assets/index-jEtp4an5.js                                          470.58 kB │ gzip: 138.29 kB
+✓ built in 1.10s
+[seed] Tạo dữ liệu demo Nhóm 24…
+[seed] Xong. Đăng nhập: mai.anh@nhom24.edu.vn / TaskFlow@2026  (System Admin: admin@taskflow.local)
+✔ U012-T3: register → verify → workspace → project → task → Member Review → PM Done/reopen (53593.6379ms)
+✔ Như U009/U010: keyboard, API rollback, hai tab xung đột giữ draft và logout (12032.822ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 67177.1648

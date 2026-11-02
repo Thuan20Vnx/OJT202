@@ -3,24 +3,23 @@ import { z } from 'zod';
 import { badRequest, pagination, parse } from '../utils/http.js';
 import { USER, isId, populateAll, prisma } from '../db.js';
 import { requireAuth } from '../middleware/auth.js';
+import { emitUser } from '../services/realtime.js';
 
 const router = Router();
 router.use(requireAuth);
 
 const TAB_TYPES = { assigned: ['assigned'], mentioned: ['mentioned'], due: ['due_soon', 'overdue'] };
 const scopeId = z.string().refine(isId, 'Mã workspace hoặc dự án không hợp lệ');
+const visibleTo = (user) => ({
+  AND: [{ OR: [{ task: null }, { taskRef: { deletedAt: null } }] }],
+  workspaceRef: { memberships: { some: { user } } },
+  OR: [{ project: null }, { projectRef: { memberships: { some: { user } } } }],
+});
 
 router.get('/', async (req, res) => {
   const scope = parse(z.object({ workspace: scopeId.optional(), project: scopeId.optional() }), req.query);
   // Thông báo cũ cũng có thể chứa tên/nội dung task: lọc bằng quyền HIỆN TẠI.
-  const visible = {
-    AND: [{ OR: [{ task: null }, { taskRef: { deletedAt: null } }] }],
-    workspaceRef: { memberships: { some: { user: req.user.id } } },
-    OR: [
-      { project: null },
-      { projectRef: { memberships: { some: { user: req.user.id } } } },
-    ],
-  };
+  const visible = visibleTo(req.user.id);
   const where = { user: req.user.id, ...visible };
   const workspace = scope.workspace;
   if (workspace) where.workspace = workspace;
@@ -64,15 +63,19 @@ router.get('/', async (req, res) => {
 });
 
 router.post('/:id/read', async (req, res) => {
-  if (isId(req.params.id)) await prisma.notification.updateMany({ where: { id: req.params.id, user: req.user.id }, data: { readAt: new Date() } });
+  if (isId(req.params.id)) {
+    const { count } = await prisma.notification.updateMany({ where: { id: req.params.id, user: req.user.id, readAt: null, ...visibleTo(req.user.id) }, data: { readAt: new Date() } });
+    if (count) await emitUser(req.user.id, 'notification:read', {});
+  }
   res.json({ ok: true });
 });
 
 router.post('/read-all', async (req, res) => {
   const { workspace } = parse(z.object({ workspace: scopeId.optional() }), req.body);
-  const where = { user: req.user.id, readAt: null };
+  const where = { user: req.user.id, readAt: null, ...visibleTo(req.user.id) };
   if (workspace) where.workspace = workspace;
   const { count } = await prisma.notification.updateMany({ where, data: { readAt: new Date() } });
+  if (count) await emitUser(req.user.id, 'notification:read', { workspace });
   res.json({ ok: true, updated: count });
 });
 

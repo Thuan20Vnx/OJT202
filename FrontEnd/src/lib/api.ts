@@ -1,14 +1,15 @@
+import { t as tr, translateError } from './i18n.js';
 // Gọi API kèm cookie; tự làm mới access token một lần khi gặp 401.
 export class ApiError extends Error {
   status: number;
   details: ApiErrorDetails;
   constructor(status: number, message: string, details: ApiErrorDetails = {}) {
-    super(message);
+    super(translateError(message));
     this.status = status;
     this.details = details || {};
   }
   get fields() {
-    return this.details.fields || {};
+    return Object.fromEntries(Object.entries(this.details.fields || {}).map(([key, value]) => [key, translateError(value)]));
   }
 }
 
@@ -86,7 +87,7 @@ export async function request<T = unknown>(method: string, url: string, body?: u
   // 5xx không kèm JSON: proxy/reverse proxy không tới được API (API luôn trả lỗi dạng JSON)
   const failure = data && typeof data === 'object' ? data as { error?: unknown; details?: ApiErrorDetails } : {};
   if (res.status >= 500 && typeof failure.error !== 'string') throw new ApiError(res.status, OFFLINE_MSG);
-  if (!res.ok) throw new ApiError(res.status, typeof failure.error === 'string' ? failure.error : 'Đã có lỗi xảy ra', failure.details);
+  if (!res.ok) throw new ApiError(res.status, typeof failure.error === 'string' ? failure.error : tr('Đã có lỗi xảy ra'), failure.details);
   return data as T;
 }
 
@@ -109,7 +110,11 @@ export function qs(params: Record<string, unknown>): string {
 /** Tải tệp qua backend (cookie đi kèm) */
 export async function download(url: string, filename: string): Promise<void> {
   const res = await authenticatedResponse('GET', url);
-  if (!res.ok) throw new ApiError(res.status, 'Không tải được tệp');
+  if (!res.ok) {
+    const data = res.headers.get('content-type')?.includes('application/json') ? await readBody(res, 'json') : null;
+    const failure = data && typeof data === 'object' ? data as { error?: unknown; details?: ApiErrorDetails } : {};
+    throw new ApiError(res.status, typeof failure.error === 'string' ? failure.error : tr('Không tải được tệp'), failure.details);
+  }
   const blob = await readBody(res, 'blob');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);

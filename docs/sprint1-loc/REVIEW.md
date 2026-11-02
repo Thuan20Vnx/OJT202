@@ -1,5 +1,7 @@
 # Bàn giao local Sprint 1 — Nguyễn Bảo Lộc
 
+Cập nhật 02/11/2026: đã ghép các thay đổi mới của nhóm vào nhánh Loc; xem [báo cáo hợp nhất và kiểm chứng hiện hành](MERGE_2026-11-02.md). Các kết quả bên dưới ghi lại lượt hoàn thiện Sprint 1 trước hợp nhất.
+
 Ngày 01/11/2026. Người thực hiện rà soát kỹ thuật và soạn hồ sơ: Codex, theo yêu cầu của người dùng. Phạm vi được người dùng xác nhận: chưa có staging, hoàn thiện bản bàn giao local trước.
 
 Mã nền: `8aa32ab9955853f926cef6bc00e2d7f8e7118a9c`, cộng thay đổi working tree của các lượt bàn giao: hồ sơ, hướng dẫn quyền ở trang Thành viên, audit task, TypeScript, API v1, AC văn bản và kiểm thử. Không tự xác nhận thay các thành viên. Kết quả hiện hành nằm trong mục **Hoàn thiện các điểm còn lại** cuối tài liệu; bảng kết quả trước đó được giữ làm lịch sử.

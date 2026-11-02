@@ -6,6 +6,8 @@
   "scripts": {
     "test": "node --import ./test/helpers/register-jsx.js --test test/*.test.js",
     "dev": "vite",
+    "lint": "eslint src",
+    "typecheck": "tsc --noEmit",
     "build": "vite build",
     "preview": "vite preview"
   },
@@ -21,11 +23,17 @@
   "devDependencies": {
     "@tailwindcss/forms": "^0.5.11",
     "@tailwindcss/postcss": "^4.3.3",
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.7",
     "@vitejs/plugin-react": "^4.7.0",
     "autoprefixer": "^10.6.1",
+    "eslint": "^9.39.5",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.13.0",
     "postcss": "^8.5.31",
     "react-test-renderer": "18.3.1",
     "tailwindcss": "^4.3.3",
+    "typescript": "^7.0.2",
     "vite": "^6.4.5"
   }
 }

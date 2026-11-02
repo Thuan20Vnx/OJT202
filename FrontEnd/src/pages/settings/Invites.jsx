@@ -1,3 +1,4 @@
+import { t as tr, useI18n } from '../../lib/i18n.js';
 import { useRef, useState } from 'react';
 import { Avatar, Empty, ErrorBox, Icon, PageLoader } from '../../components/ui.jsx';
 import { api } from '../../lib/api.js';
@@ -8,6 +9,7 @@ import { InviteModal } from './Members.jsx';
 const hoursLeft = (d) => Math.max(0, Math.round((new Date(d) - Date.now()) / 3600000));
 
 export default function Invites() {
+  useI18n();
   const { ws, role } = useApp();
   const toast = useToast();
   const [inviting, setInviting] = useState(false);
@@ -27,7 +29,7 @@ export default function Invites() {
       const url = `/workspaces/${ws.workspace._id}/invites/${i._id}`;
       if (resend) await api.post(`${url}/resend`);
       else await api.del(url);
-      toast(resend ? `Đã gửi lại lời mời tới ${i.email}` : 'Đã hủy lời mời');
+      toast(resend ? tr("Đã gửi lại lời mời tới {0}", [i.email]) : tr("Đã hủy lời mời"));
       await reload();
     } catch (e) {
       setActionError(e);
@@ -40,22 +42,21 @@ export default function Invites() {
     <div className="card">
       <ErrorBox error={actionError} />
       <div className="flex items-center justify-between border-b border-slate-100 p-3">
-        <p className="text-label-lg font-semibold text-slate-800">{data.invites.length} lời mời đang chờ</p>
+        <p className="text-label-lg font-semibold text-slate-800">{data.invites.length}{tr(" lời mời đang chờ")}</p>
         <button className="btn-primary" onClick={() => setInviting(true)}>
-          <Icon name="person_add" size={16} /> Mời thành viên
-        </button>
+          <Icon name="person_add" size={16} />{tr(" Mời thành viên")}</button>
       </div>
       {!data.invites.length ? (
-        <Empty icon="mark_email_read" title="Không có lời mời đang chờ" />
+        <Empty icon="mark_email_read" title={tr("Không có lời mời đang chờ")} />
       ) : (
         <table className="w-full">
           <thead className="border-b border-slate-100">
             <tr>
               <th className="table-th">Email</th>
-              <th className="table-th">Vai trò</th>
-              <th className="table-th">Người mời</th>
-              <th className="table-th">Hết hạn</th>
-              <th className="table-th text-right">Thao tác</th>
+              <th className="table-th">{tr("Vai trò")}</th>
+              <th className="table-th">{tr("Người mời")}</th>
+              <th className="table-th">{tr("Hết hạn")}</th>
+              <th className="table-th text-right">{tr("Thao tác")}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -69,15 +70,11 @@ export default function Invites() {
                   </span>
                 </td>
                 <td className="table-td">
-                  <span className={`chip ${hoursLeft(i.expiresAt) < 12 ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-amber-200 bg-amber-50 text-amber-700'}`}>Hết hạn sau {hoursLeft(i.expiresAt)} giờ</span>
+                  <span className={`chip ${hoursLeft(i.expiresAt) < 12 ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-amber-200 bg-amber-50 text-amber-700'}`}>{tr("Hết hạn sau ")}{hoursLeft(i.expiresAt)}{tr(" giờ")}</span>
                 </td>
                 <td className="table-td text-right">
-                  <button className="btn-ghost btn-sm" disabled={busy || (i.role === 'admin' && role !== 'owner')} onClick={() => change(i, true)}>
-                    Gửi lại
-                  </button>
-                  <button className="btn-ghost btn-sm text-rose-600" disabled={busy || (i.role === 'admin' && role !== 'owner')} onClick={() => change(i, false)}>
-                    Hủy lời mời
-                  </button>
+                  <button className="btn-ghost btn-sm" disabled={busy || (i.role === 'admin' && role !== 'owner')} onClick={() => change(i, true)}>{tr("Gửi lại")}</button>
+                  <button className="btn-ghost btn-sm text-rose-600" disabled={busy || (i.role === 'admin' && role !== 'owner')} onClick={() => change(i, false)}>{tr("Hủy lời mời")}</button>
                 </td>
               </tr>
             ))}

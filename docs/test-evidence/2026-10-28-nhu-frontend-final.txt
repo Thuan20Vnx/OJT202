@@ -1,0 +1,50 @@
+
+> taskflow-client@1.0.0 test
+> node --import ./test/helpers/register-jsx.js --test test/*.test.js
+
+✔ download: lỗi mạng được chuẩn hóa; hết phiên thật mới phát unauthorized (33.0266ms)
+✔ JSON sai hoặc kết nối đứt khi đọc body được báo bằng ApiError (19.8666ms)
+✔ download làm mới phiên và tải đủ byte; refresh 503 không đăng xuất (31.2476ms)
+✔ refresh gặp 503 không đăng xuất người dùng và không xoay token khi /me lỗi server (30.8591ms)
+✔ lỗi mạng trong refresh hoặc retry được chuẩn hóa thành ApiError (31.6118ms)
+✔ refresh trả 401 mới phát sự kiện hết phiên (31.385ms)
+✔ nhiều request 401 đồng thời chỉ xoay refresh một lần (30.6566ms)
+✔ useLoad không giữ dữ liệu dự án trước khi dự án mới tải lỗi (10.5776ms)
+✔ reload cũ không được thay thế kết quả của phạm vi mới (1.4772ms)
+✔ quyền bị vô hiệu hóa chỉ tải lại đúng dự án và khóa ghi trong lúc chờ (1.4491ms)
+✔ quyền dự án không còn lấy từ cache cũ sau khi component đã đóng và resync (1.2296ms)
+✔ chọn lịch sử sau cùng thắng phản hồi cũ đến muộn (9.2332ms)
+✔ mở lịch sử thất bại được báo trên giao diện, không reject khỏi handler (6.4034ms)
+✔ đổi dự án xóa kế hoạch đang mở và bỏ phản hồi tạo nháp cũ (7.4328ms)
+✔ báo cáo lưu lỗi giữ nguyên editor và nội dung để thử lại (28.4497ms)
+✔ mở báo cáo khác đóng editor cũ để không lưu nhầm nội dung sang báo cáo mới (11.1488ms)
+✔ hỏi đáp chặn Enter gửi lặp khi đang chờ và bỏ phản hồi sau Cuộc hỏi mới (8.9628ms)
+✔ duyệt nháp phải chờ lưu checkbox và không duyệt khi còn sửa chưa lưu (4.0123ms)
+✔ U010-T2: thẻ có nút mở bằng bàn phím và select trạng thái đúng quyền (9.8617ms)
+✔ U010-T2: lỗi move chỉ rollback thẻ thất bại, giữ thẻ khác và khóa gửi lặp (37.6647ms)
+✔ U010-T3: Viewer không có kéo thả hoặc điều khiển ghi trên thẻ (4.282ms)
+✔ U009-T2: phản hồi realtime đang chờ không ghi đè draft hoặc version gốc (34.3699ms)
+✔ U009-T2: tạo task gửi đúng thuộc tính, chặn bấm lặp và giữ form khi API lỗi (7.9437ms)
+✔ U009-T2: chưa tải được quyền thì không gửi tạo công việc (3.3598ms)
+✔ Cài đặt AI: tải lần đầu thất bại có lỗi và Thử lại, không crash (19.3258ms)
+✔ Lời mời: tải lần đầu thất bại có lỗi và Thử lại, không crash (3.9357ms)
+✔ Cài đặt AI: bật tính năng và resync không xóa hạn mức/timeout đang nhập (16.2794ms)
+✔ Cài đặt AI: hạn mức trống không được lưu thành 0 (3.2069ms)
+✔ Cài đặt AI: lưu lỗi giữ dữ liệu, thử lại cho phép hạn mức 0 có chủ ý (5.4284ms)
+✔ Cài đặt AI: lỗi nhật ký có Thử lại và lỗi xuất CSV được báo (5.7751ms)
+✔ Lời mời: gửi lại và hủy lỗi được xử lý, giữ mục để thử lại (3.9848ms)
+✔ Hồ sơ: lỗi đổi mật khẩu không có fields vẫn được hiển thị (7.1523ms)
+✔ Hồ sơ: lỗi tải phiên có Thử lại, lỗi thu hồi phiên không thoát khỏi handler (5.7442ms)
+✔ Member gửi Review, không thể tự duyệt Done (0.8165ms)
+✔ PM chỉ được duyệt Done từ Review, có thể mở lại Done (0.1325ms)
+✔ Viewer, dự án archived hoặc chưa tải quyền không có thao tác ghi (0.1127ms)
+✔ My Tasks dùng quyền server: Member bắt đầu rồi gửi Review, không duyệt hoặc mở lại (0.3926ms)
+✔ Kanban và My Tasks cùng giới hạn PM duyệt Done sau Review (0.1531ms)
+ℹ tests 38
+ℹ suites 0
+ℹ pass 38
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1422.7476

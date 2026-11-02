@@ -11,6 +11,7 @@ import { apiReplacer } from './services/serialize.js';
 import authRoutes from './routes/auth.js';
 import meRoutes from './routes/me.js';
 import workspaceRoutes from './routes/workspaces.js';
+import capacityRoutes from './routes/capacity.js';
 import projectRoutes from './routes/projects.js';
 import taskRoutes from './routes/tasks.js';
 import documentRoutes from './routes/documents.js';
@@ -34,7 +35,7 @@ export function createApp(): express.Express {
   api.use(csrfGuard);
   api.use('/auth', authRoutes);
   api.use('/me', meRoutes);
-  api.use('/workspaces', workspaceRoutes);
+  api.use('/workspaces', workspaceRoutes, capacityRoutes);
   api.use('/notifications', notificationRoutes);
   api.use('/admin', adminRoutes);
   if (!config.isProd) api.use('/dev', devRoutes);
