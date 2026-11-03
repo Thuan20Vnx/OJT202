@@ -1,0 +1,79 @@
+✖ Sprint2 review: lỗi tải bình luận giữ composer và retry độc lập với draft task (60.8388ms)
+✖ Sprint2 review: xóa bình luận khóa click lặp, lỗi vẫn cho thử lại (9.4629ms)
+✖ Sprint2 review: phản hồi sửa bình luận cũ không đóng editor mới (17.2557ms)
+✖ Sprint2 review: phản hồi giờ còn lại của task cũ không mở khóa lần lưu task mới (14.9552ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 0
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 778.4663
+
+✖ failing tests:
+
+test at test\task-detail.test.js:37:1
+✖ Sprint2 review: lỗi tải bình luận giữ composer và retry độc lập với draft task (60.8388ms)
+  AssertionError [ERR_ASSERTION]: transient comment error must not unmount the composer
+
+  0 !== 1
+
+      at TestContext.<anonymous> (file:///D:/Desktop/Nhom24/OJT202/FrontEnd/test/task-detail.test.js:46:10)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test\task-detail.test.js:58:1
+✖ Sprint2 review: xóa bình luận khóa click lặp, lỗi vẫn cho thử lại (9.4629ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  2 !== 1
+
+      at TestContext.<anonymous> (file:///D:/Desktop/Nhom24/OJT202/FrontEnd/test/task-detail.test.js:69:10)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 2,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test\task-detail.test.js:76:1
+✖ Sprint2 review: phản hồi sửa bình luận cũ không đóng editor mới (17.2557ms)
+  AssertionError [ERR_ASSERTION]: new editor must remain open
+      at TestContext.<anonymous> (file:///D:/Desktop/Nhom24/OJT202/FrontEnd/test/task-detail.test.js:89:10)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at test\task-detail.test.js:93:1
+✖ Sprint2 review: phản hồi giờ còn lại của task cũ không mở khóa lần lưu task mới (14.9552ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  false !== true
+
+      at TestContext.<anonymous> (file:///D:/Desktop/Nhom24/OJT202/FrontEnd/test/task-detail.test.js:106:10)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

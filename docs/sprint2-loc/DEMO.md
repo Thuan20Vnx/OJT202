@@ -9,6 +9,16 @@ Chạy tại thư mục repo theo [hướng dẫn bàn giao](REVIEW.md#chạy-v�
 5. **U019 — workload:** xem dataset kiểm thử trong `BackEnd/test/api.test.js`, suite **Lộc Sprint 2**, ca **U019-T3**. Expected: task cha 100 giờ không cộng vì có task con còn 3 giờ; task quá hạn còn 2 giờ được cộng; Done/xóa/ngoài tuần không cộng. Tổng 5 giờ với capacity 0 phải thể hiện quá tải và tỷ lệ không xác định, không ghi 0% giả. Thiếu deadline và estimate có số lượng riêng; remainingHours bằng 0 vẫn là 0.
 6. **Review U016/U018:** job nhắc hạn chạy lại không tạo bản sao; đổi hạn tạo nhắc theo hạn mới; Done/người rời nhóm không nhận. Calendar và dependency dùng triển khai của nhóm: cấm self-link, khác project và chu trình; Blocked là cờ, không có trạng thái thứ năm.
 
+Kiểm tra bổ sung sau đợt rà soát ngày 03/11/2026:
+
+1. **Lỗi tải bình luận:** mở task có một dependency, nhập draft bình luận. Trong DevTools bật Request blocking cho URL `/api/v1/tasks/<id>/comments`, rồi gỡ dependency để task tải lại. Phải thấy lỗi ngay vùng bình luận; draft và phần task vẫn còn. Tắt block, nhập một draft tên task rồi bấm **Thử lại** tại lỗi comments: cả hai draft phải được giữ. Nếu muốn kiểm HTTP 503 giống bằng chứng, chạy E2E vì Request blocking chỉ mô phỏng lỗi kết nối.
+2. **Xóa/ẩn khi mạng chậm:** chọn chế độ Slow 3G, bấm Xóa hoặc Ẩn liên tiếp. Network chỉ có một DELETE cho cùng ID khi request còn chờ; nút disabled. Khi request lỗi, bình luận vẫn còn và cho thử lại.
+3. **Sửa rồi chuyển editor:** trên hai bình luận của mình, lưu A khi mạng chậm, bấm Hủy và sửa B. Khi A hoàn tất, draft B còn nguyên. Thử thêm hủy rồi mở lại chính A: bản nháp mới cũng được giữ.
+4. **Giờ còn lại:** Member được giao việc lưu giá trị ở A trong lúc mạng chậm; chuyển sang B và lưu tiếp. Phản hồi A không mở khóa nút B. Kiểm riêng `0` là đã hết giờ còn lại, ô trống là chưa ước lượng.
+5. **Thu hồi quyền:** dùng tài khoản PM khác gỡ người đang mở task khỏi dự án. Người bị gỡ không tiếp tục thấy composer hoặc nội dung riêng tư; phản hồi đang chờ không phục hồi dữ liệu cũ.
+
+Các bước này là hướng dẫn reviewer thao tác lại, không phải xác nhận đã có người nghiệm thu thủ công. Tắt Request blocking/throttling sau kiểm tra. Chi tiết lỗi và log trong [báo cáo rà soát](REVIEW_2026-11-03.md).
+
 Chạy toàn bộ bằng chứng tự động:
 
 ```powershell

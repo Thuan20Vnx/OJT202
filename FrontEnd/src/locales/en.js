@@ -1,5 +1,6 @@
 // Interface translations only; project content is preserved.
 export const english = {
+  'Đang tải bình luận': 'Loading comments',
   'Đang lưu thay đổi, vui lòng chờ.': 'Saving changes, please wait.',
   'Ẩn bình luận vi phạm': 'Hide inappropriate comment',
   'Xóa mục checklist {0}': 'Delete checklist item {0}',

@@ -31,6 +31,132 @@ async function checklistFixture(t, details = {}) {
 const textOf = (node) => node.children.map((c) => typeof c === 'string' ? c : textOf(c)).join('');
 const namedButton = (tree, name) => tree.root.findAllByType('button').find((n) => textOf(n) === name);
 
+const ownComment = (id, body) => ({ _id: id, body, author: { _id: 'owner', name: 'Owner' }, createdAt: '2026-11-03T00:00:00Z' });
+const publishComment = (comment) => getSocket().emitEvent(['comment:new', { taskId: 'task', comment }]);
+
+test('Sprint2 review: lỗi tải bình luận giữ composer và retry độc lập với draft task', async (t) => {
+  const { tree } = await checklistFixture(t);
+  const composer = () => tree.root.findByType(CommentBox).findByType('textarea');
+  await act(() => composer().props.onChange({ target: { value: 'Bản nháp bình luận', selectionStart: 18 } }));
+  t.mock.method(api, 'get', async (url) => {
+    if (url.endsWith('/comments')) throw new Error('COMMENTS_OFFLINE');
+    return response(2);
+  });
+  await act(async () => getSocket().emitEvent(['task:changed', { task: task(2) }]));
+  assert.equal(tree.root.findAllByType(CommentBox).length, 1, 'transient comment error must not unmount the composer');
+  assert.equal(composer().props.value, 'Bản nháp bình luận');
+  await act(() => tree.root.findAllByType('textarea')[0].props.onChange({ target: { value: 'Bản nháp task' } }));
+  const read = t.mock.method(api, 'get', async () => ({ comments: [ownComment('retry', 'Loaded after retry')] }));
+  await act(async () => namedButton(tree, 'Thử lại').props.onClick());
+  assert.equal(read.mock.callCount(), 1);
+  assert.equal(read.mock.calls[0].arguments[0], '/tasks/task/comments');
+  assert.ok(JSON.stringify(tree.toJSON()).includes('Loaded after retry'));
+  assert.equal(composer().props.value, 'Bản nháp bình luận');
+  assert.equal(tree.root.findAllByType('textarea')[0].props.value, 'Bản nháp task');
+});
+
+test('Sprint2 review: xóa bình luận khóa click lặp, lỗi vẫn cho thử lại', async (t) => {
+  const { tree } = await checklistFixture(t);
+  await act(() => publishComment(ownComment('remove', 'Keep until confirmed')));
+  let first, second;
+  const rejects = [];
+  const write = t.mock.method(api, 'del', () => new Promise((_resolve, r) => { rejects.push(r); }));
+  const remove = namedButton(tree, 'Xóa').props.onClick;
+  await act(async () => { first = remove(); second = remove(); });
+  const calls = write.mock.callCount();
+  // Resolve every request even when testing the old, duplicate-prone implementation.
+  await act(async () => { rejects.forEach((reject) => reject(new Error('DELETE_OFFLINE'))); await Promise.all([first, second]); });
+  assert.equal(calls, 1);
+  assert.ok(JSON.stringify(tree.toJSON()).includes('Keep until confirmed'));
+  t.mock.method(api, 'del', async () => ({}));
+  await act(async () => namedButton(tree, 'Xóa').props.onClick());
+  assert.ok(!JSON.stringify(tree.toJSON()).includes('Keep until confirmed'));
+});
+
+test('Sprint2 review: phản hồi sửa bình luận cũ không đóng editor mới', async (t) => {
+  const { tree } = await checklistFixture(t);
+  await act(() => { publishComment(ownComment('a', 'Comment A')); publishComment(ownComment('b', 'Comment B')); });
+  await act(() => tree.root.findAllByType('button').find((n) => textOf(n) === 'Sửa').props.onClick());
+  let finish, saving;
+  t.mock.method(api, 'patch', () => new Promise((r) => { finish = r; }));
+  const editor = tree.root.findAllByType(CommentBox).find((n) => n.props.initial === 'Comment A');
+  await act(async () => { saving = editor.props.onSend('Updated A'); });
+  await act(() => editor.props.onCancel());
+  await act(() => tree.root.findAllByType('button').filter((n) => textOf(n) === 'Sửa')[1].props.onClick());
+  const next = () => tree.root.findAllByType(CommentBox).find((n) => n.props.initial === 'Comment B');
+  await act(() => next().findByType('textarea').props.onChange({ target: { value: 'Draft B', selectionStart: 7 } }));
+  await act(async () => { finish({ comment: ownComment('a', 'Updated A') }); await saving; });
+  assert.ok(next(), 'new editor must remain open');
+  assert.equal(next().findByType('textarea').props.value, 'Draft B');
+});
+
+test('Sprint2 review: phản hồi giờ còn lại của task cũ không mở khóa lần lưu task mới', async (t) => {
+  const { tree, element } = await checklistFixture(t, { access: { canEdit: false, canWrite: true, canUpdateProgress: true } });
+  const edit = (value) => tree.root.findAllByType('input').find((n) => n.props['aria-label'] === 'Giờ còn lại').props.onChange({ target: { value } });
+  let finishOld, finishNew, oldSave, newSave;
+  t.mock.method(api, 'patch', (url) => new Promise((r) => { if (url === '/tasks/task') finishOld = r; else finishNew = r; }));
+  await act(() => edit('4'));
+  await act(async () => { oldSave = namedButton(tree, 'Lưu giờ còn lại').props.onClick(); });
+  await act(async () => tree.update(element('other')));
+  await act(() => edit('7'));
+  await act(async () => { newSave = namedButton(tree, 'Lưu giờ còn lại').props.onClick(); });
+  await act(async () => { finishOld({ task: task(2) }); await oldSave; });
+  const locked = namedButton(tree, 'Lưu giờ còn lại').props.disabled;
+  await act(async () => { finishNew({ task: { ...task(2), _id: 'other', remainingHours: 7 } }); await newSave; });
+  assert.equal(locked, true);
+});
+
+test('Sprint2 review: mở lại cùng bình luận vẫn giữ draft mới khi lần sửa cũ hoàn tất', async (t) => {
+  const { tree } = await checklistFixture(t);
+  await act(() => publishComment(ownComment('a', 'Original comment')));
+  await act(() => namedButton(tree, 'Sửa').props.onClick());
+  let finish, saving;
+  t.mock.method(api, 'patch', () => new Promise((r) => { finish = r; }));
+  const editor = () => tree.root.findAllByType(CommentBox).find((n) => n.props.initial);
+  await act(async () => { saving = editor().props.onSend('First edit'); });
+  await act(() => editor().props.onCancel());
+  await act(() => namedButton(tree, 'Sửa').props.onClick());
+  await act(() => editor().findByType('textarea').props.onChange({ target: { value: 'Second draft', selectionStart: 12 } }));
+  await act(async () => { finish({ comment: ownComment('a', 'First edit') }); await saving; });
+  assert.equal(editor()?.findByType('textarea').props.value, 'Second draft');
+});
+
+test('Sprint2 review: tải bình luận mới nhất thắng phản hồi cũ và giữ sự kiện realtime', async (t) => {
+  const { tree } = await checklistFixture(t);
+  const finishes = [];
+  let reads = 1;
+  t.mock.method(api, 'get', (url) => url.endsWith('/comments')
+    ? new Promise((r) => finishes.push(r)) : Promise.resolve(response(++reads)));
+  await act(async () => getSocket().emitEvent(['task:changed', { task: task(2) }]));
+  await act(async () => getSocket().emitEvent(['task:changed', { task: task(3) }]));
+  await act(() => publishComment(ownComment('live', 'Realtime comment')));
+  await act(async () => finishes[1]({ comments: [ownComment('newest', 'Newest snapshot')] }));
+  await act(async () => finishes[0]({ comments: [ownComment('old', 'Obsolete snapshot')] }));
+  const displayed = JSON.stringify(tree.toJSON());
+  assert.ok(displayed.includes('Newest snapshot'));
+  assert.ok(displayed.includes('Realtime comment'));
+  assert.ok(!displayed.includes('Obsolete snapshot'));
+});
+
+test('Sprint2 review: 403 tải bình luận thu hồi nội dung và vô hiệu hóa mutation đang chờ', async (t) => {
+  const { tree } = await checklistFixture(t);
+  await act(() => publishComment(ownComment('secret', 'PRIVATE_COMMENT')));
+  let finish, saving;
+  t.mock.method(api, 'post', () => new Promise((r) => { finish = r; }));
+  await act(async () => { saving = tree.root.findByType(CommentBox).props.onSend('Late comment'); });
+  t.mock.method(api, 'get', async (url) => {
+    if (url.endsWith('/comments')) throw Object.assign(new Error('ACCESS_REVOKED'), { status: 403 });
+    return response(2);
+  });
+  await act(async () => getSocket().emitEvent(['task:changed', { task: task(2) }]));
+  await act(async () => { finish({ comment: ownComment('late', 'Late comment') }); await saving; });
+  assert.equal(tree.root.findAllByType(CommentBox).length, 0);
+  const displayed = JSON.stringify(tree.toJSON());
+  assert.ok(displayed.includes('ACCESS_REVOKED'));
+  assert.ok(!displayed.includes('PRIVATE_COMMENT'));
+  assert.ok(!displayed.includes('Late comment'));
+});
+
 test('Sprint2 followup: lỗi tải/gỡ phụ thuộc được xử lý và có thể thử lại', async (t) => {
   const { tree } = await checklistFixture(t, { task: { blockedBy: [{ _id: 'dep', key: 'D-1', title: 'Blocker', status: 'todo' }] } });
   t.mock.method(api, 'get', async () => { throw new Error('NETWORK_DEPENDENCY_ERROR'); });

@@ -191,8 +191,22 @@ test('Lộc Sprint 2: tìm mô tả, checklist, PM ẩn bình luận và phụ t
     await expect(page.getByText('Lỗi gỡ phụ thuộc để thử lại', { exact: true })).toBeVisible();
     await expect(dialog.getByText('Bị chặn bởi', { exact: true })).toBeVisible();
     await page.unroute(removeUrl);
+    const composer = dialog.getByRole('textbox', { name: 'Nội dung bình luận', exact: true });
+    await composer.fill('Bản nháp giữ qua lỗi tải bình luận');
+    const commentsUrl = `**/api/v1/tasks/${task._id}/comments`;
+    await page.route(commentsUrl, (route) => route.request().method() === 'GET'
+      ? route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'Lỗi tải bình luận để thử lại' }) })
+      : route.continue());
     await dialog.getByTitle('Gỡ phụ thuộc', { exact: true }).click();
     await expect(dialog.getByText('Chưa có phụ thuộc', { exact: true })).toBeVisible();
+    await expect(dialog.getByRole('alert').filter({ hasText: 'Lỗi tải bình luận để thử lại' })).toBeVisible();
+    await expect(composer).toHaveValue('Bản nháp giữ qua lỗi tải bình luận');
+    await dialog.getByRole('textbox', { name: 'Tên công việc', exact: true }).fill('Bản nháp task giữ khi retry bình luận');
+    await page.unroute(commentsUrl);
+    await dialog.getByRole('button', { name: 'Thử lại', exact: true }).click();
+    await expect(dialog.getByText('Lỗi tải bình luận để thử lại', { exact: true })).toHaveCount(0);
+    await expect(composer).toHaveValue('Bản nháp giữ qua lỗi tải bình luận');
+    await expect(dialog.getByRole('textbox', { name: 'Tên công việc', exact: true })).toHaveValue('Bản nháp task giữ khi retry bình luận');
     const persisted = await db.prisma.checklistItem.findFirstOrThrow({ where: { task: task._id } });
     assert.equal(persisted.isDone, true);
     assert.equal(await db.prisma.activity.count({ where: { project: project._id, action: 'Ẩn bình luận vi phạm' } }), 1);

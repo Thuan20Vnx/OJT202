@@ -145,6 +145,11 @@ export default function TaskDetailModal({ taskId, onClose }) {
   const mutation = useRef(null);
   const [updating, setUpdating] = useState(false);
   const [comments, setComments] = useState([]);
+  const [commentsError, setCommentsError] = useState(null);
+  const [commentsLoading, setCommentsLoading] = useState(false);
+  const commentsSequence = useRef(0);
+  const commentMutations = useRef(new Set());
+  const [busyComments, setBusyComments] = useState(new Set());
   const commentRevision = useRef(0);
   const commentChanges = useRef(new Map());
   const receiveComment = useCallback((id, comment) => {
@@ -170,6 +175,7 @@ export default function TaskDetailModal({ taskId, onClose }) {
   const subMutations = useRef(new Set());
   const [busySubs, setBusySubs] = useState(new Set());
   const [editing, setEditing] = useState(null);
+  const editingSession = useRef(0);
   const [confirmDel, setConfirmDel] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const deleteLock = useRef(false);
@@ -180,10 +186,16 @@ export default function TaskDetailModal({ taskId, onClose }) {
 
   const invalidateRequests = useCallback(() => {
     taskScope.current++;
+    editingSession.current++;
     mutation.current = null;
     subRequest.current = null;
     depRequest.current = null;
     subMutations.current = new Set();
+    commentMutations.current = new Set();
+    commentsSequence.current++;
+    setCommentsError(null);
+    setCommentsLoading(false);
+    setBusyComments(new Set());
     deleteLock.current = false;
     setUpdating(false);
     setSaving(false);
@@ -193,6 +205,38 @@ export default function TaskDetailModal({ taskId, onClose }) {
     setDepLoading(false);
     setDepError(null);
   }, []);
+
+  const loadComments = useCallback(async () => {
+    if (!mounted.current || activeTask.current !== taskId) return;
+    const scope = taskScope.current;
+    const sequence = ++commentsSequence.current;
+    const revision = commentRevision.current;
+    const current = () => mounted.current && activeTask.current === taskId && scope === taskScope.current && sequence === commentsSequence.current;
+    setCommentsLoading(true);
+    setCommentsError(null);
+    try {
+      const { comments: rows } = await api.get(`/tasks/${taskId}/comments`);
+      if (!current()) return;
+      const result = new Map(rows.map((comment) => [comment._id, comment]));
+      for (const [id, change] of commentChanges.current) {
+        // Deletion is permanent; also protect changes received during this read.
+        if (change.comment === null) result.delete(id);
+        else if (change.revision > revision) result.set(id, change.comment);
+      }
+      setComments([...result.values()]);
+    } catch (e) {
+      if (!current()) return;
+      if ([403, 404].includes(e.status)) {
+        invalidateRequests();
+        setData(null);
+        setForm(null);
+        setComments([]);
+        setError(e);
+      } else setCommentsError(e);
+    } finally {
+      if (current()) setCommentsLoading(false);
+    }
+  }, [taskId, invalidateRequests]);
 
   const load = useCallback(async ({ discard = false } = {}) => {
     if (!mounted.current || activeTask.current !== taskId) return;
@@ -226,23 +270,14 @@ export default function TaskDetailModal({ taskId, onClose }) {
       setDirty(false);
       dirtyRef.current = false;
       setStale(false);
-      const commentsAtRequest = commentRevision.current;
-      const c = await api.get(`/tasks/${taskId}/comments`);
-      if (current()) {
-        const result = new Map(c.comments.map((comment) => [comment._id, comment]));
-        for (const [id, change] of commentChanges.current) {
-          if (change.revision <= commentsAtRequest) continue;
-          if (change.comment) result.set(id, change.comment); else result.delete(id);
-        }
-        setComments([...result.values()]);
-      }
+      await loadComments();
     } catch (e) {
       if (current()) {
         if ([403, 404].includes(e.status)) { setData(null); setForm(null); setComments([]); }
         setError(e);
       }
     }
-  }, [taskId]);
+  }, [taskId, loadComments]);
 
   useEffect(() => {
     mounted.current = true;
@@ -400,6 +435,25 @@ export default function TaskDetailModal({ taskId, onClose }) {
     } catch { /* patch hiển thị lỗi */ }
   };
 
+  const saveRemainingHours = async () => {
+    if (mutation.current) return;
+    const scope = taskScope.current;
+    const revision = editRevision.current;
+    const current = () => mounted.current && activeTask.current === taskId && scope === taskScope.current;
+    setSaving(true);
+    try {
+      await patch({ remainingHours: form.remainingHours === '' ? null : Number(form.remainingHours) });
+      if (!current()) return;
+      if (revision === editRevision.current) {
+        dirtyRef.current = false;
+        setDirty(false);
+      }
+      await load();
+      if (current()) toast(tr("Đã cập nhật giờ còn lại"));
+    } catch { /* patch hiển thị lỗi */ }
+    finally { if (current()) setSaving(false); }
+  };
+
   const addSub = async () => {
     if (!newSub.trim() || subRequest.current) return;
     const operation = { scope: taskScope.current };
@@ -512,16 +566,37 @@ export default function TaskDetailModal({ taskId, onClose }) {
       const { comment } = await api.post(`/tasks/${task._id}/comments`, { body });
       if (mounted.current && activeTask.current === taskId && scope === taskScope.current) receiveComment(comment._id, comment);
     } catch (e) {
-      toast(e.message, 'error');
+      if (mounted.current && activeTask.current === taskId && scope === taskScope.current) toast(e.message, 'error');
       throw e;
     }
   };
   const updateComment = async (id, body) => {
     const scope = taskScope.current;
+    const session = editingSession.current;
     const { comment } = await api.patch(`/comments/${id}`, { body });
     if (!mounted.current || activeTask.current !== taskId || scope !== taskScope.current) return;
     receiveComment(id, comment);
-    setEditing(null);
+    if (session === editingSession.current) setEditing((current) => current === id ? null : current);
+  };
+  const editComment = (id) => { editingSession.current++; setEditing(id); };
+
+  const deleteComment = async (id) => {
+    if (commentMutations.current.has(id)) return;
+    const scope = taskScope.current;
+    const current = () => mounted.current && activeTask.current === taskId && scope === taskScope.current;
+    commentMutations.current.add(id);
+    setBusyComments(new Set(commentMutations.current));
+    try {
+      await api.del(`/comments/${id}`);
+      if (current()) receiveComment(id, null);
+    } catch (e) {
+      if (current()) toast(e.message, 'error');
+    } finally {
+      if (current()) {
+        commentMutations.current.delete(id);
+        setBusyComments(new Set(commentMutations.current));
+      }
+    }
   };
 
   const remove = async (confirm) => {
@@ -856,6 +931,11 @@ export default function TaskDetailModal({ taskId, onClose }) {
             </div>
             {tab === 'comments' ? (
               <div className="space-y-4">
+                {commentsLoading && <div role="status" aria-label={tr("Đang tải bình luận")}><Spinner /></div>}
+                {commentsError && <div role="alert" className="flex items-center gap-2 text-body-sm text-rose-700">
+                  <span>{commentsError.message}</span>
+                  <button className="btn-outline btn-sm" onClick={loadComments}>{tr("Thử lại")}</button>
+                </div>}
                 {comments.map((c) => (
                   <div key={c._id} className="flex gap-3">
                     <Avatar user={c.author} size={30} />
@@ -868,23 +948,18 @@ export default function TaskDetailModal({ taskId, onClose }) {
                         </span>
                         {access.canWrite && (c.author?._id === me?._id || canWrite) && editing !== c._id && (
                           <span className="ml-auto flex gap-2 text-label-md">
-                            {c.author?._id === me?._id && <button className="text-slate-400 hover:text-blue-600" onClick={() => setEditing(c._id)}>{tr("Sửa")}</button>}
+                            {c.author?._id === me?._id && <button className="text-slate-400 hover:text-blue-600" onClick={() => editComment(c._id)}>{tr("Sửa")}</button>}
                             <button
                               className="text-slate-400 hover:text-rose-600"
-                              onClick={async () => {
-                                const scope = taskScope.current;
-                                try {
-                                  await api.del(`/comments/${c._id}`);
-                                  if (mounted.current && scope === taskScope.current && activeTask.current === taskId) receiveComment(c._id, null);
-                                } catch (e) { toast(e.message, 'error'); }
-                              }}
+                              disabled={busyComments.has(c._id)}
+                              onClick={() => deleteComment(c._id)}
                             >{tr(c.author?._id === me?._id ? 'Xóa' : 'Ẩn bình luận vi phạm')}</button>
                           </span>
                         )}
                       </div>
                       {access.canWrite && editing === c._id ? (
                         <div className="mt-1">
-                          <CommentBox members={members} initial={c.body} autoFocus onCancel={() => setEditing(null)} onSend={(b) => updateComment(c._id, b)} />
+                          <CommentBox members={members} initial={c.body} autoFocus onCancel={() => editComment(null)} onSend={(b) => updateComment(c._id, b)} />
                         </div>
                       ) : (
                         <p className="mt-0.5 whitespace-pre-wrap break-words text-body-sm text-slate-700">{renderBody(c.body)}</p>
@@ -967,21 +1042,7 @@ export default function TaskDetailModal({ taskId, onClose }) {
           </Prop>
           <Prop label={tr("Giờ còn lại")}>
             <input aria-label={tr("Giờ còn lại")} type="number" min="0" max="1000" disabled={!access.canUpdateProgress} className="input h-9" value={form.remainingHours} onChange={(e) => setF('remainingHours', e.target.value)} placeholder={tr("Chưa ước lượng")} />
-            {!canWrite && access.canUpdateProgress && <button className="btn-outline btn-sm mt-2" disabled={saving || !dirty} onClick={async () => {
-              setSaving(true);
-              const revision = editRevision.current;
-              try {
-                await patch({ remainingHours: form.remainingHours === '' ? null : Number(form.remainingHours) });
-                if (revision === editRevision.current && activeTask.current === taskId) {
-                  dirtyRef.current = false;
-                  setDirty(false);
-                }
-                await load();
-                toast(tr("Đã cập nhật giờ còn lại"));
-              }
-              catch { /* patch hiển thị lỗi */ }
-              finally { setSaving(false); }
-            }}>{tr("Lưu giờ còn lại")}</button>}
+            {!canWrite && access.canUpdateProgress && <button className="btn-outline btn-sm mt-2" disabled={saving || updating || !dirty} onClick={saveRemainingHours}>{tr("Lưu giờ còn lại")}</button>}
           </Prop>
           <Prop label={tr("Nhãn")}>
             <div className="flex flex-wrap gap-1.5">

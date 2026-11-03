@@ -1,6 +1,8 @@
 # Sprint 2 — Nguyễn Bảo Lộc
 
-**Cập nhật mới nhất 03/11/2026:** xem [đợt hoàn thiện tiếp về phụ thuộc, subtask và phản hồi chậm](FOLLOWUP_2026-11-03.md). Các mốc bên dưới được giữ để truy vết.
+**Cập nhật mới nhất 03/11/2026:** xem [rà soát chi tiết bình luận, bản nháp và giờ còn lại](REVIEW_2026-11-03.md), cùng [đợt trước về phụ thuộc, subtask và phản hồi chậm](FOLLOWUP_2026-11-03.md). Các mốc bên dưới được giữ để truy vết.
+
+**Kết quả hiện tại:** 299/299 test, 9/9 E2E; lint, typecheck và build đạt. Bàn giao local, chưa có nghiệm thu staging hoặc xác nhận độc lập của reviewer.
 
 **Bản rà soát bổ sung:** xem [các lỗi đã tái hiện và sửa](HARDENING.md). Bộ test hiện tại tăng lên 285 ca; số liệu 277 ca phía dưới là mốc bàn giao ban đầu và được giữ để truy vết.
 
