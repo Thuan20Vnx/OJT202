@@ -646,6 +646,36 @@ test('SMTP bị từ chối: màn hình cho gửi lại, không báo thư đã g
   } finally { await user.ctx.close(); }
 });
 
+test('Hoàng Anh Sprint 4: telemetry AI rõ token chưa biết, CSV và mobile', { timeout: 60000 }, async () => {
+  const user = await context();
+  try {
+    await db.prisma.aiCall.create({ data: { workspace: seed.workspace.id, user: seed.users.maianh.id, feature: 'qa', model: 'E2E unknown token usage', provider: 'local', status: 'timeout', queuedAt: new Date(Date.now() - 100), finishedAt: new Date(), latencyMs: 100, usageComplete: false, attempts: [{ number: 1, status: 'timeout', inputTokens: null, outputTokens: null }] } });
+    await login(user.page, 'mai.anh@nhom24.edu.vn');
+    await user.page.evaluate(({ ws, project }) => { localStorage.setItem('tf_ws', ws); localStorage.setItem('tf_project', project); }, { ws: seed.workspace.id, project: seed.projects.website.id });
+    await user.page.goto('/settings/ai');
+    await expect(user.page.getByText('Token đã ghi nhận', { exact: true })).toBeVisible();
+    await expect(user.page.getByText('Độ trễ p95', { exact: true })).toBeVisible();
+    await expect(user.page.getByText('E2E unknown token usage', { exact: true })).toBeVisible();
+    await expect(user.page.getByTitle('Chỉ gồm token đã biết; timeout có thể vẫn bị nhà cung cấp tính phí').first()).toContainText('≥');
+    const [download] = await Promise.all([user.page.waitForEvent('download'), user.page.getByRole('button', { name: 'Xuất CSV', exact: true }).click()]);
+    const stream = await download.createReadStream();
+    const chunks = [];
+    for await (const chunk of stream) chunks.push(chunk);
+    const csv = Buffer.concat(chunks).toString('utf8');
+    assert.match(csv, /Token đầy đủ/);
+    assert.match(csv, /Bắt đầu chờ/);
+    assert.match(csv, /E2E unknown token usage/);
+    await user.page.locator('#main-content').evaluate((element) => { element.scrollTop = 0; });
+    await user.page.screenshot({ path: path.join(artifacts, 'hoang-anh-sprint4-ai-desktop.png'), fullPage: true });
+    await user.page.setViewportSize({ width: 390, height: 844 });
+    await expect(user.page.getByRole('button', { name: 'Mở/đóng menu', exact: true })).toHaveAttribute('aria-expanded', 'false');
+    await expect(user.page.locator('aside')).toHaveCount(0);
+    assert.equal(await user.page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true);
+    await user.page.screenshot({ path: path.join(artifacts, 'hoang-anh-sprint4-ai-mobile.png'), fullPage: true });
+    assert.deepEqual(errors, []);
+  } finally { await user.ctx.close(); }
+});
+
 test('API v1: browser giữ refresh cookie đúng path, tự refresh và logout thu hồi phiên', { timeout: 30000 }, async () => {
   const user = await context();
   try {

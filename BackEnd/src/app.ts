@@ -22,17 +22,27 @@ import aiRoutes from './routes/ai.js';
 import adminRoutes from './routes/admin.js';
 import devRoutes from './routes/dev.js';
 
-export function createApp(): express.Express {
+export function createApp(options: { staticDir?: string } = {}): express.Express {
   const app = express();
   app.set('trust proxy', config.trustProxy);
   app.set('json replacer', apiReplacer);
-  app.use(helmet({ contentSecurityPolicy: false, crossOriginResourcePolicy: { policy: 'same-site' } }));
+  const realtimeOrigin = new URL(config.clientUrl);
+  realtimeOrigin.protocol = realtimeOrigin.protocol === 'https:' ? 'wss:' : 'ws:';
+  app.use(helmet({ contentSecurityPolicy: config.isProd ? { directives: { connectSrc: ["'self'", realtimeOrigin.origin] } } : false, crossOriginResourcePolicy: { policy: 'same-site' } }));
   app.use(cors({ origin: config.clientUrl, credentials: true }));
+  app.use((req, res, next) => {
+    // Browser writes must originate from the configured frontend. Native clients
+    // may omit Origin but still need the API's CSRF header and authentication.
+    const origin = req.get('origin');
+    if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method) && origin && origin !== new URL(config.clientUrl).origin)
+      return res.status(403).json({ error: 'Origin không được phép' });
+    next();
+  });
   app.use(express.json({ limit: '1mb' }));
   app.use(cookieParser());
 
   const api = express.Router();
-  api.get('/health', (_req, res) => res.json({ ok: true, time: new Date().toISOString() }));
+  api.get('/health', (_req, res) => { res.setHeader('Cache-Control', 'no-store'); res.json({ ok: true, time: new Date().toISOString(), build: config.release }); });
   api.use(csrfGuard);
   api.get(['/tasks', '/me/tasks'], requireAuth, myTasksFromQuery);
   api.use('/auth', authRoutes);
@@ -48,10 +58,17 @@ export function createApp(): express.Express {
   app.use('/api', api);
 
   // Production: phục vụ bản build của client
-  const dist = path.resolve(config.root, '../FrontEnd/dist');
+  const dist = options.staticDir ?? path.resolve(config.root, '../FrontEnd/dist');
   if (fs.existsSync(dist)) {
-    app.use(express.static(dist, { index: false, maxAge: '1h' }));
-    app.get('/{*splat}', (_req, res) => res.sendFile(path.join(dist, 'index.html')));
+    app.use('/assets', express.static(path.join(dist, 'assets'), { maxAge: '1y', immutable: true, index: false }));
+    app.use('/assets', (_req, res) => res.status(404).type('text').send('Không tìm thấy asset'));
+    app.use(express.static(dist, { index: false, maxAge: 0 }));
+    app.get('/{*splat}', (req, res, next) => {
+      if (path.extname(req.path)) return res.status(404).type('text').send('Không tìm thấy tệp');
+      if (!req.accepts('html')) return next();
+      res.setHeader('Cache-Control', 'no-store');
+      return res.sendFile(path.join(dist, 'index.html'));
+    });
   }
 
   app.use(errorHandler);

@@ -1,6 +1,6 @@
 # ERD và từ điển dữ liệu
 
-Version 2026-11-02. Sinh từ `BackEnd/prisma/schema.prisma`; SQL migration là nguồn triển khai. Mảng UUID và JSONB không tự tạo FK; quan hệ bên dưới chỉ lấy từ `@relation(fields:...)` thật.
+Version 2026-11-03. Sinh từ `BackEnd/prisma/schema.prisma`; SQL migration là nguồn triển khai. Mảng UUID và JSONB không tự tạo FK; quan hệ bên dưới chỉ lấy từ `@relation(fields:...)` thật.
 
 ```mermaid
 erDiagram
@@ -226,6 +226,11 @@ erDiagram
     Int inputTokens
     Int outputTokens
     Int latencyMs
+    DateTime queuedAt
+    DateTime finishedAt
+    String provider
+    Json attempts
+    Boolean usageComplete
     String error
     DateTime createdAt
   }
@@ -861,6 +866,11 @@ model AiCall {
   inputTokens  Int          @default(0)
   outputTokens Int          @default(0)
   latencyMs    Int          @default(0)
+  queuedAt     DateTime?
+  finishedAt   DateTime?
+  provider     String?
+  attempts     Json         @default("[]")
+  usageComplete Boolean     @default(false)
   status       AiCallStatus
   error        String?
   createdAt    DateTime     @default(now())

@@ -1,0 +1,156 @@
+{
+  "schemaVersion": 1,
+  "kind": "ai-quality",
+  "runId": "eval-2026-11-03T16-12-51-902Z",
+  "runHash": "ec7037319797c2ec72194a27809f2026deb3e612b1a7c40c2b18a1f62780ee3a",
+  "build": {
+    "revision": "b7c972bc7e657a1d2f3b612fb7fff8571634bdce",
+    "sourceHash": "c89293c97667e18afd091f88acad57cb9e014b7c1eb88ada98d11dada079603b",
+    "sourceHashAlgorithm": "sha256-lf-v1",
+    "promptHash": "bdb28000b7b7ea09ea28b0be736713d00e18eb1c39ca875a59baea4e8802bed4",
+    "dirty": true,
+    "node": "v24.15.0"
+  },
+  "packHash": "0c1725325f2b1b757bbad54e5fae9f70e857d3de48ff3591cbce4c8cf67b08fd",
+  "split": "development",
+  "inputHash": "2177aa5f6351204f0e4b2b3c76e97a75b44f7236627a69b506b84d897ea09b23",
+  "operator": "local-automation",
+  "reviewers": [],
+  "ratings": [],
+  "adjudications": [],
+  "finalGrades": [],
+  "failedCases": [],
+  "metrics": {
+    "plannerSchema": {
+      "numerator": null,
+      "denominator": 20,
+      "rate": null,
+      "target": 0.9,
+      "passed": null
+    },
+    "plannerUsableTasks": {
+      "numerator": null,
+      "denominator": 44,
+      "rate": null,
+      "target": 0.8,
+      "passed": null
+    },
+    "reportMetrics": {
+      "numerator": null,
+      "denominator": 20,
+      "rate": null,
+      "target": 1,
+      "passed": null
+    },
+    "reportClaims": {
+      "numerator": null,
+      "denominator": null,
+      "rate": null,
+      "target": 0.9,
+      "passed": null
+    },
+    "qaCorrect": {
+      "numerator": null,
+      "denominator": 40,
+      "rate": null,
+      "target": 0.8,
+      "passed": null
+    },
+    "qaRefusal": {
+      "numerator": null,
+      "denominator": 10,
+      "rate": null,
+      "target": 0.9,
+      "passed": null
+    },
+    "qaSecurity": {
+      "numerator": null,
+      "denominator": 20,
+      "rate": null,
+      "target": 1,
+      "passed": null
+    },
+    "citations": {
+      "numerator": null,
+      "denominator": null,
+      "rate": null,
+      "target": 0.9,
+      "passed": null
+    },
+    "riskRules": {
+      "numerator": null,
+      "denominator": 20,
+      "rate": null,
+      "target": 1,
+      "passed": null
+    },
+    "noLeaks": {
+      "numerator": null,
+      "denominator": 24,
+      "rate": null,
+      "target": 1,
+      "passed": null
+    }
+  },
+  "agreement": {
+    "numerator": 0,
+    "denominator": 24
+  },
+  "disagreements": [],
+  "missing": [
+    "planner-1",
+    "planner-2",
+    "planner-3",
+    "planner-4",
+    "planner-5",
+    "planner-member",
+    "planner-viewer",
+    "planner-outside",
+    "report-snapshot",
+    "qa-answer",
+    "qa-refuse",
+    "qa-outside",
+    "qa-viewer",
+    "risk-rules",
+    "risk-explain",
+    "risk-empty",
+    "risk-done",
+    "risk-no-deadline",
+    "risk-available-capacity",
+    "risk-no-dependency",
+    "risk-parent-child",
+    "risk-blocker-done",
+    "report-empty",
+    "report-reopened"
+  ],
+  "status": "pending",
+  "baseline": {
+    "status": "pending"
+  },
+  "latency": {
+    "planner": {
+      "requests": 30,
+      "p50Ms": 68.6426999999967,
+      "p95Ms": 145.287900000003,
+      "errors": 0
+    },
+    "report": {
+      "requests": 30,
+      "p50Ms": 98.56380000000354,
+      "p95Ms": 212.76140000000305,
+      "errors": 0
+    },
+    "qa": {
+      "requests": 30,
+      "p50Ms": 52.97070000000531,
+      "p95Ms": 135.91470000000118,
+      "errors": 0
+    },
+    "risk": {
+      "requests": 30,
+      "p50Ms": 62.017100000004575,
+      "p95Ms": 180.89310000000114,
+      "errors": 0
+    }
+  }
+}

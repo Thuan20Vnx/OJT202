@@ -121,8 +121,8 @@ export default function AiSettings() {
         <StatCard label={tr("Lượt đã dùng")} value={`${t.used}/${s.dailyLimit}`} sub={tr("Hôm nay")} icon="bolt" tone="purple">
           <Progress value={(t.used / Math.max(1, s.dailyLimit)) * 100} tone="bg-purple-500" className="mt-2" />
         </StatCard>
-        <StatCard label={tr("Token đã dùng")} value={t.tokens >= 1000 ? `${(t.tokens / 1000).toFixed(1)}K` : t.tokens} sub={tr("Vào + ra, hôm nay")} icon="token" tone="blue" />
-        <StatCard label={tr("Độ trễ trung bình")} value={tr("{0} giây", [(t.avgLatencyMs / 1000).toFixed(1)])} sub={tr("Các lượt thành công")} icon="timer" tone="green" />
+        <StatCard label={tr('Token đã ghi nhận')} value={`${t.unknownUsageCalls ? '≥ ' : ''}${t.tokens >= 1000 ? `${(t.tokens / 1000).toFixed(1)}K` : t.tokens}`} sub={t.unknownUsageCalls ? tr('{0} lượt chưa rõ đủ token', [t.unknownUsageCalls]) : tr('Vào + ra, hôm nay')} icon="token" tone="blue" />
+        <StatCard label={tr('Độ trễ p95')} value={t.p95LatencyMs == null ? '—' : tr('{0} giây', [(t.p95LatencyMs / 1000).toFixed(1)])} sub={tr('{0} lượt, gồm cả lỗi và retry', [t.latencySamples ?? 0])} icon="timer" tone="green" />
         <StatCard label={tr("Tỉ lệ lỗi")} value={`${t.total ? Math.round((t.errors / t.total) * 100) : 0}%`} sub={tr("{0} lỗi hôm nay", [t.errors])} icon="error" tone="red" />
       </div>
 
@@ -223,7 +223,7 @@ export default function AiSettings() {
                         <td className="table-td whitespace-nowrap">
                           <span className="chip border-slate-200 bg-slate-50 font-mono text-slate-600">{c.model}</span>
                         </td>
-                        <td className="table-td whitespace-nowrap text-slate-600">{(c.inputTokens + c.outputTokens).toLocaleString('vi-VN')}</td>
+                        <td className="table-td whitespace-nowrap text-slate-600" title={!c.usageComplete ? tr('Chỉ gồm token đã biết; timeout có thể vẫn bị nhà cung cấp tính phí') : undefined}>{c.usageComplete ? '' : '≥ '}{(c.inputTokens + c.outputTokens).toLocaleString('vi-VN')}</td>
                         <td className={`table-td whitespace-nowrap ${c.latencyMs > 10000 ? 'text-amber-600' : 'text-slate-600'}`}>{(c.latencyMs / 1000).toFixed(1)}s</td>
                         <td className="table-td whitespace-nowrap">
                           <span className={`chip ${st[1]}`} title={st[2] || c.error || ''}>

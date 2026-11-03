@@ -899,6 +899,72 @@ describe('Hoàng Anh Sprint 3 — planner và nguồn cảnh báo', () => {
   });
 });
 
+describe('Hoàng Anh Sprint 4 — telemetry AI gồm queue và retry', () => {
+  test('U029: CSV AI không cắt âm thầm khi snapshot có hơn 10.000 log', async () => {
+    const { owner, ws } = await permissionFixture();
+    await db.prisma.aiCall.createMany({ data: Array.from({ length: 10001 }, () => ({ workspace: ws, feature: 'qa', status: 'success', model: 'csv-boundary-fixture' })) });
+    const response = await owner.get(`/workspaces/${ws}/ai/calls.csv`);
+    assert.equal(response.status, 400);
+    assert.match(response.data.error, /10.000/);
+  });
+  test('U029: thời gian chờ workspace lock nằm trong latency và có callId/nguồn provider', async () => {
+    const { owner, ws, pid } = await permissionFixture();
+    let release, arrive;
+    const ready = new Promise((resolve) => { arrive = resolve; });
+    const gate = new Promise((resolve) => { release = resolve; });
+    const held = db.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM workspaces WHERE id = ${ws}::uuid FOR UPDATE`;
+      arrive(); await gate;
+    });
+    await ready;
+    const pending = owner.post(`/projects/${pid}/ai/plan`, { goal: 'Xây dựng API quản lý công việc' });
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    release(); await held;
+    const result = await pending;
+    assert.equal(result.status, 201);
+    assert.ok(result.data.meta.latencyMs >= 100);
+    const call = await db.prisma.aiCall.findUnique({ where: { id: result.data.meta.callId } });
+    assert.equal(call.provider, 'local');
+    assert.equal(call.attempts.length, 1);
+    assert.equal(call.usageComplete, true);
+    assert.ok(call.finishedAt >= call.queuedAt);
+    const summary = await owner.get(`/workspaces/${ws}/ai`);
+    assert.equal(summary.data.today.p95LatencyMs, call.latencyMs);
+    assert.equal(summary.data.today.unknownUsageCalls, 0);
+  });
+  test('U029: timeout/retry giữ từng attempt, không tính token chưa biết là chi phí bằng 0', async (t) => {
+    const { owner, ws, pid } = await permissionFixture();
+    const workspace = await db.prisma.workspace.findUnique({ where: { id: ws } });
+    await db.prisma.workspace.update({ where: { id: ws }, data: { ai: { ...workspace.ai, timeoutSec: 0.08 } } });
+    const originalUrl = config.ai.serviceUrl;
+    let requests = 0;
+    const fake = http.createServer((req, res) => {
+      req.resume();
+      if (++requests === 1) return;
+      res.setHeader('content-type', 'application/json');
+      res.end(JSON.stringify({ model: 'test-only', provider: 'test-provider', inputTokens: 2, outputTokens: 3, result: { items: Array.from({ length: 5 }, (_, i) => ({ title: `Task ${i}`, description: 'Mô tả', acceptanceCriteria: ['Kiểm được'], estimateHours: 1, dueDate: null })) } }));
+    });
+    await new Promise((resolve) => fake.listen(0, '127.0.0.1', resolve));
+    config.ai.serviceUrl = `http://127.0.0.1:${fake.address().port}`;
+    t.after(async () => { config.ai.serviceUrl = originalUrl; fake.closeAllConnections(); await new Promise((resolve) => fake.close(resolve)); });
+    const result = await owner.post(`/projects/${pid}/ai/plan`, { goal: 'Xây dựng API retry' });
+    assert.equal(result.status, 201, JSON.stringify(result.data));
+    const call = await db.prisma.aiCall.findUnique({ where: { id: result.data.meta.callId } });
+    assert.equal(call.status, 'retried_success');
+    assert.equal(result.data.meta.attemptCount, 2);
+    assert.deepEqual(call.attempts.map((a) => a.status), ['timeout', 'success']);
+    assert.equal(call.attempts[0].inputTokens, null);
+    assert.equal(call.inputTokens, 2);
+    assert.equal(call.outputTokens, 3);
+    assert.equal(call.usageComplete, false);
+    assert.ok(call.latencyMs >= 80);
+    const summary = await owner.get(`/workspaces/${ws}/ai`);
+    assert.equal(summary.data.today.unknownUsageCalls, 1);
+    assert.equal(summary.data.today.tokens, 5);
+    assert.equal(summary.data.today.p95LatencyMs, call.latencyMs);
+  });
+});
+
 describe('Trợ lý AI (U021–U027)', () => {
   test('kế hoạch nháp 5–15 việc; không có hạn thì không tự đặt; duyệt nhiều lần không tạo trùng', async () => {
     const c = await new Client().login('mai.anh@nhom24.edu.vn');

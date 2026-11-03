@@ -1,5 +1,12 @@
 // Interface translations only; project content is preserved.
 export const english = {
+  'Origin không được phép': 'Origin is not allowed',
+  'Nhật ký AI vượt 10.000 bản ghi; dùng API phân trang để xuất đầy đủ': 'AI logs exceed 10,000 records; use the paginated API for a complete export',
+  'Token đã ghi nhận': 'Recorded tokens',
+  '{0} lượt chưa rõ đủ token': '{0} calls have incomplete token usage',
+  'Độ trễ p95': 'p95 latency',
+  '{0} lượt, gồm cả lỗi và retry': '{0} calls, including errors and retries',
+  'Chỉ gồm token đã biết; timeout có thể vẫn bị nhà cung cấp tính phí': 'Known tokens only; the provider may still bill timed-out attempts',
   'Đang tải bình luận': 'Loading comments',
   'Đang lưu thay đổi, vui lòng chờ.': 'Saving changes, please wait.',
   'Ẩn bình luận vi phạm': 'Hide inappropriate comment',
