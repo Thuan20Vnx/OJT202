@@ -363,11 +363,16 @@ router.get('/:wsId/ai', middlewareWorkspace(), async (req, res) => {
     aiServiceInfo(),
   ]);
   const ok = today.filter((c) => c.status.includes('success'));
+  const latencies = today.filter((c) => c.finishedAt && c.status !== 'pending').map((c) => c.latencyMs).sort((a, b) => a - b);
   res.json({
     settings: req.ws.workspace.ai,
     today: {
       used: today.length,
       tokens: today.reduce((s, c) => s + c.inputTokens + c.outputTokens, 0),
+      unknownUsageCalls: today.filter((c) => !c.usageComplete).length,
+      p50LatencyMs: latencies.length ? latencies[Math.ceil(latencies.length * 0.5) - 1] : null,
+      p95LatencyMs: latencies.length ? latencies[Math.ceil(latencies.length * 0.95) - 1] : null,
+      latencySamples: latencies.length,
       avgLatencyMs: ok.length ? Math.round(ok.reduce((s, c) => s + c.latencyMs, 0) / ok.length) : 0,
       errors: today.filter((c) => ['error', 'timeout'].includes(c.status)).length,
       total: today.length,
@@ -414,13 +419,15 @@ router.get('/:wsId/ai/calls', middlewareWorkspace('wsId', 'admin'), async (req, 
 });
 
 router.get('/:wsId/ai/calls.csv', middlewareWorkspace('wsId', 'admin'), async (req, res) => {
-  const items = await prisma.aiCall.findMany({ where: { workspace: req.ws.workspace.id }, orderBy: { createdAt: 'desc' }, take: 10000 });
+  const items = await prisma.aiCall.findMany({ where: { workspace: req.ws.workspace.id }, orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: 10001 });
+  if (items.length > 10000) throw badRequest('Nhật ký AI vượt 10.000 bản ghi; dùng API phân trang để xuất đầy đủ');
   await populate(items, 'user', 'user', { name: true });
   const rows = [
-    ['Thời gian', 'Người dùng', 'Tính năng', 'Model', 'Token vào', 'Token ra', 'Độ trễ (ms)', 'Trạng thái', 'Lỗi'],
-    ...items.map((c) => [new Date(c.createdAt).toISOString(), c.user?.name, c.feature, c.model, c.inputTokens, c.outputTokens, c.latencyMs, c.status, c.error]),
+    ['Thời gian', 'Người dùng', 'Tính năng', 'Model', 'Token vào đã biết', 'Token ra đã biết', 'Độ trễ (ms)', 'Trạng thái', 'Lỗi', 'Provider', 'Bắt đầu chờ', 'Kết thúc', 'Lần thử', 'Token đầy đủ'],
+    ...items.map((c) => [new Date(c.createdAt).toISOString(), c.user?.name, c.feature, c.model, c.inputTokens, c.outputTokens, c.latencyMs, c.status, c.error, c.provider, c.queuedAt?.toISOString(), c.finishedAt?.toISOString(), c.attempts.length, c.usageComplete]),
   ];
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Cache-Control', 'private, no-store');
   res.setHeader('Content-Disposition', 'attachment; filename="nhat-ky-ai.csv"');
   res.send(toCsv(rows));
 });

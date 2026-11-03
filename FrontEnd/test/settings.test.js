@@ -15,6 +15,14 @@ const label = (node) => node.children.map((c) => typeof c === 'string' ? c : lab
 const button = (tree, text) => tree.root.findAllByType('button').find((n) => label(n).includes(text));
 const settings = { enabled: true, dailyLimit: 100, timeoutSec: 30, features: { planner: true } };
 const aiData = () => ({ settings: { ...settings }, today: { used: 0, tokens: 0, avgLatencyMs: 0, errors: 0, total: 0 }, provider: { type: 'local' } });
+test('Cài đặt AI: token chưa biết hiển thị giới hạn dưới, p95 gồm lỗi/retry', async (t) => {
+  t.mock.method(api, 'get', async (url) => url.includes('/calls') ? { items: [{ _id: 'call', user: { name: 'Người thử' }, createdAt: '2026-11-03T01:00:00Z', feature: 'planner', model: 'test', inputTokens: 2, outputTokens: 3, latencyMs: 8000, status: 'retried_success', usageComplete: false }], total: 1 } : { ...aiData(), today: { used: 1, tokens: 5, unknownUsageCalls: 1, p95LatencyMs: 8000, latencySamples: 1, errors: 0, total: 1 } });
+  const tree = await mount(t, AiSettings);
+  assert.match(label(tree.root), /≥ 5/);
+  assert.match(label(tree.root), /Độ trễ p95/);
+  assert.match(label(tree.root), /gồm cả lỗi và retry/);
+  assert.ok(tree.root.findAllByProps({ title: 'Chỉ gồm token đã biết; timeout có thể vẫn bị nhà cung cấp tính phí' }).length);
+});
 async function mount(t, Component) {
   let tree;
   const value = { ws: { workspace: { _id: 'ws' } }, role: 'owner', projects: [], me: { _id: 'me', name: 'Người dùng', email: 'me@example.test', timezone: 'Asia/Ho_Chi_Minh', language: 'vi' }, setMe() {}, logout() {} };

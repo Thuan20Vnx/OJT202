@@ -12,6 +12,7 @@ export const config = {
   isProd: env.NODE_ENV === 'production',
   isTest: env.NODE_ENV === 'test',
   clientUrl: env.CLIENT_URL || 'http://localhost:5173',
+  release: { revision: /^[a-f0-9]{40}$/.test(env.RELEASE_SHA || '') ? env.RELEASE_SHA : null, sourceHash: /^[a-f0-9]{64}$/.test(env.RELEASE_SOURCE_HASH || '') ? env.RELEASE_SOURCE_HASH : null },
   trustProxy: env.TRUST_PROXY?.trim()
     ? env.TRUST_PROXY.split(',')
         .map((s) => s.trim())
