@@ -1,0 +1,18 @@
+Date: 2026-11-04 (Asia/Saigon)
+Loc source commit: 1128cd7
+origin/main: a3bcde0
+Command: git merge-tree --write-tree origin/main Loc
+Exit code: 1
+Result tree: 412a19b4cf0edfafc0dcba5ab9e32d307e0abe53
+
+Auto-merging BackEnd/src/routes/tasks.js
+CONFLICT (content): Merge conflict in BackEnd/src/routes/tasks.js
+Auto-merging FrontEnd/src/components/TaskDetailModal.jsx
+Auto-merging docs/design/openapi.json
+CONFLICT (content): Merge conflict in docs/design/openapi.json
+Auto-merging docs/design/source-manifest.json
+CONFLICT (content): Merge conflict in docs/design/source-manifest.json
+Auto-merging test/e2e/sprint1.test.mjs
+
+This check did not change the worktree, index, main branch, or remote main.
+The merged tree contains conflicts and has not been tested.

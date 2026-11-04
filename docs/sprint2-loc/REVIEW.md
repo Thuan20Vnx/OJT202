@@ -16,6 +16,15 @@ Theo yêu cầu đưa code lên nhánh Lộc, đợt này bao gồm cả bốn f
 
 Đã fetch GitHub trước bàn giao: `origin/Loc` ở `b7c972b`, `origin/main` đã tiến tới `a3bcde0` qua 4 commit mới. Kết quả trên áp dụng cho code Loc trước khi ghép main; chưa chứng minh bản tích hợp với main mới nhất. Không reset dữ liệu dev, không force push.
 
+### Kết quả đẩy Loc và kiểm tra main
+
+Đã đẩy commit [`1128cd7`](https://github.com/Thuan20Vnx/OJT202/commit/1128cd7) lên `origin/Loc`. Kiểm tra `git merge-tree --write-tree origin/main Loc` với main `a3bcde0` trả exit code **1**, có xung đột nội dung ở:
+
+- `BackEnd/src/routes/tasks.js`: main thêm contributors và daily-update counts vào `enrich`; Loc truyền transaction để snapshot nhất quán. Khi giải xung đột cần giữ cả dữ liệu mới của main lẫn transaction của Loc.
+- `docs/design/openapi.json` và `docs/design/source-manifest.json`: cần sinh lại từ source sau khi giải xung đột.
+
+`TaskDetailModal.jsx` và E2E được Git ghép tự động, nhưng chưa chạy kiểm thử trên bản tích hợp. **Chưa thể ghép tự động lên main ở trạng thái này**; cần giải ba xung đột, sinh lại tài liệu và chạy bộ kiểm tra trên bản ghép trước khi đưa lên main. Lượt này chỉ dùng merge-tree để kiểm tra, không đổi local/remote main, không tạo merge đang dang dở. Xem [log kiểm tra ghép](evidence/2026-11-04-main-merge-check.txt). CI remote chưa được xác nhận; kết quả pass phía trên là kiểm thử local.
+
 ## Đối chiếu lỗi tạo project — 04/11/2026
 
 - Log [02/11 trước sửa](evidence/2026-11-02-e2e.txt) ghi `400 !== 201` tại bước tạo project. Nguyên nhân là fixture dùng mã dự án chứa chữ số, trái contract `keyPrefix` trong `BackEnd/src/routes/projects.js`: `/^[A-Z]{2,5}$/`, lỗi trường `keyPrefix` là `Mã dự án gồm 2–5 chữ cái`. Số sprint có thể nằm trong tên dự án, không nằm trong mã.
