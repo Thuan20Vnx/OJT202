@@ -273,11 +273,14 @@ export default function TaskDetailModal({ taskId, onClose }) {
       await loadComments();
     } catch (e) {
       if (current()) {
-        if ([403, 404].includes(e.status)) { setData(null); setForm(null); setComments([]); }
+        if ([403, 404].includes(e.status)) {
+          invalidateRequests();
+          setData(null); setForm(null); setComments([]);
+        }
         setError(e);
       }
     }
-  }, [taskId, loadComments]);
+  }, [taskId, loadComments, invalidateRequests]);
 
   useEffect(() => {
     mounted.current = true;
@@ -337,7 +340,7 @@ export default function TaskDetailModal({ taskId, onClose }) {
   useSocketEvent('comment:deleted', ({ taskId: t, commentId }) => t === taskId && receiveComment(commentId, null), [taskId, receiveComment]);
   useSocketEvent('task:deleted', ({ taskId: t }) => t === taskId && onClose(), [taskId]);
 
-  if (error) {
+  if (error && (!data || !form || data.task._id !== taskId)) {
     return (
       <Shell onClose={onClose}>
         <div className="p-8">
@@ -376,6 +379,9 @@ export default function TaskDetailModal({ taskId, onClose }) {
     try {
       const { task: t } = await api.patch(`/tasks/${task._id}`, { ...body, version: task.version });
       if (!current()) return t;
+      // A legacy server/proxy may return a later writer's snapshot. Keep this
+      // form's original version so a subsequent save cannot overwrite it.
+      if (t.version !== task.version + 1) throw Object.assign(new Error(tr("Công việc vừa được người khác cập nhật.")), { status: 409 });
       loadSequence.current++;
       setData((d) => ({ ...d, task: t }));
       return t;
@@ -691,6 +697,10 @@ export default function TaskDetailModal({ taskId, onClose }) {
         <div className="border-b border-amber-200 bg-amber-50 px-6 py-2 text-body-sm text-amber-800">{tr("Công việc vừa được người khác cập nhật.")}{' '}
           <button className="font-semibold underline" onClick={() => load({ discard: true })}>{tr("Tải lại")}</button>{' '}{tr("(thay đổi chưa lưu của bạn sẽ mất)")}</div>
       )}
+      {error && <div role="alert" className="flex items-center gap-3 border-b border-rose-200 bg-rose-50 px-6 py-2 text-body-sm text-rose-700">
+        <span>{error.message}</span>
+        <button className="btn-outline btn-sm" onClick={() => load()}>{tr("Thử lại")}</button>
+      </div>}
 
       <div className="grid min-h-0 flex-1 overflow-hidden lg:grid-cols-[1fr_320px]">
         {/* Cột chính */}

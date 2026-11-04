@@ -1,5 +1,5 @@
 import { t as tr, useI18n } from '../../lib/i18n.js';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import AuthLayout from './AuthLayout.jsx';
 import { PasswordInput, PasswordStrength } from './Login.jsx';
@@ -39,6 +39,7 @@ export default function ForgotPassword() {
   const [pw2, setPw2] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const pending = useRef(false);
   const [done, setDone] = useState(false);
   const [expired, setExpired] = useState(false);
   const [cool, setCool] = useState(0);
@@ -54,7 +55,9 @@ export default function ForgotPassword() {
 
   const request = async (e) => {
     e?.preventDefault();
+    if (pending.current || cool > 0) return;
     if (!/^\S+@\S+\.\S+$/.test(email)) return setError(tr("Vui lòng nhập email hợp lệ"));
+    pending.current = true;
     setBusy(true);
     setError('');
     try {
@@ -64,13 +67,16 @@ export default function ForgotPassword() {
     } catch (err) {
       setError(err.message);
     } finally {
+      pending.current = false;
       setBusy(false);
     }
   };
 
   const reset = async (e) => {
     e.preventDefault();
+    if (pending.current) return;
     if (pw !== pw2) return setError(tr("Mật khẩu xác nhận không khớp"));
+    pending.current = true;
     setBusy(true);
     setError('');
     try {
@@ -80,6 +86,7 @@ export default function ForgotPassword() {
       if (err.details?.code === 'TOKEN_INVALID') setExpired(true);
       setError(err.message);
     } finally {
+      pending.current = false;
       setBusy(false);
     }
   };
@@ -88,6 +95,7 @@ export default function ForgotPassword() {
     <AuthLayout>
       <div className="card p-6 shadow-card">
         <Steps step={done ? 4 : step} />
+        {error && <div role="alert" className="mb-4"><Notice tone="danger">{error}</Notice></div>}
         {step === 1 && (
           <form onSubmit={request} className="space-y-4">
             <Link to="/login" className="inline-flex items-center gap-1 text-body-sm text-slate-500 hover:text-slate-800">
@@ -96,11 +104,10 @@ export default function ForgotPassword() {
               <h2 className="text-headline-md text-slate-900">{tr("Quên mật khẩu?")}</h2>
               <p className="text-body-sm text-slate-500">{tr("Nhập email, chúng tôi sẽ gửi liên kết đặt lại mật khẩu.")}</p>
             </div>
-            {error && <Notice tone="danger">{error}</Notice>}
             <Field label={tr("Email công việc")} required>
               <div className="relative">
                 <Icon name="mail" size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input type="email" className="input pl-9" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="ban@congty.com" />
+                <input type="email" disabled={busy} className="input pl-9" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="ban@congty.com" />
               </div>
             </Field>
             <button className="btn-primary h-10 w-full" disabled={busy}>
@@ -127,12 +134,12 @@ export default function ForgotPassword() {
               {cool > 0 ? (
                 <span>{tr("Gửi lại sau 00:")}{String(cool).padStart(2, '0')}</span>
               ) : (
-                <button className="font-semibold text-blue-600" onClick={request}>{tr("Gửi lại")}</button>
+                <button className="inline-flex items-center gap-1 font-semibold text-blue-600" disabled={busy} onClick={request}>{busy && <Spinner />}{tr("Gửi lại")}</button>
               )}
             </p>
             <p className="text-label-md font-normal text-slate-400">{tr("Bản phát triển: mở liên kết trong ")}<Link className="text-blue-600 underline" to="/dev/outbox">{tr("hộp thư dev")}</Link>
             </p>
-            <button className="text-body-sm text-slate-500 hover:text-slate-800" onClick={() => setStep(1)}>{tr("← Quay lại")}</button>
+            <button className="text-body-sm text-slate-500 hover:text-slate-800" disabled={busy} onClick={() => setStep(1)}>{tr("← Quay lại")}</button>
           </div>
         )}
         {step === 3 &&
@@ -156,7 +163,6 @@ export default function ForgotPassword() {
                 <h2 className="text-headline-md text-slate-900">{tr("Đặt mật khẩu mới")}</h2>
                 <p className="text-body-sm text-slate-500">{tr("Bạn sẽ được đăng xuất khỏi tất cả thiết bị sau khi đặt lại.")}</p>
               </div>
-              {error && <Notice tone="danger">{error}</Notice>}
               <Field label={tr("Mật khẩu mới")} required>
                 <PasswordInput value={pw} onChange={(e) => setPw(e.target.value)} autoComplete="new-password" />
                 <PasswordStrength value={pw} />

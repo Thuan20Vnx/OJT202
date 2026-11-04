@@ -1,0 +1,13 @@
+[seed] Tạo dữ liệu demo Nhóm 24…
+[seed] Xong. Đăng nhập: mai.anh@nhom24.edu.vn / TaskFlow@2026  (System Admin: admin@taskflow.local)
+✔ Lộc Sprint 2: tìm mô tả, checklist, PM ẩn bình luận và phụ thuộc thử lại khi lỗi (48713.6582ms)
+ℹ LSP2 -> HTTP 400: Mã dự án gồm 2–5 chữ cái
+ℹ LSP -> HTTP 201 with the same seeded owner and member
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 50816.9217

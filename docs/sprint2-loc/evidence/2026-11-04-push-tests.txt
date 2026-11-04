@@ -1,0 +1,498 @@
+
+> test
+> npm --prefix AIService test && npm --prefix BackEnd test && npm --prefix FrontEnd test
+
+
+> taskflow-ai-service@1.0.0 test
+> node --test "test/**/*.test.js"
+
+▶ Bộ AI nội bộ
+  ✔ U021: provider phải trả đúng 5–15 mục đầy đủ AC, không tự cắt hoặc chấp nhận JSON lỗi (30.1591ms)
+  ✔ U027: không đoán người/hạn từ provider khi trích đoạn không chứng minh được (4.1428ms)
+  ✔ U027: câu phủ định không tạo action nhưng người tên Huy vẫn được nhận diện (0.8001ms)
+  ✔ ghi chú họp: không rõ người/hạn thì để trống (1.2641ms)
+  ✔ lập kế hoạch: tổng giờ không vượt mức tối đa sau làm tròn, không tự đặt hạn (2.453ms)
+  ✔ biên bản: ISO không bị đọc nhầm, ngày sai/thiếu tháng để trống, cuối ngày đúng profile (3.615ms)
+  ✔ biên bản: ngày mai đi qua DST vẫn đúng cuối ngày, không phụ thuộc TZ máy (5.2571ms)
+  ✔ tên thành viên chứa ký tự regex vẫn nhận đúng và không làm hỏng biên bản (0.5968ms)
+  ✔ báo cáo dùng ngày dự án Việt Nam trên máy chủ UTC (2.0884ms)
+  ✔ kế hoạch giữ cuối ngày và không vượt timestamp hạn cụ thể (4.4023ms)
+  ✔ provider không được trả kế hoạch quá giờ, giờ vô hạn hoặc hạn sai (8.7265ms)
+  ✔ provider biên bản: ngày sai để trống, ngày hợp lệ đổi về cuối ngày profile (1.4133ms)
+  ✔ provider biên bản sai cấu trúc hoặc thiếu tiêu đề không được tạo việc rỗng (0.8501ms)
+  ✔ hỏi đáp: có trích dẫn khi có nguồn, từ chối khi thiếu chứng cứ (0.84ms)
+✔ Bộ AI nội bộ (68.7792ms)
+▶ API HTTP
+  ✔ health + thông tin nhà cung cấp (37.7832ms)
+  ✔ sai / thiếu khóa dùng chung bị từ chối (401) (19.2881ms)
+  ✔ dữ liệu không hợp lệ (400) (15.622ms)
+  ✔ /v1/planner trả bản nháp + token + model (2.0964ms)
+  ✔ /v1/meeting, /v1/qa, /v1/report, /v1/risk (8.3138ms)
+✔ API HTTP (83.43ms)
+✔ P2: explicit cancellation must not create a meeting action item (1.9489ms)
+✔ P2: provider excerpts must actually occur in the meeting source (18.0389ms)
+ℹ tests 21
+ℹ suites 2
+ℹ pass 21
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 450.1113
+
+> taskflow-server@1.0.0 test
+> node --test --test-concurrency=1 "test/**/*.test.js"
+
+✔ U021 gateway: từ chối HTTP AI sai shape, thiếu AC, NUL và vượt ngân sách (9.0668ms)
+✔ U021 gateway: không nhận ngày AI tự đặt, ngày quá khứ hoặc vượt hạn kế hoạch (2.1188ms)
+✔ U027 gateway: trích đoạn phải thuộc biên bản, giữ cả dấu và khoảng trắng (1.6607ms)
+[seed] Tạo dữ liệu demo Nhóm 24…
+[seed] Xong. Đăng nhập: mai.anh@nhom24.edu.vn / TaskFlow@2026  (System Admin: admin@taskflow.local)
+✔ U025: thống kê nguồn trực tiếp có ACL, bỏ task xóa và ảnh; không tải toàn bộ nội dung (44128.1262ms)
+▶ Hoàng Anh Sprint 2 — tài liệu, phụ thuộc, thông báo và review nghiệp vụ
+  ✔ U011-T3: kết hợp filter, phân trang/trang rỗng và project private (529.7645ms)
+  ✔ U015-T1: version bắt buộc, lưu đồng thời chỉ một bản thắng, revision không mất (445.792ms)
+  ✔ U015-T1: magic bytes đầy đủ, UTF-8 và biên tệp 10MB; rollback cả lô (523.6253ms)
+  ✔ U015-T1: tạo/sửa/xóa phát invalidation sau commit, RAG đọc đúng nguồn mới (387.637ms)
+  ✔ U016-T2: nhiều tab khởi tạo preference đồng thời không lỗi unique (343.6237ms)
+  ✔ U016-T2: đọc idempotent, read-all theo quyền, đồng bộ tab và không đổi thông báo người khác (366.7075ms)
+  ✔ U018-T1: dependency lặp không tăng version/audit; Blocked suy ra và không là trạng thái thứ năm (491.5683ms)
+  ✔ U013 review: preview xóa chính xác, phát hiện cây thay đổi; gỡ dependency có audit (473.8439ms)
+  ✔ U019 review: chỉ cộng task lá, bao gồm overdue; tách thiếu hạn/estimate, không lộ project khác (605.035ms)
+  ✔ U019 review: capacity workspace/user/week, số 0, quyền và hai request cạnh tranh (462.6829ms)
+  ✔ U019 review: migration chặn capacity sai và thay đổi capacity làm report stale (329.2644ms)
+  ✔ U020-T2: CSV không cắt âm thầm sau 10.000 dòng (1081.023ms)
+  ✔ U020-T2: khoảng ngày/cột hợp lệ, CSV theo quyền và chống formula injection (438.5047ms)
+✔ Hoàng Anh Sprint 2 — tài liệu, phụ thuộc, thông báo và review nghiệp vụ (6480.5423ms)
+▶ Xác thực & phiên (U003, U004, U005)
+  ✔ sai mật khẩu và email không tồn tại trả cùng một lỗi chung (345.8793ms)
+  ✔ đăng ký: email duy nhất không phân biệt hoa thường, phải xác minh mới đăng nhập (567.4603ms)
+  ✔ mật khẩu yếu bị từ chối (2.4976ms)
+  ✔ refresh token xoay vòng; dùng lại token cũ thu hồi cả chuỗi phiên (94.3222ms)
+  ✔ logout thu hồi phiên (81.002ms)
+  ✔ đặt lại mật khẩu: token một lần, thu hồi phiên cũ (897.9504ms)
+  ✔ cập nhật hồ sơ không đổi được vai trò (82.9268ms)
+  ✔ CSRF: request ghi thiếu header bảo vệ bị chặn (2.4933ms)
+✔ Xác thực & phiên (U003, U004, U005) (2075.1993ms)
+▶ Workspace, phân quyền & cách ly dữ liệu (U006, U007, U008)
+  ✔ người ngoài nhóm không đọc được workspace/dự án/công việc (404) (315.8214ms)
+  ✔ workspace cùng tên được phân biệt bằng ID và slug (89.7733ms)
+  ✔ không xóa / hạ quyền được Owner cuối cùng (86.725ms)
+  ✔ lời mời hết hạn sau 72 giờ (84.8311ms)
+  ✔ ngày kết thúc dự án không được trước ngày bắt đầu (78.8829ms)
+  ✔ dự án lưu trữ là chỉ đọc (75.8355ms)
+✔ Workspace, phân quyền & cách ly dữ liệu (U006, U007, U008) (732.307ms)
+▶ Công việc & Kanban (U009, U010, U013, U018)
+  ✔ người nhận phải thuộc dự án; thiếu ngày thì không tự đặt hạn (98.1629ms)
+  ✔ Viewer không được kéo thả (77.4299ms)
+  ✔ cập nhật với version cũ trả 409 (103.6108ms)
+  ✔ subtask tối đa 1 cấp; xóa cha cần xác nhận (89.7126ms)
+  ✔ phụ thuộc: không tự liên kết, không khác dự án, không chu trình (101.7995ms)
+  ✔ bình luận: nội dung HTML bị loại bỏ, chỉ sửa được của mình (162.4758ms)
+✔ Công việc & Kanban (U009, U010, U013, U018) (633.554ms)
+▶ Sprint 1 Hoàng Anh — quyền dự án và workflow (U006-T1, U008-T1, U010-T1)
+  ✔ Member/Viewer không tạo project; creator là PM trong cùng transaction (243.5088ms)
+  ✔ hai request tạo workspace cùng tên đều thành công, slug không trùng (79.1818ms)
+  ✔ PM archive làm project chỉ đọc với cả PM; Member không restore (238.4924ms)
+  ✔ không hạ Workspace Viewer cho PM cuối; transaction và audit không ghi thay đổi thất bại (95.1615ms)
+  ✔ Admin ngoài project không đọc được project/task/file/metrics/search/activity (279.0599ms)
+  ✔ không nhận member ngoài workspace và không nâng Workspace Viewer thành PM/Member (133.4031ms)
+  ✔ PM cuối không bị gỡ/hạ quyền/rời workspace trước khi chuyển giao (233.3986ms)
+  ✔ hai PM hạ quyền nhau đồng thời vẫn giữ ít nhất một PM (184.5635ms)
+  ✔ gỡ thành viên bỏ gán task; project và bảng thành viên luôn đồng bộ (137.9981ms)
+  ✔ Member chỉ đổi trạng thái task mình nhận; chỉ PM duyệt Done/reopen (326.3338ms)
+  ✔ cập nhật thiếu version bị từ chối; hai request cùng version chỉ một thành công (140.1956ms)
+  ✔ quyền progress trên Kanban/My Tasks/detail nhất quán (208.9817ms)
+✔ Sprint 1 Hoàng Anh — quyền dự án và workflow (U006-T1, U008-T1, U010-T1) (2301.0337ms)
+▶ Nhật ký & xuất dữ liệu (U020)
+  ✔ CSV chống chèn công thức (0.1385ms)
+  ✔ nhật ký không có API sửa/xóa (92.787ms)
+✔ Nhật ký & xuất dữ liệu (U020) (93.073ms)
+▶ Hoàng Anh Sprint 3 — planner và nguồn cảnh báo
+  ✔ U021: nháp chưa tạo task/notification; patch CAS, chọn người thủ công và duyệt đúng một lần (544.5829ms)
+  ✔ U021: từ chối project Viewer, mục không tồn tại, trùng key và trường không hỗ trợ (458.7219ms)
+[error] Error: Sprint3 simulated approval audit failure
+    at tx.activity.createMany (file:///D:/Desktop/Nhom24/OJT202/BackEnd/test/api.test.js:776:76)
+    at logActivityIn (file:///D:/Desktop/Nhom24/OJT202/BackEnd/src/services/activity.js:7:41)
+    at file:///D:/Desktop/Nhom24/OJT202/BackEnd/src/routes/ai.js:263:13
+    at async Proxy._transactionWithCallback (D:\Desktop\Nhom24\OJT202\BackEnd\node_modules\@prisma\client\runtime\library.js:130:8120)
+    at async file:///D:/Desktop/Nhom24/OJT202/BackEnd/src/routes/ai.js:183:42
+  ✔ U021: duyệt không được vượt số người tối đa; audit lỗi rollback toàn bộ task/sequence/nháp (487.5586ms)
+[ai] planner lỗi: [
+  {
+    "expected": "string",
+    "code": "invalid_type",
+    "path": [
+      "items",
+      0,
+      "description"
+    ],
+    "message": "Invalid input: expected string, received undefined"
+  },
+  {
+    "expected": "array",
+    "code": "invalid_type",
+    "path": [
+      "items",
+      0,
+      "acceptanceCriteria"
+    ],
+    "message": "Invalid input: expected array, received undefined"
+  },
+  {
+    "expected": "number",
+    "code": "invalid_type",
+    "path": [
+      "items",
+      0,
+      "estimateHours"
+    ],
+    "message": "Invalid input: expected number, received undefined"
+  },
+  {
+    "origin": "array",
+    "code": "too_small",
+    "minimum": 5,
+    "inclusive": true,
+    "path": [
+      "items"
+    ],
+    "message": "Too small: expected array to have >=5 items"
+  }
+]
+[error] HttpError: AI đang bận, vui lòng thử lại sau. Các chức năng khác vẫn hoạt động bình thường.
+    at runAi (file:///D:/Desktop/Nhom24/OJT202/BackEnd/src/services/ai/gateway.js:88:13)
+    at async file:///D:/Desktop/Nhom24/OJT202/BackEnd/src/routes/ai.js:98:15 {
+  status: 503,
+  details: { code: 'AI_UNAVAILABLE' }
+}
+  ✔ U021: HTTP AI sai schema trả 503, ghi lỗi và không tạo nháp/task (336.5545ms)
+  ✔ U026: biên quá hạn đúng mili giây; Blocked suy ra chỉ từ dependency quá hạn chưa Done (389.2959ms)
+  ✔ U026: tải đúng ngưỡng không cảnh báo; số 0 giờ khả dụng và remainingHours được tính đúng (387.7831ms)
+  ✔ U026: xử lý cần lý do/đúng nguồn, idempotent; chỉ nguồn liên quan thay đổi mới mở lại (599.2839ms)
+  ✔ U026: threshold có phiên bản, refresh không tạo hash giả; dismiss cũ thiếu nguồn không che cảnh báo (386.4928ms)
+✔ Hoàng Anh Sprint 3 — planner và nguồn cảnh báo (3590.843ms)
+▶ Trợ lý AI (U021–U027)
+  ✔ kế hoạch nháp 5–15 việc; không có hạn thì không tự đặt; duyệt nhiều lần không tạo trùng (167.8402ms)
+  ✔ hỏi đáp có nguồn; thiếu chứng cứ thì từ chối (134.939ms)
+  ✔ hỏi đáp không đọc được dự án không có quyền (78.1348ms)
+  ✔ báo cáo: số liệu tính từ DB (129.0241ms)
+  ✔ vượt hạn mức AI trả 429 nhưng CRUD vẫn hoạt động (110.4672ms)
+  ✔ ghi chú họp qua AIService: không rõ người/hạn thì để trống (95.1786ms)
+[ai] qa lỗi: fetch failed
+[error] HttpError: AI đang bận, vui lòng thử lại sau. Các chức năng khác vẫn hoạt động bình thường.
+    at runAi (file:///D:/Desktop/Nhom24/OJT202/BackEnd/src/services/ai/gateway.js:88:13)
+    at async file:///D:/Desktop/Nhom24/OJT202/BackEnd/src/routes/ai.js:471:15 {
+  status: 503,
+  details: { code: 'AI_UNAVAILABLE' }
+}
+  ✔ AIService không chạy: tính năng AI báo bận (503), CRUD vẫn hoạt động (100.0408ms)
+  ✔ cảnh báo rủi ro dựa trên quy tắc (136.1533ms)
+✔ Trợ lý AI (U021–U027) (952.3152ms)
+▶ Quản trị hệ thống (U028)
+  ✔ khóa tài khoản chặn phiên ngay và bắt buộc lý do; admin không đọc nội dung dự án (167.975ms)
+✔ Quản trị hệ thống (U028) (168.1419ms)
+▶ Rà soát vòng 2: thông báo và dữ liệu đầu vào
+  ✔ phân trang đủ 61 thông báo cùng thời điểm, không lặp và vẫn lọc quyền hiện tại (380.0967ms)
+  ✔ cursor và ngày phân trang sai trả 400 (320.3318ms)
+  ✔ tắt nhắc hạn chặn cả sắp hạn lẫn quá hạn, bật lại gửi được (312.7127ms)
+  ✔ chưa mở cài đặt vẫn áp dụng mặc định không nhận bình luận (304.4711ms)
+  ✔ TXT chứa NUL sau 512 byte bị chặn 400 và không lưu dở lô upload (320.5921ms)
+✔ Rà soát vòng 2: thông báo và dữ liệu đầu vào (1638.5664ms)
+▶ Rà soát 26/10: dữ liệu không hợp lệ và nhắc hạn dự án lưu trữ
+  ✔ NUL trong tên công việc, JSON checklist và hồ sơ trả 400, không lưu dở (309.9297ms)
+  ✔ dự án lưu trữ không gửi nhắc hạn; khôi phục vẫn gửi đúng một lần (465.0211ms)
+✔ Rà soát 26/10: dữ liệu không hợp lệ và nhắc hạn dự án lưu trữ (775.1553ms)
+▶ Rà soát 26/10 vòng 2: phạm vi thông báo và thời gian phiên
+  ✔ workspace sai không được biến read-all thành đánh dấu toàn bộ tài khoản (318.1098ms)
+  ✔ phiên trả lastUsedAt thực thay vì thời điểm sửa bản ghi (74.677ms)
+✔ Rà soát 26/10 vòng 2: phạm vi thông báo và thời gian phiên (392.9566ms)
+▶ Rà soát 25/10: thu hồi quyền và bảo toàn tài liệu
+  ✔ My Tasks trả quyền từng dự án và đếm hợp nhất việc cần xử lý (479.6782ms)
+  ✔ Admin bị hạ quyền sau middleware không thể đổi tên workspace (330.7155ms)
+  ✔ editor nhận đủ nội dung hơn 20.000 ký tự, kiểm quyền và version khi lưu (419.2181ms)
+  ✔ TXT lớn tải nguyên bản, không cho ghi đè từ phần nội dung đã cắt (382.7414ms)
+  ✔ TXT upload khôi phục được nguyên văn bản gốc sau chỉnh sửa (344.1698ms)
+  ✔ văn bản giữ nguyên markup và khoảng trắng; NUL bị từ chối rõ ràng (334.277ms)
+  ✔ đổi tên tăng version, chặn ghi đè tên cũ; revision sai định dạng trả 404 (360.8883ms)
+✔ Rà soát 25/10: thu hồi quyền và bảo toàn tài liệu (2652.1217ms)
+▶ Lộc: phân quyền và nghiệp vụ bổ sung
+  ✔ Member bị chặn Done qua cả create, PATCH và Kanban; PM phải duyệt từ Review (434.8777ms)
+  ✔ PM là Member vẫn được duyệt; Viewer không thể làm PM hoặc nhận task (374.5922ms)
+  ✔ gỡ khỏi project: bỏ giao task cha/con, tăng version, giữ audit và thu hồi API/file/AI/thông báo (400.849ms)
+  ✔ gỡ khỏi workspace: bỏ giao, gỡ PM và không để lại quyền dự án (430.1493ms)
+  ✔ hạ PM xuống Viewer: vẫn đọc được, không được ghi/duyệt/lưu trữ và task được bỏ giao (411.7933ms)
+  ✔ Admin không gỡ Admin khác hoặc sửa quyền cấp cao (340.8559ms)
+  ✔ hai Owner hạ quyền đồng thời: luôn còn một Owner và owner_id hợp lệ (329.651ms)
+  ✔ giao task đồng thời gỡ thành viên: không để lại assignee ngoài dự án (340.9393ms)
+  ✔ giao lại task đồng thời gỡ thành viên: version và assignee vẫn nhất quán (343.5804ms)
+  ✔ dữ liệu PM sai phải rollback cả bỏ giao và thay đổi thành viên (344.2518ms)
+  ✔ socket đang mở bị thu hồi khi gỡ thành viên, không join lại hoặc nhận sự kiện (345.9493ms)
+  ✔ Admin ngoài dự án bị chặn; gỡ membership thu hồi socket và API (362.2413ms)
+  ✔ logout chấm dứt socket đang mở (375.5497ms)
+  ✔ không lộ danh sách dự án riêng qua endpoint thành viên workspace (328.039ms)
+  ✔ nhận cùng lời mời đồng thời: chỉ một lần thành công; lời mời đã thu hồi/hết hạn bị chặn (381.697ms)
+  ✔ quá hạn theo thời điểm: hôm nay, đúng hạn, không hạn, Done và ngưỡng 0/1 ngày (415.6528ms)
+  ✔ 0 giờ khả dụng: có việc phải cảnh báo; không việc không cảnh báo; thiếu estimate được báo rõ (380.6089ms)
+  ✔ ngưỡng tải so sánh số thực trước khi làm tròn phần trăm (364.2858ms)
+  ✔ hai phụ thuộc ngược nhau được gửi đồng thời vẫn không tạo chu trình (345.6469ms)
+  ✔ bản nháp AI không giao việc cho Viewer hoặc người bị gỡ trong lúc duyệt (396.5945ms)
+  ✔ bản nháp AI chứa tiêu đề sai bị chặn trước khi tạo task và audit (358.5556ms)
+  ✔ thu hồi quyền khi AI đang xử lý: không trả nội dung và không lưu cuộc hỏi đáp (352.4404ms)
+  ✔ subtask/checklist không tự duyệt task cha; dữ liệu trống cho thống kê bằng 0 (432.0631ms)
+  ✔ refresh đồng thời chỉ xoay token một lần và phát hiện dùng lại (104.12ms)
+  ✔ AI plan/apply/report chỉ dành PM; Member được hỏi đáp, Viewer không ghi (560.2205ms)
+  ✔ AI plan: kiểm lại quyền hoặc nguồn sau khi dịch vụ trả về (402.3917ms)
+  ✔ AI meeting: kiểm lại quyền hoặc nguồn sau khi dịch vụ trả về (385.7145ms)
+  ✔ AI reports: kiểm lại quyền hoặc nguồn sau khi dịch vụ trả về (372.7145ms)
+  ✔ AI ask: kiểm lại quyền hoặc nguồn sau khi dịch vụ trả về (399.0362ms)
+  ✔ hạn mức AI đồng thời bao gồm lượt đang xử lý (493.2525ms)
+  ✔ quá hạn trong ngày đồng nhất giữa My Tasks, báo cáo và nhắc hạn (1669.2849ms)
+  ✔ Viewer không tạo/sửa/xóa bình luận; archived chặn cả tác giả; nội dung rỗng bị từ chối (479.9636ms)
+  ✔ Admin không gửi lại/thu hồi/thay thế lời mời Admin; resend vô hiệu token cũ (325.0063ms)
+  ✔ tải lô tệp sai rollback toàn bộ; TXT sau sửa tải đúng phiên bản; restore sai trả 404 (352.5374ms)
+  ✔ hai câu hỏi đồng thời không ghi đè mất lịch sử hội thoại (337.3041ms)
+  ✔ thu hồi phiên đồng thời refresh không để lại phiên con còn sống (146.2891ms)
+  ✔ hai System Admin khóa nhau đồng thời vẫn còn người quản trị hoạt động và audit đầy đủ (156.8168ms)
+✔ Lộc: phân quyền và nghiệp vụ bổ sung (14777.521ms)
+▶ Ngày giờ và nâng dependency — hồi quy bổ sung
+  ✔ API lưu date-only cuối ngày theo profile, giữ timestamp cụ thể khi cập nhật (132.8419ms)
+  ✔ API từ chối ngày không tồn tại, timestamp thiếu offset và timezone giả (105.2911ms)
+  ✔ báo cáo bao gồm đúng hết ngày VN, không lấn qua ngày tiếp theo (156.5335ms)
+  ✔ Sprint không được đảo ngày kể cả PATCH chỉ một đầu mốc (107.2893ms)
+✔ Ngày giờ và nâng dependency — hồi quy bổ sung (502.2413ms)
+▶ Tính hiện thời của nguồn AI
+  ✔ hỏi đáp cũ báo thay đổi và khóa link nguồn đã xóa; bản cũ chưa có revision báo unknown (159.6907ms)
+  ✔ report phát hiện sửa estimate và xóa task, vẫn giữ số liệu snapshot (188.731ms)
+✔ Tính hiện thời của nguồn AI (348.6277ms)
+▶ Vòng đời xác minh và giới hạn mật khẩu
+  ✔ xác minh một lần vô hiệu mọi link xác minh cũ, không dùng lại để đăng nhập (281.1895ms)
+  ✔ không nhận mật khẩu bị bcrypt cắt ở 72 byte, kể cả Unicode (3.881ms)
+✔ Vòng đời xác minh và giới hạn mật khẩu (285.2397ms)
+▶ Phiên đăng nhập và dữ liệu biên
+  ✔ Ghi nhớ đăng nhập quyết định cookie persistent; refresh không kéo dài quá hạn phiên (153.9048ms)
+  ✔ hai link xác minh khác nhau chạy đồng thời chỉ tạo một phiên (270.5809ms)
+  ✔ client trực tiếp không giả IP qua X-Forwarded-For để né rate limit (69.7679ms)
+  ✔ burndown giới hạn số điểm với khoảng cực lớn, Sprint một ngày không lấn ngày sau (129.4664ms)
+✔ Phiên đăng nhập và dữ liệu biên (623.9918ms)
+▶ Rủi ro: quyền sau AI và cập nhật đồng thời
+  ✔ AI đang chạy phải từ chối dữ liệu cũ: risk-revoked (241.0523ms)
+  ✔ AI đang chạy phải từ chối dữ liệu cũ: risk-source (258.7826ms)
+  ✔ AI đang chạy phải từ chối dữ liệu cũ: report-source (260.3361ms)
+  ✔ AI đang chạy phải từ chối dữ liệu cũ: report-risk-resolution (245.6175ms)
+  ✔ resolve chỉ nhận cảnh báo tồn tại, ghi audit; cập nhật hai quy tắc đồng thời không mất dữ liệu (294.0866ms)
+✔ Rủi ro: quyền sau AI và cập nhật đồng thời (1300.2235ms)
+✔ phân trang sai trả 400 thay vì lỗi Prisma 500 hoặc lấy ngược bản ghi (103.0533ms)
+▶ AI: hạn biên bản và giới hạn kế hoạch
+  ✔ biên bản qua HTTP và duyệt task giữ ngày ISO/cuối ngày profile, ngày sai để trống (146.3183ms)
+  ✔ kế hoạch 1 giờ hợp lệ, sửa vượt giới hạn bị chặn trước khi tạo task (219.972ms)
+  ✔ hạn kế hoạch đã qua không gọi AI; bản nháp không chọn việc không bị đánh dấu đã duyệt (105.945ms)
+✔ AI: hạn biên bản và giới hạn kế hoạch (472.4834ms)
+▶ Lộc Sprint 1: SMTP, giờ còn lại và xóa mềm
+  ✔ Sprint 1: token xác minh hết hạn không xác minh tài khoản hoặc tạo phiên (535.4431ms)
+[error] Error: Simulated AC audit failure
+    at tx.activity.createMany (file:///D:/Desktop/Nhom24/OJT202/BackEnd/test/api.test.js:2403:84)
+    at logActivityIn (file:///D:/Desktop/Nhom24/OJT202/BackEnd/src/services/activity.js:7:41)
+    at logTaskChanges (file:///D:/Desktop/Nhom24/OJT202/BackEnd/src/services/activity.js:59:17)
+    at file:///D:/Desktop/Nhom24/OJT202/BackEnd/src/routes/tasks.js:284:11
+    at async Proxy._transactionWithCallback (D:\Desktop\Nhom24\OJT202\BackEnd\node_modules\@prisma\client\runtime\library.js:130:8120)
+    at async applyUpdate (file:///D:/Desktop/Nhom24/OJT202/BackEnd/src/routes/tasks.js:252:26)
+    at async file:///D:/Desktop/Nhom24/OJT202/BackEnd/src/routes/tasks.js:329:20
+  ✔ Sprint 1: AC lưu qua create/read/update; tên rỗng và AC sai không ghi dữ liệu hoặc audit (492.546ms)
+  ✔ SMTP thực nhận email register/resend/verify và invite/resend/revoke/accept (1211.8247ms)
+[error] HttpError: Chưa gửi được email. Vui lòng thử gửi lại sau.
+    at sendMail (file:///D:/Desktop/Nhom24/OJT202/BackEnd/src/services/mailer.js:41:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async sendVerification (file:///D:/Desktop/Nhom24/OJT202/BackEnd/src/routes/auth.js:34:3)
+    at async file:///D:/Desktop/Nhom24/OJT202/BackEnd/src/routes/auth.js:50:3 {
+  status: 503,
+  details: { code: 'MAIL_UNAVAILABLE' }
+}
+[mail] Delivery unavailable; user may retry the recovery request.
+[mail] Delivery unavailable; user may retry the recovery request.
+  ✔ SMTP lỗi báo lỗi an toàn, có thể gửi lại; recovery không lộ tài khoản (978.2066ms)
+  ✔ remainingHours nhận 0/null, kiểm biên/quyền, audit và thống kê dùng số cập nhật (378.1702ms)
+  ✔ soft-delete giữ dữ liệu/audit, ẩn mọi luồng, không tái tạo hoặc sửa task đã xóa (588.8394ms)
+[error] Error: Simulated audit failure
+    at tx.activity.createMany (file:///D:/Desktop/Nhom24/OJT202/BackEnd/test/api.test.js:2554:72)
+    at logActivityIn (file:///D:/Desktop/Nhom24/OJT202/BackEnd/src/services/activity.js:7:41)
+    at file:///D:/Desktop/Nhom24/OJT202/BackEnd/src/routes/tasks.js:444:11
+    at async Proxy._transactionWithCallback (D:\Desktop\Nhom24\OJT202\BackEnd\node_modules\@prisma\client\runtime\library.js:130:8120)
+    at async file:///D:/Desktop/Nhom24/OJT202/BackEnd/src/routes/tasks.js:420:25
+  ✔ soft-delete rollback nếu audit thất bại; xóa/sửa đồng thời không phục hồi task (345.8793ms)
+✔ Lộc Sprint 1: SMTP, giờ còn lại và xóa mềm (4531.3901ms)
+▶ Lộc Sprint 2
+  ✔ Sprint2 hardening: checklist stale ưu tiên 409 và 50 mục không ghi dở (404.7327ms)
+  ✔ Sprint2 hardening: GET checklist đọc items và version cùng snapshot khi có writer (340.2694ms)
+  ✔ U005-T1/T3: SMTP reset một lần, hết hạn, đúng mục đích, thu hồi mọi phiên; profile whitelist (2549.915ms)
+  ✔ U011-T1: tìm mô tả, kết hợp bộ lọc, API chuẩn/legacy, không lộ private hoặc task xóa (478.7826ms)
+  ✔ U013-T1: checklist API, ID ổn định, version cạnh tranh, giới hạn và ACL (445.3747ms)
+[error] Error: Sprint2 simulated checklist audit failure
+    at tx.activity.createMany (file:///D:/Desktop/Nhom24/OJT202/BackEnd/test/api.test.js:2721:75)
+    at logActivityIn (file:///D:/Desktop/Nhom24/OJT202/BackEnd/src/services/activity.js:7:41)
+    at logTaskChanges (file:///D:/Desktop/Nhom24/OJT202/BackEnd/src/services/activity.js:59:17)
+    at file:///D:/Desktop/Nhom24/OJT202/BackEnd/src/routes/tasks.js:284:11
+    at async Proxy._transactionWithCallback (D:\Desktop\Nhom24\OJT202\BackEnd\node_modules\@prisma\client\runtime\library.js:130:8120)
+    at async applyUpdate (file:///D:/Desktop/Nhom24/OJT202/BackEnd/src/routes/tasks.js:252:26)
+    at async file:///D:/Desktop/Nhom24/OJT202/BackEnd/src/routes/tasks.js:362:16
+  ✔ U013-T1: không lấy checklist task khác, rollback nếu audit lỗi, subtask một cấp/cùng project (726.2805ms)
+  ✔ U014-T3/T1: XSS, sửa/xóa người khác, mention ngoài project và PM ẩn có audit (468.7373ms)
+  ✔ U016-T3 review: đổi hạn, chạy lại, offset múi giờ, Done và thành viên bị gỡ (506.2371ms)
+[error] Error: Sprint2 simulated moderation audit failure
+    at tx.activity.createMany (file:///D:/Desktop/Nhom24/OJT202/BackEnd/test/api.test.js:2803:87)
+    at logActivityIn (file:///D:/Desktop/Nhom24/OJT202/BackEnd/src/services/activity.js:7:41)
+    at file:///D:/Desktop/Nhom24/OJT202/BackEnd/src/routes/tasks.js:623:11
+    at async Proxy._transactionWithCallback (D:\Desktop\Nhom24\OJT202\BackEnd\node_modules\@prisma\client\runtime\library.js:130:8120)
+    at async file:///D:/Desktop/Nhom24/OJT202/BackEnd/src/routes/tasks.js:618:3
+  ✔ U014-T3: tài khoản khóa không được mention; lỗi audit không ẩn dở bình luận (345.7097ms)
+  ✔ U019-T3: dataset độc lập cho capacity 0, null/0, overdue, leaf/parent, Done và task xóa (484.9882ms)
+✔ Lộc Sprint 2 (6751.5928ms)
+▶ Hiệp – U012: Smoke test nền tảng cuối Sprint 1
+  ✔ luồng đăng ký → xác minh email → đăng nhập hoàn chỉnh (770.9333ms)
+  ✔ tạo workspace → tạo dự án → tạo task → đổi trạng thái Kanban (107.6358ms)
+  ✔ phân quyền demo: Viewer không ghi, người ngoài nhận 404 (423.9448ms)
+  ✔ tài khoản demo seed đăng nhập được với mật khẩu TaskFlow@2026 (283.446ms)
+  ✔ version conflict khi hai người sửa cùng task: 409 với dữ liệu mới (160.9723ms)
+✔ Hiệp – U012: Smoke test nền tảng cuối Sprint 1 (1747.2288ms)
+▶ Hiệp – U016: Thông báo & nhắc hạn (bổ sung)
+  ✔ giao task kích hoạt thông báo assigned; không gửi cho chính người giao (324.276ms)
+  ✔ dedupeKey ngăn thông báo trùng khi notify() gọi nhiều lần (293.7858ms)
+  ✔ tắt pref due_soon chặn cả due_soon lẫn overdue; bật lại gửi được (295.0313ms)
+  ✔ comment mặc định tắt; assigned và mentioned mặc định bật khi chưa có pref (298.1149ms)
+  ✔ đánh dấu đọc-tất-cả theo workspace chỉ đọc thông báo của workspace đó (85.9998ms)
+  ✔ runDueReminders không gửi trùng khi gọi nhiều lần; Done bị bỏ qua (655.6714ms)
+  ✔ thông báo lọc đúng theo quyền hiện tại: bị kick khỏi project thì mất thông báo (330.3237ms)
+  ✔ đánh dấu đọc đơn lẻ theo id; không ảnh hưởng thông báo khác (383.7246ms)
+✔ Hiệp – U016: Thông báo & nhắc hạn (bổ sung) (2667.389ms)
+▶ Hiệp – U020: Nhật ký hoạt động & xuất CSV (bổ sung)
+  ✔ nhật ký ghi đúng khi tạo/đổi trạng thái/giao task (349.5433ms)
+  ✔ Member chỉ thấy nhật ký dự án mình thuộc; người tạo proj thấy tất cả (344.0861ms)
+  ✔ lọc nhật ký theo ngày from/to hoạt động đúng (301.5952ms)
+  ✔ lọc nhật ký theo ngày sai định dạng trả 400 (297.3623ms)
+  ✔ nhật ký không có API sửa/xóa (chỉ thêm) (326.764ms)
+  ✔ xuất CSV: định dạng đúng, header tiếng Việt, dữ liệu có thể parse (328.3824ms)
+  ✔ CSV chống formula injection: =, +, -, @ bị escape (0.1649ms)
+  ✔ lọc nhật ký theo entityType trả đúng loại bản ghi (329.8258ms)
+  ✔ phân trang nhật ký: page/limit hoạt động đúng (337.6829ms)
+  ✔ người ngoài workspace không xem được nhật ký (565.5661ms)
+✔ Hiệp – U020: Nhật ký hoạt động & xuất CSV (bổ sung) (3181.5228ms)
+▶ Sprint 1: hợp đồng API v1 và acceptance_criteria văn bản
+  ✔ v1 dùng cùng ACL/CSRF, refresh/logout cookie đúng path và tương thích API cũ (163.2541ms)
+  ✔ văn bản nhiều dòng được lưu nguyên vẹn; validation, alias và xóa nội dung đúng (129.5281ms)
+✔ Sprint 1: hợp đồng API v1 và acceptance_criteria văn bản (292.9412ms)
+✔ U004-T3: auth production chặn request thứ 31; giả IP hoặc đổi alias API không vượt giới hạn (99.5747ms)
+✔ production never seeds public demo accounts, including explicit seed command (204.8855ms)
+✔ production refuses default and short signing secrets (105.1105ms)
+✔ date-only deadlines end at 23:59:59.999 Vietnam time, independently of host TZ (17.3968ms)
+✔ DST days are 23 or 25 hours, not fixed 24h (1.464ms)
+✔ week means Monday through Sunday, including year and DST boundaries (0.8783ms)
+✔ reject invalid calendar days, ambiguous timestamps and invalid timezone names (0.7798ms)
+✔ frontend formatting and calendar arithmetic use profile timezone (2.3805ms)
+[seed] Tạo dữ liệu demo Nhóm 24…
+[seed] Xong. Đăng nhập: mai.anh@nhom24.edu.vn / TaskFlow@2026  (System Admin: admin@taskflow.local)
+✔ migration nâng dữ liệu project cũ, giữ member/Viewer, PM và giờ còn lại (44856.0669ms)
+✔ U025: citation thể hiện thời điểm/version nguồn hiện tại và phát hiện nguồn thay đổi (1.1753ms)
+ℹ tests 194
+ℹ suites 26
+ℹ pass 194
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 152884.55
+
+> taskflow-client@1.0.0 test
+> node --import ./test/helpers/register-jsx.js --test test/*.test.js
+
+✔ 401 đang chờ từ phiên ẩn danh không đăng xuất phiên vừa xác minh (73.1172ms)
+✔ download: lỗi mạng được chuẩn hóa; hết phiên thật mới phát unauthorized (14.8742ms)
+✔ JSON sai hoặc kết nối đứt khi đọc body được báo bằng ApiError (14.7993ms)
+✔ download làm mới phiên và tải đủ byte; refresh 503 không đăng xuất (29.3838ms)
+✔ refresh gặp 503 không đăng xuất người dùng và không xoay token khi /me lỗi server (30.4905ms)
+✔ lỗi mạng trong refresh hoặc retry được chuẩn hóa thành ApiError (30.6933ms)
+✔ refresh trả 401 mới phát sự kiện hết phiên (30.9577ms)
+✔ nhiều request 401 đồng thời chỉ xoay refresh một lần (30.0618ms)
+✔ useLoad không giữ dữ liệu dự án trước khi dự án mới tải lỗi (17.9027ms)
+✔ reload cũ không được thay thế kết quả của phạm vi mới (3.7807ms)
+✔ quyền bị vô hiệu hóa chỉ tải lại đúng dự án và khóa ghi trong lúc chờ (3.8208ms)
+✔ quyền dự án không còn lấy từ cache cũ sau khi component đã đóng và resync (2.8207ms)
+✔ chọn lịch sử sau cùng thắng phản hồi cũ đến muộn (25.159ms)
+✔ mở lịch sử thất bại được báo trên giao diện, không reject khỏi handler (8.2834ms)
+✔ đổi dự án xóa kế hoạch đang mở và bỏ phản hồi tạo nháp cũ (13.5368ms)
+✔ báo cáo lưu lỗi giữ nguyên editor và nội dung để thử lại (75.2729ms)
+✔ mở báo cáo khác đóng editor cũ để không lưu nhầm nội dung sang báo cáo mới (19.5477ms)
+✔ hỏi đáp chặn Enter gửi lặp khi đang chờ và bỏ phản hồi sau Cuộc hỏi mới (30.938ms)
+✔ duyệt nháp phải chờ lưu checkbox và không duyệt khi còn sửa chưa lưu (3.7492ms)
+✔ overview shows overdue tasks and overload, and opens an overdue task (100.6092ms)
+✔ U016-T2: khóa lưu preference và read-all ngay cả khi click lặp trong cùng frame (67.8403ms)
+✔ U016-T2: trang tải thêm cũ không ghép vào tab mới (48.6978ms)
+✔ U020-T2: CSV lỗi giữ modal và bộ lọc, export không gửi hai request (25.3225ms)
+✔ U019 review: 409 giữ giờ đang nhập, tải lại rõ ràng rồi lưu version mới (16.4369ms)
+✔ U018-T1: blocker hoàn thành làm Kanban tải lại cờ Blocked từ DB (21.3118ms)
+✔ U021: lỗi 409 giữ nội dung sửa và version gốc; chỉ tải bản mới khi người dùng chọn (43.9963ms)
+✔ U021: duyệt gửi đúng version và dùng draft/version server trả về (8.7966ms)
+✔ U026: modal yêu cầu lý do, gửi sourceVersion và giữ lý do khi nguồn đã thay đổi (51.4674ms)
+✔ U026: diễn giải cũ không được hiển thị sau khi realtime trả phiên bản nguồn mới (17.1965ms)
+✔ U026: chuyển dự án không giữ modal xử lý của dự án trước (20.9127ms)
+✔ U026: phản hồi xử lý muộn của dự án cũ không đóng modal dự án mới (16.1698ms)
+✔ switches catalogs and dates at runtime, preserving interpolation values (24.5514ms)
+✔ stores preference and updates document language (0.6707ms)
+✔ translates server validation and risk templates without translating task titles (5.2312ms)
+✔ changing language updates the actual task form without losing its draft (46.2307ms)
+✔ U011: debounce chỉ lấy chuỗi cuối, hủy timer khi unmount (59.5566ms)
+✔ U014: lỗi gửi giữ bình luận và không reject; Ctrl+Enter không gửi lặp (7.2762ms)
+✔ U014: mention hỗ trợ mũi tên, Enter và Escape (4.3283ms)
+✔ U019: giờ trống không thành 0, giờ 0 được gửi đúng và lỗi giữ form (7.2367ms)
+✔ U011/U031: API lỗi không báo danh sách rỗng hoặc crash (53.4225ms)
+✔ U025: dùng API thống kê nhỏ, lỗi nguồn/lịch sử hiện rõ, không giả số 0 (12.8204ms)
+✔ U010-T2: thẻ có nút mở bằng bàn phím và select trạng thái đúng quyền (19.2315ms)
+✔ U010-T2: lỗi move chỉ rollback thẻ thất bại, giữ thẻ khác và khóa gửi lặp (76.0036ms)
+✔ U010-T3: Viewer không có kéo thả hoặc điều khiển ghi trên thẻ (9.2874ms)
+✔ U009-T2: phản hồi realtime đang chờ không ghi đè draft hoặc version gốc (82.816ms)
+✔ U009-T2: tạo task gửi đúng thuộc tính, chặn bấm lặp và giữ form khi API lỗi (19.8698ms)
+✔ U009-T2: chưa tải được quyền thì không gửi tạo công việc (4.5196ms)
+✔ Cài đặt AI: tải lần đầu thất bại có lỗi và Thử lại, không crash (37.3191ms)
+✔ Lời mời: tải lần đầu thất bại có lỗi và Thử lại, không crash (5.6848ms)
+✔ Cài đặt AI: bật tính năng và resync không xóa hạn mức/timeout đang nhập (24.0855ms)
+✔ Cài đặt AI: hạn mức trống không được lưu thành 0 (6.7856ms)
+✔ Cài đặt AI: lưu lỗi giữ dữ liệu, thử lại cho phép hạn mức 0 có chủ ý (9.7137ms)
+✔ Cài đặt AI: lỗi nhật ký có Thử lại và lỗi xuất CSV được báo (25.7499ms)
+✔ Lời mời: gửi lại và hủy lỗi được xử lý, giữ mục để thử lại (10.2851ms)
+✔ Hồ sơ: lỗi đổi mật khẩu không có fields vẫn được hiển thị (20.6447ms)
+✔ Hồ sơ: lỗi tải phiên có Thử lại, lỗi thu hồi phiên không thoát khỏi handler (11.9845ms)
+✔ Member gửi Review, không thể tự duyệt Done (1.9988ms)
+✔ PM chỉ được duyệt Done từ Review, có thể mở lại Done (2.2606ms)
+✔ Viewer, dự án archived hoặc chưa tải quyền không có thao tác ghi (0.3625ms)
+✔ My Tasks dùng quyền server: Member bắt đầu rồi gửi Review, không duyệt hoặc mở lại (0.8344ms)
+✔ Kanban và My Tasks cùng giới hạn PM duyệt Done sau Review (0.2967ms)
+✔ Sprint2 review: lỗi tải bình luận giữ composer và retry độc lập với draft task (141.8484ms)
+✔ Sprint2 review: xóa bình luận khóa click lặp, lỗi vẫn cho thử lại (27.6337ms)
+✔ Sprint2 review: phản hồi sửa bình luận cũ không đóng editor mới (17.241ms)
+✔ Sprint2 review: phản hồi giờ còn lại của task cũ không mở khóa lần lưu task mới (23.1905ms)
+✔ Sprint2 review: mở lại cùng bình luận vẫn giữ draft mới khi lần sửa cũ hoàn tất (16.079ms)
+✔ Sprint2 review: tải bình luận mới nhất thắng phản hồi cũ và giữ sự kiện realtime (13.4614ms)
+✔ Sprint2 review: 403 tải bình luận thu hồi nội dung và vô hiệu hóa mutation đang chờ (14.5607ms)
+✔ Sprint2 followup: lỗi tải/gỡ phụ thuộc được xử lý và có thể thử lại (18.3574ms)
+✔ Sprint2 followup: danh sách phụ thuộc đến muộn không lọt sang task mới (13.3761ms)
+✔ Sprint2 followup: gỡ phụ thuộc cũ không thay task đang mở (13.3129ms)
+✔ Sprint2 followup: dependency không nâng version của draft chưa lưu để ghi đè nội dung mới (14.1812ms)
+✔ Sprint2 followup: đổi trạng thái subtask khóa click lặp và không reload task cũ (12.6887ms)
+✔ Sprint2 followup: form sạch nhận nội dung mới sau thay đổi phụ thuộc (13.6935ms)
+✔ Sprint2 followup: thu hồi quyền vô hiệu hóa phản hồi ghi đang chờ (11.3728ms)
+✔ Sprint2 hardening: checklist khóa Enter lặp và giữ draft mới trong lúc chờ lưu (10.3455ms)
+✔ Sprint2 hardening: chuyển task xóa draft phụ; phản hồi task cũ không xóa draft task mới (12.5844ms)
+✔ Sprint2 hardening: Enter khi đang gõ IME không tạo checklist (6.3751ms)
+✔ Sprint2 hardening: GET cũ không phục hồi bình luận đã ẩn hoặc làm mất bình luận realtime mới (11.5376ms)
+✔ Sprint2 hardening: gửi bình luận task trước không chèn vào task đang mở (10.8207ms)
+✔ Sprint2 hardening: tạo subtask chỉ gửi một lần và không xóa draft task mới (14.2408ms)
+✔ P2: a pending realtime reload must preserve edits started while it was loading (10.9347ms)
+✔ out-of-order realtime responses cannot replace the newest task (11.0536ms)
+✔ explicit reload discards the old draft but keeps edits started during the reload (17.351ms)
+ℹ tests 84
+ℹ suites 0
+ℹ pass 84
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 42234.2568

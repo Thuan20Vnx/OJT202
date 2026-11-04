@@ -185,8 +185,8 @@ export async function nextSeq(name, db = prisma) {
 }
 
 /** Đếm theo nhóm, trả { [giá trị]: số lượng } */
-export async function countBy(model, field, where) {
-  const rows = await prisma[model].groupBy({ by: [field], where, _count: { _all: true } });
+export async function countBy(model, field, where, db = prisma) {
+  const rows = await db[model].groupBy({ by: [field], where, _count: { _all: true } });
   return Object.fromEntries(rows.map((r) => [r[field], r._count._all]));
 }
 

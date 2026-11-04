@@ -136,13 +136,23 @@ test('Như Sprint 2–4: My Tasks, comment retry/mention, nguồn tài liệu AI
   } finally { await ctx.close(); }
 });
 
-test('Lộc Sprint 2: tìm mô tả, checklist, PM ẩn bình luận và phụ thuộc thử lại khi lỗi', { timeout: 90000 }, async () => {
+test('Lộc Sprint 2: tìm mô tả, checklist, PM ẩn bình luận và phụ thuộc thử lại khi lỗi', { timeout: 90000 }, async (t) => {
   const { page, ctx } = await context();
   try {
     await login(page, 'mai.anh@nhom24.edu.vn');
     const headers = { 'x-taskflow': '1' };
-    const response = await ctx.request.post(`/api/v1/workspaces/${seed.workspace.id}/projects`, { headers, data: { name: 'Loc Sprint2 E2E', keyPrefix: 'LSP', members: [seed.users.nhu.id] } });
+    const projectUrl = `/api/v1/workspaces/${seed.workspace.id}/projects`;
+    // Seed: Mai Anh owns the workspace; Như is already a workspace member.
+    // Sprint numbers belong in the name: keyPrefix only accepts 2–5 letters.
+    const projectData = { name: 'Loc Sprint2 E2E', keyPrefix: 'LSP', members: [seed.users.nhu.id] };
+    const invalid = await ctx.request.post(projectUrl, { headers, data: { ...projectData, keyPrefix: 'LSP2' } });
+    assert.equal(invalid.status(), 400, await invalid.text());
+    const invalidBody = await invalid.json();
+    assert.equal(invalidBody.details.fields.keyPrefix, 'Mã dự án gồm 2–5 chữ cái');
+    t.diagnostic(`LSP2 -> HTTP ${invalid.status()}: ${invalidBody.details.fields.keyPrefix}`);
+    const response = await ctx.request.post(projectUrl, { headers, data: projectData });
     assert.equal(response.status(), 201, await response.text());
+    t.diagnostic(`LSP -> HTTP ${response.status()} with the same seeded owner and member`);
     const project = (await response.json()).project;
     const created = await ctx.request.post(`/api/v1/projects/${project._id}/tasks`, { headers, data: { title: 'Nghiệm thu checklist', description: 'Từ khóa riêng loc2description', assignee: seed.users.maianh.id } });
     assert.equal(created.status(), 201);

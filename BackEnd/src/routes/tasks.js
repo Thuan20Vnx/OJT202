@@ -41,7 +41,7 @@ const taskFields = {
 const STALE_MSG = 'Công việc vừa được người khác cập nhật. Dữ liệu đã được tải lại.';
 
 /** Nạp người nhận/người tạo/phụ thuộc + đếm việc con, bình luận, tệp – tất cả chạy song song trong một lượt */
-async function enrich(tasks, access, userId) {
+async function enrich(tasks, access, userId, db = prisma) {
   const permissions = access ? new Map(tasks.map((t) => [t.id, taskPermissions(access, userId, t)])) : null;
   const ids = tasks.map((t) => t.id);
   const [, subs, comments, files, checklists] = await Promise.all([
@@ -49,11 +49,11 @@ async function enrich(tasks, access, userId) {
       ['assignee', 'user', USER],
       ['creator', 'user', USER],
       ['blockedBy', 'task', { key: true, title: true, status: true, dueDate: true, assignee: true }],
-    ]),
-    subtaskCounts(ids),
-    countBy('comment', 'task', { task: { in: ids }, deletedAt: null }),
-    countBy('document', 'task', { task: { in: ids } }),
-    checklistMap(ids),
+    ], db),
+    subtaskCounts(ids, db),
+    countBy('comment', 'task', { task: { in: ids }, deletedAt: null }, db),
+    countBy('document', 'task', { task: { in: ids } }, db),
+    checklistMap(ids, db),
   ]);
   return tasks.map((t) => ({
     ...t,
@@ -67,9 +67,11 @@ async function enrich(tasks, access, userId) {
 }
 
 async function loadTask(id) {
-  const t = await prisma.task.findUnique({ where: { deletedAt: null, id } });
-  if (!t) throw notFound('Không tìm thấy công việc');
-  return t ? (await enrich([t]))[0] : null;
+  return prisma.$transaction(async (tx) => {
+    const t = await tx.task.findUnique({ where: { deletedAt: null, id } });
+    if (!t) throw notFound('Không tìm thấy công việc');
+    return (await enrich([t], null, null, tx))[0];
+  }, { isolationLevel: 'RepeatableRead' });
 }
 
 async function assertAssignee(project, assignee, db = prisma) {
@@ -211,18 +213,19 @@ router.post('/projects/:projectId/tasks', middlewareProject(), async (req, res) 
 
 // ---------- Chi tiết ----------
 router.get('/tasks/:id', async (req, res) => {
-  const access = await taskAccess(req.user.id, req.params.id);
+  const result = await prisma.$transaction(async (tx) => {
+  const access = await taskAccess(req.user.id, req.params.id, tx);
   const { task, canWrite, canManage, role, project, projectRole } = access;
   // Mỗi phần tải song song rồi tự nạp dữ liệu liên quan – tổng cộng 2 lượt đi-về tới DB
   const [[full], subtasks, blocking, files, activity, parent] = await Promise.all([
-    enrich([{ ...task }]),
-    prisma.task.findMany({ where: { deletedAt: null, parent: task.id }, orderBy: { number: 'asc' } }).then((r) => populate(r, 'assignee', 'user', USER)),
-    prisma.task.findMany({ where: { deletedAt: null, blockedBy: { has: task.id } }, select: { id: true, key: true, title: true, status: true, dueDate: true } }),
-    prisma.document.findMany({ where: { task: task.id }, omit: { storageKey: true }, orderBy: { createdAt: 'desc' } }).then((r) => populate(r, 'uploadedBy', 'user', USER)),
-    prisma.activity.findMany({ where: { entityType: 'task', entityId: task.id }, orderBy: { createdAt: 'desc' }, take: 50 }).then((r) => populate(r, 'actor', 'user', USER)),
-    task.parent ? prisma.task.findUnique({ where: { deletedAt: null, id: task.parent }, select: { id: true, key: true, title: true } }) : null,
+    enrich([{ ...task }], null, null, tx),
+    tx.task.findMany({ where: { deletedAt: null, parent: task.id }, orderBy: { number: 'asc' } }).then((r) => populate(r, 'assignee', 'user', USER, tx)),
+    tx.task.findMany({ where: { deletedAt: null, blockedBy: { has: task.id } }, select: { id: true, key: true, title: true, status: true, dueDate: true } }),
+    tx.document.findMany({ where: { task: task.id }, omit: { storageKey: true }, orderBy: { createdAt: 'desc' } }).then((r) => populate(r, 'uploadedBy', 'user', USER, tx)),
+    tx.activity.findMany({ where: { entityType: 'task', entityId: task.id }, orderBy: { createdAt: 'desc' }, take: 50 }).then((r) => populate(r, 'actor', 'user', USER, tx)),
+    task.parent ? tx.task.findUnique({ where: { deletedAt: null, id: task.parent }, select: { id: true, key: true, title: true } }) : null,
   ]);
-  res.json({
+  return {
     task: full,
     subtasks,
     blocking,
@@ -230,7 +233,9 @@ router.get('/tasks/:id', async (req, res) => {
     files,
     activity,
     access: { ...taskPermissions(access, req.user.id), canWrite, canManage, role, projectRole, archived: project.status === 'archived' },
-  });
+  };
+  }, { isolationLevel: 'RepeatableRead' });
+  res.json(result);
 });
 
 const ACTIVITY_LABELS = {
@@ -244,7 +249,7 @@ const ACTIVITY_LABELS = {
  * hai người cùng sửa thì người sau nhận 409 kèm bản mới để UI tải lại, không ghi đè lẫn nhau.
  */
 async function applyUpdate(req, before, project, patch, prepare) {
-  const task = await withWorkspaceLock(project.workspace, async (tx) => {
+  const { task, full } = await withWorkspaceLock(project.workspace, async (tx) => {
     const access = await taskAccess(req.user.id, before.id, tx);
     assertWrite(access);
     if (access.task.version !== before.version) throw conflict(STALE_MSG, { task: await loadTask(before.id) });
@@ -277,7 +282,11 @@ async function applyUpdate(req, before, project, patch, prepare) {
       task.checklist = await saveChecklist(task.id, checklist, tx);
     }
     await logTaskChanges({ task, actor: req.user.id, before, after: task, labels: ACTIVITY_LABELS }, tx);
-    return task;
+    // Capture the response while the workspace lock still protects this write.
+    // A read after commit could adopt another writer's version and silently
+    // rebase an older client form onto that version.
+    const [full] = await enrich([{ ...task }], null, null, tx);
+    return { task, full };
   });
 
   const notifications = [];
@@ -300,8 +309,7 @@ async function applyUpdate(req, before, project, patch, prepare) {
     }
   }
   // Nhật ký, thông báo và tải lại công việc (+ việc cha) chạy song song
-  const [full, parentFull] = await Promise.all([
-    loadTask(task.id),
+  const [parentFull] = await Promise.all([
     task.parent && loadTask(task.parent),
     ...notifications.map((n) => notify({ ...n, actor: req.user.id, workspace: task.workspace, project: task.project, task: task.id })),
   ]);

@@ -1,10 +1,38 @@
 # Sprint 2 — Nguyễn Bảo Lộc
 
-**Cập nhật mới nhất 03/11/2026:** xem [rà soát chi tiết bình luận, bản nháp và giờ còn lại](REVIEW_2026-11-03.md), cùng [đợt trước về phụ thuộc, subtask và phản hồi chậm](FOLLOWUP_2026-11-03.md). Các mốc bên dưới được giữ để truy vết.
+**Cập nhật mới nhất 04/11/2026:** đã chạy lại toàn bộ kiểm tra trước khi đẩy nhánh `Loc`, sau đợt điều tra HTTP 400 ở E2E Lộc Sprint 2. Các đợt trước: [rà soát bình luận, bản nháp và giờ còn lại](REVIEW_2026-11-03.md), [phụ thuộc, subtask và phản hồi chậm](FOLLOWUP_2026-11-03.md). Các mốc cũ được giữ để truy vết.
 
-**Kết quả hiện tại:** 299/299 test, 9/9 E2E; lint, typecheck và build đạt. Bàn giao local, chưa có nghiệm thu staging hoặc xác nhận độc lập của reviewer.
+**Mốc lịch sử 03/11/2026:** 299/299 test, 9/9 E2E; lint, typecheck và build đạt. Kết quả chạy lại ngày 04/11 được ghi riêng bên dưới. Bàn giao local, chưa có nghiệm thu staging hoặc xác nhận độc lập của reviewer.
 
-**Bản rà soát bổ sung:** xem [các lỗi đã tái hiện và sửa](HARDENING.md). Bộ test hiện tại tăng lên 285 ca; số liệu 277 ca phía dưới là mốc bàn giao ban đầu và được giữ để truy vết.
+## Kiểm tra trước khi đẩy Loc — 04/11/2026
+
+Theo yêu cầu đưa code lên nhánh Lộc, đợt này bao gồm cả bốn file source đã có thay đổi trong workspace: snapshot task/checklist nhất quán và trả đúng version của mutation; giữ form khi tải task lỗi, vô hiệu hóa request sau khi mất quyền; khóa gửi lặp và hiển thị lỗi gửi lại email reset. Giữ kiểm tra hồi quy mã project `LSP2`/`LSP`. Sinh lại OpenAPI/source manifest từ code đang bàn giao.
+
+| Kiểm tra | Kết quả | Bằng chứng |
+|---|---|---|
+| `npm test` | **299/299** = 21 AIService + 194 backend + 84 frontend; fail 0, skip 0 | [Log test trước push](evidence/2026-11-04-push-tests.txt) |
+| `npm run test:e2e` | **9/9**, fail 0, skip 0; typecheck và production build đạt | [Log E2E trước push](evidence/2026-11-04-push-e2e.txt) |
+| `npm --prefix FrontEnd run lint` | Đạt | [Log lint trước push](evidence/2026-11-04-push-lint.txt) |
+
+Đã fetch GitHub trước bàn giao: `origin/Loc` ở `b7c972b`, `origin/main` đã tiến tới `a3bcde0` qua 4 commit mới. Kết quả trên áp dụng cho code Loc trước khi ghép main; chưa chứng minh bản tích hợp với main mới nhất. Không reset dữ liệu dev, không force push.
+
+## Đối chiếu lỗi tạo project — 04/11/2026
+
+- Log [02/11 trước sửa](evidence/2026-11-02-e2e.txt) ghi `400 !== 201` tại bước tạo project. Nguyên nhân là fixture dùng mã dự án chứa chữ số, trái contract `keyPrefix` trong `BackEnd/src/routes/projects.js`: `/^[A-Z]{2,5}$/`, lỗi trường `keyPrefix` là `Mã dự án gồm 2–5 chữ cái`. Số sprint có thể nằm trong tên dự án, không nằm trong mã.
+- Đối chiếu `BackEnd/src/seed.js`: Mai Anh là workspace owner, Như là workspace member. POST tự thêm người tạo làm PM; `members: [seed.users.nhu.id]` hợp lệ. `/api/v1` và `/api` dùng chung router. Không có căn cứ sửa seed, quyền hoặc nới validation API.
+- Checkout bắt đầu lượt này ở `b7c972b`; fixture đã dùng `LSP` và assertion đã hiển thị response body từ commit `8d1f4fa`. [Chạy riêng ca Lộc trước thay đổi lần này](evidence/2026-11-04-e2e-before.txt) đạt **1/1**. Vì vậy lỗi 400 lịch sử không còn tái hiện với fixture hiện tại.
+- Bổ sung kiểm tra hồi quy trong chính scenario Lộc: gửi `LSP2` với cùng owner/member, xác nhận **400 và lỗi đúng trường `keyPrefix`**; gửi `LSP`, vẫn yêu cầu **201**, rồi tiếp tục toàn bộ assertion giao diện hiện có. Không đổi kỳ vọng thành 400 cho bước tạo project hợp lệ.
+
+Lượt chạy trong sandbox bị `EACCES` khi kết nối PostgreSQL localhost trước khi gọi API; chạy lại ngoài sandbox với PostgreSQL/uploads tạm riêng. Các kết quả bên dưới là chạy local, không dùng DB dev. Workspace có thay đổi chưa commit từ trước ở `BackEnd/src/db.js`, `BackEnd/src/routes/tasks.js`, `FrontEnd/src/components/TaskDetailModal.jsx`, `FrontEnd/src/pages/auth/ForgotPassword.jsx`; lượt này giữ nguyên các thay đổi đó.
+
+| Kiểm tra ngày 04/11 | Kết quả | Bằng chứng |
+|---|---|---|
+| E2E Lộc Sprint 2 sau bổ sung hồi quy | **1/1**, fail 0, skip 0; `LSP2` → 400 đúng trường, `LSP` → 201; toàn bộ luồng tìm mô tả/checklist/ẩn bình luận/phụ thuộc và giữ draft đạt | [Log E2E](evidence/2026-11-04-e2e-loc.txt), [ảnh checklist sau reload](evidence/2026-11-04-loc-sprint2-checklist.png) |
+| Typecheck backend/frontend + build frontend | Đạt (`npm run build`) | [Log build](evidence/2026-11-04-build.txt) |
+
+Lệnh chạy riêng ca liên quan: `node --test --test-concurrency=1 --test-name-pattern="Lộc Sprint 2" test/e2e/sprint1.test.mjs`. Đợt điều tra ban đầu chỉ chạy ca này; đợt chuẩn bị đẩy Loc sau đó đã chạy toàn bộ kiểm tra như bảng phía trên.
+
+**Mốc rà soát bổ sung 02/11:** xem [các lỗi đã tái hiện và sửa](HARDENING.md). Bộ test khi đó tăng lên 285 ca; số liệu 277 ca phía dưới là mốc bàn giao ban đầu và được giữ để truy vết.
 
 Ngày đối chiếu: 02/11/2026. Baseline trước triển khai: `396bb28aed1895d10f95705e9958b699bf8c8475` trên nhánh `Loc`, đã chứa code mới từ main của nhóm.
 

@@ -6760,7 +6760,7 @@
         ],
         "summary": "GET /projects/{projectId}/tasks",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/tasks.js:92",
+        "x-source": "BackEnd/src/routes/tasks.js:94",
         "parameters": [
           {
             "in": "path",
@@ -6905,7 +6905,7 @@
         ],
         "summary": "POST /projects/{projectId}/tasks",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/tasks.js:132",
+        "x-source": "BackEnd/src/routes/tasks.js:134",
         "parameters": [
           {
             "in": "path",
@@ -7109,7 +7109,7 @@
         ],
         "summary": "GET /projects/{projectId}/calendar",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/tasks.js:106",
+        "x-source": "BackEnd/src/routes/tasks.js:108",
         "parameters": [
           {
             "in": "path",
@@ -7205,7 +7205,7 @@
         ],
         "summary": "GET /tasks/{id}",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/tasks.js:213",
+        "x-source": "BackEnd/src/routes/tasks.js:215",
         "parameters": [
           {
             "in": "path",
@@ -7299,7 +7299,7 @@
         ],
         "summary": "PATCH /tasks/{id}",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/tasks.js:314",
+        "x-source": "BackEnd/src/routes/tasks.js:322",
         "parameters": [
           {
             "in": "path",
@@ -7513,7 +7513,7 @@
         ],
         "summary": "DELETE /tasks/{id}",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/tasks.js:408",
+        "x-source": "BackEnd/src/routes/tasks.js:416",
         "parameters": [
           {
             "in": "path",
@@ -7642,7 +7642,7 @@
         ],
         "summary": "GET /tasks/{id}/checklist",
         "description": "Readable project membership required. Returns items and task version.",
-        "x-source": "BackEnd/src/routes/tasks.js:324",
+        "x-source": "BackEnd/src/routes/tasks.js:332",
         "parameters": [
           {
             "in": "path",
@@ -7736,7 +7736,7 @@
         ],
         "summary": "POST /tasks/{id}/checklist",
         "description": "Project PM only, active project. Task version CAS; stale 409. Changes, task version and audit committed together. Response task includes checklist.",
-        "x-source": "BackEnd/src/routes/tasks.js:332",
+        "x-source": "BackEnd/src/routes/tasks.js:340",
         "parameters": [
           {
             "in": "path",
@@ -7873,7 +7873,7 @@
         ],
         "summary": "PATCH /checklist/{id}",
         "description": "Project PM only, active project. Task version CAS; stale 409. Changes, task version and audit committed together. Response task includes checklist.",
-        "x-source": "BackEnd/src/routes/tasks.js:350",
+        "x-source": "BackEnd/src/routes/tasks.js:358",
         "parameters": [
           {
             "in": "path",
@@ -8007,7 +8007,7 @@
         ],
         "summary": "DELETE /checklist/{id}",
         "description": "Project PM only, active project. Task version CAS; stale 409. Changes, task version and audit committed together. Response task includes checklist.",
-        "x-source": "BackEnd/src/routes/tasks.js:362",
+        "x-source": "BackEnd/src/routes/tasks.js:370",
         "parameters": [
           {
             "in": "path",
@@ -8123,7 +8123,7 @@
         ],
         "summary": "POST /tasks/{id}/move",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/tasks.js:374",
+        "x-source": "BackEnd/src/routes/tasks.js:382",
         "parameters": [
           {
             "in": "path",
@@ -8230,7 +8230,7 @@
         ],
         "summary": "GET /tasks/{id}/deletion-preview",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/tasks.js:397",
+        "x-source": "BackEnd/src/routes/tasks.js:405",
         "parameters": [
           {
             "in": "path",
@@ -8326,7 +8326,7 @@
         ],
         "summary": "POST /tasks/{id}/dependencies",
         "description": "Chỉ PM active. Cùng project, không self-link/chu trình; khóa workspace và kiểm lại quyền. Thêm lặp là no-op, không tăng version/audit.",
-        "x-source": "BackEnd/src/routes/tasks.js:477",
+        "x-source": "BackEnd/src/routes/tasks.js:485",
         "parameters": [
           {
             "in": "path",
@@ -8452,7 +8452,7 @@
         ],
         "summary": "DELETE /tasks/{id}/dependencies/{depId}",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/tasks.js:506",
+        "x-source": "BackEnd/src/routes/tasks.js:514",
         "parameters": [
           {
             "in": "path",
@@ -8567,7 +8567,7 @@
         ],
         "summary": "GET /tasks/{id}/comments",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/tasks.js:536",
+        "x-source": "BackEnd/src/routes/tasks.js:544",
         "parameters": [
           {
             "in": "path",
@@ -8661,7 +8661,7 @@
         ],
         "summary": "POST /tasks/{id}/comments",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/tasks.js:559",
+        "x-source": "BackEnd/src/routes/tasks.js:567",
         "parameters": [
           {
             "in": "path",
@@ -8786,7 +8786,7 @@
         ],
         "summary": "PATCH /comments/{id}",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/tasks.js:587",
+        "x-source": "BackEnd/src/routes/tasks.js:595",
         "parameters": [
           {
             "in": "path",
@@ -8891,7 +8891,7 @@
         ],
         "summary": "DELETE /comments/{id}",
         "description": "Author may delete own comment; project PM may hide others. Active writable project required. Soft-delete and audit in the same transaction; hidden comments excluded from reads/counts.",
-        "x-source": "BackEnd/src/routes/tasks.js:607",
+        "x-source": "BackEnd/src/routes/tasks.js:615",
         "parameters": [
           {
             "in": "path",
