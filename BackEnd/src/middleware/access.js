@@ -43,7 +43,7 @@ export async function projectAccess(userId, projectId, db = prisma) {
 /** Công việc + dự án + membership trong một truy vấn */
 export async function taskAccess(userId, taskId, db = prisma) {
   if (!isId(taskId)) throw notFound('Không tìm thấy công việc');
-  const found = await db.task.findUnique({ where: { deletedAt: null, id: taskId }, include: { projectRef: { include: withMembership(userId) } } });
+  const found = await db.task.findUnique({ where: { deletedAt: null, id: taskId }, include: { contributors: true, projectRef: { include: withMembership(userId) } } });
   if (!found) throw notFound('Không tìm thấy công việc');
   const { projectRef, ...task } = found;
   return { task, ...checkProject(projectRef, userId) };
@@ -69,7 +69,7 @@ export function assertManage(access) {
 
 // Dùng chung cho API và các view Kanban/list/detail; quyền ghi nội dung khác quyền đổi trạng thái.
 export function taskPermissions(access, userId, task = access.task) {
-  const canUpdate = access.canWrite && (access.projectRole === 'pm' || (task.assignee === userId && task.status !== 'done'));
+  const canUpdate = access.canWrite && (access.projectRole === 'pm' || ((task.assignee === userId || task.contributors?.some((c) => c.user === userId)) && task.status !== 'done'));
   const allowedStatuses = !canUpdate ? [] : access.projectRole === 'pm'
     ? ['todo', 'in_progress', 'review', ...(task.status === 'review' || task.status === 'done' ? ['done'] : [])]
     : ({ todo: ['todo', 'in_progress'], in_progress: ['todo', 'in_progress', 'review'], review: ['in_progress', 'review'] }[task.status] || []);

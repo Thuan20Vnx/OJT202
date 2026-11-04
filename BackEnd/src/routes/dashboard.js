@@ -53,8 +53,8 @@ router.get('/projects/:projectId/overview', middlewareProject(), async (req, res
 router.get('/projects/:projectId/overview.csv', middlewareProject(), async (req, res) => {
   const ov = await projectOverview(req.pa.project.id, { project: req.pa.project });
   const rows = [
-    ['Mã', 'Tên công việc', 'Trạng thái', 'Ưu tiên', 'Hạn chót', 'Hoàn thành lúc'],
-    ...ov.tasks.map((t) => [t.key, t.title, t.status, t.priority, t.dueDate ? dateKey(t.dueDate) : '', t.completedAt ? new Date(t.completedAt).toISOString() : '']),
+    ['Mã', 'Tên công việc', 'Trạng thái', 'Ưu tiên', 'Ngày bắt đầu kế hoạch', 'Ngày kết thúc kế hoạch', 'Ngày bắt đầu thực tế', 'Ngày kết thúc thực tế', 'Duyệt hoàn thành lúc'],
+    ...ov.tasks.map((t) => [t.key, t.title, t.status, t.priority, ...[t.plannedStartDate, t.dueDate, t.actualStartDate, t.actualEndDate].map((d) => d ? dateKey(d) : ''), t.completedAt ? new Date(t.completedAt).toISOString() : '']),
   ];
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
   res.setHeader('Content-Disposition', 'attachment; filename="tong-quan-du-an.csv"');

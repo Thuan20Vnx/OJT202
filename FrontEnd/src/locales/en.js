@@ -1,5 +1,9 @@
 // Interface translations only; project content is preserved.
 export const english = {
+  "Tiến độ & lịch": "Progress & schedule",
+  "Kế hoạch & thực tế": "Plan & actual",
+  "Tải thành viên": "Team workload",
+  "Lịch họp": "Meetings",
   'Origin không được phép': 'Origin is not allowed',
   'Nhật ký AI vượt 10.000 bản ghi; dùng API phân trang để xuất đầy đủ': 'AI logs exceed 10,000 records; use the paginated API for a complete export',
   'Token đã ghi nhận': 'Recorded tokens',
@@ -986,5 +990,15 @@ export const english = {
   "Chỉ xem nội dung dự án được cấp quyền, không thể chỉnh sửa hay kéo thả.": "View authorized projects only; cannot edit or drag tasks.",
   "Quản lý Member/Viewer và tạo dự án. Chỉ truy cập dự án đã được thêm vào.": "Manage Members/Viewers and create projects. Access only projects you have joined.",
   "Nhập điều kiện cần đạt để nghiệm thu công việc...": "Enter the conditions required to accept this task...",
-  "Chưa có tiêu chí nghiệm thu": "No acceptance criteria yet"
+  "Chưa có tiêu chí nghiệm thu": "No acceptance criteria yet",
+  "Ngày bắt đầu kế hoạch": "Planned start date",
+  "Ngày kết thúc kế hoạch": "Planned finish date",
+  "Ngày bắt đầu thực tế": "Actual start date",
+  "Ngày kết thúc thực tế": "Actual finish date",
+  "Kế hoạch và thực tế": "Plan and actual",
+  "Lịch công việc": "Task schedule",
+  "Cập nhật tiến độ thực tế": "Update actual progress",
+  "Lưu tiến độ thực tế": "Save actual progress",
+  "Đã cập nhật tiến độ thực tế": "Actual progress updated",
+  "Ngày kết thúc kế hoạch là hạn chót dùng cho lịch và nhắc hạn. Ngày thực tế có thể để trống khi chưa xác định.": "The planned finish date is used for calendars and reminders. Leave actual dates blank when unknown."
 };

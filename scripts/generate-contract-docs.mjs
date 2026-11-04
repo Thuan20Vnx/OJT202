@@ -5,7 +5,7 @@ import path from 'node:path';
 // Chạy từ repository root; chỉ đọc source và ghi tài liệu, không kết nối DB.
 const out = path.resolve('docs/design');
 await fs.mkdir(out, { recursive: true });
-const files = { auth: '/auth', me: '/me', workspaces: '/workspaces', capacity: '/workspaces', notifications: '/notifications', admin: '/admin', dev: '/dev', projects: '', tasks: '', documents: '', dashboard: '', ai: '' };
+const files = { auth: '/auth', me: '/me', workspaces: '/workspaces', capacity: '/workspaces', notifications: '/notifications', admin: '/admin', dev: '/dev', projects: '', tasks: '', documents: '', dashboard: '', ai: '', delivery: '' };
 const paths = {};
 const manifest = {};
 for (const dir of ['FrontEnd/src', 'BackEnd/src', 'AIService/src', 'shared', 'BackEnd/prisma']) {
@@ -47,6 +47,8 @@ const draftItem = { ...object({
   assignee: { type: ['string', 'null'], format: 'uuid' }, dueDate: { type: ['string', 'null'] }, selected: { type: 'boolean' },
 }, ['key']), additionalProperties: false };
 const taskFields = { acceptance_criteria: { type: 'string', maxLength: 10000, description: 'Tiêu chí nghiệm thu dạng văn bản nhiều dòng; chuỗi rỗng xóa nội dung. Không gửi đồng thời acceptanceCriteria.' }, acceptanceCriteria: { type: 'array', maxItems: 30, items: { type: 'string', minLength: 1, maxLength: 300 }, deprecated: true, description: 'Alias cho client cũ, được ghép bằng xuống dòng khi lưu.' }, title: { type: 'string', maxLength: 200 }, description: str, assignee: { type: ['string', 'null'] }, priority: { enum: ['low', 'medium', 'high'] }, dueDate: { type: ['string', 'null'] }, estimateHours: { type: ['number', 'null'], minimum: 0 }, remainingHours: { type: ['number', 'null'], minimum: 0 } };
+for (const field of ['plannedStartDate', 'actualStartDate', 'actualEndDate']) taskFields[field] = { type: ['string', 'null'], description: 'Ngày YYYY-MM-DD hoặc timestamp có múi giờ; actual không được ở ngày tương lai. Kết thúc không trước bắt đầu khi cả hai có giá trị.' };
+taskFields.dueDate.description = 'Ngày kết thúc kế hoạch (hạn chót); giữ tên dueDate để tương thích lịch/nhắc hạn.';
 const bodies = {
   '/auth/forgot-password:post': object({ email: { type: 'string', format: 'email' } }, ['email']),
   '/auth/reset-password:post': object({ token: str, password: str }, ['token', 'password']),
@@ -68,6 +70,22 @@ const bodies = {
   '/ai/drafts/{id}/discard:post': { ...object({ version }, ['version']), additionalProperties: false },
   '/projects/{projectId}/risks/resolve:post': { ...object({ key: { type: 'string', minLength: 1, maxLength: 100000 }, sourceVersion, reason: { type: 'string', minLength: 3, maxLength: 1000 }, title: { type: 'string', maxLength: 300, description: 'Tương thích client cũ; server dùng tiêu đề cảnh báo thật.' } }, ['key', 'sourceVersion', 'reason']), additionalProperties: false },
 };
+taskFields.workType = { enum: ['unclassified', 'development', 'testing', 'database', 'design', 'documentation', 'devops', 'research'] };
+bodies['/tasks/{id}:patch'].properties.workType = taskFields.workType;
+bodies['/projects/{projectId}/tasks:post'].properties.workType = taskFields.workType;
+const uuid = { type: 'string', format: 'uuid' };
+const hours = { type: 'number', minimum: 0, maximum: 1000 };
+const strictObject = (props, required) => ({ ...object(props, required), additionalProperties: false });
+const meetingFields = { title: { type: 'string', minLength: 1, maxLength: 200 }, agenda: { type: 'string', maxLength: 4000 }, location: { type: 'string', maxLength: 500 }, startAt: { type: 'string', format: 'date-time' }, endAt: { type: 'string', format: 'date-time' }, participants: { type: 'array', minItems: 1, maxItems: 20, items: uuid } };
+Object.assign(bodies, {
+  '/tasks/{id}/contributors:put': strictObject({ version, items: { type: 'array', maxItems: 20, items: strictObject({ user: uuid, responsibility: { type: 'string', minLength: 1, maxLength: 300 }, plannedHours: { ...hours, exclusiveMinimum: 0 }, remainingHours: hours }, ['user', 'responsibility', 'plannedHours', 'remainingHours']) } }, ['version', 'items']),
+  '/tasks/{id}/daily-updates/{date}:put': strictObject({ version: { type: 'integer', minimum: 0, description: '0 cho bản ghi mới; sửa gửi version của bản ghi' }, taskVersion: version, hours: { type: 'number', minimum: 0, maximum: 24 }, completed: { type: 'string', minLength: 1, maxLength: 2000 }, nextStep: { type: 'string', maxLength: 2000 }, blockers: { type: 'string', maxLength: 2000 }, progressPct: { type: 'integer', minimum: 0, maximum: 100 }, remainingHours: hours }, ['version', 'taskVersion', 'hours', 'completed', 'nextStep', 'blockers', 'progressPct', 'remainingHours']),
+  '/tasks/{id}/issues:post': strictObject({ title: { type: 'string', minLength: 1, maxLength: 200 }, severity: { enum: ['low', 'medium', 'high', 'critical'] }, cause: { type: 'string', minLength: 1, maxLength: 2000 }, action: { type: 'string', minLength: 1, maxLength: 2000 }, owner: { type: ['string', 'null'], format: 'uuid' } }, ['title', 'severity', 'cause', 'action', 'owner']),
+  '/tasks/{id}/issues/{issueId}:patch': strictObject({ version, status: { enum: ['open', 'resolved'] }, resolution: { type: 'string', maxLength: 2000, description: 'Bắt buộc có nội dung khi resolved' } }, ['version', 'status', 'resolution']),
+  '/projects/{projectId}/meetings:post': strictObject(meetingFields, Object.keys(meetingFields)),
+  '/projects/{projectId}/meetings/{meetingId}:put': strictObject({ ...meetingFields, version }, [...Object.keys(meetingFields), 'version']),
+  '/projects/{projectId}/meetings/{meetingId}/cancel:post': strictObject({ version }, ['version']),
+});
 taskFields.checklist = { type: 'array', maxItems: 50, items: checklistItem, description: 'Stored in checklist_items; send existing _id to preserve identity. No IDs remains supported for old clients.' };
 // The PATCH schema copies taskFields above, so include checklist explicitly there too.
 bodies['/tasks/{id}:patch'].properties.checklist = taskFields.checklist;

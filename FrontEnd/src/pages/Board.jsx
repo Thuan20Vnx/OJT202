@@ -8,6 +8,7 @@ import { useApp, useLoad, useToast } from '../lib/app.jsx';
 import { STATUS, STATUS_ORDER, dueInfo, fmtDate } from '../lib/format.js';
 import { useProjectInfo, useSocketEvent } from '../lib/hooks.js';
 import { taskActions } from '../lib/task-permissions.js';
+import { PRIORITY_RANK, WORK_TYPES } from '../lib/delivery.js';
 
 export function TaskCard({ task, draggable, onDragStart, onOpen, statuses = [], onMove, busy }) {
   useI18n();
@@ -41,6 +42,7 @@ export function TaskCard({ task, draggable, onDragStart, onOpen, statuses = [], 
           <Icon name="warning" size={14} className="mt-px" />{tr("Chờ ")}{task.blockedBy.filter((b) => b && b.status !== 'done').map((b) => b.key).join(', ')}
         </p>
       )}
+      {task.workType && <p className="mt-2 text-label-md text-slate-500">{WORK_TYPES[task.workType]}{task.contributors?.length > 1 ? ` · ${task.contributors.length} người thực hiện` : ''}</p>}
       {task.labels?.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-1">
           {task.labels.slice(0, 2).map((l) => (
@@ -98,6 +100,7 @@ export default function Board() {
   const toast = useToast();
   const navigate = useNavigate();
   const [filter, setFilter] = useState({ assignee: '', priority: '', search: '' });
+  const [sort, setSort] = useState('priority');
   const [over, setOver] = useState(null);
   const [drag, setDrag] = useState(null);
   const [creating, setCreating] = useState(null);
@@ -124,7 +127,7 @@ export default function Board() {
 
   const tasks = useMemo(() => {
     let list = data?.tasks || [];
-    if (filter.assignee) list = list.filter((t) => (filter.assignee === 'none' ? !t.assignee : t.assignee?._id === filter.assignee));
+    if (filter.assignee) list = list.filter((t) => (filter.assignee === 'none' ? !t.assignee && !t.contributors?.length : t.assignee?._id === filter.assignee || t.contributors?.some((c) => c.user === filter.assignee)));
     if (filter.priority) list = list.filter((t) => t.priority === filter.priority);
     if (filter.search) {
       const s = filter.search.toLowerCase();
@@ -136,7 +139,7 @@ export default function Board() {
   if (!project) return <Empty icon="folder_off" title={tr("Chưa có dự án")} action={<button className="btn-primary" onClick={() => navigate('/projects?new=1')}>{tr("Tạo dự án")}</button>} />;
 
   const canDrag = canWriteProject && role !== 'viewer';
-  const cols = STATUS_ORDER.map((s) => ({ status: s, tasks: tasks.filter((t) => t.status === s).sort((a, b) => a.order - b.order) }));
+  const cols = STATUS_ORDER.map((s) => ({ status: s, tasks: tasks.filter((t) => t.status === s).sort((a, b) => (sort === 'priority' ? (PRIORITY_RANK[a.priority] ?? 1) - (PRIORITY_RANK[b.priority] ?? 1) : 0) || a.order - b.order) }));
   const all = data?.tasks || [];
   const doneCount = all.filter((t) => t.status === 'done').length;
   const sprint = info?.project?.sprint;
@@ -147,6 +150,7 @@ export default function Board() {
     const task = all.find((t) => t._id === taskId);
     setDrag(null);
     if (!task || pendingMoves.current.has(taskId)) return;
+    if (task.status === status && sort === 'priority') { toast('Đổi sang thứ tự thủ công để sắp xếp trong cùng cột.', 'info'); return; }
     if (!taskActions(task, project, me).allowedStatuses.includes(status)) {
       toast(tr("Bạn chỉ chuyển được việc mình nhận đến Review. PM duyệt Done hoặc mở lại."), 'error');
       return;
@@ -202,7 +206,7 @@ export default function Board() {
             </div>
             {daysLeft != null && (
               <span className="flex items-center gap-1 text-body-sm text-slate-500">
-                <Icon name="event" size={16} />{tr(" Còn ")}{daysLeft}{tr(" ngày (kết thúc ")}{fmtDate(sprint.end)})
+                <Icon name="event" size={16} />{new Date(sprint.end) < new Date() ? 'Sprint đã kết thúc' : `Còn ${daysLeft} ngày`} ({fmtDate(sprint.end)})
               </span>
             )}
           </div>
@@ -220,6 +224,7 @@ export default function Board() {
             <Icon name="search" size={16} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
             <input className="input h-8 w-48 pl-8 text-body-sm" placeholder={tr("Lọc theo tên, mã...")} value={filter.search} onChange={(e) => setFilter({ ...filter, search: e.target.value })} />
           </div>
+          <Select aria-label="Sắp xếp công việc" className="input h-8 w-auto py-0 text-body-sm" value={sort} onChange={(e) => setSort(e.target.value)}><option value="priority">Ưu tiên cao trước</option><option value="manual">Thứ tự thủ công</option></Select>
           <Select className="input h-8 w-auto py-0 text-body-sm" value={filter.assignee} onChange={(e) => setFilter({ ...filter, assignee: e.target.value })}>
             <option value="">{tr("Mọi người nhận")}</option>
             <option value="none">{tr("Chưa giao")}</option>

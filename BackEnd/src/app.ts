@@ -21,6 +21,7 @@ import dashboardRoutes from './routes/dashboard.js';
 import aiRoutes from './routes/ai.js';
 import adminRoutes from './routes/admin.js';
 import devRoutes from './routes/dev.js';
+import deliveryRoutes from './routes/delivery.js';
 
 export function createApp(options: { staticDir?: string } = {}): express.Express {
   const app = express();
@@ -51,7 +52,7 @@ export function createApp(options: { staticDir?: string } = {}): express.Express
   api.use('/notifications', notificationRoutes);
   api.use('/admin', adminRoutes);
   if (!config.isProd) api.use('/dev', devRoutes);
-  api.use(projectRoutes, taskRoutes, documentRoutes, dashboardRoutes, aiRoutes);
+  api.use(projectRoutes, taskRoutes, documentRoutes, dashboardRoutes, aiRoutes, deliveryRoutes);
   api.use((_req, res) => res.status(404).json({ error: 'Không tìm thấy API' }));
   // Both paths share handlers, access checks and rate-limit state.
   app.use('/api/v1', api);

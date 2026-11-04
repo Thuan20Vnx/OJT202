@@ -121,6 +121,8 @@ export async function seedDemo() {
         sprint: project.sprint?.name || '',
         order: number,
         ...fields,
+        legacySpentHours: data.spentHours || 0,
+        progressPct: data.status === 'done' ? 100 : 0,
         checklistItems: { create: checklist.map((item, position) => ({ title: item.text, isDone: item.done, position })) },
         completedAt: data.status === 'done' ? data.completedAt || at(-1) : null,
       },

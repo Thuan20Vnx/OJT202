@@ -43,6 +43,8 @@ test('migration nâng dữ liệu project cũ, giữ member/Viewer, PM và giờ
   await db.prisma.$executeRawUnsafe('DROP TYPE "ProjectRole"');
   await db.prisma.$executeRawUnsafe('ALTER TABLE tasks DROP COLUMN "remainingHours"');
   await db.prisma.$executeRawUnsafe('ALTER TABLE tasks DROP COLUMN deleted_at');
+  await db.prisma.$executeRawUnsafe('ALTER TABLE tasks DROP COLUMN "plannedStartDate", DROP COLUMN "actualStartDate", DROP COLUMN "actualEndDate"');
+  await db.prisma.$executeRaw`DELETE FROM _prisma_migrations WHERE migration_name = '20261030090000_task_timeline'`;
   await db.prisma.$executeRaw`DELETE FROM _prisma_migrations WHERE migration_name = '20261029090000_task_soft_delete'`;
   await db.prisma.$executeRaw`DELETE FROM _prisma_migrations WHERE migration_name = '20261028090000_project_roles'`;
   const cli = createRequire(import.meta.url).resolve('prisma/build/index.js');
@@ -58,6 +60,9 @@ test('migration nâng dữ liệu project cũ, giữ member/Viewer, PM và giờ
   for (const task of await db.prisma.task.findMany()) {
     assert.equal(task.acceptanceCriteria, originalCriteria.get(task.id), 'migration giữ nguyên nội dung AC khi đổi array sang TEXT');
     assert.equal(task.deletedAt, null, 'migration preserves all existing tasks as active');
+    assert.equal(task.plannedStartDate, null, 'không suy diễn ngày bắt đầu kế hoạch');
+    assert.equal(task.actualStartDate, null, 'không suy diễn ngày bắt đầu thực tế');
+    assert.equal(task.actualEndDate?.toISOString() ?? null, task.status === 'done' ? task.completedAt?.toISOString() ?? null : null);
     assert.equal(task.remainingHours, task.status === 'done' ? 0 : task.estimateHours == null ? null : Math.max(0, task.estimateHours - task.spentHours));
   }
   const [column] = await db.prisma.$queryRaw`SELECT data_type FROM information_schema.columns WHERE table_name = 'tasks' AND column_name = 'acceptance_criteria'`;

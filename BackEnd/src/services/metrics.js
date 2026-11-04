@@ -84,7 +84,7 @@ export async function workload(projectId, given, now = new Date(), db = prisma) 
   const { end } = weekRange(now);
   const week = currentCapacityWeek(now);
   const [tasks, memberships, users, capacities, projectMembers] = await Promise.all([
-    db.task.findMany({ where: { deletedAt: null, project: projectId, status: { not: 'done' }, assignee: { not: null }, subtasks: { none: { deletedAt: null } } } }),
+    db.task.findMany({ where: { deletedAt: null, project: projectId, status: { not: 'done' }, OR: [{ assignee: { not: null } }, { contributors: { some: {} } }], subtasks: { none: { deletedAt: null } } }, include: { contributors: true } }),
     db.membership.findMany({ where: { workspace: project.workspace, user: { in: project.members } } }),
     db.user.findMany({ where: { id: { in: project.members } }, select: { id: true, name: true, email: true, title: true } }),
     db.weeklyCapacity.findMany({ where: { workspace: project.workspace, user: { in: project.members }, weekStart: capacityWeek(week) } }),
@@ -93,9 +93,9 @@ export async function workload(projectId, given, now = new Date(), db = prisma) 
   return users
     .map((u) => {
       const m = memberships.find((x) => x.user === u.id);
-      const all = tasks.filter((t) => t.assignee === u.id);
+      const all = tasks.filter((t) => t.contributors?.length ? t.contributors.some((c) => c.user === u.id) : t.assignee === u.id);
       const mine = all.filter((t) => t.dueDate && t.dueDate < end);
-      const hours = mine.reduce((s, t) => s + remaining(t), 0);
+      const hours = mine.reduce((s, t) => s + (t.contributors?.length ? t.contributors.find((c) => c.user === u.id)?.remainingHours || 0 : remaining(t)), 0);
       const capacity = capacities.find((c) => c.user === u.id);
       const available = capacity?.hours ?? m?.weeklyHours ?? 20;
       return {

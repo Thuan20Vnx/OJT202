@@ -122,8 +122,14 @@ erDiagram
     String assignee
     String creator
     DateTime dueDate
+    DateTime plannedStartDate
+    DateTime actualStartDate
+    DateTime actualEndDate
     Float estimateHours
     Float spentHours
+    Float legacySpentHours
+    String workType
+    Int progressPct
     Float remainingHours
     DateTime deletedAt
     String labels
@@ -144,6 +150,60 @@ erDiagram
     String title
     Boolean isDone
     Int position
+  }
+  TaskContributor {
+    String task
+    String user
+    String responsibility
+    Float plannedHours
+    Float remainingHours
+  }
+  TaskDailyUpdate {
+    String id PK
+    String task
+    String user
+    DateTime workDate
+    Float hours
+    String completed
+    String nextStep
+    String blockers
+    Int progressPct
+    Int version
+    DateTime createdAt
+    DateTime updatedAt
+  }
+  TaskIssue {
+    String id PK
+    String task
+    String reporter
+    String owner
+    String title
+    String severity
+    String cause
+    String action
+    String status
+    String resolution
+    Int version
+    DateTime createdAt
+    DateTime updatedAt
+  }
+  ProjectMeeting {
+    String id PK
+    String project
+    String creator
+    String title
+    String agenda
+    String location
+    DateTime startAt
+    DateTime endAt
+    String status
+    Int version
+    DateTime createdAt
+    DateTime updatedAt
+  }
+  MeetingParticipant {
+    String meeting
+    String user
   }
   Comment {
     DateTime deletedAt
@@ -328,6 +388,17 @@ erDiagram
   User |o--o{ Task : "creator"
   Task |o--o{ Task : "parent"
   Task ||--o{ ChecklistItem : "task"
+  Task ||--o{ TaskContributor : "task"
+  User ||--o{ TaskContributor : "user"
+  Task ||--o{ TaskDailyUpdate : "task"
+  User ||--o{ TaskDailyUpdate : "user"
+  Task ||--o{ TaskIssue : "task"
+  User ||--o{ TaskIssue : "reporter"
+  User |o--o{ TaskIssue : "owner"
+  Project ||--o{ ProjectMeeting : "project"
+  User ||--o{ ProjectMeeting : "creator"
+  ProjectMeeting ||--o{ MeetingParticipant : "meeting"
+  User ||--o{ MeetingParticipant : "user"
   Task ||--o{ Comment : "task"
   Project ||--o{ Comment : "project"
   User ||--o{ Comment : "author"
@@ -413,6 +484,12 @@ model User {
   riskResolutions    RiskResolution[]
   auditsDone         AdminAudit[]       @relation("AuditAdmin")
   auditsReceived     AdminAudit[]       @relation("AuditTarget")
+  contributions      TaskContributor[]
+  dailyUpdates       TaskDailyUpdate[]
+  issuesRaised       TaskIssue[]        @relation("IssueReporter")
+  issuesOwned        TaskIssue[]        @relation("IssueOwner")
+  meetingsCreated    ProjectMeeting[]
+  meetingInvites     MeetingParticipant[]
 
   @@map("users")
 }
@@ -601,6 +678,7 @@ model Project {
   aiConversations AiConversation[]
   riskResolutions RiskResolution[]
   memberships     ProjectMember[]
+  meetings        ProjectMeeting[]
 
   @@index([workspace])
   @@index([members], type: Gin)
@@ -642,8 +720,14 @@ model Task {
   assignee           String?    @map("assignee_id") @db.Uuid
   creator            String?    @map("creator_id") @db.Uuid
   dueDate            DateTime?
+  plannedStartDate   DateTime?
+  actualStartDate    DateTime?
+  actualEndDate      DateTime?
   estimateHours      Float?
   spentHours         Float      @default(0)
+  legacySpentHours   Float      @default(0)
+  workType           String     @default("unclassified") @db.VarChar(30)
+  progressPct        Int        @default(0)
   remainingHours     Float?
   deletedAt          DateTime?  @map("deleted_at")
   labels             String[]   @default([])
@@ -665,6 +749,9 @@ model Task {
   creatorRef    User?          @relation("TaskCreator", fields: [creator], references: [id], onDelete: SetNull)
   parentRef     Task?          @relation("Subtasks", fields: [parent], references: [id], onDelete: Cascade)
   subtasks      Task[]         @relation("Subtasks")
+  contributors  TaskContributor[]
+  dailyUpdates  TaskDailyUpdate[]
+  issues        TaskIssue[]
   comments      Comment[]
   checklistItems ChecklistItem[]
   documents     Document[]
@@ -697,6 +784,110 @@ model ChecklistItem {
 
   @@index([task, position])
   @@map("checklist_items")
+}
+```
+
+### TaskContributor
+
+```prisma
+model TaskContributor {
+  task           String @db.Uuid
+  user           String @db.Uuid
+  responsibility String @default("") @db.VarChar(300)
+  plannedHours   Float
+  remainingHours Float
+  taskRef Task @relation(fields: [task], references: [id], onDelete: Cascade)
+  userRef User @relation(fields: [user], references: [id], onDelete: Cascade)
+  @@id([task, user])
+  @@index([user])
+  @@map("task_contributors")
+}
+```
+
+### TaskDailyUpdate
+
+```prisma
+model TaskDailyUpdate {
+  id             String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  task           String @db.Uuid
+  user           String @db.Uuid
+  workDate       DateTime @db.Date
+  hours          Float
+  completed      String @db.VarChar(2000)
+  nextStep       String @default("") @db.VarChar(2000)
+  blockers       String @default("") @db.VarChar(2000)
+  progressPct    Int
+  version        Int @default(1)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  taskRef Task @relation(fields: [task], references: [id], onDelete: Cascade)
+  userRef User @relation(fields: [user], references: [id], onDelete: Cascade)
+  @@unique([task, user, workDate])
+  @@index([user, workDate])
+  @@map("task_daily_updates")
+}
+```
+
+### TaskIssue
+
+```prisma
+model TaskIssue {
+  id         String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  task       String @db.Uuid
+  reporter   String @db.Uuid
+  owner      String? @db.Uuid
+  title      String @db.VarChar(200)
+  severity   String @db.VarChar(20)
+  cause      String @db.VarChar(2000)
+  action     String @db.VarChar(2000)
+  status     String @default("open") @db.VarChar(20)
+  resolution String @default("") @db.VarChar(2000)
+  version    Int @default(1)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  taskRef Task @relation(fields: [task], references: [id], onDelete: Cascade)
+  reporterRef User @relation("IssueReporter", fields: [reporter], references: [id])
+  ownerRef User? @relation("IssueOwner", fields: [owner], references: [id], onDelete: SetNull)
+  @@index([task, status])
+  @@map("task_issues")
+}
+```
+
+### ProjectMeeting
+
+```prisma
+model ProjectMeeting {
+  id        String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  project   String @db.Uuid
+  creator   String @db.Uuid
+  title     String @db.VarChar(200)
+  agenda    String @default("") @db.VarChar(4000)
+  location  String @default("") @db.VarChar(500)
+  startAt   DateTime
+  endAt     DateTime
+  status    String @default("scheduled") @db.VarChar(20)
+  version   Int @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  projectRef Project @relation(fields: [project], references: [id], onDelete: Cascade)
+  creatorRef User @relation(fields: [creator], references: [id])
+  participants MeetingParticipant[]
+  @@index([project, startAt])
+  @@map("project_meetings")
+}
+```
+
+### MeetingParticipant
+
+```prisma
+model MeetingParticipant {
+  meeting String @db.Uuid
+  user    String @db.Uuid
+  meetingRef ProjectMeeting @relation(fields: [meeting], references: [id], onDelete: Cascade)
+  userRef User @relation(fields: [user], references: [id], onDelete: Cascade)
+  @@id([meeting, user])
+  @@index([user])
+  @@map("meeting_participants")
 }
 ```
 
