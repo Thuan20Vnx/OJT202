@@ -2451,3 +2451,125 @@ describe('Hiệp – U020: Nhật ký hoạt động & xuất CSV (bổ sung)', 
     assert.equal((await outsider.get(`/workspaces/${ws}/activity.csv`)).status, 404);
   });
 });
+
+// =============================================================================
+// Hiệp – U024: Kiểm chứng luồng AI và cộng tác trước khi đưa bản dùng thử
+// =============================================================================
+describe('Hiệp – U024: Kiểm chứng tích hợp luồng AI & cộng tác nhóm', () => {
+  test('luồng AI Planner -> duyệt nháp -> tạo task Kanban thành công', async () => {
+    const owner = await new Client().login('mai.anh@nhom24.edu.vn');
+    const pid = seed.projects.website.id;
+    // 1. Gửi yêu cầu lập kế hoạch AI
+    const res = await owner.post(`/projects/${pid}/ai/plan`, {
+      goal: 'Kiểm thử tích hợp hệ thống U024',
+      maxHours: 40,
+      people: 2,
+    });
+    assert.equal(res.status, 201);
+    const draft = res.data.draft;
+    assert.ok(draft._id);
+    assert.ok(draft.items.length >= 5);
+
+    // 2. Kiểm tra trạng thái nháp ban đầu
+    const draftBefore = await db.prisma.aiDraft.findUnique({ where: { id: draft._id } });
+    assert.equal(draftBefore.status, 'draft');
+
+    // 3. PM duyệt nháp -> tạo việc trên Kanban
+    const beforeCount = await db.prisma.task.count({ where: { project: pid, deletedAt: null } });
+    const approveRes = await owner.post(`/ai/drafts/${draft._id}/approve`);
+    assert.equal(approveRes.status, 200);
+    assert.ok(approveRes.data.created.length > 0);
+
+    // 4. Xác nhận số lượng task mới trong DB và trạng thái bản nháp chuyển thành 'approved'
+    const afterCount = await db.prisma.task.count({ where: { project: pid, deletedAt: null } });
+    assert.equal(afterCount, beforeCount + draft.items.length);
+    const draftAfter = await db.prisma.aiDraft.findUnique({ where: { id: draft._id } });
+    assert.equal(draftAfter.status, 'approved');
+  });
+
+  test('luồng AI Meeting: trích xuất việc và map đúng thành viên trong dự án', async () => {
+    const owner = await new Client().login('mai.anh@nhom24.edu.vn');
+    const pid = seed.projects.website.id;
+    const meetingRes = await owner.post(`/projects/${pid}/ai/meeting`, {
+      title: 'Biên bản họp sprint review',
+      text: 'Thuận: mình sẽ triển khai SSL gateway trước ngày mai\nNhư: em sẽ cập nhật wireframe Thông báo',
+    });
+    assert.equal(meetingRes.status, 201);
+    const items = meetingRes.data.draft.items;
+    assert.equal(items.length, 2);
+
+    // Thuận có hạn chót và map đúng assignee ID
+    const taskThuan = items.find((i) => i.assignee?._id === String(seed.users.thuan.id));
+    assert.ok(taskThuan, 'Phải nhận diện đúng thành viên Thuận');
+    assert.ok(taskThuan.dueDate, 'Thuận có hạn chót được trích xuất');
+
+    // Như được gán đúng
+    const taskNhu = items.find((i) => i.assignee?._id === String(seed.users.nhu.id));
+    assert.ok(taskNhu, 'Phải nhận diện đúng thành viên Như');
+  });
+
+  test('hỏi đáp AI có dẫn chứng nguồn; câu hỏi ngoài dự án thì từ chối', async () => {
+    const member = await new Client().login('thuan@nhom24.edu.vn');
+    const pid = seed.projects.website.id;
+    // Câu hỏi có dữ liệu trong dự án (TF-103)
+    const validAsk = await member.post(`/projects/${pid}/ai/ask`, {
+      question: 'Vì sao TF-103 đang bị chặn?',
+    });
+    assert.equal(validAsk.status, 200);
+    const msg = validAsk.data.conversation.messages.at(-1);
+    assert.equal(msg.refused, false);
+    assert.ok(msg.citations.length > 0, 'Phải có trích dẫn nguồn');
+
+    // Câu hỏi hoàn toàn không có trong dự án
+    const invalidAsk = await member.post(`/projects/${pid}/ai/ask`, {
+      question: 'Ngân sách marketing quý 3 là bao nhiêu?',
+    });
+    assert.equal(invalidAsk.status, 200);
+    const invalidMsg = invalidAsk.data.conversation.messages.at(-1);
+    assert.equal(invalidMsg.refused, true, 'Thiếu chứng cứ phải từ chối trả lời');
+  });
+
+  test('kiểm soát quyền: Viewer bị chặn duyệt nháp (404 vì draft của người khác); người ngoài nhận 404', async () => {
+    const viewer = await new Client().login('khanh.linh@nhom24.edu.vn');
+    const owner = await new Client().login('mai.anh@nhom24.edu.vn');
+    const pid = seed.projects.website.id;
+
+    // 1. Tạo 1 bản nháp bởi Owner
+    const res = await owner.post(`/projects/${pid}/ai/plan`, {
+      goal: 'Phân quyền kế hoạch test',
+      maxHours: 20,
+    });
+    const draftId = res.data.draft._id;
+
+    // 2. Viewer truy cập draft của Owner -> bị chặn 404 (ownDraft chỉ cho phép chính chủ)
+    const viewerApprove = await viewer.post(`/ai/drafts/${draftId}/approve`);
+    assert.equal(viewerApprove.status, 404);
+
+    // 3. Người ngoài nhóm truy cập hỏi đáp dự án -> 404
+    const outsider = new Client();
+    await outsider.post('/auth/register', { name: 'Outsider AI', email: `out-ai-${++fixtureNumber}@test.vn`, password: 'Password@2026', acceptTerms: true });
+    const mail = await db.prisma.outbox.findFirst({ where: { to: `out-ai-${fixtureNumber}@test.vn` } });
+    await outsider.post('/auth/verify-email', { token: new URL(mail.link).searchParams.get('token') });
+    assert.equal((await outsider.post(`/projects/${pid}/ai/ask`, { question: 'Bí mật dự án?' })).status, 404);
+  });
+
+  test('khả năng chịu lỗi: khi AIService bận (503), CRUD task vẫn hoạt động bình thường', async () => {
+    const c = await new Client().login('mai.anh@nhom24.edu.vn');
+    const pid = seed.projects.website.id;
+    const { config } = await import('../src/config.js');
+
+    // Giả lập AIService bị ngắt kết nối
+    const originalUrl = config.ai.serviceUrl;
+    config.ai.serviceUrl = 'http://127.0.0.1:1'; // cổng không có dịch vụ
+    const aiFail = await c.post(`/projects/${pid}/ai/ask`, { question: 'Thử nghiệm khi AIService sập' });
+    config.ai.serviceUrl = originalUrl; // khôi phục
+
+    assert.equal(aiFail.status, 503);
+    assert.equal(aiFail.data.details?.code, 'AI_UNAVAILABLE');
+
+    // Thao tác CRUD task cốt lõi vẫn hoàn toàn bình thường
+    const newTask = await c.post(`/projects/${pid}/tasks`, { title: 'Task kiểm tra CRUD khi AI sập' });
+    assert.equal(newTask.status, 201);
+    assert.ok(newTask.data.task._id);
+  });
+});
