@@ -4,9 +4,11 @@ Version 2026-10-30. Phạm vi: mã nguồn local và baseline `DN26_CPL_Mock_Pro
 
 ## Người dùng và quy trình
 
-Nhóm học tập/dự án nhỏ 5–20 người cần giao việc, trao đổi và báo cáo có nguồn. Workspace tách nhóm; project private yêu cầu cả workspace membership và project membership. Workspace Owner/Admin không tự có quyền đọc tất cả project. Người tạo dự án trở thành PM. System Admin quản tài khoản và audit, không được mặc định đọc nội dung dự án.
+Nhóm phát triển phần mềm khoảng 5–20 người cần giao việc, chia trách nhiệm coding/testing/database, theo dõi tiến độ, effort và các vấn đề gây trễ. Người dùng mục tiêu là PM, developer, tester và bên theo dõi dự án. Chức danh chuyên môn tách khỏi quyền truy cập PM/Member/Viewer; một người có thể có quyền khác nhau ở hai dự án. Workspace tách nhóm; project private yêu cầu cả workspace membership và project membership. Workspace Owner/Admin không tự có quyền đọc tất cả project. Người tạo dự án trở thành PM. System Admin quản tài khoản và audit, không được mặc định đọc nội dung dự án.
 
-Đăng ký → xác minh email → đăng nhập → workspace → project → tạo/giao task → bắt đầu → gửi Review → PM duyệt Done → dashboard/báo cáo. Lỗi mạng hoặc xung đột cần giữ nội dung đang nhập để người dùng quyết định tải lại.
+Phần bổ sung 03/11/2026: [phạm vi, công thức effort/workload, tiêu chí và kịch bản demo](../TEAM_DELIVERY_2026-11-03.md). Ngoài phạm vi: tính lương, ERP, timesheet để tính phí, đồng bộ Google/Outlook Calendar, video call, kiểm tra xung đột phòng họp và tự đánh giá hiệu suất cá nhân bằng giờ làm.
+
+Đăng ký → xác minh email → đăng nhập → workspace → project → tạo/giao task → bắt đầu → gửi Review → PM duyệt Done → dashboard/báo cáo. Lỗi mạng hoặc xung đột cần giữ nội dung đang nhập để người dùng quyết định tải lại. Cập nhật 30/10: task có bắt đầu/kết thúc kế hoạch và bắt đầu/kết thúc thực tế; [quy tắc ngày và migration](../TASK_DATES_2026-10-30.md).
 
 ## Yêu cầu chức năng và tiêu chí kiểm tra
 

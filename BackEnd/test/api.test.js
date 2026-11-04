@@ -67,6 +67,7 @@ class Client {
   get = (u) => this.req('GET', u);
   post = (u, b = {}) => this.req('POST', u, b);
   patch = (u, b) => this.req('PATCH', u, b);
+  put = (u, b) => this.req('PUT', u, b);
   del = (u) => this.req('DELETE', u);
   async login(email) {
     const r = await this.post('/auth/login', { email, password: DEMO_PASSWORD });
@@ -74,6 +75,123 @@ class Client {
     return this;
   }
 }
+
+describe('Nghiệp vụ nhóm phát triển: phân bổ, nhật ký, issue, workload và lịch họp', () => {
+  test('đồng thời xuyên workspace: không đặt trùng lịch và không ghi quá 24 giờ/người/ngày', async () => {
+    const a = await permissionFixture(), b = await permissionFixture();
+    const meeting = { title: 'Khung giờ kiểm thử đồng thời', agenda: '', location: '', startAt: '2091-01-01T02:00:00Z', endAt: '2091-01-01T03:00:00Z', participants: [seed.users.nhu.id] };
+    const bookings = await Promise.all([a.owner.post(`/projects/${a.pid}/meetings`, meeting), b.owner.post(`/projects/${b.pid}/meetings`, meeting)]);
+    assert.deepEqual(bookings.map((r) => r.status).sort(), [201, 409]);
+    const t1 = await a.create({ assignee: seed.users.nhu.id }), t2 = await b.create({ assignee: seed.users.nhu.id });
+    const log = { version: 0, hours: 13, completed: 'Ghi nhận kiểm thử tích hợp', nextStep: '', blockers: '', progressPct: 30, remainingHours: 5 };
+    const logs = await Promise.all([a.member.put(`/tasks/${t1._id}/daily-updates/2026-01-03`, { ...log, taskVersion: t1.version }), b.member.put(`/tasks/${t2._id}/daily-updates/2026-01-03`, { ...log, taskVersion: t2.version })]);
+    assert.deepEqual(logs.map((r) => r.status).sort(), [200, 400]);
+  });
+  test('phân bổ nhiều người: kiểm quyền, trùng người, trách nhiệm, phiên bản và task con', async () => {
+    const { owner, member, pid, create } = await permissionFixture();
+    const task = await create({ assignee: seed.users.nhu.id, workType: 'testing' });
+    const url = `/tasks/${task._id}/contributors`;
+    const items = [{ user: seed.users.nhu.id, responsibility: 'Viết test API', plannedHours: 6, remainingHours: 6 }, { user: seed.users.maianh.id, responsibility: 'Review test', plannedHours: 2, remainingHours: 2 }];
+    assert.equal((await member.put(url, { version: task.version, items })).status, 403);
+    assert.equal((await owner.put(url, { version: task.version, items: [items[0], items[0]] })).status, 400);
+    const saved = await owner.put(url, { version: task.version, items });
+    assert.equal(saved.status, 200, JSON.stringify(saved.data));
+    assert.equal(saved.data.task.estimateHours, 8);
+    assert.equal((await owner.put(url, { version: task.version, items })).status, 409);
+    const mine = await member.get(`/workspaces/${saved.data.task.workspace || (await db.prisma.project.findUnique({ where: { id: pid } })).workspace}/my-tasks?assignee=me`);
+    assert.ok(mine.data.items.some((t) => t._id === task._id));
+    assert.equal((await owner.patch(`/projects/${pid}`, { members: [seed.users.maianh.id, seed.users.dat.id, seed.users.linh.id] })).status, 200);
+    const revoked = (await owner.get(`/tasks/${task._id}/delivery`)).data;
+    assert.equal(revoked.contributors.length, 1);
+    assert.equal(revoked.task.estimateHours, 2);
+    assert.equal((await member.get(`/tasks/${task._id}/delivery`)).status, 404);
+    assert.ok(await db.prisma.activity.findFirst({ where: { entityId: task._id, action: 'Thu hồi phân bổ khi thành viên rời dự án' } }));
+    const parent = await create();
+    await create({ parent: parent._id });
+    assert.equal((await owner.put(`/tasks/${parent._id}/contributors`, { version: parent.version, items })).status, 400);
+  });
+
+  test('nhật ký sửa thay giờ cũ, không cộng trùng; tổng giờ/ngày, tiến độ độc lập và ACL', async () => {
+    const { owner, member, ws, create } = await permissionFixture();
+    const task = await create({ assignee: seed.users.nhu.id, spentHours: 1, estimateHours: 8 });
+    const date = '2026-01-01';
+    const url = `/tasks/${task._id}/daily-updates/${date}`;
+    const body = { version: 0, taskVersion: task.version, hours: 2, completed: 'Đã viết kiểm thử đăng nhập', nextStep: 'Test lỗi token', blockers: '', progressPct: 30, remainingHours: 6 };
+    const first = await member.put(url, body);
+    assert.equal(first.status, 200, JSON.stringify(first.data));
+    assert.equal((await member.put(url, body)).status, 409);
+    const delivery = (await member.get(`/tasks/${task._id}/delivery?date=${date}`)).data;
+    assert.equal(delivery.task.spentHours, 3);
+    assert.equal(delivery.task.progressPct, 30);
+    const edited = await member.put(url, { ...body, hours: 3, version: first.data.update.version, taskVersion: delivery.taskVersion });
+    assert.equal(edited.status, 200, JSON.stringify(edited.data));
+    const after = (await owner.get(`/tasks/${task._id}/delivery?date=${date}`)).data;
+    assert.equal(after.task.spentHours, 4);
+    assert.equal(after.total, 1);
+    assert.equal(after.loggedHours, 3);
+    assert.equal((await owner.patch(`/tasks/${task._id}`, { version: after.taskVersion, spentHours: 99 })).status, 400);
+    const second = await create({ assignee: seed.users.nhu.id });
+    assert.equal((await member.put(`/tasks/${second._id}/daily-updates/${date}`, { ...body, hours: 22, taskVersion: second.version })).status, 400);
+    assert.equal((await member.put(`/tasks/${second._id}/daily-updates/2099-01-01`, { ...body, taskVersion: second.version })).status, 400);
+    const viewer = await new Client().login('khanh.linh@nhom24.edu.vn');
+    assert.equal((await viewer.put(url, { ...body, taskVersion: after.taskVersion })).status, 403);
+    const workload = await member.get(`/workspaces/${ws}/team-workload`);
+    assert.equal(workload.status, 200, JSON.stringify(workload.data));
+  });
+
+  test('issue yêu cầu nguyên nhân/hướng xử lý; đóng có kết quả và kiểm phiên bản', async () => {
+    const { owner, member, other, create } = await permissionFixture();
+    const task = await create();
+    const url = `/tasks/${task._id}/issues`;
+    const body = { title: 'API đối tác chưa sẵn sàng', cause: 'Đối tác đổi contract', action: 'Dùng mock và xác nhận contract', severity: 'high', owner: seed.users.nhu.id };
+    assert.equal((await member.post(url, { ...body, cause: '' })).status, 400);
+    const r = await member.post(url, body);
+    assert.equal(r.status, 201, JSON.stringify(r.data));
+    const path = `${url}/${r.data.issue._id}`;
+    assert.equal((await other.patch(path, { version: 1, status: 'resolved', resolution: 'Xong' })).status, 403);
+    assert.equal((await member.patch(path, { version: 1, status: 'resolved', resolution: '' })).status, 400);
+    assert.equal((await owner.patch(path, { version: 1, status: 'resolved', resolution: 'Đã xác nhận contract và chạy test tích hợp' })).status, 200);
+    assert.equal((await member.patch(path, { version: 1, status: 'open', resolution: '' })).status, 409);
+  });
+
+  test('workload xuyên dự án: capacity tính một lần, effort chia đúng người, ẩn dự án ngoài quyền', async () => {
+    const { owner, member, ws, pid, create } = await permissionFixture();
+    const task = await create({ assignee: seed.users.nhu.id, dueDate: '2026-01-02', plannedStartDate: '2026-01-01' });
+    const allocated = await owner.put(`/tasks/${task._id}/contributors`, { version: task.version, items: [{ user: seed.users.nhu.id, responsibility: 'Coding', plannedHours: 6, remainingHours: 6 }, { user: seed.users.maianh.id, responsibility: 'Review', plannedHours: 2, remainingHours: 2 }] });
+    assert.equal(allocated.status, 200, JSON.stringify(allocated.data));
+    const p2 = await owner.post(`/workspaces/${ws}/projects`, { name: 'Dự án thứ hai', members: [seed.users.nhu.id] });
+    await owner.post(`/projects/${p2.data.project._id}/tasks`, { title: 'Task dự án hai', assignee: seed.users.nhu.id, estimateHours: 4, remainingHours: 4, dueDate: '2026-01-02' });
+    const hidden = await owner.post(`/workspaces/${ws}/projects`, { name: 'Dự án riêng' });
+    await owner.post(`/projects/${hidden.data.project._id}/tasks`, { title: 'Task không được lộ', estimateHours: 999 });
+    const r = await member.get(`/workspaces/${ws}/team-workload?week=2026-01-05`);
+    assert.equal(r.status, 200, JSON.stringify(r.data));
+    const user = r.data.people.find((p) => p.user._id === seed.users.nhu.id);
+    assert.equal(user.remainingHours, 10);
+    assert.equal(user.available, 20);
+    assert.equal(user.loadPct, 50);
+    assert.equal(user.roleByProject.length, 2);
+    assert.ok(r.data.people.every((p) => p.tasks.every((t) => t.project !== hidden.data.project._id)));
+    assert.equal((await member.get(`/projects/${pid}/delivery-timeline?limit=1`)).data.tasks.length, 1);
+  });
+
+  test('lịch họp: chống trùng xuyên dự án, hủy giải phóng lịch, kiểm quyền và stale version', async () => {
+    const { owner, member, other, ws, pid } = await permissionFixture();
+    const p2 = await owner.post(`/workspaces/${ws}/projects`, { name: 'Lịch dự án khác', members: [seed.users.nhu.id, seed.users.dat.id] });
+    const url = `/projects/${pid}/meetings`;
+    const body = { title: 'Review sprint', agenda: 'Kiểm tra tiến độ và blocker', location: 'Phòng A', startAt: '2090-01-01T02:00:00Z', endAt: '2090-01-01T03:00:00Z', participants: [seed.users.nhu.id] };
+    const r = await owner.post(url, body);
+    assert.equal(r.status, 201, JSON.stringify(r.data));
+    assert.equal((await member.post(`/projects/${p2.data.project._id}/meetings`, body)).status, 409);
+    assert.equal((await other.put(`${url}/${r.data.meeting._id}`, { ...body, version: 1 })).status, 403);
+    assert.equal((await owner.post(`${url}/${r.data.meeting._id}/cancel`, { version: 1 })).status, 200);
+    assert.equal((await owner.post(`${url}/${r.data.meeting._id}/cancel`, { version: 1 })).status, 409);
+    assert.equal((await member.post(`/projects/${p2.data.project._id}/meetings`, body)).status, 201);
+    assert.equal((await owner.post(url, { ...body, endAt: body.startAt })).status, 400);
+    const viewer = await new Client().login('khanh.linh@nhom24.edu.vn');
+    assert.equal((await viewer.post(url, body)).status, 403);
+    assert.equal((await viewer.get(url)).status, 200);
+  });
+});
 
 /** Đặt hạn mức AI/ngày của workspace demo (cột JSONB) */
 async function setDailyLimit(n) {
@@ -1228,6 +1346,52 @@ describe('Rà soát 26/10 vòng 2: phạm vi thông báo và thời gian phiên'
 });
 
 let fixtureNumber = 0;
+describe('Bốn mốc ngày công việc', () => {
+  test('PM quản kế hoạch; người nhận sửa thực tế, không sửa kế hoạch; kiểm version và audit', async () => {
+    const { owner, member, other, pid, create } = await permissionFixture();
+    const task = await create({ assignee: seed.users.nhu.id, plannedStartDate: '2026-10-01', dueDate: '2026-10-31', actualStartDate: '2020-01-02', actualEndDate: '2020-01-03' });
+    assert.ok(task.plannedStartDate && task.actualStartDate && task.actualEndDate);
+    assert.equal((await member.patch(`/tasks/${task._id}`, { version: task.version, plannedStartDate: '2026-10-02' })).status, 403);
+    assert.equal((await other.patch(`/tasks/${task._id}`, { version: task.version, actualStartDate: '2020-01-01' })).status, 403);
+    const changed = await member.patch(`/tasks/${task._id}`, { version: task.version, actualStartDate: '2020-01-01' });
+    assert.equal(changed.status, 200);
+    assert.equal(changed.data.task.actualStartDate, '2019-12-31T17:00:00.000Z');
+    assert.equal((await owner.patch(`/tasks/${task._id}`, { version: task.version, actualEndDate: '2020-01-04' })).status, 409);
+    const audit = await db.prisma.activity.findFirst({ where: { entityId: task._id, field: 'actualStartDate' } });
+    assert.ok(audit);
+    const csv = await owner.get(`/projects/${pid}/overview.csv`);
+    assert.match(csv.data, /Ngày bắt đầu kế hoạch/);
+    assert.match(csv.data, /Ngày kết thúc thực tế/);
+  });
+  test('ngày sai/đảo thứ tự/tương lai bị chặn cả khi tạo và sửa một đầu khoảng', async () => {
+    const { owner, pid, create } = await permissionFixture();
+    for (const fields of [{ plannedStartDate: '2026-11-01', dueDate: '2026-10-31' }, { actualStartDate: '2020-01-03', actualEndDate: '2020-01-02' }, { actualStartDate: '2099-01-01' }, { dueDate: '2026-02-30' }]) {
+      assert.equal((await owner.post(`/projects/${pid}/tasks`, { title: 'Ngày sai', ...fields })).status, 400);
+    }
+    const task = await create({ plannedStartDate: '2026-10-01', dueDate: '2026-10-31' });
+    const invalid = await owner.patch(`/tasks/${task._id}`, { version: task.version, plannedStartDate: '2026-11-01' });
+    assert.equal(invalid.status, 400);
+    assert.ok(invalid.data.details.fields.dueDate);
+    assert.equal((await owner.get(`/tasks/${task._id}`)).data.task.version, task.version);
+  });
+  test('kanban ghi bắt đầu, Done ghi kết thúc; mở lại giữ bắt đầu và xóa kết thúc', async () => {
+    const { owner, member, create } = await permissionFixture();
+    const task = await create({ assignee: seed.users.nhu.id });
+    const started = await member.post(`/tasks/${task._id}/move`, { version: task.version, status: 'in_progress', order: 1 });
+    assert.equal(started.status, 200);
+    assert.ok(started.data.task.actualStartDate);
+    const review = await member.patch(`/tasks/${task._id}`, { version: started.data.task.version, status: 'review' });
+    const done = await owner.patch(`/tasks/${task._id}`, { version: review.data.task.version, status: 'done' });
+    assert.equal(done.status, 200);
+    assert.ok(done.data.task.actualEndDate && done.data.task.completedAt);
+    const reopened = await owner.patch(`/tasks/${task._id}`, { version: done.data.task.version, status: 'todo' });
+    assert.equal(reopened.status, 200);
+    assert.equal(reopened.data.task.actualStartDate, started.data.task.actualStartDate);
+    assert.equal(reopened.data.task.actualEndDate, null);
+    assert.equal(reopened.data.task.completedAt, null);
+  });
+});
+
 async function permissionFixture() {
   const owner = await new Client().login('mai.anh@nhom24.edu.vn');
   const member = await new Client().login('nhu@nhom24.edu.vn');

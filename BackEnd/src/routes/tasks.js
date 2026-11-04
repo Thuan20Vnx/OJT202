@@ -13,6 +13,7 @@ import { BUSINESS_TIMEZONE, isDateInput, parseDate } from '../utils/dates.js';
 import { acceptanceCriteriaSchema, normalizeTaskInput } from '../services/acceptance-criteria.ts';
 import { checklistMap, checklistSchema, readChecklist, saveChecklist } from '../services/checklists.js';
 import { applyDueFilter, taskFilters, taskSearch } from '../services/task-filters.js';
+import { applyTaskDates, parseTaskDates } from '../services/task-dates.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -30,6 +31,10 @@ const taskFields = {
   priority: z.enum(['low', 'medium', 'high']),
   assignee: z.string().nullable(),
   dueDate: optDate,
+  workType: z.enum(['unclassified', 'development', 'testing', 'database', 'design', 'documentation', 'devops', 'research']),
+  plannedStartDate: optDate,
+  actualStartDate: optDate,
+  actualEndDate: optDate,
   estimateHours: z.number().min(0).max(1000).nullable(),
   remainingHours: z.number().min(0).max(1000).nullable(),
   spentHours: z.number().min(0).max(1000),
@@ -42,9 +47,11 @@ const STALE_MSG = 'Công việc vừa được người khác cập nhật. Dữ
 
 /** Nạp người nhận/người tạo/phụ thuộc + đếm việc con, bình luận, tệp – tất cả chạy song song trong một lượt */
 async function enrich(tasks, access, userId) {
+  const contributions = await prisma.taskContributor.findMany({ where: { task: { in: tasks.map((t) => t.id) } }, include: { userRef: { select: USER } } });
+  for (const task of tasks) task.contributors = contributions.filter((c) => c.task === task.id);
   const permissions = access ? new Map(tasks.map((t) => [t.id, taskPermissions(access, userId, t)])) : null;
   const ids = tasks.map((t) => t.id);
-  const [, subs, comments, files, checklists] = await Promise.all([
+  const [, subs, comments, files, checklists, logs] = await Promise.all([
     populateAll(tasks, [
       ['assignee', 'user', USER],
       ['creator', 'user', USER],
@@ -54,6 +61,7 @@ async function enrich(tasks, access, userId) {
     countBy('comment', 'task', { task: { in: ids }, deletedAt: null }),
     countBy('document', 'task', { task: { in: ids } }),
     checklistMap(ids),
+    countBy('taskDailyUpdate', 'task', { task: { in: ids } }),
   ]);
   return tasks.map((t) => ({
     ...t,
@@ -62,6 +70,7 @@ async function enrich(tasks, access, userId) {
     subtasks: subs[t.id] || { total: 0, done: 0 },
     commentCount: comments[t.id] || 0,
     fileCount: files[t.id] || 0,
+    hasDailyUpdates: (logs[t.id] || 0) > 0,
     isBlocked: (t.blockedBy || []).some((b) => b && b.status !== 'done'),
   }));
 }
@@ -139,7 +148,8 @@ router.post('/projects/:projectId/tasks', middlewareProject(), async (req, res) 
     }),
     normalizeTaskInput(req.body),
   );
-  if (body.dueDate !== undefined) body.dueDate = body.dueDate ? parseDate(body.dueDate, req.user.timezone, true) : null;
+  parseTaskDates(body, req.user.timezone);
+  applyTaskDates(body, {}, req.user.timezone);
   const { task, parent, project } = await withWorkspaceLock(req.pa.project.workspace, async (tx) => {
     const access = await projectAccess(req.user.id, req.pa.project.id, tx);
     assertManage(access);
@@ -165,6 +175,7 @@ router.post('/projects/:projectId/tasks', middlewareProject(), async (req, res) 
         description: plainText(body.description || '', 20000),
         dueDate: body.dueDate ?? null,
         remainingHours: body.remainingHours ?? body.estimateHours ?? null,
+        legacySpentHours: body.spentHours ?? 0,
         workspace: project.workspace,
         project: project.id,
         number,
@@ -256,11 +267,24 @@ async function applyUpdate(req, before, project, patch, prepare) {
     }
     const permissions = taskPermissions(access, req.user.id);
     if (!permissions.canUpdateProgress) throw forbidden('Chỉ được cập nhật công việc được giao cho mình');
-    if (!access.canManage && Object.keys(patch).some((k) => !['status', 'order', 'remainingHours'].includes(k))) throw forbidden('Chỉ PM được sửa nội dung công việc');
+    if (!access.canManage && Object.keys(patch).some((k) => !['status', 'order', 'remainingHours', 'actualStartDate', 'actualEndDate'].includes(k))) throw forbidden('Chỉ PM được sửa nội dung công việc');
     assertTaskStatus(access, patch.status, access.task.status);
     if (patch.status && !permissions.allowedStatuses.includes(patch.status)) throw forbidden('Chuyển trạng thái không hợp lệ');
+    applyTaskDates(patch, access.task, req.user.timezone);
+    if (patch.spentHours !== undefined && patch.spentHours !== access.task.spentHours) {
+      if (await tx.taskDailyUpdate.count({ where: { task: before.id } })) throw badRequest('Effort đã có nhật ký. Hãy sửa giờ trong nhật ký thay vì ghi đè tổng giờ.');
+      patch.legacySpentHours = patch.spentHours;
+    }
+    if (patch.assignee && access.task.contributors.length && !access.task.contributors.some((c) => c.user === patch.assignee)) throw badRequest('Hãy thêm người chịu trách nhiệm mới vào danh sách phân bổ trước');
+    if (access.task.contributors.length && patch.estimateHours !== undefined && patch.estimateHours !== access.task.estimateHours) throw badRequest('Giờ ước lượng được tính từ phân bổ từng người. Hãy sửa ở mục phân bổ effort.');
+    if (access.task.contributors.length && patch.remainingHours !== undefined && patch.status !== 'done') {
+      if (patch.remainingHours !== access.task.remainingHours) throw badRequest('Hãy cập nhật giờ còn lại theo từng người trong phân bổ effort hoặc nhật ký');
+      delete patch.remainingHours;
+    }
+    if (patch.status === 'done') patch.progressPct = 100;
+    else if (access.task.status === 'done' && patch.status) patch.progressPct = Math.min(99, access.task.progressPct);
     if ((patch.status ?? access.task.status) === 'done') patch.remainingHours = 0;
-    else if (access.task.status === 'done' && patch.status) patch.remainingHours = patch.remainingHours ?? null;
+    else if (access.task.status === 'done' && patch.status) patch.remainingHours = access.task.contributors.length ? access.task.contributors.reduce((sum, c) => sum + c.remainingHours, 0) : patch.remainingHours ?? null;
     if (patch.assignee !== undefined) await assertAssignee(access.project, patch.assignee, tx);
     if (patch.description !== undefined) patch.description = plainText(patch.description, 20000);
     if (patch.status && patch.status !== before.status) {
@@ -315,7 +339,7 @@ router.patch('/tasks/:id', async (req, res) => {
   const access = await taskAccess(req.user.id, req.params.id);
   assertWrite(access);
   const body = parse(z.object({ ...Object.fromEntries(Object.entries(taskFields).map(([k, v]) => [k, v.optional()])), version: z.number().int().min(1) }).strict(), normalizeTaskInput(req.body));
-  if (body.dueDate !== undefined) body.dueDate = body.dueDate ? parseDate(body.dueDate, req.user.timezone, true) : null;
+  parseTaskDates(body, req.user.timezone);
   const { version, ...patch } = body;
   if (version !== access.task.version) throw conflict(STALE_MSG, { task: await loadTask(access.task.id) });
   res.json({ task: await applyUpdate(req, access.task, access.project, patch) });

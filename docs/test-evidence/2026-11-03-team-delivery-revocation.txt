@@ -1,0 +1,13 @@
+[seed] Tạo dữ liệu demo Nhóm 24…
+[seed] Xong. Đăng nhập: mai.anh@nhom24.edu.vn / TaskFlow@2026  (System Admin: admin@taskflow.local)
+▶ Nghiệp vụ nhóm phát triển: phân bổ, nhật ký, issue, workload và lịch họp
+  ✔ phân bổ nhiều người: kiểm quyền, trùng người, trách nhiệm, phiên bản và task con (1278.8725ms)
+✔ Nghiệp vụ nhóm phát triển: phân bổ, nhật ký, issue, workload và lịch họp (45390.4222ms)
+ℹ tests 1
+ℹ suites 1
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 47111.3054

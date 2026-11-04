@@ -14,6 +14,9 @@ import Overview from './pages/Overview.jsx';
 import Board from './pages/Board.jsx';
 import MyTasks from './pages/MyTasks.jsx';
 const Calendar = lazy(() => import('./pages/Calendar.jsx'));
+const Timeline = lazy(() => import('./pages/Timeline.jsx'));
+const TeamWorkload = lazy(() => import('./pages/TeamWorkload.jsx'));
+const Meetings = lazy(() => import('./pages/Meetings.jsx'));
 const Documents = lazy(() => import('./pages/Documents.jsx'));
 const Ai = lazy(() => import('./pages/Ai.jsx'));
 const Notifications = lazy(() => import('./pages/Notifications.jsx'));
@@ -114,6 +117,9 @@ export default function App() {
           }
         >
           <Route path="/admin" element={<Admin />} />
+          <Route path="/timeline" element={<WorkspaceGate><Timeline /></WorkspaceGate>} />
+          <Route path="/team" element={<WorkspaceGate><TeamWorkload /></WorkspaceGate>} />
+          <Route path="/meetings" element={<WorkspaceGate><Meetings /></WorkspaceGate>} />
           <Route path="/profile" element={<Profile />} />
           <Route
             path="/overview"

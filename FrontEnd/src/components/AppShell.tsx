@@ -15,17 +15,45 @@ const NAV = [
   { to: '/overview', icon: 'dashboard', get label() { return tr("Tổng quan"); }, en: 'Overview' },
   { to: '/board', icon: 'view_kanban', get label() { return tr("Bảng công việc"); }, en: 'Board' },
   { to: '/my-tasks', icon: 'task_alt', get label() { return tr("Việc của tôi"); }, en: 'My tasks', badge: 'mine' },
-  { to: '/calendar', icon: 'calendar_month', get label() { return tr("Lịch dự án"); }, en: 'Calendar' },
+  { to: '/calendar', icon: 'calendar_month', get label() { return tr('Tiến độ & lịch'); }, en: 'Schedule' },
+  { to: '/team', icon: 'group', get label() { return tr('Tải thành viên'); }, en: 'Team workload' },
   { to: '/documents', icon: 'description', get label() { return tr("Tài liệu"); }, en: 'Documents' },
   { to: '/ai', icon: 'auto_awesome', get label() { return tr("Trợ lý AI"); }, en: 'AI assistant', ai: true },
-  { to: '/reports', icon: 'bar_chart', get label() { return tr("Báo cáo"); }, en: 'Reports' },
 ];
 
+const SCHEDULE_PATHS = ['/calendar', '/timeline', '/meetings'];
+const OVERVIEW_PATHS = ['/overview', '/reports', '/ai/report', '/risks'];
+function navIsActive(to: string, pathname: string) {
+  if (to === '/calendar') return SCHEDULE_PATHS.includes(pathname);
+  if (to === '/overview') return OVERVIEW_PATHS.includes(pathname);
+  if (to === '/ai') return pathname.startsWith('/ai') && pathname !== '/ai/report';
+  return pathname === to;
+}
+
+function SectionNavigation() {
+  const { pathname } = useLocation();
+  useI18n();
+  const schedule = SCHEDULE_PATHS.includes(pathname);
+  if (!schedule && !OVERVIEW_PATHS.includes(pathname)) return null;
+  const tabs = schedule
+    ? [{ to: '/calendar', label: tr('Lịch công việc'), icon: 'calendar_month' }, { to: '/timeline', label: tr('Kế hoạch & thực tế'), icon: 'timeline' }, { to: '/meetings', label: tr('Lịch họp'), icon: 'event' }]
+    : [{ to: '/overview', label: tr('Tổng quan'), icon: 'dashboard' }, { to: '/reports', label: tr('Báo cáo'), icon: 'bar_chart' }, { to: '/risks', label: tr('Cảnh báo rủi ro'), icon: 'warning' }];
+  return <nav aria-label={schedule ? tr('Tiến độ & lịch') : tr('Tổng quan dự án')} className="flex flex-wrap gap-2 border-b border-slate-200 bg-white px-4 py-3 lg:px-6">
+    {tabs.map((tab) => {
+      const active = pathname === tab.to || (tab.to === '/reports' && pathname === '/ai/report');
+      return <Link key={tab.to} to={tab.to} aria-current={active ? 'page' : undefined} className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-label-md font-semibold ${active ? 'bg-blue-50 text-blue-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}><Icon name={tab.icon} size={17} />{tab.label}</Link>;
+    })}
+  </nav>;
+}
+
 const CRUMBS: Record<string, string[]> = {
+  get '/timeline'() { return [tr('Tiến độ & lịch'), tr('Kế hoạch & thực tế')]; },
+  get '/team'() { return [tr('Tải thành viên')]; },
+  get '/meetings'() { return [tr('Tiến độ & lịch'), tr('Lịch họp')]; },
   get '/overview'() { return [tr("Tổng quan")]; },
   get '/board'() { return [tr("Bảng Kanban")]; },
   get '/my-tasks'() { return [tr("Việc của tôi")]; },
-  get '/calendar'() { return [tr("Lịch dự án")]; },
+  get '/calendar'() { return [tr('Tiến độ & lịch'), tr('Lịch công việc')]; },
   get '/documents'() { return [tr("Tài liệu")]; },
   get '/ai'() { return [tr("Trợ lý AI")]; },
   get '/reports'() { return [tr("Trợ lý AI")]; },
@@ -36,7 +64,7 @@ const CRUMBS: Record<string, string[]> = {
   get '/profile'() { return [tr("Hồ sơ cá nhân")]; },
   get '/admin'() { return [tr("Quản trị hệ thống")]; },
 };
-const PROJECT_SCOPED = ['/overview', '/board', '/calendar', '/documents', '/ai', '/reports', '/risks'];
+const PROJECT_SCOPED = ['/overview', '/board', '/calendar', '/documents', '/ai', '/reports', '/risks', '/timeline', '/meetings'];
 
 function SearchBox() {
   useI18n();
@@ -122,7 +150,7 @@ function TopBar({ onToggleSidebar, onCreate, sidebarOpen }: { onToggleSidebar: (
   const loc = useLocation();
   const navigate = useNavigate();
   const base = '/' + loc.pathname.split('/')[1];
-  const crumbs = CRUMBS[base] || [];
+  const crumbs = loc.pathname === '/ai/report' ? [tr('Tổng quan'), tr('Báo cáo')] : CRUMBS[base] || [];
   const settingsTab = loc.pathname.split('/')[2];
   const settingsLabels: Record<string, string> = { members: tr('Thành viên & Phân quyền'), invites: tr('Lời mời'), ai: tr('Cài đặt AI'), activity: tr('Nhật ký hoạt động'), general: tr('Thông tin chung') };
   const tail = base === '/settings' ? settingsLabels[settingsTab] : null;
@@ -292,12 +320,12 @@ function Sidebar({ collapsed, overlay, onClose }: { collapsed: boolean; overlay:
                 key={n.to}
                 to={n.to}
                 style={{ animationDelay: `${i * 35}ms` }}
-                className={({ isActive }) => `nav-item animate-fade-up ${isActive || (n.to === '/overview' && loc.pathname === '/risks') ? 'nav-item-active' : ''} justify-between`}
+                className={() => `nav-item animate-fade-up ${navIsActive(n.to, loc.pathname) ? 'nav-item-active' : ''} justify-between`}
               >
-                {({ isActive }) => (
+                {() => (
                   <>
                     <span className="flex items-center gap-2.5">
-                      <Icon name={n.icon} className={n.ai ? 'text-purple-500' : isActive ? 'text-blue-600' : 'text-slate-400'} />
+                      <Icon name={n.icon} className={n.ai ? 'text-purple-500' : navIsActive(n.to, loc.pathname) ? 'text-blue-600' : 'text-slate-400'} />
                       <span>{n.label}</span>
                     </span>
                     {n.badge && mine > 0 && <span className="rounded-full bg-blue-100 px-2 py-0.5 text-label-sm text-blue-800">{mine}</span>}
@@ -418,6 +446,7 @@ export default function AppShell() {
         <Sidebar collapsed={collapsed} overlay={narrow} onClose={() => setCollapsed(true)} />
         <main id="main-content" className="scroll-thin min-w-0 flex-1 overflow-y-auto bg-slate-50">
           <ErrorBoundary key={loc.pathname}>
+            <SectionNavigation />
             <Outlet />
           </ErrorBoundary>
         </main>

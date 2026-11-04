@@ -6,7 +6,8 @@ import { useApp, useToast } from '../lib/app.jsx';
 import { PRIORITY, STATUS, STATUS_ORDER } from '../lib/format.js';
 import { useProjectInfo } from '../lib/hooks.js';
 import { Avatar, Field, Icon, Modal, Select, Spinner } from './ui.jsx';
-import { timeZone } from '../lib/dates.js';
+import TaskDates from './TaskDates.jsx';
+import { WORK_TYPES } from '../lib/delivery.js';
 
 const empty = (status = 'todo') => ({
   title: '',
@@ -16,6 +17,10 @@ const empty = (status = 'todo') => ({
   status: status === 'done' ? 'review' : status,
   assignee: '',
   dueDate: '',
+  workType: 'development',
+  plannedStartDate: '',
+  actualStartDate: '',
+  actualEndDate: '',
   priority: 'medium',
   estimateHours: '',
   labels: [],
@@ -123,6 +128,10 @@ export default function CreateTaskModal({ open, onClose, defaultStatus, projectI
         priority: f.priority,
         assignee: f.assignee || null,
         dueDate: f.dueDate || null, // để trống => không có hạn chót
+        workType: f.workType,
+        plannedStartDate: f.plannedStartDate || null,
+        ...(f.actualStartDate && { actualStartDate: f.actualStartDate }),
+        ...(f.actualEndDate && { actualEndDate: f.actualEndDate }),
         estimateHours: f.estimateHours === '' ? null : Number(f.estimateHours),
         labels: f.labels,
       });
@@ -269,9 +278,8 @@ export default function CreateTaskModal({ open, onClose, defaultStatus, projectI
           <Field label={tr("Người nhận")} error={errors.assignee}>
             <MemberPicker members={members} value={f.assignee} onChange={set('assignee')} />
           </Field>
-          <Field label={tr("Hạn chót")} error={errors.dueDate} hint={tr("Hết ngày (23:59:59), {0}. Để trống nếu không có hạn.", [timeZone()])}>
-            <input type="date" className="input" value={f.dueDate} onChange={set('dueDate')} />
-          </Field>
+          <Field label="Loại công việc"><Select className="input" value={f.workType} onChange={set('workType')}>{Object.entries(WORK_TYPES).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</Select></Field>
+          <TaskDates value={f} onChange={(key, value) => set(key)(value)} errors={errors} />
           <div>
             <span className="label">{tr("Mức độ ưu tiên")}</span>
             <div className="grid grid-cols-3 rounded-lg bg-slate-100 p-0.5">

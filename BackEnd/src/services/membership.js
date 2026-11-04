@@ -18,6 +18,14 @@ export function withWorkspaceLock(workspaceId, action) {
 /** Bỏ giao cả task cha/con, giữ lịch sử bằng audit trong cùng transaction. */
 export async function unassignTasks(tx, { workspace, project, users, actor }) {
   if (!users.length) return 0;
+  const removedContributors = await tx.taskContributor.findMany({ where: { user: { in: users }, taskRef: { workspace, ...(project && { project }) } }, select: { task: true } });
+  await tx.taskContributor.deleteMany({ where: { user: { in: users }, taskRef: { workspace, ...(project && { project }) } } });
+  for (const id of new Set(removedContributors.map((c) => c.task))) {
+    const sums = await tx.taskContributor.aggregate({ where: { task: id }, _sum: { plannedHours: true, remainingHours: true }, _count: true });
+    const task = await tx.task.findUnique({ where: { id } });
+    await tx.task.update({ where: { id }, data: { version: { increment: 1 }, ...(sums._count > 0 && { estimateHours: sums._sum.plannedHours, remainingHours: task.status === 'done' ? 0 : sums._sum.remainingHours }) } });
+    await tx.activity.create({ data: { workspace, project: task.project, actor, entityType: 'task', entityId: id, entityLabel: `${task.key} ${task.title}`, action: 'Thu hồi phân bổ khi thành viên rời dự án', after: { removedUsers: users } } });
+  }
   const tasks = await tx.task.findMany({
     where: { deletedAt: null, workspace, ...(project && { project }), assignee: { in: users } },
     select: { id: true, project: true, assignee: true, key: true, title: true },

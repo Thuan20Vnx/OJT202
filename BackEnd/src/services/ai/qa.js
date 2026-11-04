@@ -53,6 +53,7 @@ export async function collectSources(projectId) {
       `Trạng thái: ${STATUS_VI[t.status]}.`,
       `Người phụ trách: ${t.assignee?.name || 'chưa giao'}.`,
       t.dueDate ? `Hạn chót (${BUSINESS_TIMEZONE}): ${new Date(t.dueDate).toLocaleString('vi-VN', { timeZone: BUSINESS_TIMEZONE })}.` : 'Chưa có hạn chót.',
+      ...[['plannedStartDate', 'Ngày bắt đầu kế hoạch'], ['actualStartDate', 'Ngày bắt đầu thực tế'], ['actualEndDate', 'Ngày kết thúc thực tế']].map(([field, label]) => t[field] ? `${label} (${BUSINESS_TIMEZONE}): ${new Date(t[field]).toLocaleString('vi-VN', { timeZone: BUSINESS_TIMEZONE })}.` : `${label}: chưa ghi nhận.`),
       (t.blockedBy || []).length ? `Bị chặn bởi: ${t.blockedBy.map((b) => `${b.key} ${b.title} (${STATUS_VI[b.status]})`).join(', ')}.` : '',
       t.description,
       t.acceptanceCriteria,

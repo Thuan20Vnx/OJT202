@@ -1,0 +1,18 @@
+[seed] Tạo dữ liệu demo Nhóm 24…
+[seed] Xong. Đăng nhập: mai.anh@nhom24.edu.vn / TaskFlow@2026  (System Admin: admin@taskflow.local)
+▶ Nghiệp vụ nhóm phát triển: phân bổ, nhật ký, issue, workload và lịch họp
+  ✔ đồng thời xuyên workspace: không đặt trùng lịch và không ghi quá 24 giờ/người/ngày (1929.8965ms)
+  ✔ phân bổ nhiều người: kiểm quyền, trùng người, trách nhiệm, phiên bản và task con (923.7652ms)
+  ✔ nhật ký sửa thay giờ cũ, không cộng trùng; tổng giờ/ngày, tiến độ độc lập và ACL (1373.194ms)
+  ✔ issue yêu cầu nguyên nhân/hướng xử lý; đóng có kết quả và kiểm phiên bản (1119.3348ms)
+  ✔ workload xuyên dự án: capacity tính một lần, effort chia đúng người, ẩn dự án ngoài quyền (1174.2089ms)
+  ✔ lịch họp: chống trùng xuyên dự án, hủy giải phóng lịch, kiểm quyền và stale version (1165.4522ms)
+✔ Nghiệp vụ nhóm phát triển: phân bổ, nhật ký, issue, workload và lịch họp (51707.0755ms)
+ℹ tests 6
+ℹ suites 1
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 53360.0643

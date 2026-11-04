@@ -2,6 +2,10 @@
 
 Đồ án Nhóm 24 (Hoàng Anh, Thuận, Như, Lộc, Đạt, Hiệp). Giao diện dựng theo 23 màn hình thiết kế trên Stitch (dự án *TaskFlow Kanban Interface*), nghiệp vụ theo Product Backlog trong `DN26_CPL_Mock_Project_Nhom24.xlsx`.
 
+Phạm vi sản phẩm: quản lý công việc cho **nhóm phát triển phần mềm khoảng 5–20 người**, phục vụ PM, developer, tester và người theo dõi dự án. PM giao trách nhiệm, phân bổ effort và duyệt hoàn thành; người thực hiện cập nhật công việc mỗi ngày. Chức danh chuyên môn khác quyền truy cập PM/Member/Viewer theo từng dự án. Không bao gồm quản lý lương, tính tiền khách hàng hoặc đánh giá năng suất nhân sự bằng giờ làm.
+
+Bản bổ sung theo góp ý giảng viên: **phân bổ nhiều người/task, loại công việc chuẩn hóa, nhật ký giờ/tiến độ, vấn đề gây trễ, hai thanh kế hoạch–thực tế, tải thành viên xuyên dự án và lịch họp chống trùng**. Hướng dẫn và đối chiếu từng yêu cầu: [nghiệp vụ nhóm phát triển](docs/TEAM_DELIVERY_2026-11-03.md).
+
 | Thư mục | Thành phần | Công nghệ |
 |---|---|---|
 | `FrontEnd/` | Giao diện web | React 18 + Vite + Tailwind CSS (Inter, Material Symbols – đúng design system Stitch v2) |
@@ -117,6 +121,8 @@ Bảng, khóa ngoại, enum và chỉ mục được tạo bằng migration tron
 Xem/sửa dữ liệu trực quan: `npm --prefix BackEnd run db:studio` (Prisma Studio).
 
 ## Lệnh
+
+Cập nhật 30/10/2026: [bốn mốc ngày kế hoạch/thực tế của task](docs/TASK_DATES_2026-10-30.md). Ngày kết thúc kế hoạch tiếp tục dùng `dueDate` để lịch và nhắc hạn thống nhất.
 
 Frontend hỗ trợ chuyển dần sang TypeScript: entry ở `FrontEnd/src/main.tsx`, component JS/JSX cũ tiếp tục chạy. Kiểm tra với `npm --prefix FrontEnd run lint` và `npm --prefix FrontEnd run typecheck`; CI chạy cả hai. Báo cáo nhiệm vụ Như đến 28/10: [phân công, sửa đổi và minh chứng](docs/NHU_SPRINT1_2026-10-28.md).
 
