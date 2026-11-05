@@ -22,6 +22,7 @@ import aiRoutes from './routes/ai.js';
 import adminRoutes from './routes/admin.js';
 import devRoutes from './routes/dev.js';
 import deliveryRoutes from './routes/delivery.js';
+import planningRoutes from './routes/planning.js';
 
 export function createApp(options: { staticDir?: string } = {}): express.Express {
   const app = express();
@@ -29,7 +30,17 @@ export function createApp(options: { staticDir?: string } = {}): express.Express
   app.set('json replacer', apiReplacer);
   const realtimeOrigin = new URL(config.clientUrl);
   realtimeOrigin.protocol = realtimeOrigin.protocol === 'https:' ? 'wss:' : 'ws:';
-  app.use(helmet({ contentSecurityPolicy: config.isProd ? { directives: { connectSrc: ["'self'", realtimeOrigin.origin] } } : false, crossOriginResourcePolicy: { policy: 'same-site' } }));
+  // Google Identity Services cần tải script, iframe nút và popup từ accounts.google.com khi đã cấu hình Client ID.
+  const gis = config.google.clientId ? 'https://accounts.google.com/gsi/' : null;
+  const directives = {
+    connectSrc: ["'self'", realtimeOrigin.origin, ...(gis ? [gis] : [])],
+    ...(gis && { scriptSrc: ["'self'", `${gis}client`], frameSrc: [gis] }),
+  };
+  app.use(helmet({
+    contentSecurityPolicy: config.isProd ? { directives } : false,
+    crossOriginResourcePolicy: { policy: 'same-site' },
+    crossOriginOpenerPolicy: { policy: gis ? 'same-origin-allow-popups' : 'same-origin' },
+  }));
   app.use(cors({ origin: config.clientUrl, credentials: true }));
   app.use((req, res, next) => {
     // Browser writes must originate from the configured frontend. Native clients
@@ -52,7 +63,7 @@ export function createApp(options: { staticDir?: string } = {}): express.Express
   api.use('/notifications', notificationRoutes);
   api.use('/admin', adminRoutes);
   if (!config.isProd) api.use('/dev', devRoutes);
-  api.use(projectRoutes, taskRoutes, documentRoutes, dashboardRoutes, aiRoutes, deliveryRoutes);
+  api.use(projectRoutes, taskRoutes, documentRoutes, dashboardRoutes, aiRoutes, deliveryRoutes, planningRoutes);
   api.use((_req, res) => res.status(404).json({ error: 'Không tìm thấy API' }));
   // Both paths share handlers, access checks and rate-limit state.
   app.use('/api/v1', api);

@@ -42,6 +42,8 @@ router.get('/projects/:projectId/overview', middlewareProject(), async (req, res
     blocked: ov.blocked.map(brief),
     byStatus: ov.byStatus,
     burndown: ov.burndown,
+    schedule: ov.schedule,
+    labels: ov.labels,
     sprint: ov.project.sprint,
     workload: load.map(({ tasks, taskIds, ...w }) => w),
     risks: risks.open.slice(0, 3),

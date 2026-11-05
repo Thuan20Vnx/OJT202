@@ -26,6 +26,11 @@ enum TokenType {
   reset
 }
 
+enum OtpPurpose {
+  verify
+  reset
+}
+
 enum WorkspaceRole {
   owner
   admin
@@ -128,6 +133,8 @@ model User {
   email         String    @unique
   name          String    @db.VarChar(80)
   passwordHash  String
+  /// Mã `sub` của tài khoản Google đã liên kết (đăng nhập bằng Google)
+  googleId      String?   @unique
   emailVerified Boolean   @default(false)
   title         String    @default("")
   timezone      String    @default("Asia/Ho_Chi_Minh")
@@ -146,6 +153,7 @@ model User {
   lockedUsers        User[]             @relation("UserLockedBy")
   sessions           Session[]
   tokens             Token[]
+  otps               Otp[]
   ownedWorkspaces    Workspace[]
   memberships        Membership[]
   invitesSent        Invite[]
@@ -171,7 +179,8 @@ model User {
   contributions      TaskContributor[]
   dailyUpdates       TaskDailyUpdate[]
   issuesRaised       TaskIssue[]        @relation("IssueReporter")
-  issuesOwned        TaskIssue[]        @relation("IssueOwner")
+  issuesOwned        TaskIssue[]        @relation("IssueOwner")
+  issuesAffecting TaskIssue[] @relation("IssueAffected")
   meetingsCreated    ProjectMeeting[]
   meetingInvites     MeetingParticipant[]
 
@@ -218,6 +227,24 @@ model Token {
   @@map("tokens")
 }
 
+// Mã OTP 6 số gửi qua email: xác minh đăng ký / đặt lại mật khẩu. Chỉ lưu hash, giới hạn số lần thử.
+model Otp {
+  id        String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user      String      @map("user_id") @db.Uuid
+  purpose   OtpPurpose
+  codeHash  String
+  attempts  Int         @default(0)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  userRef User @relation(fields: [user], references: [id], onDelete: Cascade)
+
+  @@index([user, purpose])
+  @@map("otps")
+}
+
 // ---------- Workspace ----------
 model Workspace {
   id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
@@ -254,6 +281,10 @@ model Membership {
   role        WorkspaceRole
   title       String        @default("")
   weeklyHours Float         @default(20)
+  /// Vai trò chuyên môn, một người có thể giữ nhiều vai trò: developer, tester…
+  specialties String[]      @default([])
+  /// Giảng viên hướng dẫn: role luôn là viewer, được thêm bình luận và trang theo dõi nhóm
+  isMentor    Boolean       @default(false)
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
@@ -288,6 +319,7 @@ model Invite {
   role       WorkspaceRole @default(member)
   projects   String[]      @default([]) @db.Uuid
   tokenHash  String        @unique
+  mentor     Boolean       @default(false)
   invitedBy  String        @map("invited_by_id") @db.Uuid
   expiresAt  DateTime
   acceptedAt DateTime?
@@ -338,6 +370,9 @@ model Project {
   riskResolutions RiskResolution[]
   memberships     ProjectMember[]
   meetings        ProjectMeeting[]
+  labelCatalog    ProjectLabel[]
+  sprints         Sprint[]
+  issues          TaskIssue[]
 
   @@index([workspace])
   @@index([members], type: Gin)
@@ -467,9 +502,60 @@ model TaskDailyUpdate {
   @@map("task_daily_updates")
 }
 
+// Danh mục nhãn của dự án: người dùng chọn thay vì gõ tự do để thống kê được.
+model ProjectLabel {
+  project   String   @db.Uuid
+  name      String   @db.VarChar(40)
+  createdAt DateTime @default(now())
+
+  projectRef Project @relation(fields: [project], references: [id], onDelete: Cascade)
+
+  @@id([project, name])
+  @@map("project_labels")
+}
+
+// Công việc tham chiếu Sprint theo tên (tasks.sprint); '' nghĩa là đang ở Backlog.
+model Sprint {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  project   String    @db.Uuid
+  name      String    @db.VarChar(60)
+  goal      String    @default("") @db.VarChar(300)
+  start     DateTime?
+  end       DateTime?
+  /// planned | active | closed
+  status    String    @default("planned") @db.VarChar(20)
+  closedAt  DateTime?
+  version   Int       @default(1)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @default(now()) @updatedAt
+
+  projectRef Project @relation(fields: [project], references: [id], onDelete: Cascade)
+
+  @@unique([project, name])
+  @@map("sprints")
+}
+
+// Bộ đếm chống spam và khóa đăng nhập tạm thời (xem services/throttle.js).
+model RateCounter {
+  key         String    @id @db.VarChar(120)
+  count       Int       @default(0)
+  windowStart DateTime  @default(now())
+  lockedUntil DateTime?
+
+  @@index([windowStart])
+  @@map("rate_counters")
+}
+
 model TaskIssue {
   id         String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  task       String @db.Uuid
+  project    String @db.Uuid
+  /// Không bắt buộc: vấn đề như ốm/vắng mặt thuộc về dự án, không thuộc một công việc
+  task       String? @db.Uuid
+  /// technical | absence | scope | external | other
+  type       String @default("technical") @db.VarChar(20)
+  affectedUser String? @db.Uuid
+  startDate  DateTime? @db.Date
+  endDate    DateTime? @db.Date
   reporter   String @db.Uuid
   owner      String? @db.Uuid
   title      String @db.VarChar(200)
@@ -481,10 +567,13 @@ model TaskIssue {
   version    Int @default(1)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
-  taskRef Task @relation(fields: [task], references: [id], onDelete: Cascade)
+  projectRef Project @relation(fields: [project], references: [id], onDelete: Cascade)
+  taskRef Task? @relation(fields: [task], references: [id], onDelete: Cascade)
   reporterRef User @relation("IssueReporter", fields: [reporter], references: [id])
   ownerRef User? @relation("IssueOwner", fields: [owner], references: [id], onDelete: SetNull)
+  affectedRef User? @relation("IssueAffected", fields: [affectedUser], references: [id], onDelete: SetNull)
   @@index([task, status])
+  @@index([project, status])
   @@map("task_issues")
 }
 

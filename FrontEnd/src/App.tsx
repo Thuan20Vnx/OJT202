@@ -17,6 +17,10 @@ const Calendar = lazy(() => import('./pages/Calendar.jsx'));
 const Timeline = lazy(() => import('./pages/Timeline.jsx'));
 const TeamWorkload = lazy(() => import('./pages/TeamWorkload.jsx'));
 const Meetings = lazy(() => import('./pages/Meetings.jsx'));
+const Sprints = lazy(() => import('./pages/Sprints.jsx'));
+const Issues = lazy(() => import('./pages/Issues.jsx'));
+const Contributions = lazy(() => import('./pages/Contributions.jsx'));
+const Mentoring = lazy(() => import('./pages/Mentoring.jsx'));
 const Documents = lazy(() => import('./pages/Documents.jsx'));
 const Ai = lazy(() => import('./pages/Ai.jsx'));
 const Notifications = lazy(() => import('./pages/Notifications.jsx'));
@@ -120,6 +124,10 @@ export default function App() {
           <Route path="/timeline" element={<WorkspaceGate><Timeline /></WorkspaceGate>} />
           <Route path="/team" element={<WorkspaceGate><TeamWorkload /></WorkspaceGate>} />
           <Route path="/meetings" element={<WorkspaceGate><Meetings /></WorkspaceGate>} />
+          <Route path="/sprints" element={<WorkspaceGate><Sprints /></WorkspaceGate>} />
+          <Route path="/issues" element={<WorkspaceGate><Issues /></WorkspaceGate>} />
+          <Route path="/contributions" element={<WorkspaceGate><Contributions /></WorkspaceGate>} />
+          <Route path="/mentoring" element={<Mentoring />} />
           <Route path="/profile" element={<Profile />} />
           <Route
             path="/overview"

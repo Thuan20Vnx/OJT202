@@ -11,7 +11,7 @@ export interface UserSummary {
   avatar?: string;
   isSystemAdmin?: boolean;
 }
-export interface WorkspaceSummary { _id: string; name: string; plan?: string; role: WorkspaceRole }
+export interface WorkspaceSummary { _id: string; name: string; plan?: string; isMentor?: boolean; role: WorkspaceRole }
 export interface ProjectSummary {
   _id: string;
   name: string;

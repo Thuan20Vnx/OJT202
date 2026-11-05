@@ -23,6 +23,7 @@ export default function TeamWorkload() {
         <div className="flex items-center gap-2"><Avatar user={p.user} size={32} /><span className="flex-1 font-semibold">{p.user.name}</span><strong className={`text-right tabular-nums ${p.overloaded ? 'text-rose-700' : 'text-blue-700'}`}>{p.loadPct == null ? 'Không có capacity' : `${p.loadPct}%`}</strong></div>
         <p className="mt-3 text-right text-body-sm tabular-nums">{hoursText(p.remainingHours)} h còn lại / {hoursText(p.available)} h khả dụng</p>
         <p className="mt-1 text-right text-label-md text-slate-500">{hoursText(p.loggedHours)} h đã ghi tuần này · {p.noDueCount} việc chưa có hạn</p>
+        {p.absences?.map((a) => <p key={`${a.startDate}-${a.title}`} className="mt-2 rounded bg-amber-50 px-2 py-1 text-body-sm text-amber-900">Vắng {new Date(a.startDate).toLocaleDateString('vi-VN', { timeZone: 'UTC' })} – {new Date(a.endDate).toLocaleDateString('vi-VN', { timeZone: 'UTC' })}: {a.title}</p>)}
         {p.missingEffortCount > 0 && <p className="mt-2 text-body-sm text-amber-800">{p.missingEffortCount} việc chưa ước lượng; tải hiển thị mới là phần đã biết.</p>}
       </button>)}</div>
       {!person && <Empty title="Chưa có thành viên trong các dự án bạn được xem" />}

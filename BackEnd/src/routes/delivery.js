@@ -118,7 +118,7 @@ router.post('/tasks/:id/issues', async (req, res) => {
   const issue = await withWorkspaceLock(access.project.workspace, async (tx) => {
     const current = await taskAccess(req.user.id, access.task.id, tx); assertWrite(current);
     if (body.owner) await projectWorkers(tx, current.project, [body.owner]);
-    const issue = await tx.taskIssue.create({ data: { ...body, task: current.task.id, reporter: req.user.id } });
+    const issue = await tx.taskIssue.create({ data: { ...body, project: current.project.id, task: current.task.id, reporter: req.user.id } });
     await audit(tx, current, req.user.id, 'Ghi nhận vấn đề gây chậm', body);
     return issue;
   });
@@ -163,6 +163,12 @@ router.get('/workspaces/:wsId/team-workload', middlewareWorkspace(), async (req,
     const available = capacities.find((c) => c.user === m.user)?.hours ?? m.weeklyHours;
     return { user: m.userRef, available, remainingHours: load, missingEffortCount: scheduled.filter((t) => remaining(t) == null).length, loadPct: available ? Math.round(load / available * 100) : load ? null : 0, overloaded: load > available, loggedHours: logs.filter((l) => l.user === m.user).reduce((s, l) => s + l.hours, 0), noDueCount: open.filter((t) => !t.dueDate).length, roleByProject: projects.filter((p) => p.memberships.some((r) => r.user === m.user)).map((p) => ({ id: p.id, name: p.name, role: p.memberships.find((r) => r.user === m.user).role })), tasks: assigned.map((t) => ({ id: t.id, key: t.key, title: t.title, project: t.project, projectName: projects.find((p) => p.id === t.project)?.name, status: t.status, priority: t.priority, workType: t.workType, progressPct: t.progressPct, plannedStartDate: t.plannedStartDate, dueDate: t.dueDate, actualStartDate: t.actualStartDate, actualEndDate: t.actualEndDate, remainingHours: remaining(t) })) };
   });
+  // Lịch vắng trong tuần lấy từ vấn đề loại vắng mặt, chỉ trong các dự án người xem đọc được.
+  const absences = await prisma.taskIssue.findMany({
+    where: { project: { in: ids }, type: 'absence', status: 'open', startDate: { lt: new Date(weekStart.getTime() + 7 * 86400000) }, endDate: { gte: weekStart } },
+    select: { affectedUser: true, startDate: true, endDate: true, title: true },
+  });
+  for (const person of people) person.absences = absences.filter((a) => a.affectedUser === person.user.id);
   res.json({ week, people, scope: 'readable-projects', note: 'Chỉ tổng hợp dự án bạn có quyền xem; không phải tổng tải toàn công ty nếu còn dự án ngoài quyền.' });
 });
 

@@ -3503,3 +3503,236 @@ describe('Sprint 1: hợp đồng API v1 và acceptance_criteria văn bản', ()
     assert.deepEqual(cleared.data.task.acceptanceCriteria, []);
   });
 });
+
+describe('OTP email và đăng nhập Google', () => {
+  const codeOf = async (to, subject) => {
+    const mail = await db.prisma.outbox.findFirst({ where: { to, ...(subject && { subject: { contains: subject } }) }, orderBy: { createdAt: 'desc' } });
+    return mail.text.match(/\b(\d{6})\b/)[1];
+  };
+
+  test('OTP xác minh đăng ký: sai bị đếm, đúng tạo phiên, dùng lại bị từ chối', async () => {
+    const c = new Client();
+    const email = `otp-verify-${++fixtureNumber}@test.vn`;
+    assert.equal((await c.post('/auth/register', { name: 'Otp', email, password: 'Abcdefg123', acceptTerms: true })).status, 201);
+    const code = await codeOf(email);
+    const wrong = code === '000000' ? '111111' : '000000';
+    assert.equal((await c.post('/auth/verify-otp', { email, code: wrong })).status, 400);
+    assert.equal((await c.post('/auth/verify-otp', { email, code: '12ab' })).status, 400);
+    assert.equal((await c.post('/auth/verify-otp', { email, code })).status, 200);
+    assert.equal((await c.get('/me')).status, 200, 'xác minh OTP đăng nhập luôn');
+    assert.equal((await new Client().post('/auth/verify-otp', { email, code })).status, 400, 'mã dùng một lần');
+  });
+
+  test('OTP bị khóa sau 5 lần sai kể cả khi sau đó nhập đúng; gửi lại cấp mã mới', async () => {
+    const c = new Client();
+    const email = `otp-lock-${++fixtureNumber}@test.vn`;
+    await c.post('/auth/register', { name: 'Khóa', email, password: 'Abcdefg123', acceptTerms: true });
+    const code = await codeOf(email);
+    const wrong = code === '000000' ? '111111' : '000000';
+    for (let i = 0; i < config.otp.maxAttempts; i++) assert.equal((await c.post('/auth/verify-otp', { email, code: wrong })).status, 400);
+    assert.equal((await c.post('/auth/verify-otp', { email, code })).status, 400, 'mã đã bị khóa');
+    await c.post('/auth/resend-verification', { email });
+    const fresh = await codeOf(email);
+    assert.equal((await c.post('/auth/verify-otp', { email, code: fresh })).status, 200);
+  });
+
+  test('OTP hết hạn bị từ chối', async () => {
+    const c = new Client();
+    const email = `otp-exp-${++fixtureNumber}@test.vn`;
+    await c.post('/auth/register', { name: 'Hết hạn', email, password: 'Abcdefg123', acceptTerms: true });
+    const code = await codeOf(email);
+    await db.prisma.otp.updateMany({ where: { userRef: { email } }, data: { expiresAt: new Date(Date.now() - 1000) } });
+    assert.equal((await c.post('/auth/verify-otp', { email, code })).status, 400);
+  });
+
+  test('quên mật khẩu bằng OTP: đổi mật khẩu, thu hồi phiên, mã dùng một lần', async () => {
+    const c = new Client();
+    const email = `otp-reset-${++fixtureNumber}@test.vn`;
+    await c.post('/auth/register', { name: 'Reset', email, password: 'Abcdefg123', acceptTerms: true });
+    await c.post('/auth/verify-otp', { email, code: await codeOf(email) });
+    assert.equal((await c.post('/auth/forgot-password', { email })).status, 200);
+    const code = await codeOf(email, 'Đặt lại');
+    assert.equal((await c.post('/auth/reset-password-otp', { email, code, password: 'yeu' })).status, 400, 'mật khẩu yếu');
+    assert.equal((await c.post('/auth/reset-password-otp', { email, code, password: 'MatKhauMoi1' })).status, 200);
+    assert.equal((await c.post('/auth/reset-password-otp', { email, code, password: 'MatKhauMoi2' })).status, 400);
+    assert.equal((await new Client().post('/auth/login', { email, password: 'Abcdefg123' })).status, 401);
+    assert.equal((await new Client().post('/auth/login', { email, password: 'MatKhauMoi1' })).status, 200);
+    const ghost = await new Client().post('/auth/reset-password-otp', { email: 'khong-co@test.vn', code: '123456', password: 'MatKhauMoi1' });
+    assert.equal(ghost.status, 400, 'email không tồn tại trả cùng lỗi');
+  });
+
+  test('email SMTP có OTP, liên kết và đánh dấu tự động không trả lời', async (t) => {
+    const { messages } = await smtpSandbox(t, config);
+    const email = `otp-smtp-${++fixtureNumber}@example.test`;
+    assert.equal((await new Client().post('/auth/register', { name: 'Smtp', email, password: 'Abcdefg123', acceptTerms: true })).status, 201);
+    assert.equal(messages.length, 1);
+    assert.match(messages[0].raw, /Auto-Submitted: auto-generated/i);
+    assert.match(messages[0].raw, /\b\d{6}\b/);
+    assert.match(messages[0].raw, /verify-email\?token/);
+  });
+
+  test('đăng nhập Google: tạo tài khoản mới, liên kết email có sẵn, từ chối email chưa xác minh', async () => {
+    const { setGoogleVerifier } = await import('../src/services/google.js');
+    const previous = config.google.clientId;
+    config.google.clientId = 'test-client.apps.googleusercontent.com';
+    const credential = 'x'.repeat(40);
+    try {
+      const fresh = `gg-new-${++fixtureNumber}@test.vn`;
+      setGoogleVerifier(async () => ({ sub: `sub-${fixtureNumber}`, email: fresh, email_verified: true, name: 'Người Google' }));
+      const c = new Client();
+      assert.equal((await c.post('/auth/google', { credential })).status, 200);
+      const me = await c.get('/me');
+      assert.equal(me.status, 200);
+      assert.equal(me.data.user.email, fresh);
+      assert.equal((await new Client().post('/auth/login', { email: fresh, password: 'bat-ky-1A' })).status, 401, 'tài khoản Google không có mật khẩu đoán được');
+
+      const local = `gg-link-${++fixtureNumber}@test.vn`;
+      await new Client().post('/auth/register', { name: 'Có sẵn', email: local, password: 'Abcdefg123', acceptTerms: true });
+      setGoogleVerifier(async () => ({ sub: `sub-link-${fixtureNumber}`, email: local, email_verified: true, name: 'Có sẵn' }));
+      assert.equal((await new Client().post('/auth/google', { credential })).status, 200);
+      const linked = await db.prisma.user.findUnique({ where: { email: local } });
+      assert.equal(linked.emailVerified, true);
+      assert.equal(linked.googleId, `sub-link-${fixtureNumber}`);
+      setGoogleVerifier(async () => ({ sub: 'sub-khac', email: local, email_verified: true }));
+      assert.equal((await new Client().post('/auth/google', { credential })).status, 401, 'email đã gắn Google khác');
+
+      setGoogleVerifier(async () => ({ sub: 's3', email: `gg-unv-${fixtureNumber}@test.vn`, email_verified: false }));
+      assert.equal((await new Client().post('/auth/google', { credential })).status, 401);
+      setGoogleVerifier(async () => { throw new Error('bad token'); });
+      assert.equal((await new Client().post('/auth/google', { credential })).status, 401);
+
+      await db.prisma.user.update({ where: { email: local }, data: { isLocked: true } });
+      setGoogleVerifier(async () => ({ sub: `sub-link-${fixtureNumber - 0}`, email: local, email_verified: true }));
+      assert.equal((await new Client().post('/auth/google', { credential })).status, 403, 'tài khoản bị khóa');
+
+      config.google.clientId = '';
+      assert.equal((await new Client().post('/auth/google', { credential })).status, 503);
+    } finally {
+      config.google.clientId = previous;
+    }
+  });
+});
+
+describe('Chạy trên hạ tầng miễn phí: Gmail API và Supabase Storage', () => {
+  const listen = async (t, handler) => {
+    const server = http.createServer(handler);
+    await new Promise((r) => server.listen(0, '127.0.0.1', r));
+    t.after(() => { server.closeAllConnections(); return new Promise((r) => server.close(r)); });
+    return `http://127.0.0.1:${server.address().port}`;
+  };
+  const readBody = async (req) => {
+    const chunks = [];
+    for await (const chunk of req) chunks.push(chunk);
+    return Buffer.concat(chunks);
+  };
+
+  test('MAIL_MODE=gmail gửi qua HTTPS, dùng lại access token và không lộ lỗi nhà cung cấp', async (t) => {
+    const { sendMail, validateMailConfig } = await import('../src/services/mailer.js');
+    const state = { tokenCalls: 0, sent: [], fail: false, auth: null, tokenForm: null };
+    const url = await listen(t, async (req, res) => {
+      const body = await readBody(req);
+      res.setHeader('content-type', 'application/json');
+      if (req.url === '/token') {
+        state.tokenCalls++;
+        state.tokenForm = new URLSearchParams(body.toString());
+        return res.end(JSON.stringify({ access_token: 'access-1', expires_in: 3600 }));
+      }
+      state.auth = req.headers.authorization;
+      if (state.fail) { res.statusCode = 403; return res.end(JSON.stringify({ error: 'secret-provider-detail' })); }
+      state.sent.push(Buffer.from(JSON.parse(body.toString()).raw, 'base64url').toString('utf8'));
+      res.end(JSON.stringify({ id: 'm1' }));
+    });
+    const previous = config.mail;
+    t.after(() => { config.mail = previous; });
+    config.mail = {
+      mode: 'gmail', from: 'TaskFlow No-Reply <noreply@example.test>',
+      gmail: { clientId: 'cid', clientSecret: 'csecret', refreshToken: 'rtoken', tokenUrl: `${url}/token`, sendUrl: `${url}/send` },
+    };
+    assert.doesNotThrow(() => validateMailConfig(config.mail, true), 'production nhận gmail');
+    assert.throws(() => validateMailConfig({ mode: 'gmail', from: 'x@example.test', gmail: {} }, true), /GMAIL_CLIENT_ID/);
+
+    await sendMail({ to: 'nhan@example.test', subject: 'Xác minh', text: 'Mã 123456', link: 'https://app.example.test/verify-email?token=abc' });
+    await sendMail({ to: 'nhan2@example.test', subject: 'Lần hai', text: 'Mã 654321' });
+    assert.equal(state.tokenCalls, 1, 'access token được dùng lại');
+    assert.equal(state.tokenForm.get('refresh_token'), 'rtoken');
+    assert.equal(state.tokenForm.get('grant_type'), 'refresh_token');
+    assert.equal(state.auth, 'Bearer access-1');
+    assert.match(state.sent[0], /To: nhan@example\.test/);
+    assert.match(state.sent[0], /From: "?TaskFlow No-Reply"? <noreply@example\.test>/);
+    assert.match(state.sent[0], /Auto-Submitted: auto-generated/i);
+    assert.match(state.sent[0], /123456/);
+
+    state.fail = true;
+    await assert.rejects(sendMail({ to: 'loi@example.test', subject: 'Lỗi', text: 'x' }), (error) => {
+      assert.equal(error.details.code, 'MAIL_UNAVAILABLE');
+      assert.ok(!JSON.stringify({ message: error.message, details: error.details }).includes('secret-provider-detail'));
+      return true;
+    });
+    state.fail = false;
+    await sendMail({ to: 'lai@example.test', subject: 'Thử lại', text: 'x' });
+    assert.equal(state.tokenCalls, 2, 'lỗi gửi làm mới lại token');
+  });
+
+  test('Supabase Storage: tải lên, tải xuống đúng byte, thiếu tệp trả 404, xóa dọn object; lỗi Storage không tạo tài liệu', async (t) => {
+    const objects = new Map();
+    const state = { apikeys: new Set(), authorization: new Set(), rejectUpload: false };
+    const prefix = '/storage/v1/object/taskflow-uploads/';
+    const url = await listen(t, async (req, res) => {
+      const body = await readBody(req);
+      state.apikeys.add(req.headers.apikey);
+      state.authorization.add(req.headers.authorization);
+      assert.ok(req.url.startsWith(prefix));
+      const key = decodeURIComponent(req.url.slice(prefix.length));
+      res.setHeader('content-type', 'application/json');
+      if (req.method === 'POST') {
+        if (state.rejectUpload) { res.statusCode = 500; return res.end('{}'); }
+        objects.set(key, body);
+        return res.end(JSON.stringify({ Key: key }));
+      }
+      if (!objects.has(key)) { res.statusCode = 400; return res.end(JSON.stringify({ statusCode: '404', error: 'not_found', message: 'Object not found' })); }
+      if (req.method === 'DELETE') { objects.delete(key); return res.end('[]'); }
+      res.end(objects.get(key));
+    });
+    const previous = config.storage;
+    t.after(() => { config.storage = previous; });
+    config.storage = { url, serviceKey: 'sb_secret_test', bucket: 'taskflow-uploads' };
+
+    const { owner, pid } = await permissionFixture();
+    const png = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10, 1, 2, 3, 250]);
+    const upload = () => {
+      const form = new FormData();
+      form.append('files', new Blob([png], { type: 'image/png' }), 'anh.png');
+      return fetch(`${base}/projects/${pid}/documents/upload`, {
+        method: 'POST', headers: { 'x-taskflow': '1', cookie: Object.entries(owner.cookies).map(([k, v]) => `${k}=${v}`).join('; ') }, body: form,
+      });
+    };
+    const download = (id) => fetch(`${base}/documents/${id}/download`, { headers: { 'x-taskflow': '1', cookie: Object.entries(owner.cookies).map(([k, v]) => `${k}=${v}`).join('; ') } });
+
+    const filesBefore = (await fs.readdir(testUploads)).sort();
+    const created = await upload();
+    assert.equal(created.status, 201);
+    const id = (await created.json()).documents[0]._id;
+    assert.equal(objects.size, 1);
+    assert.deepEqual((await fs.readdir(testUploads)).sort(), filesBefore, 'không ghi xuống ổ đĩa');
+    assert.deepEqual(state.apikeys, new Set(['sb_secret_test']));
+    assert.deepEqual(state.authorization, new Set([undefined]), 'khóa sb_secret không gửi qua Authorization');
+
+    const ok = await download(id);
+    assert.equal(ok.status, 200);
+    assert.deepEqual(Buffer.from(await ok.arrayBuffer()), png);
+
+    const [key] = objects.keys();
+    const saved = objects.get(key);
+    objects.delete(key);
+    assert.equal((await download(id)).status, 404);
+    objects.set(key, saved);
+
+    assert.equal((await owner.del(`/documents/${id}`)).status, 200);
+    assert.equal(objects.size, 0);
+
+    const docsBefore = await db.prisma.document.count({ where: { project: pid } });
+    state.rejectUpload = true;
+    assert.equal((await upload()).status, 500);
+    assert.equal(await db.prisma.document.count({ where: { project: pid } }), docsBefore);
+  });
+});

@@ -120,6 +120,45 @@ export default function Overview() {
         </div>
       </div>
 
+      {data.schedule && data.labels && (
+      <div className="mb-5 grid gap-4 lg:grid-cols-2">
+        <section className="card p-5">
+          <h2 className="text-headline-sm text-slate-900">{tr("Tiến độ thực tế so với kế hoạch")}</h2>
+          <p className="mb-4 text-label-md font-normal text-slate-500">{tr("Tính theo % báo cáo ở nhật ký và giờ ước lượng, không chỉ đếm số việc xong.")}</p>
+          {[
+            [tr("Thực tế"), data.schedule.actualPct, ''],
+            [tr("Theo kế hoạch"), data.schedule.plannedPct, 'opacity-50'],
+          ].map(([label, value, tone]) => (
+            <div key={label} className="mb-3">
+              <div className="mb-1 flex justify-between text-body-sm"><span className="text-slate-600">{label}</span><span className="font-semibold tabular-nums text-slate-900">{value == null ? '—' : `${value}%`}</span></div>
+              <Progress value={value ?? 0} className={tone} />
+            </div>
+          ))}
+          {data.schedule.deltaPct != null && (
+            <p className={`text-body-sm font-semibold ${data.schedule.deltaPct < 0 ? 'text-rose-700' : 'text-emerald-700'}`}>
+              {data.schedule.deltaPct === 0 ? tr("Đúng kế hoạch") : data.schedule.deltaPct < 0 ? tr("Chậm {0}% so với kế hoạch", [-data.schedule.deltaPct]) : tr("Nhanh {0}% so với kế hoạch", [data.schedule.deltaPct])}
+            </p>
+          )}
+          {data.schedule.unscheduled > 0 && <p className="mt-1 text-label-md font-normal text-amber-700">{tr("{0} việc chưa có hạn nên chưa có mốc kế hoạch.", [data.schedule.unscheduled])}</p>}
+        </section>
+        <section className="card p-5">
+          <h2 className="text-headline-sm text-slate-900">{tr("Thống kê theo nhãn")}</h2>
+          <p className="mb-4 text-label-md font-normal text-slate-500">{tr("Một việc nhiều nhãn được tính cho từng nhãn.")}</p>
+          <ul className="space-y-2">
+            {data.labels.rows.slice(0, 8).map((l) => (
+              <li key={l.name} className="grid grid-cols-[minmax(0,1fr)_2fr_auto] items-center gap-3 text-body-sm">
+                <span className="truncate text-slate-700">{l.name}</span>
+                <Progress value={(l.done / l.total) * 100} />
+                <span className="text-right tabular-nums text-slate-600">{l.done}/{l.total}</span>
+              </li>
+            ))}
+            {!data.labels.rows.length && <li className="text-body-sm text-slate-400">{tr("Chưa có công việc nào được gắn nhãn")}</li>}
+          </ul>
+          {data.labels.unlabeled > 0 && <p className="mt-3 text-label-md font-normal text-slate-500">{tr("{0} việc chưa gắn nhãn.", [data.labels.unlabeled])}</p>}
+        </section>
+      </div>
+      )}
+
       <section id="overdue-tasks" className="card mb-5 scroll-mt-4 p-5">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div>

@@ -79,7 +79,24 @@ CLIENT_URL=https://your-taskflow-domain.example
 
 Dùng [App Password của Google](https://support.google.com/accounts/answer/185833?hl=en) sau khi bật xác minh hai bước; không dùng mật khẩu đăng nhập Gmail. Thay các giá trị mẫu, không commit `.env` hay gửi mật khẩu vào chat. Khi chạy local, giữ `CLIENT_URL=http://localhost:5173`. Khởi động lại backend sau khi đổi cấu hình. Port 465 dùng TLS ngay từ đầu; port 587 cần `SMTP_SECURE=false`, `SMTP_REQUIRE_TLS=true` ([tài liệu Nodemailer](https://nodemailer.com/smtp)).
 
-Kiểm chứng sau cấu hình: đăng ký một tài khoản kiểm thử có hộp thư bạn quản lý, nhận thư thật và mở liên kết xác minh; thử gửi lại thư và lời mời. Nếu gửi thư đăng ký lỗi, tài khoản vẫn chờ xác minh và giao diện cho gửi lại, không cần đăng ký lại. Các API khôi phục công khai trả thông báo chung để không tiết lộ email có tài khoản hay không. Production bắt buộc SMTP có TLS; outbox không được chấp nhận.
+### Gửi từ địa chỉ no-reply
+
+Gmail tự đổi địa chỉ người gửi về đúng tài khoản đăng nhập, nên `MAIL_FROM` không thể là một địa chỉ khác nếu chưa khai báo alias. Có hai cách:
+
+- **Có tên miền riêng:** dùng nhà cung cấp hỗ trợ SMTP và xác minh tên miền bằng DNS, ví dụ Resend: `SMTP_HOST=smtp.resend.com`, `SMTP_USER=resend`, `SMTP_PASS=<API key>`, `MAIL_FROM="TaskFlow <no-reply@ten-mien-cua-ban>"`. Tên miền `*.vercel.app` không dùng để gửi mail được.
+- **Không có tên miền:** tạo một tài khoản Gmail riêng như `taskflow.noreply@gmail.com`, dùng App Password của tài khoản đó và đặt `MAIL_FROM="TaskFlow No-Reply <taskflow.noreply@gmail.com>"`.
+
+Mọi email thật đều có header `Auto-Submitted: auto-generated` và dòng nhắc không trả lời.
+
+Kiểm chứng sau cấu hình: đăng ký một tài khoản kiểm thử có hộp thư bạn quản lý, nhận thư thật và mở liên kết xác minh; thử gửi lại thư và lời mời. Nếu gửi thư đăng ký lỗi, tài khoản vẫn chờ xác minh và giao diện cho gửi lại, không cần đăng ký lại. Các API khôi phục công khai trả thông báo chung để không tiết lộ email có tài khoản hay không. Production dùng SMTP có TLS hoặc Gmail API; outbox không được chấp nhận.
+
+## Triển khai
+
+Cấu hình miễn phí: FrontEnd trên Vercel (`vercel.json`), API và AIService trên gói free của Render (`render.yaml`), database và tệp trên Supabase, mail qua Gmail API. Xem từng bước tại [docs/DEPLOY_VERCEL.md](docs/DEPLOY_VERCEL.md).
+
+Gói free của Render chặn cổng SMTP và không có ổ đĩa bền, nên production dùng `MAIL_MODE=gmail` và `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`. Host cho phép SMTP và có ổ đĩa bền thì có thể giữ `MAIL_MODE=smtp` và `UPLOAD_DIR`.
+
+Trước khi mở công khai, chạy `node scripts/check-demo-accounts.js` trong `BackEnd` với `DATABASE_URL` của production để tìm tài khoản còn mật khẩu demo.
 
 ## Kết nối PostgreSQL thật
 

@@ -32,7 +32,9 @@ function checkProject(found, userId) {
   const projectRole = membership.role === 'viewer' ? 'viewer' : memberships[0].role;
   const canWrite = projectRole !== 'viewer' && project.status !== 'archived';
   const canManage = project.status !== 'archived' && projectRole === 'pm';
-  return { project, membership, projectRole, role: projectRole === 'viewer' ? 'viewer' : membership.role, canWrite, canManage };
+  // Giảng viên chỉ xem như Viewer nhưng được góp ý bằng bình luận.
+  const canComment = canWrite || (membership.isMentor && project.status !== 'archived');
+  return { project, membership, projectRole, role: projectRole === 'viewer' ? 'viewer' : membership.role, canWrite, canManage, canComment };
 }
 
 export async function projectAccess(userId, projectId, db = prisma) {
@@ -61,6 +63,10 @@ export function assertWrite(access, msg) {
   if (!access.canWrite) {
     throw forbidden(access.project?.status === 'archived' ? 'Dự án đã lưu trữ, chỉ được xem' : msg || 'Viewer chỉ được xem');
   }
+}
+
+export function assertComment(access) {
+  if (!access.canComment) throw forbidden(access.project?.status === 'archived' ? 'Dự án đã lưu trữ, chỉ được xem' : 'Viewer chỉ được xem');
 }
 
 export function assertManage(access) {

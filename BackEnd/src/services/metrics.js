@@ -11,14 +11,95 @@ const remaining = (t) => t.remainingHours ?? Math.max(0, (t.estimateHours || 0) 
 
 const loadProject = (projectId, project) => project ?? prisma.project.findUnique({ where: { id: projectId } });
 
+/**
+ * Burndown theo số việc của một Sprint. Việc không thuộc Sprint nào nằm ở Backlog nên không được tính.
+ * Trả null khi Sprint chưa có đủ ngày.
+ */
+export function sprintBurndown(sprintTasks, sprintInfo, now = new Date()) {
+  if (!sprintInfo?.start || !sprintInfo?.end) return null;
+  const sod = startOfDay(now);
+  const sprint = { start: new Date(sprintInfo.start), end: new Date(sprintInfo.end) };
+  const days = [];
+  const n = Math.max(0, Math.round((startOfDay(sprint.end) - startOfDay(sprint.start)) / DAY));
+  // Bound work for legacy/imported date ranges too; long sprints are sampled,
+  // retaining both endpoints instead of blocking the server with millions of days.
+  const stride = Math.max(1, Math.ceil(n / 366));
+  const indices = Array.from({ length: Math.floor(n / stride) + 1 }, (_, i) => i * stride);
+  if (indices.at(-1) !== n) indices.push(n);
+  for (const i of indices) {
+    const day = new Date(startOfDay(sprint.start).getTime() + i * DAY);
+    const endOfDay = new Date(day.getTime() + DAY);
+    const remainingCount = sprintTasks.filter((t) => !(t.status === 'done' && t.completedAt && t.completedAt < endOfDay)).length;
+    days.push({
+      date: day,
+      ideal: n ? Math.round(sprintTasks.length * (1 - i / n) * 10) / 10 : 0,
+      actual: day <= now ? remainingCount : null,
+    });
+  }
+  return { total: sprintTasks.length, days, sampled: stride > 1, daysLeft: Math.max(0, Math.ceil((startOfDay(sprint.end) - sod) / DAY)) };
+}
+
+/**
+ * Tiến độ thực tế so với kế hoạch, tính trên việc lá để không đếm trùng việc cha.
+ * Thực tế = % báo cáo của từng việc, kế hoạch = % thời gian đã trôi qua giữa ngày bắt đầu và hạn;
+ * cả hai đều gán trọng số theo giờ ước lượng. Việc chưa có hạn không có mốc kế hoạch nên chỉ vào số thực tế.
+ */
+export function scheduleProgress(tasks, now = new Date()) {
+  const parents = new Set(tasks.filter((t) => t.parent).map((t) => t.parent));
+  const byId = new Map(tasks.map((t) => [t.id, t]));
+  // Việc con không ghi ngày thì theo kế hoạch của việc cha.
+  const leaves = tasks.filter((t) => !parents.has(t.id)).map((t) => {
+    const parent = byId.get(t.parent);
+    return { ...t, dueDate: t.dueDate ?? parent?.dueDate ?? null, plannedStartDate: t.plannedStartDate ?? parent?.plannedStartDate ?? null };
+  });
+  const weight = (t) => (t.estimateHours > 0 ? t.estimateHours : 1);
+  const actualOf = (t) => (t.status === 'done' ? 100 : t.progressPct || 0);
+  const plannedOf = (t) => {
+    if (now >= t.dueDate) return 100;
+    if (!t.plannedStartDate || now <= t.plannedStartDate) return 0;
+    return ((now - t.plannedStartDate) / (t.dueDate - t.plannedStartDate)) * 100;
+  };
+  const average = (list, value) => {
+    const total = list.reduce((sum, t) => sum + weight(t), 0);
+    return total ? list.reduce((sum, t) => sum + weight(t) * value(t), 0) / total : 0;
+  };
+  const scheduled = leaves.filter((t) => t.dueDate);
+  const plannedPct = scheduled.length ? Math.round(average(scheduled, plannedOf)) : null;
+  return {
+    actualPct: Math.round(average(leaves, actualOf)),
+    plannedPct,
+    // So trên cùng tập việc có kế hoạch, việc chưa có hạn không làm lệch kết quả.
+    deltaPct: plannedPct == null ? null : Math.round(average(scheduled, actualOf)) - plannedPct,
+    unscheduled: leaves.length - scheduled.length,
+  };
+}
+
+/** Số việc theo nhãn; một việc nhiều nhãn được tính cho từng nhãn. */
+export function labelStats(tasks) {
+  const stats = new Map();
+  let unlabeled = 0;
+  for (const t of tasks) {
+    if (!t.labels?.length) unlabeled += 1;
+    for (const name of t.labels || []) {
+      const row = stats.get(name) || { name, total: 0, done: 0, hours: 0 };
+      row.total += 1;
+      if (t.status === 'done') row.done += 1;
+      row.hours += t.estimateHours || 0;
+      stats.set(name, row);
+    }
+  }
+  return { rows: [...stats.values()].sort((a, b) => b.total - a.total || a.name.localeCompare(b.name, 'vi')), unlabeled };
+}
+
 /** Số liệu tổng quan tính trực tiếp từ DB. Truyền sẵn `project` (đã tải khi kiểm quyền) để bớt một truy vấn. */
 export async function projectOverview(projectId, { from, to, project: given, now = new Date() } = {}) {
   const sod = startOfDay(now);
-  const [project, top] = await Promise.all([
+  const [project, top, allTasks] = await Promise.all([
     loadProject(projectId, given),
     prisma.task
       .findMany({ where: { deletedAt: null, project: projectId, parent: null }, orderBy: { number: 'asc' } })
       .then((r) => populate(r, 'blockedBy', 'task', { status: true, dueDate: true, key: true, title: true })),
+    prisma.task.findMany({ where: { deletedAt: null, project: projectId }, select: { id: true, parent: true, status: true, progressPct: true, estimateHours: true, plannedStartDate: true, dueDate: true, labels: true } }),
   ]);
   const total = top.length;
   const done = top.filter((t) => t.status === 'done');
@@ -32,29 +113,7 @@ export async function projectOverview(projectId, { from, to, project: given, now
 
   // Sprint & burndown
   // Sprint lưu JSONB nên ngày ở dạng chuỗi ISO
-  const sprint = project.sprint?.start && project.sprint?.end ? { ...project.sprint, start: new Date(project.sprint.start), end: new Date(project.sprint.end) } : null;
-  let burndown = null;
-  if (sprint) {
-    const sprintTasks = top.filter((t) => !t.sprint || t.sprint === sprint.name);
-    const days = [];
-    const n = Math.max(0, Math.round((startOfDay(sprint.end) - startOfDay(sprint.start)) / DAY));
-    // Bound work for legacy/imported date ranges too; long sprints are sampled,
-    // retaining both endpoints instead of blocking the server with millions of days.
-    const stride = Math.max(1, Math.ceil(n / 366));
-    const indices = Array.from({ length: Math.floor(n / stride) + 1 }, (_, i) => i * stride);
-    if (indices.at(-1) !== n) indices.push(n);
-    for (const i of indices) {
-      const day = new Date(startOfDay(sprint.start).getTime() + i * DAY);
-      const endOfDay = new Date(day.getTime() + DAY);
-      const remainingCount = sprintTasks.filter((t) => !(t.status === 'done' && t.completedAt && t.completedAt < endOfDay)).length;
-      days.push({
-        date: day,
-        ideal: n ? Math.round(sprintTasks.length * (1 - i / n) * 10) / 10 : 0,
-        actual: day <= now ? remainingCount : null,
-      });
-    }
-    burndown = { total: sprintTasks.length, days, sampled: stride > 1, daysLeft: Math.max(0, Math.ceil((startOfDay(sprint.end) - sod) / DAY)) };
-  }
+  const burndown = sprintBurndown(top.filter((t) => t.sprint === project.sprint?.name), project.sprint, now);
 
   let range = null;
   if (from && to) {
@@ -73,6 +132,8 @@ export async function projectOverview(projectId, { from, to, project: given, now
     byStatus,
     velocity: { last7, prev7 },
     burndown,
+    schedule: scheduleProgress(allTasks, now),
+    labels: labelStats(allTasks),
     range,
     tasks: top,
   };

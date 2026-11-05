@@ -1,0 +1,23 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "installCommand": "npm --prefix FrontEnd ci --include=dev",
+  "buildCommand": "npm --prefix FrontEnd run build",
+  "outputDirectory": "FrontEnd/dist",
+  "rewrites": [
+    { "source": "/api/:path*", "destination": "https://taskflow.onrender.com/api/:path*" },
+    { "source": "/socket.io/:path*", "destination": "https://taskflow.onrender.com/socket.io/:path*" },
+    { "source": "/((?!assets/).*)", "destination": "/index.html" }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "X-Frame-Options", "value": "SAMEORIGIN" },
+        { "key": "Referrer-Policy", "value": "no-referrer" },
+        { "key": "Cross-Origin-Opener-Policy", "value": "same-origin-allow-popups" }
+      ]
+    }
+  ]
+}

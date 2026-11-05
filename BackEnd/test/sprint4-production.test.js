@@ -65,3 +65,28 @@ test('U033: access/refresh cookie Secure + HttpOnly, đúng path cho hai prefix 
     for (const cookie of cookies) { assert.equal(cookie.options.secure, true); assert.equal(cookie.options.httpOnly, true); assert.equal(cookie.options.sameSite, 'lax'); }
   }
 });
+test('Google Sign-In: chỉ mở CSP/COOP cho accounts.google.com khi đã cấu hình Client ID', async () => {
+  const headersWith = async (clientId) => {
+    const previous = config.google.clientId;
+    config.google.clientId = clientId;
+    const local = http.createServer(createApp({ staticDir: directory }));
+    await new Promise((r) => local.listen(0, '127.0.0.1', r));
+    try {
+      return (await fetch(`http://127.0.0.1:${local.address().port}/login`)).headers;
+    } finally {
+      config.google.clientId = previous;
+      local.closeAllConnections();
+      await new Promise((r) => local.close(r));
+    }
+  };
+  const off = await headersWith('');
+  assert.doesNotMatch(off.get('content-security-policy'), /accounts\.google\.com/);
+  assert.equal(off.get('cross-origin-opener-policy'), 'same-origin');
+  const on = await headersWith('test.apps.googleusercontent.com');
+  const csp = on.get('content-security-policy');
+  assert.match(csp, /script-src 'self' https:\/\/accounts\.google\.com\/gsi\/client/);
+  assert.match(csp, /frame-src https:\/\/accounts\.google\.com\/gsi\//);
+  assert.match(csp, /connect-src [^;]*https:\/\/accounts\.google\.com\/gsi\//);
+  assert.match(csp, /frame-ancestors 'self'/);
+  assert.equal(on.get('cross-origin-opener-policy'), 'same-origin-allow-popups');
+});

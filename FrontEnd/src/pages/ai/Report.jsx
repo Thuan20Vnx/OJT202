@@ -90,7 +90,7 @@ export default function Report({ project, onUsage, disabled }) {
 
   return (
     <div className="grid gap-5 lg:grid-cols-[360px_1fr]">
-      <div className="space-y-4">
+      <div className="no-print space-y-4">
         <div className="card space-y-4 p-4">
           <span className="flex items-center gap-1.5 text-label-lg font-semibold text-slate-900">
             <Icon name="tune" size={18} className="text-blue-600" />{tr(" Cấu hình báo cáo")}</span>
@@ -222,6 +222,8 @@ export default function Report({ project, onUsage, disabled }) {
             <div className="sticky bottom-0 mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-pop">
               <span className="mr-auto flex items-center gap-1.5 text-label-md font-normal text-slate-500">
                 <Icon name="link" size={14} />{tr(" Mỗi nhận định đều có liên kết tới công việc nguồn.")}</span>
+              <button className="btn-outline" onClick={() => window.print()}>
+                <Icon name="print" size={16} />{tr(" In / Lưu PDF")}</button>
               <button className="btn-outline" onClick={exportTxt}>
                 <Icon name="download" size={16} />{tr(" Xuất tệp")}</button>
               <button className="btn-outline" onClick={generate} disabled={busy || disabled || !canManage}>

@@ -21,8 +21,8 @@ const NAV = [
   { to: '/ai', icon: 'auto_awesome', get label() { return tr("Trợ lý AI"); }, en: 'AI assistant', ai: true },
 ];
 
-const SCHEDULE_PATHS = ['/calendar', '/timeline', '/meetings'];
-const OVERVIEW_PATHS = ['/overview', '/reports', '/ai/report', '/risks'];
+const SCHEDULE_PATHS = ['/calendar', '/timeline', '/sprints', '/meetings'];
+const OVERVIEW_PATHS = ['/overview', '/reports', '/ai/report', '/risks', '/issues', '/contributions'];
 function navIsActive(to: string, pathname: string) {
   if (to === '/calendar') return SCHEDULE_PATHS.includes(pathname);
   if (to === '/overview') return OVERVIEW_PATHS.includes(pathname);
@@ -36,8 +36,8 @@ function SectionNavigation() {
   const schedule = SCHEDULE_PATHS.includes(pathname);
   if (!schedule && !OVERVIEW_PATHS.includes(pathname)) return null;
   const tabs = schedule
-    ? [{ to: '/calendar', label: tr('Lịch công việc'), icon: 'calendar_month' }, { to: '/timeline', label: tr('Kế hoạch & thực tế'), icon: 'timeline' }, { to: '/meetings', label: tr('Lịch họp'), icon: 'event' }]
-    : [{ to: '/overview', label: tr('Tổng quan'), icon: 'dashboard' }, { to: '/reports', label: tr('Báo cáo'), icon: 'bar_chart' }, { to: '/risks', label: tr('Cảnh báo rủi ro'), icon: 'warning' }];
+    ? [{ to: '/calendar', label: tr('Lịch công việc'), icon: 'calendar_month' }, { to: '/timeline', label: tr('Kế hoạch & thực tế'), icon: 'timeline' }, { to: '/sprints', label: tr('Sprint & Backlog'), icon: 'sprint' }, { to: '/meetings', label: tr('Lịch họp'), icon: 'event' }]
+    : [{ to: '/overview', label: tr('Tổng quan'), icon: 'dashboard' }, { to: '/reports', label: tr('Báo cáo'), icon: 'bar_chart' }, { to: '/risks', label: tr('Cảnh báo rủi ro'), icon: 'warning' }, { to: '/issues', label: tr('Vấn đề'), icon: 'flag' }, { to: '/contributions', label: tr('Đóng góp'), icon: 'groups' }];
   return <nav aria-label={schedule ? tr('Tiến độ & lịch') : tr('Tổng quan dự án')} className="flex flex-wrap gap-2 border-b border-slate-200 bg-white px-4 py-3 lg:px-6">
     {tabs.map((tab) => {
       const active = pathname === tab.to || (tab.to === '/reports' && pathname === '/ai/report');
@@ -255,6 +255,9 @@ function TopBar({ onToggleSidebar, onCreate, sidebarOpen }: { onToggleSidebar: (
 function Sidebar({ collapsed, overlay, onClose }: { collapsed: boolean; overlay: boolean; onClose: () => void }) {
   useI18n();
   const { ws, workspaces, setWsId, activeProjects, project, setProjectId, me, role } = useApp();
+  const navItems = workspaces.some((w) => w.isMentor)
+    ? [...NAV, { to: '/mentoring', icon: 'school', get label() { return tr('Các nhóm hướng dẫn'); }, en: 'My groups' }]
+    : NAV;
   const [mine, setMine] = useState(0);
   const navigate = useNavigate();
   const loc = useLocation();
@@ -315,7 +318,7 @@ function Sidebar({ collapsed, overlay, onClose }: { collapsed: boolean; overlay:
         <div>
           <div className="section-label mb-1.5 px-2">{tr("Điều hướng")}</div>
           <nav className="space-y-0.5">
-            {NAV.map((n, i) => (
+            {navItems.map((n, i) => (
               <NavLink
                 key={n.to}
                 to={n.to}

@@ -7,6 +7,7 @@ import { PRIORITY, STATUS, dueInfo, fileIcon, fileSize, fmtDate, fmtDateTime, is
 import { useProjectInfo, useSocketEvent } from '../lib/hooks.js';
 import { MemberPicker } from './CreateTaskModal.jsx';
 import TaskDates, { TASK_DATES } from './TaskDates.jsx';
+import LabelPicker from './LabelPicker.jsx';
 import TaskDelivery from './TaskDelivery.jsx';
 import { WORK_TYPES } from '../lib/delivery.js';
 import { Avatar, Confirm, Dropdown, Icon, MenuItem, Notice, PageLoader, Progress, Spinner, StatusChip } from './ui.jsx';
@@ -903,7 +904,7 @@ export default function TaskDetailModal({ taskId, onClose }) {
               )
             }
           >
-            <input ref={fileInput} type="file" multiple hidden accept=".pdf,.txt,.png,.jpg,.jpeg" onChange={(e) => upload(e.target.files)} />
+            <input ref={fileInput} type="file" multiple hidden accept=".docx,.xlsx,.pptx,.zip,.pdf,.txt,.png,.jpg,.jpeg" onChange={(e) => upload(e.target.files)} />
             <div
               className="grid gap-2 sm:grid-cols-2"
               onDragOver={(e) => e.preventDefault()}
@@ -979,7 +980,7 @@ export default function TaskDetailModal({ taskId, onClose }) {
                     </div>
                   </div>
                 ))}
-                {access.canWrite && <CommentBox members={members} onSend={sendComment} />}
+                {(access.canWrite || access.canComment) && <CommentBox members={members} onSend={sendComment} />}
               </div>
             ) : (
               <div className="space-y-3">
@@ -1032,23 +1033,33 @@ export default function TaskDetailModal({ taskId, onClose }) {
               ))}
             </div>
           </Prop>
-          <Prop label={tr("Ước lượng thời gian")}>
-            <div className="flex items-center gap-2">
-              <input
-                type="number"
-                min="0"
-                disabled={!canWrite || !!task.contributors?.length}
-                className="input h-9"
-                value={form.estimateHours}
-                onChange={(e) => setF('estimateHours', e.target.value)}
-                placeholder={tr("Giờ")}
-              />
-              <span className="text-body-sm text-slate-400">/</span>
-              <input type="number" min="0" disabled={!canWrite || task.hasDailyUpdates} className="input h-9 text-right tabular-nums" value={form.spentHours} onChange={(e) => setF('spentHours', e.target.value)} title={tr("Đã làm")} />
+          <Prop label={tr("Giờ công")}>
+            <div className="grid grid-cols-2 gap-2">
+              <label className="text-label-md font-normal text-slate-500">
+                {tr("Ước lượng (PM đặt)")}
+                <input
+                  type="number"
+                  min="0"
+                  disabled={!canWrite || !!task.contributors?.length}
+                  className="input mt-1 h-9 text-right tabular-nums"
+                  value={form.estimateHours}
+                  onChange={(e) => setF('estimateHours', e.target.value)}
+                  placeholder={tr("Chưa có")}
+                />
+              </label>
+              <label className="text-label-md font-normal text-slate-500">
+                {tr("Đã làm (từ nhật ký)")}
+                <input type="number" min="0" disabled={!canWrite || task.hasDailyUpdates} className="input mt-1 h-9 text-right tabular-nums" value={form.spentHours} onChange={(e) => setF('spentHours', e.target.value)} />
+              </label>
             </div>
-            {Number(form.estimateHours) > 0 && <p className="mt-2 text-right text-label-md tabular-nums text-slate-600">Đã dùng {Math.round(Number(form.spentHours) / Number(form.estimateHours) * 100)}% effort ước lượng</p>}
-            {task.hasDailyUpdates && <p className="mt-1 text-label-md text-slate-500">Tổng giờ từ nhật ký; sửa bản ghi để điều chỉnh.</p>}
-            <p className="mt-1 text-label-md font-normal text-slate-400">{tr("Ước lượng / Đã làm (giờ)")}</p>
+            {Number(form.estimateHours) > 0 && <p className="mt-2 text-right text-label-md tabular-nums text-slate-600">{tr("Đã dùng {0}% giờ ước lượng", [Math.round(Number(form.spentHours) / Number(form.estimateHours) * 100)])}</p>}
+            <p className="mt-1 text-label-md font-normal text-slate-500">
+              {task.hasDailyUpdates
+                ? tr("Tổng giờ lấy từ nhật ký; sửa bản ghi nhật ký để điều chỉnh.")
+                : access.canUpdateProgress && !canWrite
+                  ? tr("Ghi giờ đã làm ở mục Tiến độ & cộng tác, số này tự cộng dồn.")
+                  : tr("Giờ đã làm không phải % tiến độ: tiến độ do người thực hiện báo trong nhật ký.")}
+            </p>
           </Prop>
           <Prop label={tr("Giờ còn lại")}>
             <input aria-label={tr("Giờ còn lại")} type="number" min="0" max="1000" disabled={!access.canUpdateProgress || !!task.contributors?.length} className="input h-9 text-right tabular-nums" value={form.remainingHours} onChange={(e) => setF('remainingHours', e.target.value)} placeholder={tr("Chưa ước lượng")} />
@@ -1056,38 +1067,7 @@ export default function TaskDetailModal({ taskId, onClose }) {
             {!canWrite && access.canUpdateProgress && <button className="btn-outline btn-sm mt-2" disabled={saving || updating || !dirty} onClick={saveRemainingHours}>{tr("Lưu giờ còn lại")}</button>}
           </Prop>
           <Prop label={tr("Nhãn")}>
-            <div className="flex flex-wrap gap-1.5">
-              {form.labels.map((l) => (
-                <span key={l} className="chip border-slate-200 bg-white text-slate-600">
-                  {l}
-                  {canWrite && (
-                    <button
-                      onClick={() =>
-                        setF(
-                          'labels',
-                          form.labels.filter((x) => x !== l),
-                        )
-                      }
-                    >
-                      <Icon name="close" size={12} />
-                    </button>
-                  )}
-                </span>
-              ))}
-              {canWrite && (
-                <input
-                  className="input h-[22px] w-24 rounded-md px-2 text-label-md"
-                  placeholder={tr("+ Nhãn")}
-                  onKeyDown={(e) => {
-                    const v = e.currentTarget.value.trim();
-                    if (e.key === 'Enter' && v) {
-                      if (!form.labels.includes(v)) setF('labels', [...form.labels, v]);
-                      e.currentTarget.value = '';
-                    }
-                  }}
-                />
-              )}
-            </div>
+            <LabelPicker projectId={task.project} value={form.labels} onChange={(labels) => setF('labels', labels)} disabled={!canWrite} canCreate={canWrite} />
           </Prop>
           {task.sprint && (
             <Prop label="Sprint">
