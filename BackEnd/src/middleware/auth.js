@@ -82,6 +82,15 @@ export function requireSystemAdmin(req, _res, next) {
   next();
 }
 
+/** Recheck a long-running request inside its commit transaction. The user lock
+ * orders it against admin lock/logout and password/session revocation. */
+export async function assertActiveSession(req, db = prisma, lock = false) {
+  if (lock) await db.$queryRaw`SELECT id FROM users WHERE id = ${req.user.id}::uuid FOR UPDATE`;
+  const session = await db.session.findUnique({ where: { id: req.session.id }, include: { userRef: true } });
+  if (!session || session.user !== req.user.id || session.revokedAt || session.expiresAt <= new Date() || session.userRef.isLocked)
+    throw unauthorized('Phiên đăng nhập đã bị thu hồi. Vui lòng đăng nhập lại.');
+}
+
 /** Chống CSRF: mọi request ghi phải kèm header tùy biến mà form chéo trang không gửi được. */
 export function csrfGuard(req, res, next) {
   if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();

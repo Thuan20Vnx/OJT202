@@ -118,7 +118,7 @@ router.get('/projects/:projectId/calendar', middlewareProject(), async (req, res
     prisma.task.findMany({ where: { ...where, deletedAt: null }, orderBy: { dueDate: 'asc' } }),
     prisma.task.findMany({
       where: { deletedAt: null, project: req.pa.project.id, NOT: { blockedBy: { isEmpty: true } } },
-      select: { id: true, key: true, title: true, status: true, dueDate: true, blockedBy: true, assignee: true },
+      select: { id: true, project: true, key: true, title: true, status: true, dueDate: true, blockedBy: true, assignee: true },
     }),
   ]);
   const [enriched] = await Promise.all([

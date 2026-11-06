@@ -1,0 +1,151 @@
+[seed] Tạo dữ liệu demo Nhóm 24…
+[seed] Xong. Đăng nhập: mai.anh@nhom24.edu.vn / TaskFlow@2026  (System Admin: admin@taskflow.local)
+▶ Hoàng Anh Sprint 3 — planner và nguồn cảnh báo
+  ✔ U021: nháp chưa tạo task/notification; patch CAS, chọn người thủ công và duyệt đúng một lần (703.973ms)
+  ✔ U021: từ chối project Viewer, mục không tồn tại, trùng key và trường không hỗ trợ (485.0844ms)
+[error] Error: Sprint3 simulated approval audit failure
+    at tx.activity.createMany (file:///D:/Desktop/Nhom24/OJT202/BackEnd/test/api.test.js:777:76)
+    at logActivityIn (file:///D:/Desktop/Nhom24/OJT202/BackEnd/src/services/activity.js:7:41)
+    at file:///D:/Desktop/Nhom24/OJT202/BackEnd/src/routes/ai.js:277:13
+    at async Proxy._transactionWithCallback (D:\Desktop\Nhom24\OJT202\BackEnd\node_modules\@prisma\client\runtime\library.js:130:8120)
+    at async file:///D:/Desktop/Nhom24/OJT202/BackEnd/src/routes/ai.js:187:42
+  ✔ U021: duyệt không được vượt số người tối đa; audit lỗi rollback toàn bộ task/sequence/nháp (505.8359ms)
+[ai] planner lỗi: [
+  {
+    "expected": "string",
+    "code": "invalid_type",
+    "path": [
+      "items",
+      0,
+      "description"
+    ],
+    "message": "Invalid input: expected string, received undefined"
+  },
+  {
+    "expected": "array",
+    "code": "invalid_type",
+    "path": [
+      "items",
+      0,
+      "acceptanceCriteria"
+    ],
+    "message": "Invalid input: expected array, received undefined"
+  },
+  {
+    "expected": "number",
+    "code": "invalid_type",
+    "path": [
+      "items",
+      0,
+      "estimateHours"
+    ],
+    "message": "Invalid input: expected number, received undefined"
+  },
+  {
+    "origin": "array",
+    "code": "too_small",
+    "minimum": 5,
+    "inclusive": true,
+    "path": [
+      "items"
+    ],
+    "message": "Too small: expected array to have >=5 items"
+  }
+]
+[error] HttpError: AI đang bận, vui lòng thử lại sau. Các chức năng khác vẫn hoạt động bình thường.
+    at runAi (file:///D:/Desktop/Nhom24/OJT202/BackEnd/src/services/ai/gateway.js:88:13)
+    at async file:///D:/Desktop/Nhom24/OJT202/BackEnd/src/routes/ai.js:100:15 {
+  status: 503,
+  details: { code: 'AI_UNAVAILABLE' }
+}
+  ✔ U021: HTTP AI sai schema trả 503, ghi lỗi và không tạo nháp/task (341.4973ms)
+  ✔ U026: biên quá hạn đúng mili giây; Blocked suy ra chỉ từ dependency quá hạn chưa Done (405.0923ms)
+  ✔ U026: tải đúng ngưỡng không cảnh báo; số 0 giờ khả dụng và remainingHours được tính đúng (434.9293ms)
+  ✔ U026: xử lý cần lý do/đúng nguồn, idempotent; chỉ nguồn liên quan thay đổi mới mở lại (612.9193ms)
+  ✔ U026: threshold có phiên bản, refresh không tạo hash giả; dismiss cũ thiếu nguồn không che cảnh báo (422.5266ms)
+✔ Hoàng Anh Sprint 3 — planner và nguồn cảnh báo (47680.2532ms)
+▶ Lộc Sprint 3: 20 report snapshots
+  ✔ R01 empty (362.4688ms)
+  ✔ R02 todo (362.8753ms)
+  ✔ R03 in progress (386.461ms)
+  ✔ R04 Review is not Done (344.1109ms)
+  ✔ R05 completed at start (360.5622ms)
+  ✔ R06 completed before start (344.417ms)
+  ✔ R07 completed at inclusive end (345.316ms)
+  ✔ R08 completed after end (388.5654ms)
+  ✔ R09 deleted Done (362.3693ms)
+  ✔ R10 child not double counted (389.5465ms)
+  ✔ R11 reopened (338.0854ms)
+  ✔ R12 overdue at generated time (341.6693ms)
+  ✔ R13 exactly deadline (319.8804ms)
+  ✔ R14 future deadline (317.6685ms)
+  ✔ R15 Done not overdue (351.4685ms)
+  ✔ R16 blocked by unfinished (329.3529ms)
+  ✔ R17 blocker Done (334.8202ms)
+  ✔ R18 deleted blocker (335.5912ms)
+  ✔ R19 mixed (362.668ms)
+  ✔ R20 no completion timestamp (318.2459ms)
+✔ Lộc Sprint 3: 20 report snapshots (6997.3909ms)
+▶ Lộc Sprint 3: 20 risk boundaries
+  ✔ K01 no due (323.5043ms)
+  ✔ K02 Done (301.1249ms)
+  ✔ K03 deleted (318.8103ms)
+  ✔ K04 exactly deadline (309.403ms)
+  ✔ K05 one millisecond late (297.9775ms)
+  ✔ K06 below 1 day (301.9104ms)
+  ✔ K07 exactly 1 day (307.8989ms)
+  ✔ K08 rule off (301.3909ms)
+  ✔ K09 chain overdue (299.5166ms)
+  ✔ K10 chain Done (304.5296ms)
+  ✔ K11 chain not overdue (299.2555ms)
+  ✔ K12 zero capacity with work (311.8698ms)
+  ✔ K13 zero capacity zero remaining (311.2605ms)
+  ✔ K14 exactly capacity (306.632ms)
+  ✔ K15 exceeds capacity (305.2103ms)
+  ✔ K16 missing estimate flagged (306.7797ms)
+  ✔ K17 weekly capacity absent uses explicit default (305.0447ms)
+  ✔ K18 parent ignored in workload (313.6235ms)
+  ✔ K19 due in exactly 24h (297.3351ms)
+  ✔ K20 due beyond 24h (298.0223ms)
+✔ Lộc Sprint 3: 20 risk boundaries (6122.4228ms)
+▶ Lộc Sprint 3: meeting, report, admin security
+  ✔ U022: provider bịa hoàn thành không thay số liệu; snapshot giữ nguyên sau reopen và revoke chặn nguồn (419.4172ms)
+  ✔ U027: nguồn bất biến, sửa preview, duyệt đồng thời một lần và từ chối nguồn bị sửa (432.9089ms)
+  ✔ U028: lock khi meeting đang chạy chặn kết quả và ghi dữ liệu (452.8258ms)
+  ✔ U028: lock khi reports đang chạy chặn kết quả và ghi dữ liệu (452.3754ms)
+  ✔ U028: lock khi ask đang chạy chặn kết quả và ghi dữ liệu (450.3564ms)
+  ✔ U028: lock khi risk đang chạy chặn kết quả và ghi dữ liệu (442.0952ms)
+  ✔ U028: logout khi meeting đang chạy chặn kết quả và ghi dữ liệu (421.5262ms)
+  ✔ U028: logout khi reports đang chạy chặn kết quả và ghi dữ liệu (438.4981ms)
+  ✔ U028: logout khi ask đang chạy chặn kết quả và ghi dữ liệu (422.6405ms)
+  ✔ U028: logout khi risk đang chạy chặn kết quả và ghi dữ liệu (445.4993ms)
+  ✖ U028: khóa Owner giữ membership; unlock không hồi sinh phiên; không mass assign role; audit atomic (387.4529ms)
+✖ Lộc Sprint 3: meeting, report, admin security (4766.8256ms)
+ℹ tests 59
+ℹ suites 4
+ℹ pass 58
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 67107.6238
+
+✖ failing tests:
+
+test at BackEnd\test\helpers\loc-sprint3.js:188:5
+✖ U028: khóa Owner giữ membership; unlock không hồi sinh phiên; không mass assign role; audit atomic (387.4529ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  200 !== 500
+  
+      at TestContext.<anonymous> (file:///D:/Desktop/Nhom24/OJT202/BackEnd/test/helpers/loc-sprint3.js:199:20)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 200,
+    expected: 500,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

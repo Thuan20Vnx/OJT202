@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { USER, populate, prisma } from '../db.js';
-import { requireAuth } from '../middleware/auth.js';
+import { assertActiveSession, requireAuth } from '../middleware/auth.js';
 import { assertWrite, middlewareProject, projectAccess } from '../middleware/access.js';
 import { logActivityIn } from '../services/activity.js';
 import { withWorkspaceLock } from '../services/membership.js';
@@ -73,6 +73,7 @@ router.post('/projects/:projectId/risks/resolve', middlewareProject(), async (re
     reason: z.string().trim().min(3, 'Nhập lý do xử lý cảnh báo (ít nhất 3 ký tự)').max(1000), title: z.string().max(300).optional(),
   }).strict(), req.body);
   await withWorkspaceLock(req.pa.project.workspace, async (tx) => {
+    await assertActiveSession(req, tx, true);
     const access = await projectAccess(req.user.id, req.pa.project.id, tx);
     assertWrite(access);
     const previous = await tx.riskResolution.findUnique({ where: { project_key: { project: access.project.id, key } } });
@@ -103,6 +104,7 @@ router.delete('/projects/:projectId/risks/resolve', middlewareProject(), async (
   assertWrite(req.pa);
   const { key, sourceVersion } = parse(z.object({ key: z.string().min(1).max(100000), sourceVersion: z.string().regex(/^[a-f0-9]{64}$/) }), req.query);
   await withWorkspaceLock(req.pa.project.workspace, async (tx) => {
+    await assertActiveSession(req, tx, true);
     const access = await projectAccess(req.user.id, req.pa.project.id, tx);
     assertWrite(access);
     const current = await tx.riskResolution.findUnique({ where: { project_key: { project: access.project.id, key } } });
@@ -138,6 +140,7 @@ router.post('/projects/:projectId/risks/explain', middlewareProject(), async (re
     payload: { alert: { rule: alert.rule, title: alert.title, explanation: alert.explanation, tasks: alert.tasks.map(({ key, title }) => ({ key, title })) } },
   });
   await withWorkspaceLock(req.pa.project.workspace, async (tx) => {
+    await assertActiveSession(req, tx, true);
     const access = await projectAccess(req.user.id, req.pa.project.id, tx);
     const current = (await riskAlerts(access.project.id, { project: access.project, now, db: tx })).open.find((a) => a.key === key);
     if (!current || current.sourceVersion !== alert.sourceVersion)

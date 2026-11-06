@@ -1,0 +1,15 @@
+{
+  "branch": "Loc",
+  "head": "516c38ce45db546cda83ca04cdbf85d046464627",
+  "main": "8654d8fa3a811f0a347606099a0d3deb44ece8eb",
+  "workingTree": "b183f2398e639eea4b4ae7b1cccb0fb5361c1501",
+  "temporarySnapshot": "1757ab65c88b0524bf1e60dfcbb782456cc3d12b",
+  "conflicts": [
+    "CONFLICT (content): Merge conflict in BackEnd/src/routes/tasks.js",
+    "CONFLICT (content): Merge conflict in BackEnd/src/services/ai/gateway.js",
+    "CONFLICT (content): Merge conflict in docs/design/openapi.json",
+    "CONFLICT (content): Merge conflict in docs/design/source-manifest.json",
+    "CONFLICT (content): Merge conflict in test/e2e/sprint1.test.mjs"
+  ],
+  "previousManifestMismatches": []
+}

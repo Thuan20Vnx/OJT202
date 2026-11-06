@@ -199,6 +199,7 @@ export async function riskAlerts(projectId, { project: given, load: givenLoad, n
 
   if (rules.overload !== false) {
     const { start } = weekRange(now);
+    const contributing = new Set(tasks.filter((t) => remaining(t) > 0).map((t) => t.id));
     for (const w of load) {
       if (w.hours > (w.available * (rules.overloadPct ?? 100)) / 100) {
         alerts.push({
@@ -210,8 +211,8 @@ export async function riskAlerts(projectId, { project: given, load: givenLoad, n
             w.available === 0
               ? `${w.user.name} còn ${w.hours} giờ công việc nhưng không có giờ khả dụng`
               : `${w.user.name} đang ở mức ${w.pct}% tải tuần này (${w.hours}/${w.available} giờ)`,
-          explanation: `Tổng giờ ước lượng chưa xong của các việc đến hạn trong tuần vượt giờ khả dụng. Cân nhắc giao lại hoặc dời hạn một số việc.`,
-          tasks: w.tasks,
+          explanation: `Các việc quá hạn hoặc đến hạn trong tuần còn ${w.hours} giờ, vượt ngưỡng ${rules.overloadPct ?? 100}% của ${w.available} giờ khả dụng. Cân nhắc giao lại hoặc dời hạn một số việc.`,
+          tasks: w.tasks.filter((task) => contributing.has(task.id)),
           owner: w.user,
         });
       }

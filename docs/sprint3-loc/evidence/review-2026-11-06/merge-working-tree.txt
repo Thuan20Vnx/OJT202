@@ -1,0 +1,26 @@
+4d6fdf1514d95f336cb860617b3779b0877db98d
+BackEnd/src/routes/tasks.js
+BackEnd/src/services/ai/gateway.js
+docs/design/openapi.json
+docs/design/source-manifest.json
+test/e2e/sprint1.test.mjs
+
+Auto-merging BackEnd/src/routes/dashboard.js
+Auto-merging BackEnd/src/routes/tasks.js
+CONFLICT (content): Merge conflict in BackEnd/src/routes/tasks.js
+Auto-merging BackEnd/src/services/ai/gateway.js
+CONFLICT (content): Merge conflict in BackEnd/src/services/ai/gateway.js
+Auto-merging BackEnd/src/services/metrics.js
+Auto-merging BackEnd/test/api.test.js
+Auto-merging FrontEnd/src/components/TaskDetailModal.jsx
+Auto-merging FrontEnd/src/locales/en.js
+Auto-merging FrontEnd/src/pages/ai/Report.jsx
+Auto-merging FrontEnd/src/pages/auth/ForgotPassword.jsx
+Auto-merging README.md
+Auto-merging docs/design/openapi.json
+CONFLICT (content): Merge conflict in docs/design/openapi.json
+Auto-merging docs/design/source-manifest.json
+CONFLICT (content): Merge conflict in docs/design/source-manifest.json
+Auto-merging scripts/generate-contract-docs.mjs
+Auto-merging test/e2e/sprint1.test.mjs
+CONFLICT (content): Merge conflict in test/e2e/sprint1.test.mjs

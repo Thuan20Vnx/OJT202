@@ -1,7 +1,7 @@
 import { t as tr, useI18n } from '../lib/i18n.js';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Navigate } from 'react-router-dom';
-import { Avatar, Dropdown, Field, Icon, MenuItem, Modal, Notice, PageHeader, PageLoader, Pagination, Select, Spinner, StatCard, Tabs } from '../components/ui.jsx';
+import { Avatar, Dropdown, ErrorBox, Field, Icon, MenuItem, Modal, Notice, PageHeader, PageLoader, Pagination, Select, Spinner, StatCard, Tabs } from '../components/ui.jsx';
 import { api, qs } from '../lib/api.js';
 import { useApp, useLoad, useToast } from '../lib/app.jsx';
 import { fmtDate, timeAgo } from '../lib/format.js';
@@ -17,13 +17,19 @@ export default function Admin() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [locking, setLocking] = useState(null);
-  const stats = useLoad(() => api.get('/admin/stats'), []);
-  const users = useLoad(() => api.get(`/admin/users${qs({ status, search, page })}`), [status, search, page]);
-  const wss = useLoad(() => (tab === 'workspaces' ? api.get('/admin/workspaces') : Promise.resolve(null)), [tab]);
-  const audit = useLoad(() => (tab === 'audit' ? api.get('/admin/audit') : Promise.resolve(null)), [tab]);
+  const acting = useRef(false);
+  const [actingUser, setActingUser] = useState(null);
+  const allowed = !!me?.isSystemAdmin;
+  const stats = useLoad(() => allowed ? api.get('/admin/stats') : Promise.resolve(null), [allowed]);
+  const users = useLoad(() => allowed ? api.get(`/admin/users${qs({ status, search, page })}`) : Promise.resolve(null), [allowed, status, search, page]);
+  const wss = useLoad(() => (allowed && tab === 'workspaces' ? api.get('/admin/workspaces') : Promise.resolve(null)), [allowed, tab]);
+  const audit = useLoad(() => (allowed && tab === 'audit' ? api.get('/admin/audit') : Promise.resolve(null)), [allowed, tab]);
   if (!me?.isSystemAdmin) return <Navigate to="/overview" replace />;
 
   const act = async (u, action) => {
+    if (acting.current) return;
+    acting.current = true;
+    setActingUser(u._id);
     try {
       await api.post(`/admin/users/${u._id}/${action}`);
       toast(action === 'unlock' ? tr("Đã mở khóa {0}", [u.name]) : tr("Đã buộc {0} đăng xuất khỏi mọi thiết bị", [u.name]));
@@ -31,6 +37,9 @@ export default function Admin() {
       stats.reload();
     } catch (e) {
       toast(e.message, 'error');
+    } finally {
+      acting.current = false;
+      setActingUser(null);
     }
   };
   const s = stats.data;
@@ -45,6 +54,7 @@ export default function Admin() {
             <Icon name="shield" size={16} className="text-blue-600" />{tr(" Quản lý tài khoản trên toàn nền tảng. Bạn không có quyền xem nội dung dự án của các workspace.")}</span>
         }
       />
+      <ErrorBox error={stats.error} onRetry={stats.reload} />
       <div className="mb-5 grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard label={tr("Tổng người dùng")} value={s?.users ?? '–'} icon="group" />
         <StatCard label={tr("Đang hoạt động")} value={s?.active ?? '–'} icon="check_circle" tone="green" />
@@ -75,7 +85,7 @@ export default function Admin() {
               <option value="locked">{tr("Đã khóa")}</option>
             </Select>
           </div>
-          {users.loading && !users.data ? (
+          {users.error ? <ErrorBox error={users.error} onRetry={users.reload} /> : !users.data ? (
             <PageLoader />
           ) : (
             <div className="overflow-x-auto">
@@ -119,7 +129,7 @@ export default function Admin() {
                       </td>
                       <td className="table-td text-right">
                         {u._id !== me._id && (
-                          <Dropdown trigger={<button className="icon-btn h-8 w-8"><Icon name="more_vert" /></button>}>
+                          <Dropdown trigger={<button className="icon-btn h-8 w-8" disabled={!!actingUser} aria-label={u.name}><Icon name="more_vert" /></button>}>
                             {u.locked ? (
                               <MenuItem icon="lock_open" onClick={() => act(u, 'unlock')}>{tr("Mở khóa")}</MenuItem>
                             ) : (
@@ -133,6 +143,7 @@ export default function Admin() {
                   ))}
                 </tbody>
               </table>
+              {!users.data.users.length && <p className="p-6 text-center text-slate-500">{tr('Không tìm thấy người dùng')}</p>}
               <Pagination page={page} total={users.data.total} limit={users.data.limit} onPage={setPage} />
             </div>
           )}
@@ -140,7 +151,7 @@ export default function Admin() {
       )}
       {tab === 'workspaces' && (
         <div className="card overflow-x-auto">
-          {!wss.data ? (
+          {wss.error ? <ErrorBox error={wss.error} onRetry={wss.reload} /> : !wss.data ? (
             <PageLoader />
           ) : (
             <table className="w-full">
@@ -187,7 +198,7 @@ export default function Admin() {
       )}
       {tab === 'audit' && (
         <div className="card">
-          {!audit.data ? (
+          {audit.error ? <ErrorBox error={audit.error} onRetry={audit.reload} /> : !audit.data ? (
             <PageLoader />
           ) : (
             <div className="divide-y divide-slate-100">
@@ -207,7 +218,7 @@ export default function Admin() {
           )}
         </div>
       )}
-      <LockModal user={locking} reasons={users.data?.reasons || []} onClose={() => setLocking(null)} onDone={() => (users.reload(), stats.reload())} />
+      <LockModal key={locking?._id || 'closed'} user={locking} reasons={users.data?.reasons || []} onClose={() => setLocking(null)} onDone={() => (users.reload(), stats.reload())} />
     </div>
   );
 }
@@ -218,7 +229,10 @@ function LockModal({ user, reasons, onClose, onDone }) {
   const [reason, setReason] = useState('');
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
+  const sending = useRef(false);
   const submit = async () => {
+    if (sending.current || !user || !reason) return;
+    sending.current = true;
     setBusy(true);
     try {
       await api.post(`/admin/users/${user._id}/lock`, { reason, note });
@@ -230,19 +244,20 @@ function LockModal({ user, reasons, onClose, onDone }) {
     } catch (e) {
       toast(e.message, 'error');
     } finally {
+      sending.current = false;
       setBusy(false);
     }
   };
   return (
     <Modal
       open={!!user}
-      onClose={onClose}
+      onClose={() => { if (!sending.current) onClose(); }}
       title={tr("Khóa tài khoản người dùng")}
       subtitle={tr("Chặn quyền truy cập trên toàn hệ thống")}
       icon="lock"
       footer={
         <>
-          <button className="btn-outline" onClick={onClose}>{tr("Hủy")}</button>
+          <button className="btn-outline" onClick={onClose} disabled={busy}>{tr("Hủy")}</button>
           <button className="btn-danger" onClick={submit} disabled={busy || !reason}>
             {busy ? <Spinner /> : <Icon name="lock" size={16} />}{tr(" Khóa tài khoản")}</button>
         </>

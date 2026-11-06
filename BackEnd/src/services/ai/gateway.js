@@ -11,7 +11,8 @@ const headers = () => ({ 'content-type': 'application/json', ...(config.ai.servi
 async function callAiService(feature, payload, signal) {
   const res = await fetch(`${config.ai.serviceUrl}/v1/${feature}`, { method: 'POST', headers: headers(), body: JSON.stringify(payload), signal });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw Object.assign(new Error(data.error ? `${data.error}${data.detail ? `: ${data.detail}` : ''}` : `AIService trả mã ${res.status}`), { model: data.model });
+  // Upstream bodies can echo credentials or private prompts. Log only the HTTP status.
+  if (!res.ok) throw Object.assign(new Error(`AIService HTTP ${res.status}`), { upstreamStatus: res.status });
   return data;
 }
 
@@ -83,8 +84,9 @@ export async function runAi({ workspaceId, userId, feature, payload }) {
       return { ...result, _meta: { model: out.model, provider: out.provider, latencyMs } };
     } catch (e) {
       if (e instanceof Timeout && attempt < 2) continue; // thử lại tối đa 1 lần
-      await log({ model: e.model || '-', status: e instanceof Timeout ? 'timeout' : 'error', latencyMs: Date.now() - started, error: String(e.message).slice(0, 300) });
-      console.error(`[ai] ${feature} lỗi:`, e.message);
+      const diagnostic = e instanceof Timeout ? 'AI_TIMEOUT' : e.upstreamStatus ? `AI_UPSTREAM_HTTP_${e.upstreamStatus}` : e.name === 'ZodError' ? 'AI_INVALID_SCHEMA' : 'AI_CALL_FAILED';
+      await log({ model: '-', status: e instanceof Timeout ? 'timeout' : 'error', latencyMs: Date.now() - started, error: diagnostic });
+      console.error(`[ai] ${feature} lỗi:`, diagnostic);
       throw new HttpError(503, 'AI đang bận, vui lòng thử lại sau. Các chức năng khác vẫn hoạt động bình thường.', { code: 'AI_UNAVAILABLE' });
     }
   }

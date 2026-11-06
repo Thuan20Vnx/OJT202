@@ -17,6 +17,7 @@ export default function Meeting({ project, onUsage, disabled }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const beginRequest = useLatestRequest();
+  const sourceChanged = draft?.status === 'draft' && (f.text.trim() !== draft.input?.text || f.title.trim() !== draft.input?.title);
   const history = useLoad(() => api.get(`/projects/${project._id}/ai/drafts?type=meeting`), [project._id, draft?._id, draft?.status]);
 
   const extract = async () => {
@@ -59,25 +60,26 @@ export default function Meeting({ project, onUsage, disabled }) {
             <input className="input" value={f.title} onChange={(e) => setF({ ...f, title: e.target.value })} />
           </Field>
           <Field label={tr("Biên bản / ghi chú họp (dán văn bản)")}>
-            <textarea className="textarea min-h-[180px] font-mono text-body-sm" value={f.text} onChange={(e) => setF({ ...f, text: e.target.value })} placeholder={SAMPLE} />
+            <textarea aria-label={tr("Biên bản / ghi chú họp (dán văn bản)")} className="textarea min-h-[180px] font-mono text-body-sm" value={f.text} onChange={(e) => setF({ ...f, text: e.target.value })} placeholder={SAMPLE} />
           </Field>
           {!f.text && (
             <button className="text-label-md text-blue-600 hover:underline" onClick={() => setF({ ...f, text: SAMPLE })}>{tr("Dùng biên bản mẫu")}</button>
           )}
           <Notice tone="warn">{tr("Không rõ người hoặc hạn thì AI sẽ để trống, không tự đoán.")}</Notice>
           {!info?.access?.canManage && <Notice>{tr('Chỉ PM của dự án đang hoạt động được tạo và duyệt việc từ biên bản.')}</Notice>}
-          <button className="btn-primary h-10 w-full" onClick={extract} disabled={busy || f.text.trim().length < 10 || disabled || !info?.access?.canManage}>
+          <button className="btn-primary h-10 w-full" onClick={extract} disabled={busy || !f.title.trim() || f.text.trim().length < 10 || disabled || !info?.access?.canManage}>
             {busy ? <Spinner /> : <Icon name="auto_awesome" size={18} />}{tr("Trích action items")}</button>
         </div>
         {error && <Notice tone={error.status === 429 ? 'warn' : 'danger'}>{error.message}</Notice>}
         <History items={history.data?.drafts || []} error={history.error} loading={history.loading} onRetry={history.reload} onOpen={open} activeId={draft?._id} />
       </div>
       <div className="min-w-0">
+        {sourceChanged && <Notice tone="warn">{tr("Biên bản đã thay đổi. Hãy trích lại công việc hoặc khôi phục nội dung gốc trước khi duyệt.")}</Notice>}
         {draft ? (
           <DraftItems
             key={draft._id}
             draft={draft}
-            canManage={!!info?.access?.canManage}
+            canManage={!!info?.access?.canManage && !sourceChanged}
             setDraft={setDraft}
             members={(info?.project?.members || []).filter((m) => m.role !== 'viewer' && m.projectRole !== 'viewer')}
             title={tr("Action items nháp")}

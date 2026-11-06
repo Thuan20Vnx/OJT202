@@ -113,8 +113,9 @@ export function createApp() {
   app.use((_req, res) => res.status(404).json({ error: 'Không tìm thấy API' }));
   // Lỗi khi gọi LLM / AI trả định dạng sai: BackEnd ghi nhật ký và báo "AI đang bận" cho người dùng
   app.use((err, _req, res, _next) => {
-    console.error('[ai-service]', err.message);
-    res.status(502).json({ error: 'AI xử lý thất bại', detail: String(err.message).slice(0, 300) });
+    // SDK errors may include credentials, request headers or source text.
+    console.error('[ai-service]', err.name === 'AbortError' ? 'AI_ABORTED' : 'AI_PROCESSING_FAILED');
+    res.status(502).json({ error: 'AI xử lý thất bại' });
   });
   return app;
 }

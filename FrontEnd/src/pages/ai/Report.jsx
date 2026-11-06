@@ -159,7 +159,7 @@ export default function Report({ project, onUsage, disabled }) {
                 : report.sourceState === 'unknown'
                   ? tr("Bản cũ chưa có thông tin phiên bản nguồn.")
                   : tr("Số liệu quá hạn có thể thay đổi theo thời gian.")}{' '}
-              {report.missingSources > 0 ? tr("{0} công việc nguồn đã bị xóa.", [report.missingSources]) : ''}
+              {report.missingSources > 0 ? tr("{0} công việc nguồn hiện không truy cập được.", [report.missingSources]) : ''}
             </Notice>
             <div className="card mb-3 flex flex-wrap items-center gap-3 px-4 py-3">
               <input

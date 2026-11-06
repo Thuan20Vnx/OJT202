@@ -45,8 +45,8 @@ export async function buildReportData(projectId, from, to, project, now = new Da
       body: late.length
         ? late
             .map((t) => {
-              const hours = Math.max(1, Math.ceil((now - new Date(t.dueDate)) / 3600000));
-              return `• ${line(t, hours >= 24 ? `quá hạn ${Math.floor(hours / 24)} ngày` : `quá hạn dưới 24 giờ`)}`;
+              const days = Math.floor((now - new Date(t.dueDate)) / 86400000);
+              return `• ${line(t, days ? `quá hạn ${days} ngày` : 'quá hạn dưới 24 giờ')}`;
             })
             .join('\n')
         : 'Không có công việc chậm.',
@@ -69,9 +69,12 @@ export async function buildReportData(projectId, from, to, project, now = new Da
             )
             .join('\n')
         : 'Không có công việc bị chặn.',
-      refs: blocked.map((t) => t.id),
+      refs: [...new Set(blocked.flatMap((t) => [t.id, ...t.blockedBy.filter((b) => b.status !== 'done').map((b) => b.id)]))],
     },
   ];
-  const sourceTasks = [...new Set([...done, ...late, ...blocked].map((t) => t.id))];
-  return { ov, stats, sections, sourceTasks, risks: risks.open, generatedAt: now };
+  // Keep citations for the whole denominator, including on-time tasks, and risk suggestions.
+  const sourceTasks = [...new Set([...ov.tasks.map((t) => t.id), ...sections.flatMap((s) => s.refs), ...risks.open.flatMap((r) => r.tasks.map((t) => t.id))])];
+  // The provider cannot replace measured completion with an unsupported claim.
+  const summary = `Trong giai đoạn ${fmt(from)} – ${fmt(to)}, ${project.name} hoàn thành ${stats.done} công việc; tiến độ chung đạt ${stats.progressPct}% (${stats.doneTotal}/${stats.totalTasks}). Tại thời điểm tạo báo cáo có ${stats.overdue} việc quá hạn và ${stats.blocked} việc đang bị chặn.`;
+  return { ov, stats, summary, sections, sourceTasks, risks: risks.open, generatedAt: now };
 }

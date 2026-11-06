@@ -1,0 +1,101 @@
+✖ Review U027: negative acceptance criterion must retain the action (2.0838ms)
+✖ Review U027: cancelled testing action must not become a task (18.6955ms)
+✖ Review U027: Friday next week must not become this Friday (1.2142ms)
+✖ Review U027: complete date followed by incomplete alternative is ambiguous (1.0047ms)
+ℹ tests 4
+ℹ suites 0
+ℹ pass 0
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 140.6739
+
+✖ failing tests:
+
+test at docs\sprint3-loc\evidence\review-2026-11-06\meeting-probes.test.mjs:7:1
+✖ Review U027: negative acceptance criterion must retain the action (2.0838ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  0 !== 1
+  
+      at TestContext.<anonymous> (file:///D:/Desktop/Nhom24/OJT202/docs/sprint3-loc/evidence/review-2026-11-06/meeting-probes.test.mjs:9:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1201:25)
+      at Test.start (node:internal/test_runner/test:1096:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:385:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at docs\sprint3-loc\evidence\review-2026-11-06\meeting-probes.test.mjs:11:1
+✖ Review U027: cancelled testing action must not become a task (18.6955ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  1 !== 0
+  
+      at TestContext.<anonymous> (file:///D:/Desktop/Nhom24/OJT202/docs/sprint3-loc/evidence/review-2026-11-06/meeting-probes.test.mjs:13:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1201:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:831:18)
+      at Test.postRun (node:internal/test_runner/test:1330:19)
+      at Test.run (node:internal/test_runner/test:1258:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at docs\sprint3-loc\evidence\review-2026-11-06\meeting-probes.test.mjs:15:1
+✖ Review U027: Friday next week must not become this Friday (1.2142ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + '2026-11-06T16:59:59.999Z'
+  - '2026-11-13T16:59:59.999Z'
+             ^
+  
+      at TestContext.<anonymous> (file:///D:/Desktop/Nhom24/OJT202/docs/sprint3-loc/evidence/review-2026-11-06/meeting-probes.test.mjs:17:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1201:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:831:18)
+      at Test.postRun (node:internal/test_runner/test:1330:19)
+      at Test.run (node:internal/test_runner/test:1258:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '2026-11-06T16:59:59.999Z',
+    expected: '2026-11-13T16:59:59.999Z',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at docs\sprint3-loc\evidence\review-2026-11-06\meeting-probes.test.mjs:19:1
+✖ Review U027: complete date followed by incomplete alternative is ambiguous (1.0047ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 2026-11-15T16:59:59.999Z
+  - null
+  
+      at TestContext.<anonymous> (file:///D:/Desktop/Nhom24/OJT202/docs/sprint3-loc/evidence/review-2026-11-06/meeting-probes.test.mjs:21:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1201:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:831:18)
+      at Test.postRun (node:internal/test_runner/test:1330:19)
+      at Test.run (node:internal/test_runner/test:1258:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 2026-11-15T16:59:59.999Z,
+    expected: null,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

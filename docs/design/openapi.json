@@ -4745,7 +4745,7 @@
         ],
         "summary": "GET /admin/stats",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/admin.js:37",
+        "x-source": "BackEnd/src/routes/admin.js:38",
         "parameters": [],
         "responses": {
           "200": {
@@ -4832,7 +4832,7 @@
         ],
         "summary": "GET /admin/users",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/admin.js:42",
+        "x-source": "BackEnd/src/routes/admin.js:43",
         "parameters": [],
         "responses": {
           "200": {
@@ -4918,8 +4918,8 @@
           "admin"
         ],
         "summary": "POST /admin/users/{id}/lock",
-        "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/admin.js:69",
+        "description": "System Admin còn phiên hoạt động. Khóa user theo thứ tự nhất quán, kiểm lại actor và phiên; thay đổi user/session + admin audit trong cùng transaction. Lock/logout thu hồi mọi phiên và ngắt socket sau commit. Unlock không khôi phục phiên cũ hoặc đổi membership. System Admin không mặc định có quyền đọc project. Lock cần reason hợp lệ, không tự khóa, không nhận trường cấp quyền.",
+        "x-source": "BackEnd/src/routes/admin.js:70",
         "parameters": [
           {
             "in": "path",
@@ -5015,6 +5015,35 @@
               }
             }
           }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "enum": [
+                      "Spam lời mời",
+                      "Vi phạm điều khoản",
+                      "Yêu cầu của chủ nhóm",
+                      "Khác"
+                    ]
+                  },
+                  "note": {
+                    "type": "string",
+                    "maxLength": 500,
+                    "default": ""
+                  }
+                },
+                "required": [
+                  "reason"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
         }
       }
     },
@@ -5025,8 +5054,8 @@
           "admin"
         ],
         "summary": "POST /admin/users/{id}/unlock",
-        "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/admin.js:86",
+        "description": "System Admin còn phiên hoạt động. Khóa user theo thứ tự nhất quán, kiểm lại actor và phiên; thay đổi user/session + admin audit trong cùng transaction. Lock/logout thu hồi mọi phiên và ngắt socket sau commit. Unlock không khôi phục phiên cũ hoặc đổi membership. System Admin không mặc định có quyền đọc project. Lock cần reason hợp lệ, không tự khóa, không nhận trường cấp quyền.",
+        "x-source": "BackEnd/src/routes/admin.js:88",
         "parameters": [
           {
             "in": "path",
@@ -5132,8 +5161,8 @@
           "admin"
         ],
         "summary": "POST /admin/users/{id}/logout",
-        "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/admin.js:95",
+        "description": "System Admin còn phiên hoạt động. Khóa user theo thứ tự nhất quán, kiểm lại actor và phiên; thay đổi user/session + admin audit trong cùng transaction. Lock/logout thu hồi mọi phiên và ngắt socket sau commit. Unlock không khôi phục phiên cũ hoặc đổi membership. System Admin không mặc định có quyền đọc project. Lock cần reason hợp lệ, không tự khóa, không nhận trường cấp quyền.",
+        "x-source": "BackEnd/src/routes/admin.js:98",
         "parameters": [
           {
             "in": "path",
@@ -5240,7 +5269,7 @@
         ],
         "summary": "GET /admin/workspaces",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/admin.js:105",
+        "x-source": "BackEnd/src/routes/admin.js:108",
         "parameters": [],
         "responses": {
           "200": {
@@ -5327,7 +5356,7 @@
         ],
         "summary": "GET /admin/audit",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/admin.js:115",
+        "x-source": "BackEnd/src/routes/admin.js:118",
         "parameters": [],
         "responses": {
           "200": {
@@ -10425,7 +10454,7 @@
         ],
         "summary": "DELETE /projects/{projectId}/risks/resolve",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/dashboard.js:102",
+        "x-source": "BackEnd/src/routes/dashboard.js:103",
         "parameters": [
           {
             "in": "path",
@@ -10549,7 +10578,7 @@
         ],
         "summary": "POST /projects/{projectId}/risks/explain",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/dashboard.js:128",
+        "x-source": "BackEnd/src/routes/dashboard.js:130",
         "parameters": [
           {
             "in": "path",
@@ -10656,7 +10685,7 @@
         ],
         "summary": "GET /projects/{projectId}/ai/usage",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/ai.js:29",
+        "x-source": "BackEnd/src/routes/ai.js:30",
         "parameters": [
           {
             "in": "path",
@@ -10752,7 +10781,7 @@
         ],
         "summary": "GET /projects/{projectId}/ai/drafts",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/ai.js:44",
+        "x-source": "BackEnd/src/routes/ai.js:45",
         "parameters": [
           {
             "in": "path",
@@ -10848,7 +10877,7 @@
         ],
         "summary": "GET /ai/drafts/{id}",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/ai.js:50",
+        "x-source": "BackEnd/src/routes/ai.js:51",
         "parameters": [
           {
             "in": "path",
@@ -10942,7 +10971,7 @@
         ],
         "summary": "PATCH /ai/drafts/{id}",
         "description": "Chỉ chủ nháp đang là PM active. version bắt buộc; khóa workspace và trả 409 AI_DRAFT_CHANGED nếu tab cũ. Không chấp nhận key thiếu/trùng hoặc sửa excerpt; người nhận phải có ProjectRole/WorkspaceRole làm việc. Thành công tăng version và trả draft mới.",
-        "x-source": "BackEnd/src/routes/ai.js:129",
+        "x-source": "BackEnd/src/routes/ai.js:131",
         "parameters": [
           {
             "in": "path",
@@ -11145,7 +11174,7 @@
         ],
         "summary": "POST /projects/{projectId}/ai/plan",
         "description": "Chỉ PM active. AI trả 5–15 mục đủ title/description/AC/estimate; server kiểm schema và giới hạn trước lưu nháp. Không có deadline thì không tự đặt. Người nhận mặc định trống để PM chọn. Chưa tạo task/notification trước approve.",
-        "x-source": "BackEnd/src/routes/ai.js:83",
+        "x-source": "BackEnd/src/routes/ai.js:85",
         "parameters": [
           {
             "in": "path",
@@ -11294,7 +11323,7 @@
         ],
         "summary": "POST /ai/drafts/{id}/discard",
         "description": "Chỉ chủ nháp đang là PM active. version bắt buộc cho nháp còn mở; stale 409; không được hủy bản đã duyệt; hủy lặp là idempotent.",
-        "x-source": "BackEnd/src/routes/ai.js:162",
+        "x-source": "BackEnd/src/routes/ai.js:165",
         "parameters": [
           {
             "in": "path",
@@ -11420,8 +11449,8 @@
           "ai"
         ],
         "summary": "POST /ai/drafts/{id}/approve",
-        "description": "Chỉ chủ nháp đang là PM active. version bắt buộc; nháp còn mở phải khớp. Kiểm tổng giờ, hạn và số người đã chọn; transaction tạo task/AC/remainingHours, audit, tăng version. UNIQUE(project,aiDraftItem) + lock bảo đảm duyệt lặp không tạo trùng; nháp approved trả lại kết quả đã duyệt, kể cả retry version cũ. Response có draft/created.",
-        "x-source": "BackEnd/src/routes/ai.js:181",
+        "description": "Chỉ chủ nháp đang là PM active. version bắt buộc; nháp còn mở phải khớp. Kiểm tổng giờ, hạn và số người đã chọn; transaction tạo task/AC/remainingHours, audit, tăng version. UNIQUE(project,aiDraftItem) + lock bảo đảm duyệt lặp không tạo trùng; nháp approved trả lại kết quả đã duyệt, kể cả retry version cũ. Response có draft/created. Meeting kiểm hash nguồn và trích đoạn trước apply; người đã khóa/rời dự án/Viewer không nhận task. Kiểm lại phiên dưới user lock để sắp thứ tự với admin revoke.",
+        "x-source": "BackEnd/src/routes/ai.js:185",
         "parameters": [
           {
             "in": "path",
@@ -11547,8 +11576,8 @@
           "ai"
         ],
         "summary": "POST /projects/{projectId}/ai/meeting",
-        "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/ai.js:295",
+        "description": "Chỉ PM active. title 1–200 ký tự, text 10–30.000 ký tự trim. Nguồn lưu tại draft.input.text cùng SHA-256 sourceHash và spanEncoding=utf-16; mỗi item có excerpt và sourceSpan {start,end} zero-based [start,end). Không suy đoán người khi trùng tên hoặc hạn khi nhiều ngày. Kiểm phiên/ACL sau AI, chỉ lưu nháp. Duyệt dùng chung CAS/transaction của planner; sourceSpan/excerpt không được sửa qua PATCH. Bản nháp cũ thiếu span được kiểm bằng excerpt nguyên văn.",
+        "x-source": "BackEnd/src/routes/ai.js:309",
         "parameters": [
           {
             "in": "path",
@@ -11644,6 +11673,32 @@
               }
             }
           }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "text": {
+                    "type": "string",
+                    "minLength": 10,
+                    "maxLength": 30000
+                  }
+                },
+                "required": [
+                  "title",
+                  "text"
+                ]
+              }
+            }
+          }
         }
       }
     },
@@ -11655,7 +11710,7 @@
         ],
         "summary": "GET /projects/{projectId}/ai/reports",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/ai.js:320",
+        "x-source": "BackEnd/src/routes/ai.js:333",
         "parameters": [
           {
             "in": "path",
@@ -11748,8 +11803,8 @@
           "ai"
         ],
         "summary": "POST /projects/{projectId}/ai/reports",
-        "description": "Chỉ PM active. Số liệu DB chốt tại generatedAt (legacy có thể null), AI chỉ viết diễn giải. Fingerprint gồm task/document/project/membership/capacity/risk resolutions; kiểm lại nguồn và quyền sau AI. Stats và generatedAt được giữ nguyên khi sửa nội dung báo cáo.",
-        "x-source": "BackEnd/src/routes/ai.js:339",
+        "description": "Chỉ PM active. Số liệu và tóm tắt định lượng tính từ DB tại generatedAt; không dùng summary do provider tự tạo. AI cung cấp đề xuất có nhãn aiSuggested để PM review. sourceTasks chứa toàn bộ task thuộc mẫu số và nguồn rủi ro. Date-only from/to bao gồm cả hai ngày theo Asia/Ho_Chi_Minh; timestamp có offset giữ đúng thời điểm, to inclusive tới mili giây. Fingerprint gồm task/document/project/membership/capacity/risk resolutions; kiểm lại nguồn, quyền và phiên sau AI. Stats và generatedAt giữ nguyên khi sửa nội dung báo cáo.",
+        "x-source": "BackEnd/src/routes/ai.js:356",
         "parameters": [
           {
             "in": "path",
@@ -11856,7 +11911,7 @@
         ],
         "summary": "GET /ai/reports/{id}",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/ai.js:331",
+        "x-source": "BackEnd/src/routes/ai.js:348",
         "parameters": [
           {
             "in": "path",
@@ -11950,7 +12005,7 @@
         ],
         "summary": "PATCH /ai/reports/{id}",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/ai.js:390",
+        "x-source": "BackEnd/src/routes/ai.js:408",
         "parameters": [
           {
             "in": "path",
@@ -12055,7 +12110,7 @@
         ],
         "summary": "DELETE /ai/reports/{id}",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/ai.js:431",
+        "x-source": "BackEnd/src/routes/ai.js:450",
         "parameters": [
           {
             "in": "path",
@@ -12162,7 +12217,7 @@
         ],
         "summary": "GET /projects/{projectId}/ai/sources",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/ai.js:442",
+        "x-source": "BackEnd/src/routes/ai.js:462",
         "parameters": [
           {
             "in": "path",
@@ -12295,7 +12350,7 @@
         ],
         "summary": "GET /projects/{projectId}/ai/conversations",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/ai.js:452",
+        "x-source": "BackEnd/src/routes/ai.js:472",
         "parameters": [
           {
             "in": "path",
@@ -12391,7 +12446,7 @@
         ],
         "summary": "GET /ai/conversations/{id}",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/ai.js:457",
+        "x-source": "BackEnd/src/routes/ai.js:477",
         "parameters": [
           {
             "in": "path",
@@ -12485,7 +12540,7 @@
         ],
         "summary": "DELETE /ai/conversations/{id}",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/ai.js:493",
+        "x-source": "BackEnd/src/routes/ai.js:514",
         "parameters": [
           {
             "in": "path",
@@ -12592,7 +12647,7 @@
         ],
         "summary": "POST /projects/{projectId}/ai/ask",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/ai.js:464",
+        "x-source": "BackEnd/src/routes/ai.js:484",
         "parameters": [
           {
             "in": "path",
