@@ -46,3 +46,10 @@ Lộc: không cần triển khai thanh toán, hủy công việc này.
 6. Ca HTTP có điều khiển trong suite backend giữ response AI, gọi lock/logout rồi mới nhả AI. Expected: 401, không tạo draft/report/conversation, không trả văn bản nguồn cũ, socket đã ngắt. Đây là kiểm thử concurrency, không giả mô phỏng bằng bấm chậm thủ công.
 
 Kết quả người review/dùng thử thật phải ghi thêm tên hoặc mã người thử, ngày, build, expected/actual và lỗi gặp. Không dùng việc các bước đã được viết ra làm bằng chứng đã có người nghiệm thu.
+## Bổ sung sau hợp nhất ngày 06/11/2026
+
+- PM sửa dự án, chọn múi giờ báo cáo hợp lệ (ví dụ `America/New_York`). Mở báo cáo, chọn 08/03/2026 đến 08/03/2026. Request mới dùng `period_start=2026-03-08T05:00:00Z`, `period_end=2026-03-09T04:00:00Z` (23 giờ). Hai kỳ liền nhau không cùng đếm task đúng ranh giới. Báo cáo cũ giữ nguyên số liệu, kỳ và múi giờ snapshot.
+- Với ngày tham chiếu 05/11/2026 trong test tự động, “thứ sáu tuần sau” là 13/11/2026. Khi demo trực tiếp, kết quả tương ứng với ngày đang chạy. “ngày 15/11/2026 hoặc ngày 16” phải để trống hạn.
+- “Lộc: viết kiểm thử để người dùng không được tự cấp quyền admin” giữ action; “Lộc: sẽ không kiểm thử API nữa” không tạo action.
+- Workload ghi rõ khi dùng giờ mặc định của thành viên. Capacity 0 có nghĩa không có giờ khả dụng. Nếu thiếu cả capacity tuần và mặc định, kết quả là chưa khai báo, không suy thành 0 hoặc 20.
+- Hồ sơ cuối: [COMPLETION_2026-11-06.md](COMPLETION_2026-11-06.md).

@@ -11,7 +11,7 @@ import { config } from '../../src/config.js';
 export function locSprint3({ fixture, db, Client, seed, socketFor, join }) {
   const now = new Date('2026-11-05T05:00:00.000Z');
   const from = new Date('2026-11-01T17:00:00.000Z');
-  const to = new Date('2026-11-08T16:59:59.999Z');
+  const to = new Date('2026-11-08T17:00:00.000Z');
   const ago = new Date(now.getTime() - 86400000);
   const later = new Date(now.getTime() + 86400000);
   const done = (at) => ({ status: 'done', completedAt: at, remainingHours: 0 });
@@ -36,8 +36,8 @@ export function locSprint3({ fixture, db, Client, seed, socketFor, join }) {
     ['R04 Review is not Done', [{ status: 'review' }], [0, 0, 0, 1, 0, 0]],
     ['R05 completed at start', [done(from)], [1, 0, 0, 1, 1, 100]],
     ['R06 completed before start', [done(new Date(from - 1))], [0, 0, 0, 1, 1, 100]],
-    ['R07 completed at inclusive end', [done(to)], [1, 0, 0, 1, 1, 100]],
-    ['R08 completed after end', [done(new Date(to.getTime() + 1))], [0, 0, 0, 1, 1, 100]],
+    ['R07 completed at exclusive end', [done(to)], [0, 0, 0, 1, 1, 100]],
+    ['R08 completed last millisecond', [done(new Date(to.getTime() - 1))], [1, 0, 0, 1, 1, 100]],
     ['R09 deleted Done', [{ ...done(now), deletedAt: now }], [0, 0, 0, 0, 0, 0]],
     ['R10 child not double counted', [{}, { ...done(now), parentIndex: 0 }], [0, 0, 0, 1, 0, 0]],
     ['R11 reopened', [{ status: 'in_progress', completedAt: null }], [0, 0, 0, 1, 0, 0]],
@@ -111,6 +111,31 @@ export function locSprint3({ fixture, db, Client, seed, socketFor, join }) {
   }
   const reply = (res, result) => { res.setHeader('content-type', 'application/json'); res.end(JSON.stringify({ result, model: 'fixture', provider: 'test' })); };
   describe('Lộc Sprint 3: meeting, report, admin security', () => {
+    test('U022: API half-open boundaries, project timezone, DST and immutable old reports', async () => {
+      const boundary = new Date('2026-11-08T17:00:00Z');
+      const f = await dataset([done(boundary)]);
+      const post = (period) => f.owner.post(`/projects/${f.pid}/ai/reports`, period);
+      const first = await post({ period_start: '2026-11-01T17:00:00Z', period_end: boundary.toISOString() });
+      const second = await post({ period_start: boundary.toISOString(), period_end: '2026-11-15T17:00:00Z' });
+      assert.equal(first.status, 201, JSON.stringify(first.data));
+      assert.equal(second.status, 201, JSON.stringify(second.data));
+      assert.deepEqual([first.data.report.stats.done, second.data.report.stats.done], [0, 1]);
+      assert.equal(first.data.report.period_end, boundary.toISOString());
+      assert.equal((await post({ period_start: '2026-11-08', period_end: '2026-11-08' })).status, 400);
+      assert.equal((await post({ from: '2026-11-01', to: '2026-11-02', period_end: '2026-11-03' })).status, 400);
+      assert.equal((await f.owner.patch(`/projects/${f.pid}`, { timezone: 'Mars/Olympus' })).status, 400);
+      assert.equal((await f.member.patch(`/projects/${f.pid}`, { timezone: 'Asia/Tokyo' })).status, 403);
+      assert.equal((await f.owner.patch(`/projects/${f.pid}`, { timezone: 'America/New_York' })).status, 200);
+      const dst = await post({ from: '2026-03-08', to: '2026-03-08' });
+      assert.equal(dst.status, 201, JSON.stringify(dst.data));
+      assert.equal(dst.data.report.timezone, 'America/New_York');
+      assert.equal((new Date(dst.data.report.to) - new Date(dst.data.report.from)) / 3600000, 23);
+      const old = (await f.owner.get(`/ai/reports/${first.data.report._id}`)).data.report;
+      assert.equal(old.timezone, 'Asia/Ho_Chi_Minh');
+      assert.deepEqual(old.stats, first.data.report.stats);
+      assert.equal(old.to, first.data.report.to);
+      assert.equal(old.sourceState, 'changed');
+    });
     test('U022: số ngày quá hạn chỉ tăng khi đủ 24 giờ', async () => {
       const f = await dataset([86400000 - 1, 86400000, 2 * 86400000 - 1, 2 * 86400000].map((ms) => ({ dueDate: new Date(now - ms) })));
       const r = await buildReportData(f.pid, from, to, f.project, now);
@@ -196,6 +221,9 @@ export function locSprint3({ fixture, db, Client, seed, socketFor, join }) {
       assert.equal(calls, 1);
       const log = await db.prisma.aiCall.findFirst({ where: { workspace: f.ws } });
       assert.equal(log.error, `AI_UPSTREAM_HTTP_${status}`);
+      assert.ok(log.latencyMs >= 0 && log.latencyMs < 60000, 'latency uses one monotonic clock');
+      assert.equal(log.attempts.length, 1);
+      assert.ok(log.finishedAt);
       assert.ok(!JSON.stringify([result, log, logged]).includes(secret));
       assert.equal((await f.owner.post(`/projects/${f.pid}/tasks`, { title: 'CRUD độc lập' })).status, 201);
     });

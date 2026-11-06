@@ -121,6 +121,8 @@ export async function seedDemo() {
         sprint: project.sprint?.name || '',
         order: number,
         ...fields,
+        legacySpentHours: data.spentHours || 0,
+        progressPct: data.status === 'done' ? 100 : 0,
         checklistItems: { create: checklist.map((item, position) => ({ title: item.text, isDone: item.done, position })) },
         completedAt: data.status === 'done' ? data.completedAt || at(-1) : null,
       },
@@ -557,6 +559,16 @@ export async function seedDemo() {
       createdAt: new Date(Date.now() - (i + 1) * 47 * 60000),
     })),
   });
+
+  // Danh mục nhãn và Sprint đọc từ dữ liệu vừa tạo, để màn hình chọn nhãn/Sprint có sẵn lựa chọn.
+  for (const p of await prisma.project.findMany({ where: { workspace: ws.id } })) {
+    const tasks = await prisma.task.findMany({ where: { project: p.id }, select: { labels: true, sprint: true } });
+    const labels = [...new Set(tasks.flatMap((t) => t.labels))];
+    if (labels.length) await prisma.projectLabel.createMany({ data: labels.map((name) => ({ project: p.id, name })), skipDuplicates: true });
+    if (p.sprint?.name) {
+      await prisma.sprint.create({ data: { project: p.id, name: p.sprint.name, goal: p.sprint.goal || '', start: p.sprint.start ? new Date(p.sprint.start) : null, end: p.sprint.end ? new Date(p.sprint.end) : null, status: 'active' } });
+    }
+  }
 
   console.log(`[seed] Xong. Đăng nhập: ${PEOPLE[0].email} / ${DEMO_PASSWORD}  (System Admin: admin@taskflow.local)`);
   return { users: u, workspace: ws, projects: { website, mobile, backend, hackathon }, spammer };

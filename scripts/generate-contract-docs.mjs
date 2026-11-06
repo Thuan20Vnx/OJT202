@@ -5,7 +5,7 @@ import path from 'node:path';
 // Chạy từ repository root; chỉ đọc source và ghi tài liệu, không kết nối DB.
 const out = path.resolve('docs/design');
 await fs.mkdir(out, { recursive: true });
-const files = { auth: '/auth', me: '/me', workspaces: '/workspaces', capacity: '/workspaces', notifications: '/notifications', admin: '/admin', dev: '/dev', projects: '', tasks: '', documents: '', dashboard: '', ai: '' };
+const files = { auth: '/auth', me: '/me', workspaces: '/workspaces', capacity: '/workspaces', notifications: '/notifications', admin: '/admin', dev: '/dev', projects: '', tasks: '', documents: '', dashboard: '', ai: '', delivery: '' };
 const paths = {};
 const manifest = {};
 for (const dir of ['FrontEnd/src', 'BackEnd/src', 'AIService/src', 'shared', 'BackEnd/prisma']) {
@@ -47,6 +47,8 @@ const draftItem = { ...object({
   assignee: { type: ['string', 'null'], format: 'uuid' }, dueDate: { type: ['string', 'null'] }, selected: { type: 'boolean' },
 }, ['key']), additionalProperties: false };
 const taskFields = { acceptance_criteria: { type: 'string', maxLength: 10000, description: 'Tiêu chí nghiệm thu dạng văn bản nhiều dòng; chuỗi rỗng xóa nội dung. Không gửi đồng thời acceptanceCriteria.' }, acceptanceCriteria: { type: 'array', maxItems: 30, items: { type: 'string', minLength: 1, maxLength: 300 }, deprecated: true, description: 'Alias cho client cũ, được ghép bằng xuống dòng khi lưu.' }, title: { type: 'string', maxLength: 200 }, description: str, assignee: { type: ['string', 'null'] }, priority: { enum: ['low', 'medium', 'high'] }, dueDate: { type: ['string', 'null'] }, estimateHours: { type: ['number', 'null'], minimum: 0 }, remainingHours: { type: ['number', 'null'], minimum: 0 } };
+for (const field of ['plannedStartDate', 'actualStartDate', 'actualEndDate']) taskFields[field] = { type: ['string', 'null'], description: 'Ngày YYYY-MM-DD hoặc timestamp có múi giờ; actual không được ở ngày tương lai. Kết thúc không trước bắt đầu khi cả hai có giá trị.' };
+taskFields.dueDate.description = 'Ngày kết thúc kế hoạch (hạn chót); giữ tên dueDate để tương thích lịch/nhắc hạn.';
 const bodies = {
   '/auth/forgot-password:post': object({ email: { type: 'string', format: 'email' } }, ['email']),
   '/auth/reset-password:post': object({ token: str, password: str }, ['token', 'password']),
@@ -68,6 +70,22 @@ const bodies = {
   '/ai/drafts/{id}/discard:post': { ...object({ version }, ['version']), additionalProperties: false },
   '/projects/{projectId}/risks/resolve:post': { ...object({ key: { type: 'string', minLength: 1, maxLength: 100000 }, sourceVersion, reason: { type: 'string', minLength: 3, maxLength: 1000 }, title: { type: 'string', maxLength: 300, description: 'Tương thích client cũ; server dùng tiêu đề cảnh báo thật.' } }, ['key', 'sourceVersion', 'reason']), additionalProperties: false },
 };
+taskFields.workType = { enum: ['unclassified', 'development', 'testing', 'database', 'design', 'documentation', 'devops', 'research'] };
+bodies['/tasks/{id}:patch'].properties.workType = taskFields.workType;
+bodies['/projects/{projectId}/tasks:post'].properties.workType = taskFields.workType;
+const uuid = { type: 'string', format: 'uuid' };
+const hours = { type: 'number', minimum: 0, maximum: 1000 };
+const strictObject = (props, required) => ({ ...object(props, required), additionalProperties: false });
+const meetingFields = { title: { type: 'string', minLength: 1, maxLength: 200 }, agenda: { type: 'string', maxLength: 4000 }, location: { type: 'string', maxLength: 500 }, startAt: { type: 'string', format: 'date-time' }, endAt: { type: 'string', format: 'date-time' }, participants: { type: 'array', minItems: 1, maxItems: 20, items: uuid } };
+Object.assign(bodies, {
+  '/tasks/{id}/contributors:put': strictObject({ version, items: { type: 'array', maxItems: 20, items: strictObject({ user: uuid, responsibility: { type: 'string', minLength: 1, maxLength: 300 }, plannedHours: { ...hours, exclusiveMinimum: 0 }, remainingHours: hours }, ['user', 'responsibility', 'plannedHours', 'remainingHours']) } }, ['version', 'items']),
+  '/tasks/{id}/daily-updates/{date}:put': strictObject({ version: { type: 'integer', minimum: 0, description: '0 cho bản ghi mới; sửa gửi version của bản ghi' }, taskVersion: version, hours: { type: 'number', minimum: 0, maximum: 24 }, completed: { type: 'string', minLength: 1, maxLength: 2000 }, nextStep: { type: 'string', maxLength: 2000 }, blockers: { type: 'string', maxLength: 2000 }, progressPct: { type: 'integer', minimum: 0, maximum: 100 }, remainingHours: hours }, ['version', 'taskVersion', 'hours', 'completed', 'nextStep', 'blockers', 'progressPct', 'remainingHours']),
+  '/tasks/{id}/issues:post': strictObject({ title: { type: 'string', minLength: 1, maxLength: 200 }, severity: { enum: ['low', 'medium', 'high', 'critical'] }, cause: { type: 'string', minLength: 1, maxLength: 2000 }, action: { type: 'string', minLength: 1, maxLength: 2000 }, owner: { type: ['string', 'null'], format: 'uuid' } }, ['title', 'severity', 'cause', 'action', 'owner']),
+  '/tasks/{id}/issues/{issueId}:patch': strictObject({ version, status: { enum: ['open', 'resolved'] }, resolution: { type: 'string', maxLength: 2000, description: 'Bắt buộc có nội dung khi resolved' } }, ['version', 'status', 'resolution']),
+  '/projects/{projectId}/meetings:post': strictObject(meetingFields, Object.keys(meetingFields)),
+  '/projects/{projectId}/meetings/{meetingId}:put': strictObject({ ...meetingFields, version }, [...Object.keys(meetingFields), 'version']),
+  '/projects/{projectId}/meetings/{meetingId}/cancel:post': strictObject({ version }, ['version']),
+});
 taskFields.checklist = { type: 'array', maxItems: 50, items: checklistItem, description: 'Stored in checklist_items; send existing _id to preserve identity. No IDs remains supported for old clients.' };
 // The PATCH schema copies taskFields above, so include checklist explicitly there too.
 bodies['/tasks/{id}:patch'].properties.checklist = taskFields.checklist;
@@ -77,7 +95,7 @@ for (const [key, schema] of Object.entries(bodies)) {
   paths[route][method].requestBody = { required: true, content: { 'application/json': { schema } } };
 }
 paths['/projects/{projectId}/ai/sources'].get.responses['200'] = { description: 'Thống kê nguồn được đọc trực tiếp, không trả nội dung.', content: { 'application/json': { schema: object({ tasks: { type: 'integer' }, documents: { type: 'integer' }, retrieval: { const: 'live' }, latestTaskAt: { type: ['string', 'null'], format: 'date-time' }, latestDocumentAt: { type: ['string', 'null'], format: 'date-time' } }, ['tasks', 'documents', 'retrieval']) } } };
-paths['/health'] = { get: { operationId: 'health', security: [], responses: { 200: { description: 'Process HTTP hoạt động; không phải readiness DB/AI.' } } } };
+paths['/health'] = { get: { operationId: 'health', security: [], responses: { 200: { description: 'Liveness HTTP, không phải readiness DB/AI. Cache-Control: no-store. build.revision/sourceHash lấy từ RELEASE_SHA/RELEASE_SOURCE_HASH hợp lệ, null nếu chưa cấu hình; smoke production kiểm trùng với build được đo.' } } } };
 const schemaSource = await fs.readFile('BackEnd/prisma/schema.prisma', 'utf8');
 paths['/tasks/{id}'].delete.parameters.push({ in: 'query', name: 'impact', required: false, schema: { type: 'string', pattern: '^[a-f0-9]{64}$' }, description: 'Token từ deletion-preview; 409 DELETE_CHANGED nếu phạm vi đã đổi trước khi xác nhận.' });
 paths['/tasks/{id}'].delete.parameters.push({ in: 'query', name: 'confirm', required: false, schema: { type: 'string', enum: ['true'] }, description: 'Bắt buộc xác nhận khi có task con; UI luôn dùng preview và impact.' });
@@ -108,7 +126,12 @@ paths['/ai/drafts/{id}'].patch.description = 'Chỉ chủ nháp đang là PM act
 paths['/ai/drafts/{id}/approve'].post.description = 'Chỉ chủ nháp đang là PM active. version bắt buộc; nháp còn mở phải khớp. Kiểm tổng giờ, hạn và số người đã chọn; transaction tạo task/AC/remainingHours, audit, tăng version. UNIQUE(project,aiDraftItem) + lock bảo đảm duyệt lặp không tạo trùng; nháp approved trả lại kết quả đã duyệt, kể cả retry version cũ. Response có draft/created.';
 paths['/ai/drafts/{id}/discard'].post.description = 'Chỉ chủ nháp đang là PM active. version bắt buộc cho nháp còn mở; stale 409; không được hủy bản đã duyệt; hủy lặp là idempotent.';
 paths['/projects/{projectId}/ai/plan'].post.description = 'Chỉ PM active. AI trả 5–15 mục đủ title/description/AC/estimate; server kiểm schema và giới hạn trước lưu nháp. Không có deadline thì không tự đặt. Người nhận mặc định trống để PM chọn. Chưa tạo task/notification trước approve.';
-paths['/projects/{projectId}/ai/reports'].post.description = 'Chỉ PM active. Số liệu và tóm tắt định lượng tính từ DB tại generatedAt; không dùng summary do provider tự tạo. AI cung cấp đề xuất có nhãn aiSuggested để PM review. sourceTasks chứa toàn bộ task thuộc mẫu số và nguồn rủi ro. Date-only from/to bao gồm cả hai ngày theo Asia/Ho_Chi_Minh; timestamp có offset giữ đúng thời điểm, to inclusive tới mili giây. Fingerprint gồm task/document/project/membership/capacity/risk resolutions; kiểm lại nguồn, quyền và phiên sau AI. Stats và generatedAt giữ nguyên khi sửa nội dung báo cáo.';
+paths['/projects/{projectId}/ai/reports'].post.description = 'Chỉ PM active. Canonical period_start/period_end là khoảng [start,end), date-only hiểu là 00:00 theo project.timezone, timestamp có offset giữ nguyên instant. Alias from/to: ngày cuối date-only bao gồm hết ngày bằng cách chuyển sang 00:00 ngày tiếp theo; to timestamp là exclusive. Không trộn hai bộ trường. Response mới có from/to, period_start/period_end, timezone snapshot và periodConvention=exclusive-end. Báo cáo cũ giữ legacy-inclusive, không viết lại số liệu. Số liệu/tóm tắt định lượng từ DB tại generatedAt; AI chỉ cung cấp đề xuất có nhãn. Kiểm lại nguồn, quyền, phiên sau AI; stats/generatedAt/period/timezone bất biến khi sửa nội dung.';
+paths['/projects/{projectId}/ai/reports'].post.requestBody = { required: true, content: { 'application/json': { schema: { oneOf: [
+  { ...object({ period_start: str, period_end: str, template: { enum: ['week', 'sprint', 'lecturer'], default: 'week' } }, ['period_start', 'period_end']), additionalProperties: false },
+  { ...object({ from: str, to: str, template: { enum: ['week', 'sprint', 'lecturer'], default: 'week' } }, ['from', 'to']), additionalProperties: false },
+] } } } };
+paths['/projects/{projectId}'].patch.description += ' timezone là IANA zone hợp lệ cho kỳ báo cáo (mặc định Asia/Ho_Chi_Minh); chỉ PM đang hoạt động sửa được. Không đổi kỳ/zone của snapshot cũ.';
 paths['/projects/{projectId}/ai/meeting'].post.description = 'Chỉ PM active. title 1–200 ký tự, text 10–30.000 ký tự trim. Nguồn lưu tại draft.input.text cùng SHA-256 sourceHash và spanEncoding=utf-16; mỗi item có excerpt và sourceSpan {start,end} zero-based [start,end). Không suy đoán người khi trùng tên hoặc hạn khi nhiều ngày. Kiểm phiên/ACL sau AI, chỉ lưu nháp. Duyệt dùng chung CAS/transaction của planner; sourceSpan/excerpt không được sửa qua PATCH. Bản nháp cũ thiếu span được kiểm bằng excerpt nguyên văn.';
 paths['/projects/{projectId}/ai/meeting'].post.requestBody = { required: true, content: { 'application/json': { schema: object({ title: { type: 'string', minLength: 1, maxLength: 200 }, text: { type: 'string', minLength: 10, maxLength: 30000 } }, ['title', 'text']) } } };
 paths['/ai/drafts/{id}/approve'].post.description += ' Meeting kiểm hash nguồn và trích đoạn trước apply; người đã khóa/rời dự án/Viewer không nhận task. Kiểm lại phiên dưới user lock để sắp thứ tự với admin revoke.';
@@ -128,10 +151,13 @@ paths['/projects/{projectId}/documents/upload'].post.description = 'Project PM/M
 paths['/tasks/{id}/dependencies'].post.requestBody = { required: true, content: { 'application/json': { schema: object({ blockedBy: { type: 'string', format: 'uuid' } }, ['blockedBy']) } } };
 paths['/tasks/{id}/dependencies'].post.description = 'Chỉ PM active. Cùng project, không self-link/chu trình; khóa workspace và kiểm lại quyền. Thêm lặp là no-op, không tăng version/audit.';
 manifest['BackEnd/prisma/schema.prisma'] = crypto.createHash('sha256').update(schemaSource).digest('hex');
-const spec = { openapi: '3.1.0', info: { title: 'TaskFlow API — inventory và contract luồng chính', version: '2026-11-02', description: 'Base /api/v1; /api là alias tương thích. Cookie HttpOnly tf_at; refresh tf_rt. UUID nội bộ id được serialize thành _id. Inventory bao phủ tuyến REST được khai báo trực tiếp; request/response chi tiết mới đặc tả các luồng chính, xem x-source cho phần còn lại. Các response lỗi chung là khả năng, không phải mọi endpoint đều trả mọi mã.' }, servers: [{ url: '/api/v1' }, { url: '/api', description: 'Legacy alias' }], security: [{ cookieAuth: [] }], paths, components: { securitySchemes: { cookieAuth: { type: 'apiKey', in: 'cookie', name: 'tf_at' } }, schemas: { Error: object({ error: str, details: { type: 'object', additionalProperties: true } }, ['error']) } } };
+paths['/workspaces/{wsId}/ai'].get.description = 'Thống kê AI theo workspace/ngày. p50LatencyMs/p95LatencyMs/latencySamples gồm các call đã kết thúc, kể cả lỗi và retry; legacy thiếu timestamp không giả làm mẫu mới. tokens là token đã biết, unknownUsageCalls biểu thị usage chưa đầy đủ.';
+paths['/workspaces/{wsId}/ai/calls'].get.description = 'Chỉ Owner/Admin. Log có queuedAt/finishedAt/provider/attempts/usageComplete. latencyMs tính cả chờ workspace lock và retry; mỗi attempt giữ token null khi chưa biết, không được suy ra chi phí bằng 0. Dùng API phân trang cho export lớn.';
+paths['/workspaces/{wsId}/ai/calls.csv'].get.description = 'Chỉ Owner/Admin; private,no-store; xuất token đã biết, provider, queue/finish, số attempt và usageComplete. Trên 10.000 bản ghi trả 400, không cắt âm thầm. CSV chống formula injection.';
+const spec = { openapi: '3.1.0', info: { title: 'TaskFlow API — inventory và contract luồng chính', version: '2026-11-03', description: 'Base /api/v1; /api là alias tương thích. Cookie HttpOnly tf_at; refresh tf_rt. UUID nội bộ id được serialize thành _id. Inventory bao phủ tuyến REST được khai báo trực tiếp; request/response chi tiết mới đặc tả các luồng chính, xem x-source cho phần còn lại. Các response lỗi chung là khả năng, không phải mọi endpoint đều trả mọi mã.' }, servers: [{ url: '/api/v1' }, { url: '/api', description: 'Legacy alias' }], security: [{ cookieAuth: [] }], paths, components: { securitySchemes: { cookieAuth: { type: 'apiKey', in: 'cookie', name: 'tf_at' } }, schemas: { Error: object({ error: str, details: { type: 'object', additionalProperties: true } }, ['error']) } } };
 await fs.writeFile(path.join(out, 'openapi.json'), JSON.stringify(spec, null, 2) + '\n');
-const models = [...schemaSource.matchAll(/model (\w+) \{([\s\S]*?)\n\}/g)];
-let erd = '# ERD và từ điển dữ liệu\n\nVersion 2026-11-02. Sinh từ `BackEnd/prisma/schema.prisma`; SQL migration là nguồn triển khai. Mảng UUID và JSONB không tự tạo FK; quan hệ bên dưới chỉ lấy từ `@relation(fields:...)` thật.\n\n```mermaid\nerDiagram\n';
+const models = [...schemaSource.replaceAll('\r\n', '\n').matchAll(/model (\w+) \{([\s\S]*?)\n\}/g)];
+let erd = '# ERD và từ điển dữ liệu\n\nVersion 2026-11-03. Sinh từ `BackEnd/prisma/schema.prisma`; SQL migration là nguồn triển khai. Mảng UUID và JSONB không tự tạo FK; quan hệ bên dưới chỉ lấy từ `@relation(fields:...)` thật.\n\n```mermaid\nerDiagram\n';
 for (const [, name, body] of models) {
   erd += `  ${name} {\n`;
   for (const line of body.split('\n')) {

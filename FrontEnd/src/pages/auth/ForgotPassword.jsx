@@ -2,7 +2,7 @@ import { t as tr, useI18n } from '../../lib/i18n.js';
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import AuthLayout from './AuthLayout.jsx';
-import { PasswordInput, PasswordStrength } from './Login.jsx';
+import { OtpInput, PasswordInput, PasswordStrength } from './Login.jsx';
 import { Field, Icon, Notice, Spinner } from '../../components/ui.jsx';
 import { api } from '../../lib/api.js';
 
@@ -43,6 +43,7 @@ export default function ForgotPassword() {
   const [done, setDone] = useState(false);
   const [expired, setExpired] = useState(false);
   const [cool, setCool] = useState(0);
+  const [code, setCode] = useState('');
 
   useEffect(() => {
     if (token) api.get(`/auth/reset-password/check?token=${encodeURIComponent(token)}`).then((d) => setExpired(!d.valid)).catch(() => {});
@@ -68,6 +69,23 @@ export default function ForgotPassword() {
       setError(err.message);
     } finally {
       pending.current = false;
+      setBusy(false);
+    }
+  };
+
+  const resetWithCode = async (e) => {
+    e.preventDefault();
+    if (code.length !== 6) return setError(tr("Nhập đủ 6 chữ số"));
+    if (pw !== pw2) return setError(tr("Mật khẩu xác nhận không khớp"));
+    setBusy(true);
+    setError('');
+    try {
+      await api.post('/auth/reset-password-otp', { email, code, password: pw });
+      setDone(true);
+      setStep(3);
+    } catch (err) {
+      setError(err.message);
+    } finally {
       setBusy(false);
     }
   };
@@ -102,7 +120,7 @@ export default function ForgotPassword() {
               <Icon name="arrow_back" size={16} />{tr(" Quay lại đăng nhập")}</Link>
             <div>
               <h2 className="text-headline-md text-slate-900">{tr("Quên mật khẩu?")}</h2>
-              <p className="text-body-sm text-slate-500">{tr("Nhập email, chúng tôi sẽ gửi liên kết đặt lại mật khẩu.")}</p>
+              <p className="text-body-sm text-slate-500">{tr("Nhập email, chúng tôi sẽ gửi mã OTP và liên kết đặt lại mật khẩu.")}</p>
             </div>
             <Field label={tr("Email công việc")} required>
               <div className="relative">
@@ -111,7 +129,7 @@ export default function ForgotPassword() {
               </div>
             </Field>
             <button className="btn-primary h-10 w-full" disabled={busy}>
-              {busy && <Spinner />}{tr("Gửi liên kết đặt lại")}<Icon name="send" size={16} />
+              {busy && <Spinner />}{tr("Gửi mã đặt lại")}<Icon name="send" size={16} />
             </button>
             <div className="flex justify-between text-body-sm">
               <span className="text-slate-400">{tr("Đã nhớ mật khẩu?")}</span>
@@ -126,10 +144,23 @@ export default function ForgotPassword() {
             </span>
             <div>
               <h2 className="text-headline-md text-slate-900">{tr("Kiểm tra hộp thư của bạn")}</h2>
-              <p className="mt-1 text-body-sm text-slate-500">{tr("Nếu email tồn tại trong hệ thống, liên kết đặt lại đã được gửi tới ")}<b>{mask(email)}</b>{tr(". Liên kết chỉ dùng được một lần và hết hạn sau 30 phút.")}</p>
+              <p className="mt-1 text-body-sm text-slate-500">{tr("Nếu email tồn tại trong hệ thống, mã OTP 6 số (hiệu lực 10 phút) và liên kết đặt lại đã được gửi tới ")}<b>{mask(email)}</b>{tr(". Nhập mã bên dưới hoặc bấm liên kết trong email.")}</p>
             </div>
-            <a className="btn-outline w-full" href="mailto:">
-              <Icon name="open_in_new" size={16} />{tr(" Mở ứng dụng email")}</a>
+            <form onSubmit={resetWithCode} className="space-y-3 text-left">
+              {error && <Notice tone="danger">{error}</Notice>}
+              <Field label={tr("Mã OTP 6 số")} required>
+                <OtpInput value={code} onChange={setCode} autoFocus />
+              </Field>
+              <Field label={tr("Mật khẩu mới")} required>
+                <PasswordInput value={pw} onChange={(e) => setPw(e.target.value)} autoComplete="new-password" />
+                <PasswordStrength value={pw} />
+              </Field>
+              <Field label={tr("Xác nhận mật khẩu")} required error={pw2 && pw !== pw2 ? tr("Mật khẩu xác nhận không khớp") : ''}>
+                <PasswordInput value={pw2} onChange={(e) => setPw2(e.target.value)} autoComplete="new-password" />
+              </Field>
+              <button className="btn-primary h-10 w-full" disabled={busy || code.length !== 6}>
+                {busy && <Spinner />}{tr("Đặt lại mật khẩu")}</button>
+            </form>
             <p className="text-body-sm text-slate-500">{tr("Chưa nhận được?")}{' '}
               {cool > 0 ? (
                 <span>{tr("Gửi lại sau 00:")}{String(cool).padStart(2, '0')}</span>

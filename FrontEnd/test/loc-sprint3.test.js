@@ -8,6 +8,8 @@ import { api, ApiError } from '../src/lib/api.js';
 import { ErrorBox, Tabs, MenuItem, Select } from '../src/components/ui.jsx';
 import Admin from '../src/pages/Admin.jsx';
 import Meeting from '../src/pages/ai/Meeting.jsx';
+import Report from '../src/pages/ai/Report.jsx';
+import { reportPeriodInput } from '../src/lib/dates.js';
 
 beforeEach(() => { globalThis.window = new EventTarget(); globalThis.document = new EventTarget(); });
 const label = (n) => typeof n === 'string' ? n : (n.children || []).map(label).join('');
@@ -15,6 +17,26 @@ const button = (tree, name) => tree.root.findAllByType('button').filter((b) => l
 const user = { _id: 'u', name: 'User cần kiểm tra', email: 'user@example.test', createdAt: '2026-11-05', workspaces: 1 };
 const response = (url) => url.includes('/users') ? { users: [user], total: 1, page: 1, limit: 20, reasons: ['Khác'] }
   : url.endsWith('/workspaces') ? { workspaces: [] } : url.endsWith('/audit') ? { items: [] } : { users: 1, active: 1, locked: 0, workspaces: 1 };
+
+test('U022: report form submits canonical dates in the loaded project timezone', async (t) => {
+  t.mock.method(api, 'get', async (url) => url.endsWith('/period-project') ? { project: { timezone: 'America/New_York' }, access: { canManage: true } } : { reports: [] });
+  let sent;
+  t.mock.method(api, 'post', async (_url, input) => { sent = input; throw new ApiError(503, 'Retry later'); });
+  let tree;
+  await act(async () => { tree = create(React.createElement(MemoryRouter, {}, React.createElement(AppCtx.Provider,
+    { value: { me: { _id: 'owner' } } }, React.createElement(Report, { project: { _id: 'period-project', name: 'Period test' }, onUsage: () => {} })))); });
+  t.after(() => act(() => tree.unmount()));
+  for (let i = 0; i < 2; i++) await act(async () => tree.root.findAllByProps({ type: 'date' })[i].props.onChange({ target: { value: '2026-03-08' } }));
+  await act(async () => button(tree, 'Tạo báo cáo nháp').props.onClick());
+  assert.deepEqual(sent, { period_start: '2026-03-08T05:00:00.000Z', period_end: '2026-03-09T04:00:00.000Z', template: 'week' });
+  assert.equal(tree.root.findAllByProps({ type: 'date' })[1].props.value, '2026-03-08');
+  assert.match(label(tree.root), /America\/New_York/);
+});
+
+test('U022: inclusive UI dates cover the complete DST fall day', () => {
+  const p = reportPeriodInput({ from: '2026-11-01', to: '2026-11-01', template: 'week' }, 'America/New_York');
+  assert.equal((new Date(p.period_end) - new Date(p.period_start)) / 3600000, 25);
+});
 
 test('U027: sửa nguồn trong lúc trích phải trích lại hoặc khôi phục trước khi duyệt', async (t) => {
   t.mock.method(api, 'get', async (url) => url.endsWith('/p') ? { project: { members: [] }, access: { canManage: true } } : { drafts: [] });

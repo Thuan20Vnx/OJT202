@@ -7,7 +7,7 @@ import { useApp, useLoad, useToast } from '../lib/app.jsx';
 import { fileIcon, fileSize, fmtDateTime, timeAgo } from '../lib/format.js';
 import { useDebouncedValue, useProjectInfo, useSocketEvent } from '../lib/hooks.js';
 
-const ALLOWED = /\.(pdf|txt|png|jpe?g)$/i;
+const ALLOWED = /\.(pdf|txt|png|jpe?g|docx|xlsx|pptx|zip)$/i;
 
 export default function Documents() {
   useI18n();
@@ -50,7 +50,7 @@ function DocumentsPage() {
     if (uploadLock.current || !canWriteProject) return;
     const files = [...list];
     const bad = files.filter((x) => !ALLOWED.test(x.name) || x.size > 10 * 1024 * 1024);
-    setRejected(bad.map((x) => (x.size > 10 * 1024 * 1024 ? tr("{0} vượt quá 10MB", [x.name]) : tr("{0} không được hỗ trợ – chỉ nhận PDF, TXT, PNG, JPG", [x.name]))));
+    setRejected(bad.map((x) => (x.size > 10 * 1024 * 1024 ? tr("{0} vượt quá 10MB", [x.name]) : tr("{0} không được hỗ trợ – chỉ nhận PDF, TXT, PNG, JPG, DOCX, XLSX, PPTX, ZIP", [x.name]))));
     const ok = files.filter((x) => !bad.includes(x));
     if (!ok.length) return;
     const fd = new FormData();
@@ -95,7 +95,7 @@ function DocumentsPage() {
         >
           <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 text-blue-600">{uploading ? <Spinner /> : <Icon name="cloud_upload" />}</span>
           <div className="flex-1">
-            <p className="text-body-sm font-semibold text-slate-800">{tr("Kéo thả tệp vào đây · PDF, TXT, PNG, JPG – tối đa 10MB")}</p>
+            <p className="text-body-sm font-semibold text-slate-800">{tr("Kéo thả tệp vào đây · PDF, Word, Excel, PowerPoint, ZIP, TXT, ảnh – tối đa 10MB")}</p>
             <p className="text-label-md font-normal text-slate-500">{tr("Hoặc chọn tệp từ máy tính. Không nhận tệp thực thi.")}</p>
           </div>
           <button className="btn-outline btn-sm" onClick={() => input.current?.click()}>{tr("Duyệt tệp")}</button>
@@ -126,7 +126,7 @@ function DocumentsPage() {
             </div>
             <Select aria-label={tr("Loại tệp")} className="input h-8 w-auto py-0 text-body-sm" value={f.type} onChange={(e) => (setF({ ...f, type: e.target.value }), setPage(1))}>
               <option value="">{tr("Loại tệp")}</option>
-              {['pdf', 'txt', 'png', 'jpg'].map((x) => (
+              {['pdf', 'office', 'zip', 'txt', 'png', 'jpg'].map((x) => (
                 <option key={x} value={x}>
                   {x.toUpperCase()}
                 </option>
@@ -316,7 +316,7 @@ function Preview({ id, onDeleted, me }) {
         </div>
       ) : (
         <Notice tone={d.isScan ? 'warn' : 'info'} className="mt-4">
-          {d.isScan ? tr("Ảnh/scan được lưu nhưng không được đọc (OCR) cho Trợ lý AI.") : tr("Tệp PDF – tải xuống để xem nội dung.")}
+          {d.isScan ? tr("Ảnh/scan được lưu nhưng không được đọc (OCR) cho Trợ lý AI.") : tr("Tải xuống để xem nội dung tệp.")}
         </Notice>
       )}
       {isText && d.revisions?.length > 0 && (

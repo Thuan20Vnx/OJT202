@@ -4,9 +4,11 @@ Version 2026-10-30. Phạm vi: mã nguồn local và baseline `DN26_CPL_Mock_Pro
 
 ## Người dùng và quy trình
 
-Nhóm học tập/dự án nhỏ 5–20 người cần giao việc, trao đổi và báo cáo có nguồn. Workspace tách nhóm; project private yêu cầu cả workspace membership và project membership. Workspace Owner/Admin không tự có quyền đọc tất cả project. Người tạo dự án trở thành PM. System Admin quản tài khoản và audit, không được mặc định đọc nội dung dự án.
+Nhóm phát triển phần mềm khoảng 5–20 người cần giao việc, chia trách nhiệm coding/testing/database, theo dõi tiến độ, effort và các vấn đề gây trễ. Người dùng mục tiêu là PM, developer, tester và bên theo dõi dự án. Chức danh chuyên môn tách khỏi quyền truy cập PM/Member/Viewer; một người có thể có quyền khác nhau ở hai dự án. Workspace tách nhóm; project private yêu cầu cả workspace membership và project membership. Workspace Owner/Admin không tự có quyền đọc tất cả project. Người tạo dự án trở thành PM. System Admin quản tài khoản và audit, không được mặc định đọc nội dung dự án.
 
-Đăng ký → xác minh email → đăng nhập → workspace → project → tạo/giao task → bắt đầu → gửi Review → PM duyệt Done → dashboard/báo cáo. Lỗi mạng hoặc xung đột cần giữ nội dung đang nhập để người dùng quyết định tải lại.
+Phần bổ sung 03/11/2026: [phạm vi, công thức effort/workload, tiêu chí và kịch bản demo](../TEAM_DELIVERY_2026-11-03.md). Ngoài phạm vi: tính lương, ERP, timesheet để tính phí, đồng bộ Google/Outlook Calendar, video call, kiểm tra xung đột phòng họp và tự đánh giá hiệu suất cá nhân bằng giờ làm.
+
+Đăng ký → xác minh email → đăng nhập → workspace → project → tạo/giao task → bắt đầu → gửi Review → PM duyệt Done → dashboard/báo cáo. Lỗi mạng hoặc xung đột cần giữ nội dung đang nhập để người dùng quyết định tải lại. Cập nhật 30/10: task có bắt đầu/kết thúc kế hoạch và bắt đầu/kết thúc thực tế; [quy tắc ngày và migration](../TASK_DATES_2026-10-30.md).
 
 ## Yêu cầu chức năng và tiêu chí kiểm tra
 
@@ -82,3 +84,10 @@ Cookie HttpOnly/SameSite; Secure ở production, CORS allowlist, header `x-taskf
 Danh sách My Tasks/documents phân trang; lịch sử AI giới hạn 10/20. Kanban vẫn tải cả board; retrieval/overview vẫn có truy vấn theo toàn project. Chưa đủ bằng chứng cho 50 user ảo/10.000 task/10 phút, p95 API <800ms hoặc AI ≤20s. Chỉ bổ sung virtual list khi profile và bằng chứng browser cho thấy cần, không biến giới hạn render thành kết quả benchmark.
 
 Mục tiêu UAT ≥27/30, AI đúng ≥32/40, refusal ≥9/10, citation ≥90%, không rò rỉ trong 20 ca là ngưỡng của kế hoạch; xem [protocol](../validation/NHU_EVALUATION_UAT.md). Không công bố đạt trước khi chạy đúng bộ đề và chấm độc lập.
+## Bổ sung hợp đồng Sprint 3 ngày 06/11/2026
+
+U022 lưu kỳ báo cáo mới dưới dạng `[period_start, period_end)`, UTC, theo `project.timezone` (mặc định `Asia/Ho_Chi_Minh`, PM có thể sửa bằng IANA timezone hợp lệ). UI chọn đến hết ngày và chuyển thành nửa đêm ngày tiếp theo theo lịch địa phương, kể cả ngày DST 23/25 giờ. Alias `from/to` với ngày thuần giữ trải nghiệm bao gồm ngày cuối; `to` timestamp là exclusive. Không trộn hai cặp trường. Báo cáo cũ được migration đánh dấu `legacy-inclusive`, không thay stats/from/to/generatedAt. Mỗi báo cáo mới giữ timezone riêng trong snapshot.
+
+U026 dùng capacity tuần nếu có, nếu thiếu thì dùng `membership.weeklyHours` đã cấu hình (schema mặc định công khai 20 giờ). UI nêu rõ nguồn mặc định. Không có cả hai dữ kiện thì capacity là `null`, tỷ lệ chưa xác định và không kết luận quá tải từ mẫu số giả. Số 0 được giữ nguyên. Đây là quy tắc dữ liệu mặc định, không phải khẳng định đã đo được 20 giờ khả dụng thực tế.
+
+U027 phân biệt phủ định hành động chính với yêu cầu âm trong mục đích/tiêu chí; giữ tên/hạn chưa chắc chắn ở trạng thái trống. Ngày “tuần sau” tính theo tuần lịch bắt đầu thứ Hai. Bộ hồi quy phát triển không thay thế đánh giá precision của hai người chấm.

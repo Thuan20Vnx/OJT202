@@ -1,5 +1,6 @@
 import { prisma } from '../db.js';
 import { notify } from './notify.js';
+import { purgeRateCounters } from './throttle.js';
 
 /** Nhắc hạn trước 24 giờ + báo quá hạn. dedupeKey theo (task, hạn) nên chạy nhiều lần không gửi trùng. */
 export async function runDueReminders(now = new Date()) {
@@ -34,7 +35,7 @@ export async function runDueReminders(now = new Date()) {
 }
 
 export function startJobs() {
-  const tick = () => runDueReminders().catch((e) => console.error('[jobs]', e.message));
+  const tick = () => Promise.all([runDueReminders(), purgeRateCounters()]).catch((e) => console.error('[jobs]', e.message));
   setTimeout(tick, 5000);
   return setInterval(tick, 10 * 60 * 1000);
 }

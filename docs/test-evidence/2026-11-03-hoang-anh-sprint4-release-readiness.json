@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "kind": "release-readiness",
+  "build": {
+    "revision": "b7c972bc7e657a1d2f3b612fb7fff8571634bdce",
+    "sourceHash": "c89293c97667e18afd091f88acad57cb9e014b7c1eb88ada98d11dada079603b",
+    "sourceHashAlgorithm": "sha256-lf-v1",
+    "promptHash": "bdb28000b7b7ea09ea28b0be736713d00e18eb1c39ca875a59baea4e8802bed4",
+    "dirty": true,
+    "node": "v24.15.0"
+  },
+  "gates": {
+    "U029": {
+      "status": "pending",
+      "reason": "Missing evidence"
+    },
+    "U030": {
+      "status": "pending",
+      "reason": "Missing evidence"
+    },
+    "U031": {
+      "status": "pending",
+      "reason": "Missing evidence"
+    },
+    "U032": {
+      "status": "pending",
+      "reason": "Missing evidence"
+    },
+    "U033": {
+      "status": "pending",
+      "reason": "Missing evidence"
+    },
+    "U034": {
+      "status": "pending",
+      "reason": "Missing evidence"
+    },
+    "U035": {
+      "status": "pending",
+      "reason": "Missing evidence"
+    }
+  },
+  "blockers": [],
+  "readyForFinal": false,
+  "status": "pending",
+  "tagAllowed": false,
+  "pending": [
+    "U029",
+    "U030",
+    "U031",
+    "U032",
+    "U033",
+    "U034",
+    "U035",
+    "Clean release candidate build"
+  ]
+}

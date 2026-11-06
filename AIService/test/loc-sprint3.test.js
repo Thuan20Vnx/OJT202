@@ -28,6 +28,14 @@ const cases = [
   ['M20 explicit stop', 'Lộc: không triển khai API thanh toán', members, 0],
   ['M21 self with namesake', 'Lộc: mình sẽ viết API', [...members, { id: 'minh', name: 'Minh' }], 1, 'loc', null],
   ['M22 negative acceptance criterion', 'Lộc: viết test để không gửi email trùng', members, 1, 'loc', null],
+  ['M23 negative security criterion', 'Lộc: viết kiểm thử để người dùng không được tự cấp quyền admin', members, 1, 'loc', null],
+  ['M24 cancelled testing', 'Lộc: sẽ không kiểm thử API nữa', members, 0],
+  ['M25 next Friday', 'Lộc: gửi báo cáo thứ sáu tuần sau', members, 1, 'loc', '2026-11-13T16:59:59.999Z'],
+  ['M26 incomplete alternative', 'Lộc: gửi báo cáo ngày 15/11/2026 hoặc ngày 16', members, 1, 'loc', null],
+  ['M27 cancelled before purpose', 'Lộc: không viết test để không gửi email trùng', members, 0],
+  ['M28 negative requirement', 'Lộc: sửa API nhằm đảm bảo không cần đăng nhập lại', members, 1, 'loc', null],
+  ['M29 next weekend', 'Lộc: gửi báo cáo cuối tuần sau', members, 1, 'loc', '2026-11-15T16:59:59.999Z'],
+  ['M30 unspecified offset', 'Lộc: viết API sau 2 ngày', members, 1, 'loc', null],
 ];
 for (const [label, text, people, count, assignee, due] of cases) test(`Lộc Sprint 3 ${label}`, () => {
   const items = localMeeting(text, people, { now });
@@ -87,4 +95,17 @@ test('U027: trích riêng tên và ngày không được làm mất sự mơ h�
   const { items } = await extractActions(llm, { text, members });
   assert.equal(items[0].assignee, undefined);
   assert.equal(items[0].dueDate, null);
+});
+
+test('U027: provider preserves negative criteria but cannot revive cancelled testing', async () => {
+  const valid = 'Lộc: viết kiểm thử để người dùng không được tự cấp quyền admin';
+  const response = (excerpt) => ({ complete: async () => ({ text: JSON.stringify([{ title: 'Viết kiểm thử quyền', excerpt, assigneeId: 'loc' }]) }) });
+  assert.equal((await extractActions(response(valid), { text: valid, members })).items[0].assignee, 'loc');
+  const cancelled = 'Lộc: sẽ không kiểm thử API nữa';
+  await assert.rejects(extractActions(response('kiểm thử API'), { text: cancelled, members }), /phủ định/);
+});
+
+test('U027: next week is calendar-based at Sunday/year boundaries', () => {
+  assert.equal(parseDue('thứ hai tuần sau', new Date('2026-11-08T03:00:00Z')).toISOString(), '2026-11-09T16:59:59.999Z');
+  assert.equal(parseDue('thứ sáu tuần sau', new Date('2026-12-31T03:00:00Z')).toISOString(), '2027-01-08T16:59:59.999Z');
 });

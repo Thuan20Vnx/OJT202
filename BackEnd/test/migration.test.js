@@ -14,6 +14,16 @@ after(() => db.disconnectDb());
 test('migration nâng dữ liệu project cũ, giữ member/Viewer, PM và giờ còn lại', async () => {
   await db.connectDb({ ephemeral: true });
   const seed = await seedDemo();
+  await db.prisma.aiReport.create({ data: {
+    workspace: seed.workspace.id, project: seed.projects.website.id, user: seed.users.maianh.id,
+    title: 'Historical report before period migration', from: new Date('2026-10-01T17:00:00Z'), to: new Date('2026-10-08T16:59:59.999Z'),
+    generatedAt: new Date('2026-10-09T03:00:00Z'), stats: { done: 7, overdue: 2 },
+  } });
+  const historicReports = await db.prisma.aiReport.findMany({ select: { id: true, stats: true, from: true, to: true, generatedAt: true } });
+  assert.ok(historicReports.length, 'upgrade includes an existing report snapshot');
+  await db.prisma.$executeRawUnsafe('ALTER TABLE projects DROP COLUMN timezone');
+  await db.prisma.$executeRawUnsafe('ALTER TABLE ai_reports DROP COLUMN timezone, DROP COLUMN "periodConvention"');
+  await db.prisma.$executeRaw`DELETE FROM _prisma_migrations WHERE migration_name = '20261106090000_report_period_timezone'`;
   const [{ port }] = await db.prisma.$queryRaw`SELECT inet_server_port() AS port`;
   assert.ok(port > 0);
   const sample = await db.prisma.task.findFirstOrThrow();
@@ -43,6 +53,8 @@ test('migration nâng dữ liệu project cũ, giữ member/Viewer, PM và giờ
   await db.prisma.$executeRawUnsafe('DROP TYPE "ProjectRole"');
   await db.prisma.$executeRawUnsafe('ALTER TABLE tasks DROP COLUMN "remainingHours"');
   await db.prisma.$executeRawUnsafe('ALTER TABLE tasks DROP COLUMN deleted_at');
+  await db.prisma.$executeRawUnsafe('ALTER TABLE tasks DROP COLUMN "plannedStartDate", DROP COLUMN "actualStartDate", DROP COLUMN "actualEndDate"');
+  await db.prisma.$executeRaw`DELETE FROM _prisma_migrations WHERE migration_name = '20261030090000_task_timeline'`;
   await db.prisma.$executeRaw`DELETE FROM _prisma_migrations WHERE migration_name = '20261029090000_task_soft_delete'`;
   await db.prisma.$executeRaw`DELETE FROM _prisma_migrations WHERE migration_name = '20261028090000_project_roles'`;
   const cli = createRequire(import.meta.url).resolve('prisma/build/index.js');
@@ -52,12 +64,22 @@ test('migration nâng dữ liệu project cũ, giữ member/Viewer, PM và giờ
   });
   const website = await db.prisma.project.findUnique({ where: { id: seed.projects.website.id }, include: { memberships: true } });
   assert.equal(website.manager, seed.users.maianh.id);
+  assert.equal(website.timezone, 'Asia/Ho_Chi_Minh');
+  for (const historic of historicReports) {
+    const report = await db.prisma.aiReport.findUniqueOrThrow({ where: { id: historic.id } });
+    assert.equal(report.periodConvention, 'legacy-inclusive');
+    assert.equal(report.timezone, null);
+    for (const key of ['stats', 'from', 'to', 'generatedAt']) assert.deepEqual(report[key], historic[key], `preserve historical ${key}`);
+  }
   assert.equal(website.memberships.find((m) => m.user === seed.users.maianh.id).role, 'pm');
   assert.equal(website.memberships.find((m) => m.user === seed.users.linh.id).role, 'viewer');
   assert.deepEqual(website.members.sort(), website.memberships.map((m) => m.user).sort());
   for (const task of await db.prisma.task.findMany()) {
     assert.equal(task.acceptanceCriteria, originalCriteria.get(task.id), 'migration giữ nguyên nội dung AC khi đổi array sang TEXT');
     assert.equal(task.deletedAt, null, 'migration preserves all existing tasks as active');
+    assert.equal(task.plannedStartDate, null, 'không suy diễn ngày bắt đầu kế hoạch');
+    assert.equal(task.actualStartDate, null, 'không suy diễn ngày bắt đầu thực tế');
+    assert.equal(task.actualEndDate?.toISOString() ?? null, task.status === 'done' ? task.completedAt?.toISOString() ?? null : null);
     assert.equal(task.remainingHours, task.status === 'done' ? 0 : task.estimateHours == null ? null : Math.max(0, task.estimateHours - task.spentHours));
   }
   const [column] = await db.prisma.$queryRaw`SELECT data_type FROM information_schema.columns WHERE table_name = 'tasks' AND column_name = 'acceptance_criteria'`;

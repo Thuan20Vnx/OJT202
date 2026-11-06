@@ -12,9 +12,9 @@ export async function listMyTasks(req, res) {
   const readable = { projectRef: { memberships: { some: { user: req.user.id } } } };
   const where = { workspace: workspace.id, ...readable };
   const { assignee = 'me', status, priority, due, project, search } = taskFilters(req.query);
-  if (assignee === 'me') where.assignee = req.user.id;
+  if (assignee === 'me') where.AND = [{ OR: [{ assignee: req.user.id }, { contributors: { some: { user: req.user.id } } }] }];
   else if (assignee === 'unassigned') where.assignee = null;
-  else if (isId(assignee)) where.assignee = assignee;
+  else if (isId(assignee)) where.AND = [{ OR: [{ assignee }, { contributors: { some: { user: assignee } } }] }];
   if (status) where.status = { in: listParam(status) };
   else if (req.query.includeDone !== 'true') where.status = { not: 'done' };
   if (priority) where.priority = { in: listParam(priority) };
@@ -31,13 +31,13 @@ export async function listMyTasks(req, res) {
   } else if (due === 'none') where.dueDate = null;
   if (search) where.OR = taskSearch(search);
   const { page, limit } = pagination(req.query, 20);
-  const mine = { workspace: workspace.id, ...readable, assignee: req.user.id };
+  const mine = { workspace: workspace.id, ...readable, OR: [{ assignee: req.user.id }, { contributors: { some: { user: req.user.id } } }] };
   const open = { ...mine, status: { not: 'done' } };
   const weekAgo = new Date(sod.getTime() - 6 * 86400000);
   // Danh sách (kèm dữ liệu liên quan), tổng số và 4 chỉ số tóm tắt chạy song song
   const [items, total, today, overdue, upcoming, doneWeek, actionable] = await Promise.all([
     prisma.task
-      .findMany({ where: { ...where, deletedAt: null }, orderBy: [{ dueDate: { sort: 'asc', nulls: 'last' } }, { priority: 'desc' }, { number: 'asc' }, { id: 'asc' }], skip: (page - 1) * limit, take: limit })
+      .findMany({ where: { ...where, deletedAt: null }, include: { contributors: true }, orderBy: [{ dueDate: { sort: 'asc', nulls: 'last' } }, { priority: 'desc' }, { number: 'asc' }, { id: 'asc' }], skip: (page - 1) * limit, take: limit })
       .then(async (rows) => {
         const ids = rows.map((t) => t.id);
         const [, subs, comments, checklists] = await Promise.all([

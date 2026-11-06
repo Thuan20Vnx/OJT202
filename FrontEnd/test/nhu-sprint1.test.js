@@ -33,6 +33,39 @@ const stubReads = (t, tasks = [task()]) => t.mock.method(api, 'get', async (url)
   return { project: { ...project, members: [{ _id: 'me', name: 'Như', role: 'member' }] }, access: { canManage: true } };
 });
 
+test('task có đủ 4 ngày; PM gửi ngày kế hoạch và thực tế cùng version', async (t) => {
+  stubReads(t);
+  const patch = t.mock.method(api, 'patch', async (_url, fields) => ({ task: { ...task(), ...fields, version: 2 } }));
+  const tree = await mount(t, app(React.createElement(TaskDetailModal, { taskId: 'task', onClose() {} })));
+  for (const [label, value] of [['Ngày bắt đầu kế hoạch', '2026-10-01'], ['Ngày kết thúc kế hoạch', '2026-10-31'], ['Ngày bắt đầu thực tế', '2020-01-02'], ['Ngày kết thúc thực tế', '2020-01-03']]) {
+    const input = tree.root.findByProps({ 'aria-label': label, type: 'date' });
+    assert.equal(input.props.disabled, false);
+    await act(() => input.props.onChange({ target: { value } }));
+  }
+  await act(async () => button(tree, 'Lưu thay đổi').props.onClick());
+  const sent = patch.mock.calls[0].arguments[1];
+  assert.equal(sent.plannedStartDate, '2026-10-01');
+  assert.equal(sent.dueDate, '2026-10-31');
+  assert.equal(sent.actualStartDate, '2020-01-02');
+  assert.equal(sent.actualEndDate, '2020-01-03');
+  assert.equal(sent.version, 1);
+});
+
+test('Member chỉ sửa ngày thực tế, nút lưu không gửi các trường kế hoạch', async (t) => {
+  t.mock.method(api, 'get', async (url) => url.endsWith('/comments') ? { comments: [] } : url.startsWith('/tasks/') ? { ...response(), access: { canEdit: false, canWrite: true, canManage: false, canUpdateProgress: true, allowedStatuses: ['todo', 'in_progress'] } } : { project: { ...project, members: [] }, access: { canManage: false } });
+  const patch = t.mock.method(api, 'patch', async () => ({ task: task('task', 2) }));
+  const tree = await mount(t, app(React.createElement(TaskDetailModal, { taskId: 'task', onClose() {} })));
+  assert.equal(tree.root.findByProps({ 'aria-label': 'Ngày bắt đầu kế hoạch', type: 'date' }).props.disabled, true);
+  const actual = tree.root.findByProps({ 'aria-label': 'Ngày bắt đầu thực tế', type: 'date' });
+  assert.equal(actual.props.disabled, false);
+  await act(() => actual.props.onChange({ target: { value: '2020-01-02' } }));
+  await act(async () => button(tree, 'Lưu giờ còn lại').props.onClick());
+  const sent = patch.mock.calls[0].arguments[1];
+  assert.equal(sent.actualStartDate, '2020-01-02');
+  assert.equal('plannedStartDate' in sent, false);
+  assert.equal('dueDate' in sent, false);
+});
+
 test('U010-T2: thẻ có nút mở bằng bàn phím và select trạng thái đúng quyền', async (t) => {
   let opened = 0, selected;
   const tree = await mount(t, React.createElement(TaskCard, { task: task(), onOpen: () => opened++, statuses: ['todo', 'in_progress'], onMove: (value) => { selected = value; } }));
@@ -102,7 +135,7 @@ test('U009-T2: tạo task gửi đúng thuộc tính, chặn bấm lặp và gi�
   const inputs = tree.root.findAllByType('input');
   const title = inputs.find((n) => n.props.maxLength === 200);
   await act(() => title.props.onChange({ target: { value: 'Việc của Như' } }));
-  await act(() => inputs.find((n) => n.props.type === 'date').props.onChange({ target: { value: '2026-10-28' } }));
+  await act(() => tree.root.findByProps({ 'aria-label': 'Ngày kết thúc kế hoạch', type: 'date' }).props.onChange({ target: { value: '2026-10-28' } }));
   await act(() => button(tree, 'Cao').props.onClick());
   let first;
   await act(async () => { first = button(tree, 'Tạo công việc').props.onClick(); });

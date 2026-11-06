@@ -6,6 +6,10 @@ import { useApp, useToast } from '../lib/app.jsx';
 import { PRIORITY, STATUS, dueInfo, fileIcon, fileSize, fmtDate, fmtDateTime, isoDate, timeAgo } from '../lib/format.js';
 import { useProjectInfo, useSocketEvent } from '../lib/hooks.js';
 import { MemberPicker } from './CreateTaskModal.jsx';
+import TaskDates, { TASK_DATES } from './TaskDates.jsx';
+import LabelPicker from './LabelPicker.jsx';
+import TaskDelivery from './TaskDelivery.jsx';
+import { WORK_TYPES } from '../lib/delivery.js';
 import { Avatar, Confirm, Dropdown, Icon, MenuItem, Notice, PageLoader, Progress, Spinner, StatusChip } from './ui.jsx';
 
 function Section({ icon, title, right, children, tone = 'text-slate-500' }) {
@@ -261,7 +265,11 @@ export default function TaskDetailModal({ taskId, onClose }) {
         acceptanceCriteria: d.task.acceptance_criteria ?? (d.task.acceptanceCriteria || []).join('\n'),
         assignee: d.task.assignee?._id || '',
         dueDate: isoDate(d.task.dueDate),
+        plannedStartDate: isoDate(d.task.plannedStartDate),
+        actualStartDate: isoDate(d.task.actualStartDate),
+        actualEndDate: isoDate(d.task.actualEndDate),
         priority: d.task.priority,
+        workType: d.task.workType || 'unclassified',
         estimateHours: d.task.estimateHours ?? '',
         spentHours: d.task.spentHours ?? 0,
         remainingHours: d.task.remainingHours ?? '',
@@ -413,7 +421,9 @@ export default function TaskDetailModal({ taskId, onClose }) {
         acceptance_criteria: form.acceptanceCriteria,
         assignee: form.assignee || null,
         dueDate: form.dueDate === isoDate(task.dueDate) ? task.dueDate : form.dueDate || null,
+        ...Object.fromEntries(TASK_DATES.filter(([key]) => form[key] !== isoDate(task[key])).map(([key]) => [key, form[key] || null])),
         priority: form.priority,
+        workType: form.workType,
         estimateHours: form.estimateHours === '' ? null : Number(form.estimateHours),
         spentHours: Number(form.spentHours) || 0,
         remainingHours: form.remainingHours === '' ? null : Number(form.remainingHours),
@@ -448,7 +458,9 @@ export default function TaskDetailModal({ taskId, onClose }) {
     const current = () => mounted.current && activeTask.current === taskId && scope === taskScope.current;
     setSaving(true);
     try {
-      await patch({ remainingHours: form.remainingHours === '' ? null : Number(form.remainingHours) });
+      await patch({ ...(!task.contributors?.length && { remainingHours: form.remainingHours === '' ? null : Number(form.remainingHours) }),
+        ...Object.fromEntries(TASK_DATES.filter(([key]) => key.startsWith('actual') && form[key] !== isoDate(task[key])).map(([key]) => [key, form[key] || null])),
+      });
       if (!current()) return;
       if (revision === editRevision.current) {
         dirtyRef.current = false;
@@ -667,7 +679,7 @@ export default function TaskDetailModal({ taskId, onClose }) {
           <span className="chip h-7 border-rose-200 bg-rose-50 px-2.5 text-rose-700">
             <Icon name="block" size={14} />{tr("Đang bị chặn")}</span>
         )}
-        {!canWrite && <span className="chip h-7 border-slate-200 bg-slate-50 text-slate-500">{access.archived ? tr("Dự án đã lưu trữ – chỉ xem") : access.canUpdateProgress ? tr("Cập nhật trạng thái và giờ còn lại") : tr("Chỉ xem")}</span>}
+        {!canWrite && <span className="chip h-7 border-slate-200 bg-slate-50 text-slate-500">{access.archived ? tr("Dự án đã lưu trữ – chỉ xem") : access.canUpdateProgress ? tr("Cập nhật tiến độ thực tế") : tr("Chỉ xem")}</span>}
         <div className="ml-auto flex items-center gap-1">
           <button
             className="btn-ghost btn-sm"
@@ -714,6 +726,7 @@ export default function TaskDetailModal({ taskId, onClose }) {
             className="w-full resize-none border-0 bg-transparent p-0 text-headline-lg text-slate-900 focus:ring-0 disabled:text-slate-900"
           />
 
+          <TaskDelivery task={task} members={members} onSaved={load} />
           <Section icon="notes" title={tr("Mô tả công việc")}>
             <textarea
               aria-label={tr("Mô tả công việc")}
@@ -901,7 +914,7 @@ export default function TaskDetailModal({ taskId, onClose }) {
               )
             }
           >
-            <input ref={fileInput} type="file" multiple hidden accept=".pdf,.txt,.png,.jpg,.jpeg" onChange={(e) => upload(e.target.files)} />
+            <input ref={fileInput} type="file" multiple hidden accept=".docx,.xlsx,.pptx,.zip,.pdf,.txt,.png,.jpg,.jpeg" onChange={(e) => upload(e.target.files)} />
             <div
               className="grid gap-2 sm:grid-cols-2"
               onDragOver={(e) => e.preventDefault()}
@@ -977,7 +990,7 @@ export default function TaskDetailModal({ taskId, onClose }) {
                     </div>
                   </div>
                 ))}
-                {access.canWrite && <CommentBox members={members} onSend={sendComment} />}
+                {(access.canWrite || access.canComment) && <CommentBox members={members} onSend={sendComment} />}
               </div>
             ) : (
               <div className="space-y-3">
@@ -1010,13 +1023,10 @@ export default function TaskDetailModal({ taskId, onClose }) {
           <Prop label={tr("Người tạo")}>
             <PersonLine user={task.creator} />
           </Prop>
-          <Prop label={tr("Hạn chót")}>
+          <Prop label="Loại công việc"><select aria-label="Loại công việc" className="input h-9" disabled={!canWrite} value={form.workType} onChange={(e) => setF('workType', e.target.value)}>{Object.entries(WORK_TYPES).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></Prop>
+          <Prop label={tr("Lịch công việc")}>
             <span className="mb-1 block text-label-sm text-slate-500">{task.dueDate ? tr("Hạn hiện tại: {0}", [fmtDateTime(task.dueDate)]) : ''}</span>
-            {canWrite ? (
-              <input type="date" className="input h-9" value={form.dueDate} onChange={(e) => setF('dueDate', e.target.value)} />
-            ) : (
-              <span>{task.dueDate ? fmtDate(task.dueDate, { year: true }) : tr("Chưa đặt hạn")}</span>
-            )}
+            <TaskDates value={form} onChange={setF} canPlan={canWrite} canActual={access.canUpdateProgress} />
             {due && due.tone === 'danger' && <span className="mt-1 inline-block rounded-md bg-rose-100 px-2 py-0.5 text-label-sm text-rose-700">{due.text}</span>}
           </Prop>
           <Prop label={tr("Độ ưu tiên")}>
@@ -1033,60 +1043,41 @@ export default function TaskDetailModal({ taskId, onClose }) {
               ))}
             </div>
           </Prop>
-          <Prop label={tr("Ước lượng thời gian")}>
-            <div className="flex items-center gap-2">
-              <input
-                type="number"
-                min="0"
-                disabled={!canWrite}
-                className="input h-9"
-                value={form.estimateHours}
-                onChange={(e) => setF('estimateHours', e.target.value)}
-                placeholder={tr("Giờ")}
-              />
-              <span className="text-body-sm text-slate-400">/</span>
-              <input type="number" min="0" disabled={!canWrite} className="input h-9" value={form.spentHours} onChange={(e) => setF('spentHours', e.target.value)} title={tr("Đã làm")} />
+          <Prop label={tr("Giờ công")}>
+            <div className="grid grid-cols-2 gap-2">
+              <label className="text-label-md font-normal text-slate-500">
+                {tr("Ước lượng (PM đặt)")}
+                <input
+                  type="number"
+                  min="0"
+                  disabled={!canWrite || !!task.contributors?.length}
+                  className="input mt-1 h-9 text-right tabular-nums"
+                  value={form.estimateHours}
+                  onChange={(e) => setF('estimateHours', e.target.value)}
+                  placeholder={tr("Chưa có")}
+                />
+              </label>
+              <label className="text-label-md font-normal text-slate-500">
+                {tr("Đã làm (từ nhật ký)")}
+                <input type="number" min="0" disabled={!canWrite || task.hasDailyUpdates} className="input mt-1 h-9 text-right tabular-nums" value={form.spentHours} onChange={(e) => setF('spentHours', e.target.value)} />
+              </label>
             </div>
-            {Number(form.estimateHours) > 0 && <Progress value={(Number(form.spentHours) / Number(form.estimateHours)) * 100} className="mt-2" />}
-            <p className="mt-1 text-label-md font-normal text-slate-400">{tr("Ước lượng / Đã làm (giờ)")}</p>
+            {Number(form.estimateHours) > 0 && <p className="mt-2 text-right text-label-md tabular-nums text-slate-600">{tr("Đã dùng {0}% giờ ước lượng", [Math.round(Number(form.spentHours) / Number(form.estimateHours) * 100)])}</p>}
+            <p className="mt-1 text-label-md font-normal text-slate-500">
+              {task.hasDailyUpdates
+                ? tr("Tổng giờ lấy từ nhật ký; sửa bản ghi nhật ký để điều chỉnh.")
+                : access.canUpdateProgress && !canWrite
+                  ? tr("Ghi giờ đã làm ở mục Tiến độ & cộng tác, số này tự cộng dồn.")
+                  : tr("Giờ đã làm không phải % tiến độ: tiến độ do người thực hiện báo trong nhật ký.")}
+            </p>
           </Prop>
           <Prop label={tr("Giờ còn lại")}>
-            <input aria-label={tr("Giờ còn lại")} type="number" min="0" max="1000" disabled={!access.canUpdateProgress} className="input h-9" value={form.remainingHours} onChange={(e) => setF('remainingHours', e.target.value)} placeholder={tr("Chưa ước lượng")} />
+            <input aria-label={tr("Giờ còn lại")} type="number" min="0" max="1000" disabled={!access.canUpdateProgress || !!task.contributors?.length} className="input h-9 text-right tabular-nums" value={form.remainingHours} onChange={(e) => setF('remainingHours', e.target.value)} placeholder={tr("Chưa ước lượng")} />
+            {!!task.contributors?.length && <p className="mt-1 text-label-md text-slate-500">Cập nhật giờ của từng người trong mục Tiến độ & cộng tác.</p>}
             {!canWrite && access.canUpdateProgress && <button className="btn-outline btn-sm mt-2" disabled={saving || updating || !dirty} onClick={saveRemainingHours}>{tr("Lưu giờ còn lại")}</button>}
           </Prop>
           <Prop label={tr("Nhãn")}>
-            <div className="flex flex-wrap gap-1.5">
-              {form.labels.map((l) => (
-                <span key={l} className="chip border-slate-200 bg-white text-slate-600">
-                  {l}
-                  {canWrite && (
-                    <button
-                      onClick={() =>
-                        setF(
-                          'labels',
-                          form.labels.filter((x) => x !== l),
-                        )
-                      }
-                    >
-                      <Icon name="close" size={12} />
-                    </button>
-                  )}
-                </span>
-              ))}
-              {canWrite && (
-                <input
-                  className="input h-[22px] w-24 rounded-md px-2 text-label-md"
-                  placeholder={tr("+ Nhãn")}
-                  onKeyDown={(e) => {
-                    const v = e.currentTarget.value.trim();
-                    if (e.key === 'Enter' && v) {
-                      if (!form.labels.includes(v)) setF('labels', [...form.labels, v]);
-                      e.currentTarget.value = '';
-                    }
-                  }}
-                />
-              )}
-            </div>
+            <LabelPicker projectId={task.project} value={form.labels} onChange={(labels) => setF('labels', labels)} disabled={!canWrite} canCreate={canWrite} />
           </Prop>
           {task.sprint && (
             <Prop label="Sprint">

@@ -1,4 +1,5 @@
 import { isUniqueError, prisma } from '../db.js';
+import { sendMail } from './mailer.js';
 import { emitUser } from './realtime.js';
 
 /**
@@ -19,6 +20,11 @@ export async function notify({ user, actor, type, dedupeKey, ...rest }) {
   if ((pref?.[preference] ?? (preference !== 'comment')) === false) return null;
   try {
     const n = await prisma.notification.create({ data: { user, actor, type, dedupeKey, ...rest } });
+    // Bật trong Hồ sơ. Lỗi gửi thư không được làm hỏng thao tác đã thành công.
+    if (pref?.email) {
+      const recipient = await prisma.user.findUnique({ where: { id: user }, select: { email: true, isLocked: true } });
+      if (recipient && !recipient.isLocked) sendMail({ to: recipient.email, subject: 'Thông báo từ TaskFlow', text: n.text }).catch((e) => console.warn('[notify] Không gửi được email:', e.message));
+    }
     emitUser(user, 'notification:new', { id: n.id, type, text: n.text, workspace: n.workspace, project: n.project }, rest.project);
     return n;
   } catch (e) {

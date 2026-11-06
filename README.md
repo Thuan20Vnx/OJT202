@@ -2,6 +2,10 @@
 
 Đồ án Nhóm 24 (Hoàng Anh, Thuận, Như, Lộc, Đạt, Hiệp). Giao diện dựng theo 23 màn hình thiết kế trên Stitch (dự án *TaskFlow Kanban Interface*), nghiệp vụ theo Product Backlog trong `DN26_CPL_Mock_Project_Nhom24.xlsx`.
 
+Phạm vi sản phẩm: quản lý công việc cho **nhóm phát triển phần mềm khoảng 5–20 người**, phục vụ PM, developer, tester và người theo dõi dự án. PM giao trách nhiệm, phân bổ effort và duyệt hoàn thành; người thực hiện cập nhật công việc mỗi ngày. Chức danh chuyên môn khác quyền truy cập PM/Member/Viewer theo từng dự án. Không bao gồm quản lý lương, tính tiền khách hàng hoặc đánh giá năng suất nhân sự bằng giờ làm.
+
+Bản bổ sung theo góp ý giảng viên: **phân bổ nhiều người/task, loại công việc chuẩn hóa, nhật ký giờ/tiến độ, vấn đề gây trễ, hai thanh kế hoạch–thực tế, tải thành viên xuyên dự án và lịch họp chống trùng**. Hướng dẫn và đối chiếu từng yêu cầu: [nghiệp vụ nhóm phát triển](docs/TEAM_DELIVERY_2026-11-03.md).
+
 | Thư mục | Thành phần | Công nghệ |
 |---|---|---|
 | `FrontEnd/` | Giao diện web | React 18 + Vite + Tailwind CSS (Inter, Material Symbols – đúng design system Stitch v2) |
@@ -77,7 +81,24 @@ CLIENT_URL=https://your-taskflow-domain.example
 
 Dùng [App Password của Google](https://support.google.com/accounts/answer/185833?hl=en) sau khi bật xác minh hai bước; không dùng mật khẩu đăng nhập Gmail. Thay các giá trị mẫu, không commit `.env` hay gửi mật khẩu vào chat. Khi chạy local, giữ `CLIENT_URL=http://localhost:5173`. Khởi động lại backend sau khi đổi cấu hình. Port 465 dùng TLS ngay từ đầu; port 587 cần `SMTP_SECURE=false`, `SMTP_REQUIRE_TLS=true` ([tài liệu Nodemailer](https://nodemailer.com/smtp)).
 
-Kiểm chứng sau cấu hình: đăng ký một tài khoản kiểm thử có hộp thư bạn quản lý, nhận thư thật và mở liên kết xác minh; thử gửi lại thư và lời mời. Nếu gửi thư đăng ký lỗi, tài khoản vẫn chờ xác minh và giao diện cho gửi lại, không cần đăng ký lại. Các API khôi phục công khai trả thông báo chung để không tiết lộ email có tài khoản hay không. Production bắt buộc SMTP có TLS; outbox không được chấp nhận.
+### Gửi từ địa chỉ no-reply
+
+Gmail tự đổi địa chỉ người gửi về đúng tài khoản đăng nhập, nên `MAIL_FROM` không thể là một địa chỉ khác nếu chưa khai báo alias. Có hai cách:
+
+- **Có tên miền riêng:** dùng nhà cung cấp hỗ trợ SMTP và xác minh tên miền bằng DNS, ví dụ Resend: `SMTP_HOST=smtp.resend.com`, `SMTP_USER=resend`, `SMTP_PASS=<API key>`, `MAIL_FROM="TaskFlow <no-reply@ten-mien-cua-ban>"`. Tên miền `*.vercel.app` không dùng để gửi mail được.
+- **Không có tên miền:** tạo một tài khoản Gmail riêng như `taskflow.noreply@gmail.com`, dùng App Password của tài khoản đó và đặt `MAIL_FROM="TaskFlow No-Reply <taskflow.noreply@gmail.com>"`.
+
+Mọi email thật đều có header `Auto-Submitted: auto-generated` và dòng nhắc không trả lời.
+
+Kiểm chứng sau cấu hình: đăng ký một tài khoản kiểm thử có hộp thư bạn quản lý, nhận thư thật và mở liên kết xác minh; thử gửi lại thư và lời mời. Nếu gửi thư đăng ký lỗi, tài khoản vẫn chờ xác minh và giao diện cho gửi lại, không cần đăng ký lại. Các API khôi phục công khai trả thông báo chung để không tiết lộ email có tài khoản hay không. Production dùng SMTP có TLS hoặc Gmail API; outbox không được chấp nhận.
+
+## Triển khai
+
+Cấu hình miễn phí: FrontEnd trên Vercel (`vercel.json`), API và AIService trên gói free của Render (`render.yaml`), database và tệp trên Supabase, mail qua Gmail API. Xem từng bước tại [docs/DEPLOY_VERCEL.md](docs/DEPLOY_VERCEL.md).
+
+Gói free của Render chặn cổng SMTP và không có ổ đĩa bền, nên production dùng `MAIL_MODE=gmail` và `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`. Host cho phép SMTP và có ổ đĩa bền thì có thể giữ `MAIL_MODE=smtp` và `UPLOAD_DIR`.
+
+Trước khi mở công khai, chạy `node scripts/check-demo-accounts.js` trong `BackEnd` với `DATABASE_URL` của production để tìm tài khoản còn mật khẩu demo.
 
 ## Kết nối PostgreSQL thật
 
@@ -119,6 +140,8 @@ Bảng, khóa ngoại, enum và chỉ mục được tạo bằng migration tron
 Xem/sửa dữ liệu trực quan: `npm --prefix BackEnd run db:studio` (Prisma Studio).
 
 ## Lệnh
+
+Cập nhật 30/10/2026: [bốn mốc ngày kế hoạch/thực tế của task](docs/TASK_DATES_2026-10-30.md). Ngày kết thúc kế hoạch tiếp tục dùng `dueDate` để lịch và nhắc hạn thống nhất.
 
 Frontend hỗ trợ chuyển dần sang TypeScript: entry ở `FrontEnd/src/main.tsx`, component JS/JSX cũ tiếp tục chạy. Kiểm tra với `npm --prefix FrontEnd run lint` và `npm --prefix FrontEnd run typecheck`; CI chạy cả hai. Báo cáo nhiệm vụ Như đến 28/10: [phân công, sửa đổi và minh chứng](docs/NHU_SPRINT1_2026-10-28.md).
 
@@ -260,3 +283,7 @@ Ngày chót chỉ nhập ngày được hiểu hết ngày theo timezone hồ s�
 ## Hoàng Anh — Sprint 3 (30/10/2026)
 
 [Báo cáo triển khai và kiểm chứng Sprint 3](docs/HOANG_ANH_SPRINT3_2026-10-30.md): planner kiểm schema/giới hạn, chọn người thủ công, version chống ghi đè và duyệt một lần; risk có snapshot/sourceVersion/lý do xử lý; report chốt generatedAt và phát hiện risk resolution thay đổi; hoàn thiện luồng ghi chú họp có chứng cứ. API sửa/duyệt/hủy nháp bắt buộc `version`; xử lý/mở lại risk bắt buộc `sourceVersion`, xử lý cần `reason`. Backend tự áp dụng migration `20261030100000_sprint3_draft_risk_versions`; generate lại Prisma sau pull. Phản hồi demo 3 người thật cần nghiệm thu riêng, không được suy ra từ kết quả test tự động.
+
+## Hoàng Anh — Sprint 4 (03/11/2026)
+
+[Báo cáo triển khai và kiểm chứng](docs/HOANG_ANH_SPRINT4_2026-11-03.md), [runbook đánh giá/UAT/production/demo và gate final](docs/validation/SPRINT4_RUNBOOK.md), [nghiên cứu nghiệp vụ](docs/validation/SPRINT4_RESEARCH.md). Chạy `npm run validate:local` để có run AI + smoke production local trên DB tạm; `npm run validate:install` kiểm cài sạch; `npm run demo:sprint4` tạo phiên demo riêng có reset an toàn; `npm run validate:release` chặn nghiệm thu khi thiếu bằng chứng. Hai người chấm, UAT 6 người, URL HTTPS, restore/performance và cài bởi thành viên khác cần kết quả thật. Backend tự áp dụng migration `20261103090000_ai_evaluation_telemetry`; generate Prisma sau pull. Log AI có timing queue/retry, từng attempt và dấu hiệu token chưa đầy đủ; HTML no-store, assets immutable/404 và Origin/CSP được kiểm trong smoke.

@@ -1,5 +1,7 @@
 # Sprint 3 — Nguyễn Bảo Lộc
 
+> Hồ sơ dưới đây là lịch sử ngày 05/11. Bản hợp nhất và sửa lỗi ngày 06/11 được ghi tại [COMPLETION_2026-11-06.md](COMPLETION_2026-11-06.md). Contract báo cáo mới dùng end exclusive; các mô tả inclusive bên dưới chỉ áp dụng bản cũ.
+
 Bàn giao mã nguồn local ngày 05/11/2026 trên nhánh `Loc`, nền Git `516c38c`. Phạm vi theo yêu cầu người dùng: hoàn thiện mã nguồn và kiểm thử Sprint 3 của Lộc; Excel dùng làm tài liệu đối chiếu, không sửa trạng thái kế hoạch hay ký nghiệm thu thay thành viên.
 
 Nguồn phân công: `D:/Downloads/DN26_CPL_Mock_Project_Nhom24.xlsx`, sheet **Detail Plan**, các dòng bên dưới; quy tắc và cách đánh giá từ **Process!B250:B270**. Sprint 3 trong kế hoạch là 16–29/11/2026; ngày bàn giao này là ngày thực hiện kỹ thuật, không phải khẳng định sprint đã tổ chức/xong nghiệm thu.

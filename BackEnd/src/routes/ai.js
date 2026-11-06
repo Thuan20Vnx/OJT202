@@ -8,11 +8,12 @@ import { withWorkspaceLock } from '../services/membership.js';
 import { runAi, usageToday } from '../services/ai/gateway.js';
 import { annotateConversation, collectSources, reportSourceRevision, sourceFingerprint } from '../services/ai/qa.js';
 import { buildReportData } from '../services/ai/report.js';
+import { reportPeriod } from '../services/ai/report-period.js';
 import { notify } from '../services/notify.js';
 import { emitProject } from '../services/realtime.js';
 import { badRequest, conflict, notFound, parse } from '../utils/http.js';
 import { randomToken, sha256 } from '../utils/security.js';
-import { BUSINESS_TIMEZONE, isDateInput, parseDate } from '../utils/dates.js';
+import { isDateInput, parseDate } from '../utils/dates.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -317,6 +318,10 @@ router.post('/projects/:projectId/ai/meeting', middlewareProject(), async (req, 
 
 // ===================== BÁO CÁO TIẾN ĐỘ =====================
 async function loadReport(report) {
+  if (report.periodConvention === 'exclusive-end') {
+    report.period_start = report.from;
+    report.period_end = report.to;
+  }
   const revision = await reportSourceRevision(report.project);
   report.sourceState = !report.sourceRevision ? 'unknown' : report.sourceRevision === revision ? 'current' : 'changed';
   const expectedSources = report.sourceTasks.length;
@@ -355,12 +360,14 @@ router.get('/ai/reports/:id', async (req, res) => {
 
 router.post('/projects/:projectId/ai/reports', middlewareProject(), async (req, res) => {
   assertManage(req.pa);
-  const body = parse(z.object({ from: z.string(), to: z.string(), template: z.enum(['week', 'sprint', 'lecturer']).default('week') }), req.body);
-  if (!isDateInput(body.from) || !isDateInput(body.to)) throw badRequest('Khoảng ngày không hợp lệ');
-  const from = parseDate(body.from);
-  const to = parseDate(body.to, BUSINESS_TIMEZONE, true);
-  if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime()) || to < from) throw badRequest('Khoảng ngày không hợp lệ');
+  const template = z.enum(['week', 'sprint', 'lecturer']).default('week');
+  const body = parse(z.union([
+    z.object({ period_start: z.string(), period_end: z.string(), template }).strict(),
+    z.object({ from: z.string(), to: z.string(), template }).strict(),
+  ]), req.body);
   const project = req.pa.project;
+  const period = reportPeriod(body, project.timezone);
+  const { from, to, timezone } = period;
   const revision = await reportSourceRevision(project.id);
   const data = await buildReportData(project.id, from, to, project);
   // AIService chỉ viết tóm tắt & đề xuất từ số liệu đã tính sẵn bằng truy vấn DB
@@ -376,20 +383,21 @@ router.post('/projects/:projectId/ai/reports', middlewareProject(), async (req, 
     },
   });
   const tpl = { week: 'Báo cáo tiến độ tuần', sprint: 'Báo cáo Sprint', lecturer: 'Báo cáo cho giảng viên' }[body.template];
-  const fmt = (d) => d.toLocaleDateString('vi-VN', { timeZone: BUSINESS_TIMEZONE, day: '2-digit', month: '2-digit' });
+  const fmt = (d) => d.toLocaleDateString('vi-VN', { timeZone: timezone, day: '2-digit', month: '2-digit' });
   const report = await withWorkspaceLock(project.workspace, async (tx) => {
     await assertActiveSession(req, tx, true);
-    assertManage(await projectAccess(req.user.id, project.id, tx));
+    const currentAccess = await projectAccess(req.user.id, project.id, tx);
+    assertManage(currentAccess);
+    if (currentAccess.project.timezone !== timezone) throw conflict('Múi giờ dự án đã thay đổi. Vui lòng tạo lại báo cáo.', { code: 'AI_SOURCES_CHANGED' });
     if ((await reportSourceRevision(project.id)) !== revision) throw conflict('Nguồn dự án đã thay đổi trong lúc tạo báo cáo. Vui lòng tạo lại.', { code: 'AI_SOURCES_CHANGED' });
     return tx.aiReport.create({
       data: {
         workspace: project.workspace,
         project: project.id,
         user: req.user.id,
-        title: `${tpl} ${fmt(from)}–${fmt(to)} – ${project.name}`,
+        title: `${tpl} ${fmt(from)}–${fmt(new Date(to.getTime() - 1))} – ${project.name}`,
         template: body.template,
-        from,
-        to,
+        ...period,
         sourceRevision: revision,
         generatedAt: data.generatedAt,
         stats: data.stats,

@@ -13,6 +13,43 @@ const ROLE_CHIP = {
   viewer: 'border-slate-200 bg-slate-50 text-slate-600',
 };
 
+export const SPECIALTY = {
+  leader: { get label() { return tr('Nhóm trưởng'); } },
+  developer: { get label() { return tr('Lập trình'); } },
+  tester: { get label() { return tr('Kiểm thử'); } },
+  ba: { get label() { return tr('Phân tích (BA)'); } },
+  designer: { get label() { return tr('Thiết kế'); } },
+  devops: { get label() { return tr('DevOps'); } },
+  documentation: { get label() { return tr('Tài liệu'); } },
+};
+const MENTOR_CHIP = 'border-amber-200 bg-amber-50 text-amber-800';
+// Giảng viên có quyền Viewer cộng thêm bình luận; ô chọn gộp chung thành một lựa chọn cho dễ hiểu.
+const roleValue = (m) => (m.isMentor ? 'mentor' : m.role);
+const rolePayload = (value) => (value === 'mentor' ? { isMentor: true } : { role: value, isMentor: false });
+const roleName = (value) => (value === 'mentor' ? tr('Giảng viên') : ROLE[value]);
+
+/** Một người giữ nhiều vai trò chuyên môn cùng lúc; đây là nhãn công việc, không ảnh hưởng quyền. */
+function SpecialtyCell({ member, editable, onChange }) {
+  const chips = member.specialties.map((key) => (
+    <span key={key} className="chip border-slate-200 bg-white text-slate-600">{SPECIALTY[key]?.label || key}</span>
+  ));
+  if (!editable) return <div className="flex flex-wrap gap-1">{chips}{!chips.length && <span className="text-slate-300">—</span>}</div>;
+  return (
+    <Dropdown trigger={
+      <button type="button" aria-label={tr('Sửa vai trò chuyên môn của {0}', [member.user.name])} className="flex min-h-8 flex-wrap items-center gap-1 rounded-md p-0.5 text-left hover:bg-slate-100">
+        {chips}{!chips.length && <span className="px-1 text-label-md font-normal text-slate-400">{tr('+ Thêm vai trò')}</span>}
+      </button>
+    }>
+      {Object.entries(SPECIALTY).map(([key, { label }]) => {
+        const on = member.specialties.includes(key);
+        return (
+          <MenuItem key={key} icon={on ? 'check_box' : 'check_box_outline_blank'} onClick={() => onChange(on ? member.specialties.filter((x) => x !== key) : [...member.specialties, key])}>{label}</MenuItem>
+        );
+      })}
+    </Dropdown>
+  );
+}
+
 const getPermissionMatrix = () => [
   [tr('Quản lý Member/Viewer'), [1, 1, 0, 0]],
   [tr('Quản lý Owner/Admin'), [1, 0, 0, 0]],
@@ -40,7 +77,7 @@ export function InviteModal({ open, onClose, onDone }) {
   const submit = async () => {
     setBusy(true);
     try {
-      const d = await api.post(`/workspaces/${ws.workspace._id}/invites`, { emails, role: inviteRole, projects: sel });
+      const d = await api.post(`/workspaces/${ws.workspace._id}/invites`, { emails, ...(inviteRole === 'mentor' ? { role: 'viewer', mentor: true } : { role: inviteRole }), projects: sel });
       toast(tr("Đã gửi {0} lời mời{1}", [d.created.length, d.skipped.length ? tr(", bỏ qua {0} (đã là thành viên)", [d.skipped.length]) : '']));
       setEmails([]);
       setSel([]);
@@ -88,6 +125,7 @@ export function InviteModal({ open, onClose, onDone }) {
             {[
               ['member', tr('Thành viên (Member)'), tr('Khi được thêm vào dự án: nhận việc, cập nhật giờ còn lại và gửi Review. PM của dự án mới được tạo, giao và duyệt việc.')],
               ['viewer', tr('Khách xem (Viewer)'), tr('Chỉ xem nội dung dự án được cấp quyền, không thể chỉnh sửa hay kéo thả.')],
+              ['mentor', tr('Giảng viên'), tr('Tự động xem mọi dự án đang hoạt động, được bình luận và theo dõi đóng góp; không sửa được công việc.')],
               ...(role === 'owner' ? [['admin', tr('Quản trị (Admin)'), tr('Quản lý Member/Viewer và tạo dự án. Chỉ truy cập dự án đã được thêm vào.')]] : []),
             ].map(([v, t, d]) => (
               <button key={v} type="button" onClick={() => setRole(v)} className={`rounded-xl border p-3 text-left ${inviteRole === v ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500' : 'border-slate-200 hover:bg-slate-50'}`}>
@@ -128,17 +166,52 @@ export default function Members() {
   const [roleFilter, setRoleFilter] = useState('');
   const [inviting, setInviting] = useState(false);
   const [removing, setRemoving] = useState(null);
+  const [selected, setSelected] = useState([]);
+  const [bulk, setBulk] = useState({ role: '', add: '', remove: '' });
+  const [bulkBusy, setBulkBusy] = useState(false);
   const { data, error, loading, reload } = useLoad(() => api.get(`/workspaces/${ws.workspace._id}/members`), [ws.workspace._id]);
   if (loading && !data) return <PageLoader />;
   const members = data?.members || [];
   const owners = members.filter((m) => m.role === 'owner').length;
-  const list = members.filter((m) => (!roleFilter || m.role === roleFilter) && (m.user.name + m.user.email).toLowerCase().includes(search.toLowerCase()));
+  const list = members.filter((m) => (!roleFilter || roleValue(m) === roleFilter) && (m.user.name + m.user.email).toLowerCase().includes(search.toLowerCase()));
+  const canEdit = (m) => isAdmin && (role === 'owner' || !['owner', 'admin'].includes(m.role));
+  const selectable = list.filter(canEdit);
+  const allSelected = selectable.length > 0 && selectable.every((m) => selected.includes(m.user._id));
+  const toggle = (id) => setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
+  const applyBulk = async () => {
+    setBulkBusy(true);
+    try {
+      const d = await api.post(`/workspaces/${ws.workspace._id}/members/bulk`, {
+        users: selected,
+        ...(bulk.role && rolePayload(bulk.role)),
+        ...(bulk.add && { addSpecialties: [bulk.add] }),
+        ...(bulk.remove && { removeSpecialties: [bulk.remove] }),
+      });
+      toast(tr('Đã cập nhật {0} thành viên', [d.updated]));
+      setSelected([]);
+      setBulk({ role: '', add: '', remove: '' });
+      reload();
+      reloadWorkspace();
+    } catch (e) {
+      toast(e.message, 'error');
+    } finally {
+      setBulkBusy(false);
+    }
+  };
+  const changeSpecialties = async (m, specialties) => {
+    try {
+      await api.patch(`/workspaces/${ws.workspace._id}/members/${m.user._id}`, { specialties });
+      reload();
+    } catch (e) {
+      toast(e.message, 'error');
+    }
+  };
   const count = (r) => members.filter((m) => m.role === r).length;
 
   const changeRole = async (m, r) => {
     try {
-      await api.patch(`/workspaces/${ws.workspace._id}/members/${m.user._id}`, { role: r });
-      toast(tr("Đã đổi vai trò {0} thành {1}", [m.user.name, ROLE[r]]));
+      await api.patch(`/workspaces/${ws.workspace._id}/members/${m.user._id}`, rolePayload(r));
+      toast(tr("Đã đổi vai trò {0} thành {1}", [m.user.name, roleName(r)]));
       reload();
     } catch (e) {
       toast(e.message, 'error');
@@ -191,18 +264,44 @@ export default function Members() {
                   {v}
                 </option>
               ))}
+              <option value="mentor">{tr('Giảng viên')}</option>
             </Select>
             {isAdmin && (
               <button className="btn-primary" onClick={() => setInviting(true)}>
                 <Icon name="person_add" size={16} />{tr(" Mời thành viên")}</button>
             )}
           </div>
+          {isAdmin && selected.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2 border-b border-blue-100 bg-blue-50 p-3 text-body-sm">
+              <span className="font-semibold text-blue-800">{tr('Đã chọn {0} người', [selected.length])}</span>
+              <Select aria-label={tr('Đổi quyền')} className="input h-8 w-auto py-0 text-body-sm" value={bulk.role} onChange={(e) => setBulk({ ...bulk, role: e.target.value })}>
+                <option value="">{tr('Giữ nguyên quyền')}</option>
+                {(role === 'owner' ? ['admin', 'member', 'viewer', 'mentor'] : ['member', 'viewer', 'mentor']).map((r) => <option key={r} value={r}>{roleName(r)}</option>)}
+              </Select>
+              <Select aria-label={tr('Thêm vai trò chuyên môn')} className="input h-8 w-auto py-0 text-body-sm" value={bulk.add} onChange={(e) => setBulk({ ...bulk, add: e.target.value })}>
+                <option value="">{tr('Thêm vai trò…')}</option>
+                {Object.entries(SPECIALTY).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+              </Select>
+              <Select aria-label={tr('Bỏ vai trò chuyên môn')} className="input h-8 w-auto py-0 text-body-sm" value={bulk.remove} onChange={(e) => setBulk({ ...bulk, remove: e.target.value })}>
+                <option value="">{tr('Bỏ vai trò…')}</option>
+                {Object.entries(SPECIALTY).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
+              </Select>
+              <button className="btn-primary btn-sm" disabled={bulkBusy || (!bulk.role && !bulk.add && !bulk.remove)} onClick={applyBulk}>{tr('Áp dụng')}</button>
+              <button className="btn-outline btn-sm" onClick={() => setSelected([])}>{tr('Bỏ chọn')}</button>
+            </div>
+          )}
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="border-b border-slate-100">
                 <tr>
+                  {isAdmin && (
+                    <th className="table-th w-8">
+                      <input type="checkbox" aria-label={tr('Chọn tất cả')} className="form-checkbox rounded text-blue-600" checked={allSelected} disabled={!selectable.length} onChange={() => setSelected(allSelected ? [] : selectable.map((m) => m.user._id))} />
+                    </th>
+                  )}
                   <th className="table-th">{tr("Thành viên")}</th>
-                  <th className="table-th">{tr("Vai trò")}</th>
+                  <th className="table-th">{tr("Quyền")}</th>
+                  <th className="table-th">{tr("Vai trò chuyên môn")}</th>
                   <th className="table-th">{tr("Dự án được gán")}</th>
                   <th className="table-th">{tr("Hoạt động gần nhất")}</th>
                   {isAdmin && <th className="table-th text-right">{tr("Thao tác")}</th>}
@@ -214,6 +313,11 @@ export default function Members() {
                   const canEditRole = isAdmin && (role === 'owner' || !['owner', 'admin'].includes(m.role));
                   return (
                     <tr key={m._id} className="hover:bg-slate-50">
+                      {isAdmin && (
+                        <td className="table-td">
+                          {canEdit(m) && <input type="checkbox" aria-label={tr('Chọn {0}', [m.user.name])} className="form-checkbox rounded text-blue-600" checked={selected.includes(m.user._id)} onChange={() => toggle(m.user._id)} />}
+                        </td>
+                      )}
                       <td className="table-td">
                         <div className="flex items-center gap-2.5">
                           <Avatar user={m.user} size={32} />
@@ -227,20 +331,23 @@ export default function Members() {
                       </td>
                       <td className="table-td">
                         {canEditRole && !lastOwner ? (
-                          <Select className={`input h-8 w-36 py-0 text-label-md font-semibold ${ROLE_CHIP[m.role]}`} value={m.role} onChange={(e) => changeRole(m, e.target.value)}>
-                            {(role === 'owner' ? ['owner', 'admin', 'member', 'viewer'] : ['member', 'viewer']).map((r) => (
+                          <Select className={`input h-8 w-36 py-0 text-label-md font-semibold ${m.isMentor ? MENTOR_CHIP : ROLE_CHIP[m.role]}`} value={roleValue(m)} onChange={(e) => changeRole(m, e.target.value)}>
+                            {(role === 'owner' ? ['owner', 'admin', 'member', 'viewer', 'mentor'] : ['member', 'viewer', 'mentor']).map((r) => (
                               <option key={r} value={r}>
-                                {ROLE[r]}
+                                {roleName(r)}
                               </option>
                             ))}
                           </Select>
                         ) : (
-                          <span className={`chip ${ROLE_CHIP[m.role]}`} title={lastOwner ? tr("Không thể xóa hoặc hạ quyền Owner cuối cùng") : ''}>
+                          <span className={`chip ${m.isMentor ? MENTOR_CHIP : ROLE_CHIP[m.role]}`} title={lastOwner ? tr("Không thể xóa hoặc hạ quyền Owner cuối cùng") : ''}>
                             {lastOwner && <Icon name="lock" size={12} />}
-                            {ROLE[m.role]}
+                            {roleName(roleValue(m))}
                           </span>
                         )}
                         {m.title && <p className="mt-0.5 text-label-md font-normal text-slate-400">{m.title}</p>}
+                      </td>
+                      <td className="table-td">
+                        <SpecialtyCell member={m} editable={canEditRole} onChange={(next) => changeSpecialties(m, next)} />
                       </td>
                       <td className="table-td">
                         <div className="flex flex-wrap gap-1">

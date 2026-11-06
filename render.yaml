@@ -1,0 +1,71 @@
+# Render Blueprint chạy hoàn toàn trên gói free: API và AIService ở Render, FrontEnd ở Vercel, database và tệp ở Supabase.
+# Biến `sync: false` được Render hỏi khi tạo Blueprint; không ghi giá trị thật vào file này (repo public).
+# Gói free chặn cổng SMTP và không có disk, nên mail đi qua Gmail API và tệp lưu ở Supabase Storage.
+services:
+  - type: web
+    name: taskflow
+    runtime: node
+    plan: free
+    region: singapore
+    branch: main
+    buildCommand: npm --prefix BackEnd ci --omit=dev
+    startCommand: npm --prefix BackEnd start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: NODE_ENV
+        value: production
+      - key: SEED_DEMO
+        value: "false"
+      - key: TRUST_PROXY
+        value: "1"
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false
+      # URL production của FrontEnd trên Vercel, ví dụ https://taskflow-abc.vercel.app
+      - key: CLIENT_URL
+        sync: false
+      - key: MAIL_MODE
+        value: gmail
+      - key: MAIL_FROM
+        sync: false
+      - key: GMAIL_CLIENT_ID
+        sync: false
+      - key: GMAIL_CLIENT_SECRET
+        sync: false
+      - key: GMAIL_REFRESH_TOKEN
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: AI_SERVICE_URL
+        sync: false
+      - key: AI_SERVICE_KEY
+        fromService:
+          type: web
+          name: taskflow-ai
+          envVarKey: AI_SERVICE_KEY
+
+  - type: web
+    name: taskflow-ai
+    runtime: node
+    plan: free
+    region: singapore
+    branch: main
+    buildCommand: npm --prefix AIService ci --omit=dev
+    startCommand: npm --prefix AIService start
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: NODE_ENV
+        value: production
+      - key: AI_SERVICE_KEY
+        generateValue: true
+      # Để trống thì dùng bộ luật nội bộ, không gọi Anthropic.
+      - key: ANTHROPIC_API_KEY
+        sync: false

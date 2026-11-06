@@ -7,12 +7,14 @@ const ACTION_VERB = /\b(?:cap nhat|gui|hoan thanh|hoan thien|kiem thu|kiem tra|v
 const SOMEONE = /(ai do|nguoi nao|mot ai)/;
 const CANCELLED = /\b(khong can|khong phai|khong duoc|chua can|huy (cong viec|yeu cau|ke hoach|trien khai)|tam dung|bo qua)\b/;
 function isCancelled(foldedContent) {
-  if (CANCELLED.test(foldedContent)) return true;
-  const negation = /\bkhong\s+(?:trien khai|lam|gui|viet|deploy)\b/.exec(foldedContent);
-  if (!negation) return false;
-  // “Viết test để không gửi email trùng” still describes work.
-  const before = foldedContent.slice(0, negation.index).replace(/\b(?:se|can|phai)\b/g, '');
-  return !ACTION_VERB.test(before);
+  // A negative requirement after “để/nhằm/đảm bảo” is not cancellation of
+  // the main action. Check the main clause, including every supported verb.
+  const purpose = /\b(?:de|nham|dam bao|sao cho|voi yeu cau)\b/.exec(foldedContent);
+  const beforePurpose = purpose ? foldedContent.slice(0, purpose.index) : '';
+  const main = purpose && ACTION_VERB.test(beforePurpose.replace(/\b(?:se|can|phai)\b/g, ''))
+    ? beforePurpose : foldedContent;
+  const negatedAction = new RegExp(`\\b(?:khong|chua)\\s+(?:se\\s+)?${ACTION_VERB.source}`);
+  return CANCELLED.test(main) || negatedAction.test(main);
 }
 const WEEKDAYS = {
   'chu nhat': 0,
@@ -35,8 +37,11 @@ export function parseDue(text, now = new Date(), timezone = BUSINESS_TIMEZONE) {
   const f = fold(text);
   // Multiple dates, even when one is relative, require the PM to choose a deadline.
   // Match ISO before short dates and remove "kiểm thử ..." from weekday detection.
-  const mentions = f.replace(/kiem thu (hai|ba|tu|nam|sau|bay|[2-7])\b/g, '').match(/\b(?:\d{4}-\d{1,2}-\d{1,2}|\d{1,2}[/.-]\d{1,2}(?:[/.-](?:\d{4}|\d{2}))?|ngay mai|hom nay|cuoi tuan|chu nhat|thu (?:hai|ba|tu|nam|sau|bay|[2-7]))\b/g) || [];
+  const dateText = f.replace(/kiem thu (hai|ba|tu|nam|sau|bay|[2-7])\b/g, '');
+  const mentions = dateText.match(/\b(?:\d{4}-\d{1,2}-\d{1,2}|(?:ngay\s+)?\d{1,2}[/.-]\d{1,2}(?:[/.-](?:\d{4}|\d{2}))?|ngay\s+\d{1,2}|ngay mai|hom nay|cuoi tuan|chu nhat|thu (?:hai|ba|tu|nam|sau|bay|[2-7]))\b/g) || [];
   if (mentions.length > 1) return null;
+  // Alternatives and unsupported offsets must not be partially interpreted.
+  if (/\b(?:hoac|hay la|sau \d+ (?:ngay|tuan)|tuan (?:toi nua|sau nua))\b/.test(f)) return null;
   const base = startOfDay(now, timezone);
   const calendarDue = (year, month, day) => {
     const key = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
@@ -56,11 +61,14 @@ export function parseDue(text, now = new Date(), timezone = BUSINESS_TIMEZONE) {
   if (/hom nay/.test(f)) return endOfDay(base, timezone);
   for (const [k, dow] of Object.entries(WEEKDAYS)) {
     if (new RegExp(`(^|[^a-z])${k}([^a-z0-9]|$)`).test(f) && !new RegExp(`kiem ${k}`).test(f)) {
-      const diff = (dow - base.getDay() + 7) % 7 || 7;
+      const nextWeek = /\btuan (?:sau|toi)\b/.test(f);
+      const thisWeek = /\btuan nay\b/.test(f);
+      const offset = ((dow + 6) % 7) - ((base.getDay() + 6) % 7);
+      const diff = nextWeek ? offset + 7 : thisWeek ? offset : (dow - base.getDay() + 7) % 7 || 7;
       return endOfDay(addDays(base, diff, timezone), timezone);
     }
   }
-  if (/cuoi tuan/.test(f)) return endOfDay(addDays(base, (7 - base.getDay()) % 7, timezone), timezone);
+  if (/cuoi tuan/.test(f)) return endOfDay(addDays(base, (7 - base.getDay()) % 7 + (/\btuan (?:sau|toi)\b/.test(f) ? 7 : 0), timezone), timezone);
   return null;
 }
 
