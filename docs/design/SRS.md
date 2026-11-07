@@ -26,7 +26,7 @@ Phần bổ sung 03/11/2026: [phạm vi, công thức effort/workload, tiêu ch�
 | U020 | Activity và CSV | Cùng ACL/bộ lọc ngày; phân trang ổn định; whitelist cột và chống ô công thức; vượt 10.000 dòng yêu cầu thu hẹp bộ lọc, không cắt dữ liệu âm thầm; audit chỉ đọc |
 | U021/U022 | AI preview/edit/approve, report draft/source/history | Không tạo task trước duyệt; approve lặp không trùng; số liệu report từ DB; nguồn đổi báo stale; lỗi lịch sử có Thử lại |
 | U023/U025 | Quota, Q&A một project có citations | ACL trước/sau AI; Viewer không gọi ask; retrieval lỗi báo lỗi; không chứng cứ từ chối; không giả index nền |
-| U026 | Rủi ro theo quy tắc | Quá hạn/blocked/overload từ DB; AI chỉ diễn giải |
+| U026 | Rủi ro theo quy tắc | Quá hạn/blocked/overload từ DB; nguồn overload chỉ gồm phần việc còn giờ của người đang được cảnh báo. AI chỉ diễn giải; PM/Member của dự án active mới được gọi, kiểm lại quyền sau AI; Viewer/archive vẫn đọc giải thích theo luật |
 | U028 (Should) | Admin account lock/audit đã có code | Không tự cấp admin; phiên đang mở bị chặn; không API đọc project của người khác |
 | U029/U031/U032 | Đo AI, tải, khả năng truy cập và UAT | Báo số thực đo với mẫu số, build/model/dataset; không dùng test code thay người dùng thử |
 | U034 | Tài liệu cài đặt, ERD/API/quyền/workflow | Đối chiếu source manifest; người khác cài sạch và reviewer xác nhận riêng |

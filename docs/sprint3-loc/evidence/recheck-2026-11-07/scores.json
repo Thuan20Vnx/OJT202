@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "runId": "eval-2026-11-07T03-33-52-183Z",
+  "runHash": "fb7bb99b392c5c80a2b465d4e82b01fffefe23661baaa76591da2f9367dbb6d2",
+  "packHash": "0c1725325f2b1b757bbad54e5fae9f70e857d3de48ff3591cbce4c8cf67b08fd",
+  "build": {
+    "revision": "5ac8b1810d5158406392cbe85013f3810836a535",
+    "sourceHash": "4b3c73b50d8b8b26f50a84df3bbe8e0482ca974ef97714e305ffd6a596fccf8b",
+    "sourceHashAlgorithm": "sha256-lf-v1",
+    "promptHash": "8cfd6b9adb4d3f9eb1a3c37e2c8eea77dc8ac74430c6d2fcec69dae23317804b",
+    "dirty": false,
+    "node": "v24.15.0"
+  },
+  "operator": "local-automation",
+  "reviewers": [],
+  "ratings": [],
+  "adjudications": []
+}

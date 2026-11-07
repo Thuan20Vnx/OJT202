@@ -1,0 +1,17 @@
+[seed] Tạo dữ liệu demo Nhóm 24…
+[seed] Xong. Đăng nhập: mai.anh@nhom24.edu.vn / TaskFlow@2026  (System Admin: admin@taskflow.local)
+▶ Lộc Sprint 3: meeting, report, admin security
+  ✔ Recheck U026: Viewer and archived projects cannot spend AI quota (631.4305ms)
+  ✔ Recheck U026: risk AI rechecks project-role before returning (405.24ms)
+  ✔ Recheck U026: risk AI rechecks workspace-role before returning (389.9146ms)
+  ✔ Recheck U026: risk AI rechecks archive before returning (352.9832ms)
+  ✔ Recheck U026: overload sources include only the current contributor remaining work (369.085ms)
+✔ Lộc Sprint 3: meeting, report, admin security (46557.7269ms)
+ℹ tests 5
+ℹ suites 1
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 48469.9017

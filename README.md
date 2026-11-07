@@ -23,7 +23,7 @@ AIService chỉ nhận dữ liệu đã lọc và trả kết quả AI (kế ho�
 
 ## Chạy nhanh
 
-Bàn giao Sprint 3 của Nguyễn Bảo Lộc sau hợp nhất main, chốt 07/11/2026: [kết quả cuối, sửa lỗi và hướng dẫn bàn giao](docs/sprint3-loc/COMPLETION_2026-11-07.md), [kịch bản demo](docs/sprint3-loc/DEMO.md). Mã đã kiểm thử tại `3857d73`: 469/469 test, 13/13 E2E; nghiệm thu độc lập và CI/deploy remote cần bằng chứng riêng.
+Bàn giao Sprint 3 của Nguyễn Bảo Lộc, rà soát lại đủ 11 nhiệm vụ ngày 07/11/2026: [kết quả mới nhất và hai lỗi risk đã sửa](docs/sprint3-loc/RECHECK_2026-11-07.md), [chi tiết tích hợp trước đó](docs/sprint3-loc/COMPLETION_2026-11-07.md), [kịch bản demo](docs/sprint3-loc/DEMO.md). Mã đã kiểm thử tại `5ac8b18`: 475/475 test, 13/13 E2E; nghiệm thu độc lập và CI/deploy remote cần bằng chứng riêng.
 
 Hướng dẫn cài mới trên PowerShell: [cài đặt và bàn giao](docs/design/INSTALL.md). Đối chiếu toàn bộ nhiệm vụ Hoàng Thị Hải Như: [phân công, thay đổi và giới hạn nghiệm thu](docs/NHU_ALL_SPRINTS_2026-10-29.md). Bộ thiết kế hiện tại: [SRS/quyền/workflow](docs/design/SRS.md), [ERD](docs/design/ERD.md), [OpenAPI](docs/design/openapi.json).
 

@@ -1,0 +1,14 @@
+✔ Review U027: negative acceptance criterion must retain the action (19.601ms)
+✔ Review U027: cancelled testing action must not become a task (0.4393ms)
+✔ Review U027: Friday next week must not become this Friday (1.2792ms)
+✔ Review U027: complete date followed by incomplete alternative is ambiguous (0.1329ms)
+{"firstPeriod":0,"secondPeriod":1,"expected":[0,1]}
+✔ Review U022: adjacent half-open periods must count a boundary task once (Process B255) (43771.6355ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 44586.2564

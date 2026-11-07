@@ -1,0 +1,109 @@
+{
+  "schemaVersion": 1,
+  "testedBuild": {
+    "revision": "5ac8b1810d5158406392cbe85013f3810836a535",
+    "sourceHash": "4b3c73b50d8b8b26f50a84df3bbe8e0482ca974ef97714e305ffd6a596fccf8b",
+    "sourceHashAlgorithm": "sha256-lf-v1",
+    "promptHash": "8cfd6b9adb4d3f9eb1a3c37e2c8eea77dc8ac74430c6d2fcec69dae23317804b",
+    "dirty": false,
+    "node": "v24.15.0"
+  },
+  "results": {
+    "tests": 475,
+    "e2e": 13,
+    "originalProbes": 5,
+    "newBackendProbes": 5,
+    "newFrontendProbe": 1,
+    "aiDevelopment": 24,
+    "localSmoke": 17,
+    "failure": 0,
+    "skip": 0,
+    "build": "passed",
+    "lint": "passed"
+  },
+  "note": "New probes are included in the 475 test total. Text evidence normalizes CRLF and trailing blank lines; assertion log trailing whitespace is removed without changing diagnostic content.",
+  "acceptance": {
+    "humanReview": "pending",
+    "hiddenDataset": "pending",
+    "remoteCI": "not-run",
+    "productionVerified": false
+  },
+  "files": {
+    "admin-lock.png": {
+      "normalization": "binary",
+      "sha256": "c24764a6efbfbd8e01dd844a9d0aac02bda397d06dcf0bb475be07f726b22953"
+    },
+    "ai-evaluation.md": {
+      "normalization": "utf8-lf",
+      "sha256": "574754b78b00769085be39c9bc63e1ff2b924f5b01e276624d52fb10b6a39623"
+    },
+    "ai-run.json": {
+      "normalization": "utf8-lf",
+      "sha256": "e180dde30d46ff99f4471c0ece15d1a0881e701baf04cab2b31c1b6ae307dfd0"
+    },
+    "build-final.txt": {
+      "normalization": "utf8-lf",
+      "sha256": "931fa7bfe669ea3ce48e885c00c18c03c4bb8ecf73a28dc7ab4eff2f1816f0bc"
+    },
+    "e2e-final.txt": {
+      "normalization": "utf8-lf",
+      "sha256": "0eeac47347c5b2fb40867c5d2c44d2b2fb61ad870174c6ad71402901cf0bb12f"
+    },
+    "evaluation-final.txt": {
+      "normalization": "utf8-lf",
+      "sha256": "01d611cbc01d214cab22663899d5cbf7372935a6ac4a6ca548c150dbb584cfcf"
+    },
+    "integrity.json": {
+      "normalization": "utf8-lf",
+      "sha256": "83a596ce12b56e1d3ce4766a193a9d20c59175d01dc6225ed244b3c3951102ff"
+    },
+    "lint-final.txt": {
+      "normalization": "utf8-lf",
+      "sha256": "de4bf2209dce91956dd594654e7e72cfe2f45b89ed231d4c398933258a0d84cf"
+    },
+    "local-production-smoke.json": {
+      "normalization": "utf8-lf",
+      "sha256": "eb212291dc8cbe6a2f9f37792aa074fd73dbf151d08128ed241b9525af6b67bc"
+    },
+    "new-probes-after.txt": {
+      "normalization": "utf8-lf",
+      "sha256": "4204265320f541c84940f76b64032059814fc854e2bb7c5e04999a83eb1cb84e"
+    },
+    "new-probes-before.txt": {
+      "normalization": "utf8-lf",
+      "sha256": "c422f38cac5baaccdecddaa853ced4e4aeca8f62f8eedb4e561a06e7a1a89785"
+    },
+    "original-probes-final.txt": {
+      "normalization": "utf8-lf",
+      "sha256": "6861b8501012243d0de91387a9f41bb4a2abe7f940e0aa9e6d5732397984950a"
+    },
+    "release-readiness.json": {
+      "normalization": "utf8-lf",
+      "sha256": "692582fb2b1b9e6e8c7efaf444cea951ba4c53c87e52f96d826942edbd10d865"
+    },
+    "report-source.png": {
+      "normalization": "binary",
+      "sha256": "af119dd05cb5c8db26074d874b5c1dfe9788c297df022caf933ab1b9c34b0182"
+    },
+    "scores.json": {
+      "normalization": "utf8-lf",
+      "sha256": "e501dadd9dbda506ab1516ae18ae184b113f26ca637fe9eb074560f1859dc3b4"
+    },
+    "tests-final.txt": {
+      "normalization": "utf8-lf",
+      "sha256": "420409580c5927f254b525a9c8923be0769b521c529a659d6fca10b4e22fc476"
+    },
+    "uat-input.json": {
+      "normalization": "utf8-lf",
+      "sha256": "9ae94ed64394637d616380a7b904f94dd24250a98976e609e450c32ccc9dfb0b"
+    },
+    "uat.json": {
+      "normalization": "utf8-lf",
+      "sha256": "1862282d409f7b2d6f1a828cda09d1dccce7d9ce843c7b5329b6da70b1f2ae8c"
+    },
+    "ui-probe-after.txt": {
+      "normalization": "utf8-lf",
+      "sha256": "5fe0603b81d596cb3c2d698b367540ef420808bfdba15577e7bebcce4610125a"
+    }
+  }
+}

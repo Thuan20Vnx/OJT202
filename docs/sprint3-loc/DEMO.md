@@ -18,6 +18,8 @@ Dùng môi trường demo riêng với dữ liệu seed; không dùng tài kho�
 3. Đặt capacity 0 và task lá còn 2 giờ có hạn trong tuần. Expected: cảnh báo quá tải; không hiện tỷ lệ 0% giả. Task không hạn/thiếu estimate được đếm riêng trên workload.
 4. Xử lý cảnh báo với lý do. Expected: cùng sourceVersion giữ resolved; thay remaining/deadline/ngưỡng liên quan tạo cảnh báo mới. Không cần tạo báo cáo AI trước.
 5. Đặt sức chứa 10 giờ, ngưỡng 80% và tạo hai việc lá đến hạn trong tuần còn lần lượt 9 giờ và 0 giờ. Mở cảnh báo để xem giải thích ngưỡng và kiểm tra liên kết đến việc còn 9 giờ.
+6. Phân bổ task A cho Như (còn 0 giờ) và một người khác (còn 10 giờ); task B cho Như (còn 5 giờ), capacity Như 1 giờ. Expected: cảnh báo của Như là 5 giờ và chỉ liên kết B. Không lấy phần việc của người khác làm nguyên nhân quá tải của Như.
+7. Đăng nhập Viewer: vẫn đọc được cảnh báo/nguồn, không có nút Diễn giải bằng AI hoặc Giao lại; gọi trực tiếp endpoint diễn giải nhận 403, không tăng usage. Project archived cũng không gọi AI được. Test có điều khiển kiểm thêm Member bị hạ quyền hoặc project archive khi response AI đang chờ: nhận 403 và không trả output.
 
 ## U027 — biên bản, sửa nháp, duyệt
 
@@ -53,3 +55,4 @@ Kết quả người review/dùng thử thật phải ghi thêm tên hoặc mã 
 - “Lộc: viết kiểm thử để người dùng không được tự cấp quyền admin” giữ action; “Lộc: sẽ không kiểm thử API nữa” không tạo action.
 - Workload ghi rõ khi dùng giờ mặc định của thành viên. Capacity 0 có nghĩa không có giờ khả dụng. Nếu thiếu cả capacity tuần và mặc định, kết quả là chưa khai báo, không suy thành 0 hoặc 20.
 - Hồ sơ cuối: [COMPLETION_2026-11-07.md](COMPLETION_2026-11-07.md).
+- Lượt rà soát bổ sung toàn bộ 11 nhiệm vụ và sửa quyền/nguồn risk: [RECHECK_2026-11-07.md](RECHECK_2026-11-07.md).

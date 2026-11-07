@@ -1,0 +1,17 @@
+{
+  "checkedAt": "2026-11-07T03:34:14.689Z",
+  "build": {
+    "revision": "5ac8b1810d5158406392cbe85013f3810836a535",
+    "sourceHash": "4b3c73b50d8b8b26f50a84df3bbe8e0482ca974ef97714e305ffd6a596fccf8b",
+    "sourceHashAlgorithm": "sha256-lf-v1",
+    "promptHash": "8cfd6b9adb4d3f9eb1a3c37e2c8eea77dc8ac74430c6d2fcec69dae23317804b",
+    "dirty": false,
+    "node": "v24.15.0"
+  },
+  "main": "8654d8fa3a811f0a347606099a0d3deb44ece8eb",
+  "previousEvidenceFilesVerified": 25,
+  "designSourceHashesVerified": 151,
+  "planningWorkbookSha256": "d07999bf8a1cd30adfbe13487ff35b2ad56cfdba798d4473aa4fef601169532b",
+  "unmergedEntries": 0,
+  "mainIsAncestor": true
+}

@@ -1,5 +1,7 @@
 # Hoàn thiện kỹ thuật Sprint 3 của Lộc — chốt 07/11/2026
 
+> Hồ sơ này giữ kết quả của commit `3857d73`. Lượt rà soát tiếp theo phát hiện và sửa thêm hai lỗi U026; kết quả mới nhất tại [RECHECK_2026-11-07.md](RECHECK_2026-11-07.md), commit `5ac8b18`, 475/475 test và 13/13 E2E.
+
 **Đã sửa các lỗi được phát hiện, hợp nhất main và hoàn tất kiểm thử kỹ thuật local.** Bản cuối đạt 469/469 test, 13/13 E2E và 5/5 ca tái hiện lỗi của lượt review. Đây là hồ sơ bàn giao mã để nhóm review; chưa thay thế nghiệm thu độc lập, CI remote hoặc xác nhận triển khai thật.
 
 Đợt sửa và kiểm thử chạy ngày 06/11; hồ sơ được chốt ngày 07/11 theo Asia/Saigon. Giữ tên thư mục bằng chứng `completion-2026-11-06` đúng đợt chạy, không đổi ngày log. Bảng Excel gốc không bị chỉnh trạng thái hoặc tên reviewer.
