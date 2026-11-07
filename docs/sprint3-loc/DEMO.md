@@ -52,4 +52,4 @@ Kết quả người review/dùng thử thật phải ghi thêm tên hoặc mã 
 - Với ngày tham chiếu 05/11/2026 trong test tự động, “thứ sáu tuần sau” là 13/11/2026. Khi demo trực tiếp, kết quả tương ứng với ngày đang chạy. “ngày 15/11/2026 hoặc ngày 16” phải để trống hạn.
 - “Lộc: viết kiểm thử để người dùng không được tự cấp quyền admin” giữ action; “Lộc: sẽ không kiểm thử API nữa” không tạo action.
 - Workload ghi rõ khi dùng giờ mặc định của thành viên. Capacity 0 có nghĩa không có giờ khả dụng. Nếu thiếu cả capacity tuần và mặc định, kết quả là chưa khai báo, không suy thành 0 hoặc 20.
-- Hồ sơ cuối: [COMPLETION_2026-11-06.md](COMPLETION_2026-11-06.md).
+- Hồ sơ cuối: [COMPLETION_2026-11-07.md](COMPLETION_2026-11-07.md).

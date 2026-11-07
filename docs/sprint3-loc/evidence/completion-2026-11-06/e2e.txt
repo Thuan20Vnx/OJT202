@@ -1,0 +1,34 @@
+[seed] Tạo dữ liệu demo Nhóm 24…
+[seed] Xong. Đăng nhập: mai.anh@nhom24.edu.vn / TaskFlow@2026  (System Admin: admin@taskflow.local)
+✔ Lộc Sprint 3: báo cáo mở nguồn thật; quản trị lỗi/thử lại, khóa và mở tài khoản (53401.3195ms)
+✔ Nhóm phát triển: nhật ký, phân bổ, issue, timeline, tải thành viên và lịch họp (6459.7998ms)
+✔ Bốn ngày task: tạo, sửa, reload giữ đúng kế hoạch và thực tế (3774.1792ms)
+✔ Như Sprint 2–4: My Tasks, comment retry/mention, nguồn tài liệu AI, capacity và responsive (4343.7601ms)
+✔ Lộc Sprint 2: tìm mô tả, checklist, PM ẩn bình luận và phụ thuộc thử lại khi lỗi (4156.3334ms)
+ℹ LSP2 -> HTTP 400: Mã dự án gồm 2–5 chữ cái
+ℹ LSP -> HTTP 201 with the same seeded owner and member
+✔ Như U031: My Tasks phân trang trên dataset 10.000 task (5171.6746ms)
+✔ U003/U007/U009: SMTP register/invite → task → remaining hours → Review/Done → realtime draft (13634.8186ms)
+✔ Như U009/U010: keyboard, API rollback, hai tab xung đột giữ draft và logout (11066.7446ms)
+✔ Hoàng Anh Sprint 2: thông báo hai tab, mất mạng, capacity tuần, preview xóa và CSV (9700.8111ms)
+✔ Hoàng Anh Sprint 3: planner hai tab, duyệt một lần, lý do xử lý rủi ro và biên bản có nguồn (26768.2796ms)
+[error] HttpError: Chưa gửi được email. Vui lòng thử gửi lại sau.
+    at mailUnavailable (file:///D:/Desktop/Nhom24/OJT202/BackEnd/src/services/mailer.js:27:31)
+    at sendMail (file:///D:/Desktop/Nhom24/OJT202/BackEnd/src/services/mailer.js:95:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async sendVerification (file:///D:/Desktop/Nhom24/OJT202/BackEnd/src/routes/auth.js:38:3)
+    at async file:///D:/Desktop/Nhom24/OJT202/BackEnd/src/routes/auth.js:61:3 {
+  status: 503,
+  details: { code: 'MAIL_UNAVAILABLE' }
+}
+✔ SMTP bị từ chối: màn hình cho gửi lại, không báo thư đã gửi thành công (3467.3461ms)
+✔ Hoàng Anh Sprint 4: telemetry AI rõ token chưa biết, CSV và mobile (3013.7841ms)
+✔ API v1: browser giữ refresh cookie đúng path, tự refresh và logout thu hồi phiên (2396.6369ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 13
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 149488.3122

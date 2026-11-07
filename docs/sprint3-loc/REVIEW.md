@@ -1,6 +1,6 @@
 # Sprint 3 — Nguyễn Bảo Lộc
 
-> Hồ sơ dưới đây là lịch sử ngày 05/11. Bản hợp nhất và sửa lỗi ngày 06/11 được ghi tại [COMPLETION_2026-11-06.md](COMPLETION_2026-11-06.md). Contract báo cáo mới dùng end exclusive; các mô tả inclusive bên dưới chỉ áp dụng bản cũ.
+> Hồ sơ dưới đây là lịch sử ngày 05/11. Bản hợp nhất và sửa lỗi, chốt ngày 07/11, được ghi tại [COMPLETION_2026-11-07.md](COMPLETION_2026-11-07.md). Contract báo cáo mới dùng end exclusive; các mô tả inclusive bên dưới chỉ áp dụng bản cũ.
 
 Bàn giao mã nguồn local ngày 05/11/2026 trên nhánh `Loc`, nền Git `516c38c`. Phạm vi theo yêu cầu người dùng: hoàn thiện mã nguồn và kiểm thử Sprint 3 của Lộc; Excel dùng làm tài liệu đối chiếu, không sửa trạng thái kế hoạch hay ký nghiệm thu thay thành viên.
 
