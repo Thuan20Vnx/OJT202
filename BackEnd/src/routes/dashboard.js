@@ -130,6 +130,7 @@ router.delete('/projects/:projectId/risks/resolve', middlewareProject(), async (
 
 // AI chỉ DIỄN GIẢI cảnh báo đã xác định bằng quy tắc
 router.post('/projects/:projectId/risks/explain', middlewareProject(), async (req, res) => {
+  assertWrite(req.pa);
   const { key } = parse(z.object({ key: z.string().min(1) }), req.body);
   const now = new Date();
   const { open } = await riskAlerts(req.pa.project.id, { project: req.pa.project, now });
@@ -144,6 +145,7 @@ router.post('/projects/:projectId/risks/explain', middlewareProject(), async (re
   await withWorkspaceLock(req.pa.project.workspace, async (tx) => {
     await assertActiveSession(req, tx, true);
     const access = await projectAccess(req.user.id, req.pa.project.id, tx);
+    assertWrite(access);
     const current = (await riskAlerts(access.project.id, { project: access.project, now, db: tx })).open.find((a) => a.key === key);
     if (!current || current.sourceVersion !== alert.sourceVersion)
       throw conflict('Cảnh báo đã thay đổi trong lúc AI diễn giải. Vui lòng tải lại.', { code: 'AI_SOURCES_CHANGED' });

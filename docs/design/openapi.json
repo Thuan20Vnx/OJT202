@@ -11139,7 +11139,7 @@
           "dashboard"
         ],
         "summary": "POST /projects/{projectId}/risks/explain",
-        "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
+        "description": "Project PM/Member active. Viewer và dự án archived bị từ chối trước khi gọi AI hoặc ghi usage. Kiểm lại quyền ghi, phiên và sourceVersion sau AI; hạ quyền/archive trong lúc chờ không nhận output. Rule explanation và nguồn vẫn đọc được qua GET theo ACL.",
         "x-source": "BackEnd/src/routes/dashboard.js:132",
         "parameters": [
           {
@@ -11233,6 +11233,25 @@
                 "schema": {
                   "$ref": "#/components/schemas/Error"
                 }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "key": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "key"
+                ]
               }
             }
           }

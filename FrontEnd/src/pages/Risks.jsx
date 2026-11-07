@@ -96,6 +96,7 @@ export default function Risks() {
     }
   };
   const explain = async (a) => {
+    if (!data.access.canWrite || explaining) return;
     const current = beginExplain();
     setExplaining(a.key);
     try {
@@ -217,12 +218,12 @@ export default function Risks() {
                     </button>
                   ))}
                   <span className="ml-auto flex flex-wrap gap-2">
-                    {!ai[a.sourceVersion] && (
+                    {data.access.canWrite && !ai[a.sourceVersion] && (
                       <button className="btn-ghost btn-sm text-purple-700" onClick={() => explain(a)} disabled={!!explaining}>
                         {explaining === a.key ? <Spinner /> : <Icon name="auto_awesome" size={16} />}{tr(" Diễn giải bằng AI")}</button>
                     )}
                     <button className="btn-primary btn-sm" onClick={() => navigate({ search: `?task=${a.tasks[0]._id}` })}>{tr("Xem công việc")}</button>
-                    <button className="btn-outline btn-sm" onClick={() => navigate({ search: `?task=${a.tasks[0]._id}` })}>{tr("Giao lại")}</button>
+                    {canManage && <button className="btn-outline btn-sm" onClick={() => navigate({ search: `?task=${a.tasks[0]._id}` })}>{tr("Giao lại")}</button>}
                     {data.access.canWrite && (
                       <button className="btn-ghost btn-sm" onClick={() => setResolution({ alert: a, reason: '', projectId: project._id })}>
                         <Icon name="check" size={16} />{tr(" Đã xử lý")}</button>

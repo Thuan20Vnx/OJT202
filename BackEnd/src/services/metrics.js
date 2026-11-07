@@ -156,7 +156,8 @@ export async function workload(projectId, given, now = new Date(), db = prisma) 
       const m = memberships.find((x) => x.user === u.id);
       const all = tasks.filter((t) => t.contributors?.length ? t.contributors.some((c) => c.user === u.id) : t.assignee === u.id);
       const mine = all.filter((t) => t.dueDate && t.dueDate < end);
-      const hours = mine.reduce((s, t) => s + (t.contributors?.length ? t.contributors.find((c) => c.user === u.id)?.remainingHours || 0 : remaining(t)), 0);
+      const remainingForUser = (t) => t.contributors?.length ? t.contributors.find((c) => c.user === u.id)?.remainingHours ?? 0 : remaining(t);
+      const hours = mine.reduce((s, t) => s + remainingForUser(t), 0);
       const capacity = capacities.find((c) => c.user === u.id);
       const resolvedCapacity = effectiveCapacity(capacity?.hours, m?.weeklyHours);
       const { available } = resolvedCapacity;
@@ -176,7 +177,8 @@ export async function workload(projectId, given, now = new Date(), db = prisma) 
         missingEstimates: mine.filter((t) => t.remainingHours == null && t.estimateHours == null).length,
         missingDeadlines: all.filter((t) => !t.dueDate).length,
         taskIds: mine.map((t) => t.id),
-        tasks: mine.map((t) => ({ id: t.id, key: t.key, title: t.title })),
+        // Only this person's unfinished allocation supports an overload warning.
+        tasks: mine.filter((t) => remainingForUser(t) > 0).map((t) => ({ id: t.id, key: t.key, title: t.title })),
       };
     })
     .sort((a, b) => a.user.name.localeCompare(b.user.name, 'vi')); // sắp theo tên – không xếp hạng cá nhân
@@ -261,7 +263,6 @@ export async function riskAlerts(projectId, { project: given, load: givenLoad, n
 
   if (rules.overload !== false) {
     const { start } = weekRange(now);
-    const contributing = new Set(tasks.filter((t) => remaining(t) > 0).map((t) => t.id));
     for (const w of load) {
       if (w.available != null && w.hours > (w.available * (rules.overloadPct ?? 100)) / 100) {
         alerts.push({
@@ -274,7 +275,7 @@ export async function riskAlerts(projectId, { project: given, load: givenLoad, n
               ? `${w.user.name} còn ${w.hours} giờ công việc nhưng không có giờ khả dụng`
               : `${w.user.name} đang ở mức ${w.pct}% tải tuần này (${w.hours}/${w.available} giờ)`,
           explanation: `Các việc quá hạn hoặc đến hạn trong tuần còn ${w.hours} giờ, vượt ngưỡng ${rules.overloadPct ?? 100}% của ${w.available} giờ khả dụng. Cân nhắc giao lại hoặc dời hạn một số việc.`,
-          tasks: w.tasks.filter((task) => contributing.has(task.id)),
+          tasks: w.tasks,
           owner: w.user,
         });
       }

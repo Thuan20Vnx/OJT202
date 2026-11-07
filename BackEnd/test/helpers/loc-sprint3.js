@@ -190,6 +190,62 @@ export function locSprint3({ fixture, db, Client, seed, socketFor, join }) {
       assert.deepEqual(alert.snapshot.tasks.map((t) => t.id), [f.ids[0]]);
     });
 
+    test('Recheck U026: Viewer and archived projects cannot spend AI quota', async () => {
+      const f = await dataset([{ dueDate: new Date(Date.now() - 3 * 86400000) }]);
+      const key = (await riskAlerts(f.pid)).open.find((a) => a.type === 'overdue').key;
+      const route = `/projects/${f.pid}/risks/explain`;
+      const calls = () => db.prisma.aiCall.count({ where: { workspace: f.ws } });
+      await db.prisma.projectMember.update({ where: { project_user: { project: f.pid, user: seed().users.nhu.id } }, data: { role: 'viewer' } });
+      const before = await calls();
+      assert.equal((await f.member.get(`/projects/${f.pid}/risks`)).status, 200);
+      assert.equal((await f.member.post(route, { key })).status, 403);
+      assert.equal(await calls(), before);
+      await db.prisma.projectMember.update({ where: { project_user: { project: f.pid, user: seed().users.nhu.id } }, data: { role: 'member' } });
+      assert.equal((await f.member.post(route, { key })).status, 200);
+      await db.prisma.membership.update({ where: { workspace_user: { workspace: f.ws, user: seed().users.nhu.id } }, data: { role: 'viewer' } });
+      const afterAllowed = await calls();
+      assert.equal((await f.member.post(route, { key })).status, 403);
+      await db.prisma.project.update({ where: { id: f.pid }, data: { status: 'archived' } });
+      assert.equal((await f.owner.post(route, { key })).status, 403);
+      assert.equal(await calls(), afterAllowed);
+    });
+
+    for (const revoke of ['project-role', 'workspace-role', 'archive']) test(`Recheck U026: risk AI rechecks ${revoke} before returning`, { timeout: 20000 }, async (t) => {
+      const f = await dataset([{ dueDate: new Date(Date.now() - 3 * 86400000) }]);
+      const key = (await riskAlerts(f.pid)).open.find((a) => a.type === 'overdue').key;
+      let release, arrive;
+      const received = new Promise((resolve) => { arrive = resolve; });
+      await fakeAi(t, (req, res) => { req.resume(); release = () => reply(res, { explanation: 'Output before permission change' }); arrive(); });
+      const pending = f.member.post(`/projects/${f.pid}/risks/explain`, { key });
+      await received;
+      try {
+        if (revoke === 'project-role') await db.prisma.projectMember.update({ where: { project_user: { project: f.pid, user: seed().users.nhu.id } }, data: { role: 'viewer' } });
+        else if (revoke === 'workspace-role') await db.prisma.membership.update({ where: { workspace_user: { workspace: f.ws, user: seed().users.nhu.id } }, data: { role: 'viewer' } });
+        else await db.prisma.project.update({ where: { id: f.pid }, data: { status: 'archived' } });
+      } finally { release(); }
+      const result = await pending;
+      assert.equal(result.status, 403, JSON.stringify(result.data));
+      assert.ok(!JSON.stringify(result.data).includes('Output before permission change'));
+    });
+
+    test('Recheck U026: overload sources include only the current contributor remaining work', async () => {
+      const f = await dataset([{ dueDate: ago }, { dueDate: ago }]);
+      const nhu = seed().users.nhu.id, owner = seed().users.maianh.id;
+      for (const [index, items] of [
+        [0, [{ user: nhu, remainingHours: 0 }, { user: owner, remainingHours: 10 }]],
+        [1, [{ user: nhu, remainingHours: 5 }]],
+      ]) {
+        const task = await db.prisma.task.findUnique({ where: { id: f.ids[index] } });
+        const result = await f.owner.put(`/tasks/${task.id}/contributors`, { version: task.version, items: items.map((item) => ({ ...item, responsibility: 'Kiểm thử', plannedHours: 10 })) });
+        assert.equal(result.status, 200, JSON.stringify(result.data));
+      }
+      await db.prisma.membership.update({ where: { workspace_user: { workspace: f.ws, user: nhu } }, data: { weeklyHours: 1 } });
+      const alert = (await riskAlerts(f.pid, { now })).open.find((a) => a.type === 'overload' && a.owner.id === nhu);
+      assert.equal(alert.snapshot.capacity.hours, 5);
+      assert.deepEqual(alert.tasks.map((task) => task.id), [f.ids[1]]);
+      assert.deepEqual(alert.snapshot.tasks.map((task) => task.id), [f.ids[1]]);
+    });
+
     test('U028: gửi đồng thời và thử lại khóa/mở khóa chỉ ghi audit khi đổi trạng thái', async () => {
       const system = await new Client().login('admin@taskflow.local');
       const uid = seed().users.nhu.id;
