@@ -11,7 +11,7 @@ const { parseDue, localMeeting, extractActions } = await import('../src/features
 const { localPlan, llmPlan } = await import('../src/features/planner.js');
 const { writeNarrative } = await import('../src/features/report.js');
 const { parseDate, dateKey } = await import('../src/dates.js');
-const { answer } = await import('../src/features/qa.js');
+const { answer, retrieve } = await import('../src/features/qa.js');
 const { createApp } = await import('../src/app.js');
 
 const members = [
@@ -187,6 +187,12 @@ describe('Bộ AI nội bộ', () => {
     const no = await answer(null, { question: 'Giá vé máy bay đi Paris?', projectName: 'Website', sources });
     assert.equal(no.refused, true);
     assert.equal(no.citations.length, 0);
+  });
+
+  test('hỏi đáp tìm được tài liệu bằng tên hiển thị trong nguồn', () => {
+    const sources = [{ kind: 'document', refId: 'd1', label: 'Kiến trúc thanh toán · đoạn 1', text: 'Luồng tích hợp nhà cung cấp được mô tả ở đây.' }];
+    const result = retrieve('Tóm tắt tài liệu Kiến trúc thanh toán', sources);
+    assert.equal(result.picked[0].refId, 'd1');
   });
 });
 

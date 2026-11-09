@@ -441,13 +441,40 @@ router.delete('/ai/reports/:id', async (req, res) => {
 // ===================== HỎI ĐÁP DỰ ÁN =====================
 router.get('/projects/:projectId/ai/sources', middlewareProject(), async (req, res) => {
   const project = req.pa.project.id;
-  const [tasks, documents, latestTask, latestDocument] = await Promise.all([
+  const [tasks, documents, latestTask, latestDocument, taskSamples, blockedTasks, documentSample] = await Promise.all([
     prisma.task.count({ where: { project, deletedAt: null } }),
     prisma.document.count({ where: { project, isScan: false, OR: [{ kind: 'doc' }, { mime: 'text/plain' }] } }),
     prisma.task.findFirst({ where: { project, deletedAt: null }, orderBy: { updatedAt: 'desc' }, select: { updatedAt: true } }),
     prisma.document.findFirst({ where: { project, isScan: false, OR: [{ kind: 'doc' }, { mime: 'text/plain' }] }, orderBy: { updatedAt: 'desc' }, select: { updatedAt: true } }),
+    prisma.task.findMany({
+      where: { project, deletedAt: null, status: { not: 'done' } },
+      orderBy: { updatedAt: 'desc' },
+      take: 3,
+      select: { id: true, key: true, blockedBy: true },
+    }),
+    prisma.task.findMany({
+      where: { project, deletedAt: null, status: { not: 'done' }, blockedBy: { isEmpty: false } },
+      orderBy: { updatedAt: 'desc' },
+      take: 10,
+      select: { key: true, blockedBy: true },
+    }),
+    prisma.document.findFirst({
+      where: { project, isScan: false, OR: [{ kind: 'doc' }, { mime: 'text/plain' }] },
+      orderBy: { updatedAt: 'desc' },
+      select: { name: true },
+    }),
   ]);
-  res.json({ tasks, documents, retrieval: 'live', latestTaskAt: latestTask?.updatedAt || null, latestDocumentAt: latestDocument?.updatedAt || null });
+  const blockerIds = [...new Set(blockedTasks.flatMap((task) => task.blockedBy))];
+  const openBlockers = blockerIds.length
+    ? new Set((await prisma.task.findMany({ where: { id: { in: blockerIds }, project, deletedAt: null, status: { not: 'done' } }, select: { id: true } })).map((task) => task.id))
+    : new Set();
+  const blockedTask = blockedTasks.find((task) => task.blockedBy.some((id) => openBlockers.has(id)));
+  const suggestions = [];
+  if (blockedTask) suggestions.push(`Vì sao ${blockedTask.key} đang bị chặn và cần xử lý việc nào trước?`);
+  const taskSample = taskSamples.find((task) => task.key !== blockedTask?.key);
+  if (taskSample) suggestions.push(`Trạng thái, người phụ trách và hạn chót của ${taskSample.key} là gì?`);
+  if (documentSample) suggestions.push(`Tóm tắt nội dung chính của tài liệu ${documentSample.name}`);
+  res.json({ tasks, documents, retrieval: 'live', latestTaskAt: latestTask?.updatedAt || null, latestDocumentAt: latestDocument?.updatedAt || null, suggestions });
 });
 router.get('/projects/:projectId/ai/conversations', middlewareProject(), async (req, res) => {
   const convs = await prisma.aiConversation.findMany({ where: { project: req.pa.project.id, user: req.user.id }, orderBy: { updatedAt: 'desc' }, take: 20 });

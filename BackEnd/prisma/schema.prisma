@@ -359,7 +359,7 @@ model Task {
   key                String
   title              String     @db.VarChar(200)
   description        String     @default("")
-  acceptanceCriteria String[]   @default([])
+  acceptanceCriteria String[]   @default([]) @map("acceptance_criteria")
   status             TaskStatus @default(todo)
   priority           Priority   @default(medium)
   assignee           String?    @map("assignee_id") @db.Uuid
@@ -371,7 +371,7 @@ model Task {
   deletedAt          DateTime?  @map("deleted_at")
   labels             String[]   @default([])
   sprint             String     @default("")
-  parent             String?    @map("parent_id") @db.Uuid
+  parent             String?    @map("parent_task_id") @db.Uuid
   /// [{ text, done }]
   checklist          Json       @default("[]")
   blockedBy          String[]   @default([]) @db.Uuid

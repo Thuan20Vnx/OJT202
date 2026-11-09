@@ -1,5 +1,5 @@
 import { t as tr, useI18n } from '../../lib/i18n.js';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import AuthLayout, { AuthSuccess } from './AuthLayout.jsx';
 import { Field, Icon, Notice, Spinner } from '../../components/ui.jsx';
@@ -67,24 +67,70 @@ export function PasswordStrength({ value }) {
   );
 }
 
-function GoogleButton() {
+const GOOGLE_CLIENT_ID = import.meta.env?.VITE_GOOGLE_CLIENT_ID || '';
+
+function GoogleButton({ onCredential }) {
   useI18n();
+  const containerRef = useRef(null);
+  const onCredentialRef = useRef(onCredential);
+  const [loadError, setLoadError] = useState(false);
+  onCredentialRef.current = onCredential;
+
+  useEffect(() => {
+    if (!GOOGLE_CLIENT_ID) return undefined;
+    let cancelled = false;
+    const renderGoogleButton = () => {
+      const google = window.google;
+      if (cancelled || !google?.accounts?.id || !containerRef.current) return false;
+      google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: ({ credential }) => {
+          if (credential) onCredentialRef.current(credential);
+          else setLoadError(true);
+        },
+      });
+      google.accounts.id.renderButton(containerRef.current, {
+        theme: 'outline',
+        size: 'large',
+        width: 300,
+        text: 'continue_with',
+      });
+      return true;
+    };
+
+    if (renderGoogleButton()) return () => { cancelled = true; };
+
+    let script = document.querySelector('script[data-google-identity]');
+    const onLoad = () => {
+      if (!renderGoogleButton()) setLoadError(true);
+    };
+    const onError = () => setLoadError(true);
+    if (!script) {
+      script = document.createElement('script');
+      script.src = 'https://accounts.google.com/gsi/client';
+      script.async = true;
+      script.defer = true;
+      script.dataset.googleIdentity = 'true';
+      document.head.appendChild(script);
+    }
+    script.addEventListener('load', onLoad);
+    script.addEventListener('error', onError);
+    return () => {
+      cancelled = true;
+      script.removeEventListener('load', onLoad);
+      script.removeEventListener('error', onError);
+      if (containerRef.current) containerRef.current.replaceChildren();
+    };
+  }, []);
+
+  if (!GOOGLE_CLIENT_ID) {
+    return <button type="button" className="btn-outline w-full" disabled>{tr("Google Client ID chưa được cấu hình")}</button>;
+  }
   return (
-    <button
-      type="button"
-      className="btn-outline w-full"
-      title={tr("Đăng nhập Google cần cấu hình OAuth khi triển khai")}
-      onClick={() => alert(tr("Đăng nhập Google cần cấu hình OAuth Client ID khi triển khai. Bản phát triển dùng email + mật khẩu."))}
-    >
-      <svg width="16" height="16" viewBox="0 0 48 48" aria-hidden="true">
-        <path
-          fill="#FFC107"
-          d="M43.6 20.5H42V20H24v8h11.3C33.6 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"
-        />
-        <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z" />
-        <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z" />
-        <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z" />
-      </svg>{tr("Tiếp tục với Google")}</button>
+    <div>
+      <div ref={containerRef} className="flex min-h-10 justify-center" />
+      {loadError && <p role="alert" className="mt-2 text-center text-body-sm text-rose-600">{tr("Không tải được đăng nhập Google. Hãy thử tải lại trang.")}</p>}
+    </div>
   );
 }
 
@@ -133,6 +179,24 @@ export default function Login({ initialTab = 'login' }) {
       navigate(params.get('next') || (d?.workspaces?.length ? '/overview' : d?.user?.isSystemAdmin ? '/admin' : '/onboarding'), { replace: true });
     } catch (err) {
       if (err.details?.code === 'EMAIL_NOT_VERIFIED') setUnverified(true);
+      setSuccess(false);
+      fail(err);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const loginWithGoogle = async (credential) => {
+    setBusy(true);
+    setError('');
+    setErrors({});
+    try {
+      await api.post('/auth/google', { credential, acceptTerms: tab === 'register' && f.accept });
+      setSuccess(true);
+      await new Promise((r) => setTimeout(r, 1100));
+      const d = await loadMe();
+      navigate(params.get('next') || (d?.workspaces?.length ? '/overview' : d?.user?.isSystemAdmin ? '/admin' : '/onboarding'), { replace: true });
+    } catch (err) {
       setSuccess(false);
       fail(err);
     } finally {
@@ -254,7 +318,7 @@ export default function Login({ initialTab = 'login' }) {
             <div className="flex items-center gap-3 text-label-md font-normal text-slate-400">
               <span className="h-px flex-1 bg-slate-200" />{tr("hoặc")}<span className="h-px flex-1 bg-slate-200" />
             </div>
-            <GoogleButton />
+            <GoogleButton onCredential={loginWithGoogle} />
           </form>
         ) : sent ? (
           <AuthSuccess
@@ -299,7 +363,7 @@ export default function Login({ initialTab = 'login' }) {
             {errors.acceptTerms && <p className="field-error">{errors.acceptTerms}</p>}
             <button className="btn-primary h-10 w-full" disabled={busy}>
               {busy && <Spinner />}{tr("Tạo tài khoản")}</button>
-            <GoogleButton />
+            <GoogleButton onCredential={loginWithGoogle} />
           </form>
         )}
       </div>

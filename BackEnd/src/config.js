@@ -12,6 +12,7 @@ export const config = {
   isProd: env.NODE_ENV === 'production',
   isTest: env.NODE_ENV === 'test',
   clientUrl: env.CLIENT_URL || 'http://localhost:5173',
+  googleClientId: env.GOOGLE_CLIENT_ID || '',
   trustProxy: env.TRUST_PROXY?.trim()
     ? env.TRUST_PROXY.split(',')
         .map((s) => s.trim())

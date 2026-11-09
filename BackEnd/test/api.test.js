@@ -7,6 +7,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { io as connectSocket } from 'socket.io-client';
+import { OAuth2Client } from 'google-auth-library';
 import { smtpSandbox } from './helpers/smtp.js';
 
 process.env.NODE_ENV = 'test';
@@ -108,6 +109,20 @@ test('U025: thống kê nguồn trực tiếp có ACL, bỏ task xóa và ảnh;
   assert.equal(r.data.content, undefined);
   assert.equal((await c.get('/projects/00000000-0000-4000-8000-000000000000/ai/sources')).status, 404);
   assert.equal((await new Client().get(`/projects/${project.id}/ai/sources`)).status, 401);
+});
+
+test('gợi ý hỏi đáp được tạo từ công việc bị chặn và tài liệu của đúng dự án', async () => {
+  const { owner, member, pid, create } = await permissionFixture();
+  const blocker = await create({ title: 'Việc chặn gợi ý' });
+  const dependent = await create({ title: 'Việc cần gợi ý' });
+  assert.equal((await owner.post(`/tasks/${dependent._id}/dependencies`, { blockedBy: blocker._id })).status, 200);
+  assert.equal((await owner.post(`/projects/${pid}/documents`, { name: 'Tài liệu gợi ý', content: 'Nội dung để hỏi đáp.' })).status, 201);
+
+  const response = await member.get(`/projects/${pid}/ai/sources`);
+  assert.equal(response.status, 200);
+  assert.ok(response.data.suggestions.some((question) => question.includes(dependent.key)));
+  assert.ok(response.data.suggestions.some((question) => question.includes('Tài liệu gợi ý')));
+  assert.ok(response.data.suggestions.length <= 3);
 });
 
 describe('Hoàng Anh Sprint 2 — tài liệu, phụ thuộc, thông báo và review nghiệp vụ', () => {
@@ -341,6 +356,35 @@ describe('Hoàng Anh Sprint 2 — tài liệu, phụ thuộc, thông báo và re
 });
 
 describe('Xác thực & phiên (U003, U004, U005)', () => {
+  test('đăng nhập Google xác minh token, yêu cầu điều khoản khi tạo tài khoản và cấp session', async (t) => {
+    const payload = {
+      sub: 'google-sub-new-user',
+      email: 'google.user@example.com',
+      email_verified: true,
+      name: 'Google User',
+    };
+    t.mock.method(OAuth2Client.prototype, 'verifyIdToken', async ({ idToken, audience }) => {
+      assert.equal(audience, config.googleClientId);
+      if (idToken === 'invalid') throw new Error('test token rejected');
+      return { getPayload: () => payload };
+    });
+
+    const client = new Client();
+    const missingConsent = await client.post('/auth/google', { credential: 'valid' });
+    assert.equal(missingConsent.status, 400);
+    const login = await client.post('/auth/google', { credential: 'valid', acceptTerms: true });
+    assert.equal(login.status, 200, JSON.stringify(login.data));
+    assert.ok(client.cookies.tf_at);
+    const me = await client.get('/me');
+    assert.equal(me.status, 200);
+    assert.equal(me.data.user.email, payload.email);
+    const user = await db.prisma.user.findUnique({ where: { email: payload.email } });
+    assert.equal(user.emailVerified, true);
+
+    const invalid = await new Client().post('/auth/google', { credential: 'invalid' });
+    assert.equal(invalid.status, 401);
+  });
+
   test('sai mật khẩu và email không tồn tại trả cùng một lỗi chung', async () => {
     const c = new Client();
     const a = await c.post('/auth/login', { email: 'mai.anh@nhom24.edu.vn', password: 'Sai12345' });

@@ -5,7 +5,7 @@ export function retrieve(question, sources, k = 4) {
   const q = tokens(question);
   const keys = (question.match(/[A-Za-z]{2,5}-\d+/g) || []).map((x) => x.toUpperCase());
   const ranked = sources
-    .map((s) => ({ ...s, score: score(q, s.text) + (s.key && keys.includes(s.key) ? 6 : 0) }))
+    .map((s) => ({ ...s, score: score(q, s.text) + score(q, s.label) + (s.key && keys.includes(s.key) ? 6 : 0) }))
     .filter((s) => s.score >= 2)
     .sort((a, b) => b.score - a.score);
   return { picked: ranked.slice(0, k), queryTokens: q };
