@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "kind": "u025-artifact-verification",
+  "artifactStatus": "passed",
+  "counts": {
+    "qa-answer": 40,
+    "qa-refusal": 10,
+    "qa-security": 20
+  },
+  "uniqueCases": 70,
+  "templatesWithHumanResults": 0,
+  "applicationCasesExecuted": 0,
+  "providerCalls": 0,
+  "hiddenCasesReceived": 0,
+  "acceptanceStatus": "pending",
+  "packCanonicalSha256": "b1120954e430c97632e1186c33743bd99e0b19979b155612bd913d38a7da2502",
+  "datasetCanonicalSha256": "e33a7e834b7bd18f3c3fc0bcfc9ae1c7fae786a4cc50927e934b31243e582c86",
+  "checks": [
+    "70 unique case IDs and distinct input/actor/precondition/step combinations",
+    "40/10/20 group counts",
+    "source/actor/project references",
+    "concrete preconditions, steps and expected criteria",
+    "aggregate answer keys recomputed from dataset",
+    "generated JSON matches authored public source",
+    "SHA-256 for all listed artifacts",
+    "human scores/output/freeze evidence remain unfilled"
+  ]
+}

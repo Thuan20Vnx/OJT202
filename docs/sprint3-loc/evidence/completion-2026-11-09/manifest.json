@@ -1,0 +1,16 @@
+{
+  "algorithm": "sha256-file-bytes",
+  "files": {
+    "build.txt": "029a4cf1e45c3895620b7e0ec9027d9a34dfd8b8685d5f4f6de639b82f5ff610",
+    "e2e.txt": "7f5608f6467fccd59d98f5e2f4e302f085de5930dbd594abce546780d27ba172",
+    "grading-pending.json": "22ad31936b3bc8e87042eb7f38179d047191109e97ffe846efcef6c1ff61849b",
+    "lint.txt": "09a8f428d94baf578d965cd5f505034ce97c80e19cccfb6c09099335a018593e",
+    "tests.txt": "446455090010dc40eea51e39dd2c64b55ade80650694ba0b8a2ff4ee4d857f7a",
+    "u025-baseline-run.zip": "2c3a53b68e695daa00573a27da3f4814faeb0919373806050817e2e38a54b559",
+    "u025-baseline.txt": "d2b6f90ff8db92e527f43661e8b857f4c6a12de7e509c2d374b8e8def0617c66",
+    "u025-development-run.zip": "0c40f7241393a8b5d9ff170fcc3e06df215033bb2ad787ea5054df5e8ed45bce",
+    "u025-final.txt": "bbe310c018af81e711d58d8483ea0587a3601d77a709a20a79126f469de7d72d",
+    "u025-run.json": "4196db01122449b1803f7d626b227f33a8488b6f6b189d7c9fba97181be9a6a8",
+    "verification.json": "484be94ff141b95925b88db5f0e44a0b634fe0a5e8a37a64eaad912f1fac0604"
+  }
+}

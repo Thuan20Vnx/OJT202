@@ -23,6 +23,10 @@ AIService chỉ nhận dữ liệu đã lọc và trả kết quả AI (kế ho�
 
 ## Chạy nhanh
 
+Sprint 3 của Lộc cập nhật 09/11: [bàn giao kỹ thuật và bằng chứng](docs/sprint3-loc/COMPLETION_2026-11-09.md). `npm run validate:u025` chạy 70 ca development trên DB/API tạm; `npm run grade:u025 -- --run <run.json> --out <folder-moi>` tạo biểu mẫu chấm gắn đúng output. Nghiệm thu bộ kín và chữ ký reviewer vẫn là bước của nhóm.
+
+Sprint 4 của Lộc: [phạm vi và bằng chứng](docs/sprint4-loc/README.md), [hướng dẫn bốn vai trò có ảnh](docs/sprint4-loc/USER_GUIDE.md), [điều phối UAT](docs/sprint4-loc/UAT.md), [diễn tập và Q&A](docs/sprint4-loc/REHEARSAL.md). Chạy `npm run validate:security` để kiểm ma trận quyền; `npm run uat:sprint4 -- --minutes 120` để mở phiên UAT local tạm.
+
 Bàn giao Sprint 3 của Nguyễn Bảo Lộc, rà soát lại đủ 11 nhiệm vụ ngày 07/11/2026: [kết quả mới nhất và hai lỗi risk đã sửa](docs/sprint3-loc/RECHECK_2026-11-07.md), [chi tiết tích hợp trước đó](docs/sprint3-loc/COMPLETION_2026-11-07.md), [kịch bản demo](docs/sprint3-loc/DEMO.md). Mã đã kiểm thử tại `5ac8b18`: 475/475 test, 13/13 E2E; nghiệm thu độc lập và CI/deploy remote cần bằng chứng riêng.
 
 Hướng dẫn cài mới trên PowerShell: [cài đặt và bàn giao](docs/design/INSTALL.md). Đối chiếu toàn bộ nhiệm vụ Hoàng Thị Hải Như: [phân công, thay đổi và giới hạn nghiệm thu](docs/NHU_ALL_SPRINTS_2026-10-29.md). Bộ thiết kế hiện tại: [SRS/quyền/workflow](docs/design/SRS.md), [ERD](docs/design/ERD.md), [OpenAPI](docs/design/openapi.json).

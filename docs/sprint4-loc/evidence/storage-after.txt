@@ -1,0 +1,19 @@
+[seed] Tạo dữ liệu demo Nhóm 24…
+[seed] Xong. Đăng nhập: mai.anh@nhom24.edu.vn / TaskFlow@2026  (System Admin: admin@taskflow.local)
+✔ U030 Sprint 4: upload rechecks logout after storage wait (44410.8208ms)
+✔ U030 Sprint 4: upload rechecks lock after storage wait (405.2309ms)
+✔ U030 Sprint 4: upload rechecks project-revoke after storage wait (402.6829ms)
+✔ U030 Sprint 4: download rechecks logout after storage wait (388.7057ms)
+✔ U030 Sprint 4: download rechecks lock after storage wait (388.9346ms)
+✔ U030 Sprint 4: download rechecks project-revoke after storage wait (410.0917ms)
+✔ U030 Sprint 4: content rechecks logout after storage wait (417.8468ms)
+✔ U030 Sprint 4: content rechecks lock after storage wait (404.0917ms)
+✔ U030 Sprint 4: content rechecks project-revoke after storage wait (418.0948ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 49260.6528

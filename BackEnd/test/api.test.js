@@ -30,6 +30,7 @@ const { initRealtime, emitProject } = await import('../src/services/realtime.js'
 const { projectOverview, riskAlerts, weekRange, workload } = await import('../src/services/metrics.js');
 const { config } = await import('../src/config.js');
 const { locSprint3 } = await import('./helpers/loc-sprint3.js');
+const { locSprint4 } = await import('./helpers/loc-sprint4.js');
 
 let server;
 let base;
@@ -1448,6 +1449,7 @@ async function socketFor(client, t) {
 }
 const join = (socket, pid) => socket.timeout(5000).emitWithAck('project:join', pid);
 locSprint3({ fixture: permissionFixture, db, Client, seed: () => seed, socketFor, join });
+locSprint4({ fixture: permissionFixture, db, Client, seed: () => seed, base: () => base });
 
 describe('Rà soát 25/10: thu hồi quyền và bảo toàn tài liệu', () => {
   test('My Tasks trả quyền từng dự án và đếm hợp nhất việc cần xử lý', async () => {

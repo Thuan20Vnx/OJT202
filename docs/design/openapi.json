@@ -9589,7 +9589,7 @@
         ],
         "summary": "GET /projects/{projectId}/documents",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/documents.js:164",
+        "x-source": "BackEnd/src/routes/documents.js:165",
         "parameters": [
           {
             "in": "path",
@@ -9683,7 +9683,7 @@
         ],
         "summary": "POST /projects/{projectId}/documents",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/documents.js:201",
+        "x-source": "BackEnd/src/routes/documents.js:202",
         "parameters": [
           {
             "in": "path",
@@ -9817,7 +9817,7 @@
         ],
         "summary": "POST /projects/{projectId}/documents/upload",
         "description": "Project PM/Member, active. Tối đa 5 tệp PDF/TXT/PNG/JPG, mỗi tệp <=10MB; MIME/đuôi/chữ ký và UTF-8 cho TXT. Kiểm cả lô trước ghi; rollback DB và dọn tệp khi lỗi. Không OCR cho nguồn scan.",
-        "x-source": "BackEnd/src/routes/documents.js:188",
+        "x-source": "BackEnd/src/routes/documents.js:189",
         "parameters": [
           {
             "in": "path",
@@ -9952,7 +9952,7 @@
         ],
         "summary": "GET /documents/{id}",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/documents.js:252",
+        "x-source": "BackEnd/src/routes/documents.js:254",
         "parameters": [
           {
             "in": "path",
@@ -10046,7 +10046,7 @@
         ],
         "summary": "PATCH /documents/{id}",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/documents.js:284",
+        "x-source": "BackEnd/src/routes/documents.js:289",
         "parameters": [
           {
             "in": "path",
@@ -10183,7 +10183,7 @@
         ],
         "summary": "DELETE /documents/{id}",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/documents.js:370",
+        "x-source": "BackEnd/src/routes/documents.js:380",
         "parameters": [
           {
             "in": "path",
@@ -10290,7 +10290,7 @@
         ],
         "summary": "GET /documents/{id}/revisions/{version}",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/documents.js:268",
+        "x-source": "BackEnd/src/routes/documents.js:270",
         "parameters": [
           {
             "in": "path",
@@ -10394,7 +10394,7 @@
         ],
         "summary": "GET /documents/{id}/content",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/documents.js:278",
+        "x-source": "BackEnd/src/routes/documents.js:280",
         "parameters": [
           {
             "in": "path",
@@ -10490,7 +10490,7 @@
         ],
         "summary": "GET /documents/{id}/download",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/documents.js:343",
+        "x-source": "BackEnd/src/routes/documents.js:349",
         "parameters": [
           {
             "in": "path",

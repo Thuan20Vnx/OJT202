@@ -1,0 +1,3422 @@
+{
+  "schemaVersion": 1,
+  "kind": "ai-evaluation",
+  "runId": "eval-2026-11-07T13-48-19-236Z",
+  "build": {
+    "revision": "ec87c7a93a37cd3462ce926a570277cdc35038e8",
+    "sourceHash": "9a389c62a102eb420e5c3d4567bcb9205efc023af4d750ef41bc4c1b37ff7b2f",
+    "sourceHashAlgorithm": "sha256-lf-v1",
+    "promptHash": "5ed987e127f9b3fdc2c72817903cee4e407a0cebf7e08a9bb6beecf916ffce29",
+    "dirty": true,
+    "node": "v24.15.0"
+  },
+  "pack": {
+    "version": "development-v2",
+    "split": "development",
+    "hash": "0c1725325f2b1b757bbad54e5fae9f70e857d3de48ff3591cbce4c8cf67b08fd",
+    "frozenAt": null
+  },
+  "dataset": {
+    "version": "taskflow-evaluation-fixture-v2",
+    "hash": "ac353ab8debbd6779f11f7f4985d6b85f0f6feb84810d93121106a8c29c28950",
+    "clock": "2026-11-07T13:48:19.084Z",
+    "taskCount": 4,
+    "expectedStats": {
+      "done": 1,
+      "overdue": 1,
+      "blocked": 1,
+      "totalTasks": 4,
+      "doneTotal": 1,
+      "progressPct": 25
+    }
+  },
+  "environment": {
+    "platform": "win32",
+    "arch": "x64",
+    "cpu": "AMD Ryzen 7 5800H with Radeon Graphics         ",
+    "parallelism": 16,
+    "memoryBytes": 16498810880,
+    "network": "loopback HTTP",
+    "concurrency": 1,
+    "cache": "Mixed application/database cache; no samples discarded",
+    "aiSettings": {
+      "enabled": true,
+      "features": {
+        "qa": true,
+        "risk": true,
+        "report": true,
+        "meeting": false,
+        "planner": true
+      },
+      "dailyLimit": 2000,
+      "timeoutSec": 30
+    }
+  },
+  "provider": "local",
+  "cost": null,
+  "costReason": "Local provider; no paid model quality or cost claim",
+  "groups": {
+    "planner-schema": {
+      "numerator": 5,
+      "denominator": 5
+    },
+    "permissions": {
+      "numerator": 3,
+      "denominator": 3
+    },
+    "report-metrics": {
+      "numerator": 3,
+      "denominator": 3
+    },
+    "qa-answer": {
+      "numerator": 1,
+      "denominator": 1
+    },
+    "qa-refusal": {
+      "numerator": 1,
+      "denominator": 1
+    },
+    "qa-security": {
+      "numerator": 2,
+      "denominator": 2
+    },
+    "risk-rules": {
+      "numerator": 8,
+      "denominator": 8
+    },
+    "risk-explanation": {
+      "numerator": 1,
+      "denominator": 1
+    }
+  },
+  "records": [
+    {
+      "caseId": "planner-1",
+      "group": "planner-schema",
+      "feature": "planner",
+      "input": {
+        "goal": "Xây dựng API xác thực",
+        "maxHours": 24
+      },
+      "status": 201,
+      "data": {
+        "draft": {
+          "_id": "559a32cd-d242-4fc0-a786-ddfeaab1dcb7",
+          "workspace": "6bdbe210-969c-4c35-bd7e-1fb90c1877a5",
+          "project": "67201921-dfe6-41b3-8b40-f97aeb72155b",
+          "user": "0da75fce-ee03-4c74-a14b-3e5b94fd1bed",
+          "type": "plan",
+          "title": "Xây dựng API xác thực",
+          "input": {
+            "goal": "Xây dựng API xác thực",
+            "deadline": null,
+            "maxHours": 24,
+            "timezone": "Asia/Ho_Chi_Minh"
+          },
+          "items": [
+            {
+              "key": "o1n73FQA7Jk",
+              "title": "Làm rõ yêu cầu và phạm vi: API xác thực",
+              "dueDate": null,
+              "assignee": null,
+              "priority": "high",
+              "selected": true,
+              "description": "Thuộc mục tiêu: Xây dựng API xác thực",
+              "estimateHours": 2.38,
+              "acceptanceCriteria": [
+                "Có ghi chú yêu cầu được nhóm duyệt",
+                "Xác định rõ ngoài phạm vi"
+              ]
+            },
+            {
+              "key": "UELqJb95K-I",
+              "title": "Thiết kế giao diện cho API xác thực",
+              "dueDate": null,
+              "assignee": null,
+              "priority": "high",
+              "selected": true,
+              "description": "Thuộc mục tiêu: Xây dựng API xác thực",
+              "estimateHours": 3.33,
+              "acceptanceCriteria": [
+                "Đủ trạng thái loading, lỗi, rỗng",
+                "Tương thích responsive"
+              ]
+            },
+            {
+              "key": "DyrmziERQ58",
+              "title": "Thiết kế dữ liệu và đặc tả API",
+              "dueDate": null,
+              "assignee": null,
+              "priority": "high",
+              "selected": true,
+              "description": "Thuộc mục tiêu: Xây dựng API xác thực",
+              "estimateHours": 2.85,
+              "acceptanceCriteria": [
+                "Có schema dữ liệu",
+                "Có đặc tả request/response"
+              ]
+            },
+            {
+              "key": "7o7VXBNOGAY",
+              "title": "Xây dựng API cho API xác thực",
+              "dueDate": null,
+              "assignee": null,
+              "priority": "high",
+              "selected": true,
+              "description": "Thuộc mục tiêu: Xây dựng API xác thực",
+              "estimateHours": 4.04,
+              "acceptanceCriteria": [
+                "Kiểm tra quyền truy cập",
+                "Validate dữ liệu đầu vào"
+              ]
+            },
+            {
+              "key": "FqESB2jAVqM",
+              "title": "Xây dựng giao diện và kết nối API",
+              "dueDate": null,
+              "assignee": null,
+              "priority": "medium",
+              "selected": true,
+              "description": "Thuộc mục tiêu: Xây dựng API xác thực",
+              "estimateHours": 3.56,
+              "acceptanceCriteria": [
+                "Hiển thị lỗi thân thiện",
+                "Không mất dữ liệu khi lỗi mạng"
+              ]
+            },
+            {
+              "key": "TY9HovFm59c",
+              "title": "Viết test tự động cho luồng chính",
+              "dueDate": null,
+              "assignee": null,
+              "priority": "medium",
+              "selected": true,
+              "description": "Thuộc mục tiêu: Xây dựng API xác thực",
+              "estimateHours": 2.61,
+              "acceptanceCriteria": [
+                "Test chạy trong CI",
+                "Bao phủ ca lỗi chính"
+              ]
+            },
+            {
+              "key": "4QULUcsxkW8",
+              "title": "Kiểm thử bảo mật và phân quyền",
+              "dueDate": null,
+              "assignee": null,
+              "priority": "medium",
+              "selected": true,
+              "description": "Thuộc mục tiêu: Xây dựng API xác thực",
+              "estimateHours": 2.38,
+              "acceptanceCriteria": [
+                "Không lộ dữ liệu nhạy cảm",
+                "Không truy cập chéo nhóm"
+              ]
+            },
+            {
+              "key": "1kS13S6Rawc",
+              "title": "Viết tài liệu hướng dẫn cấu hình và sử dụng",
+              "dueDate": null,
+              "assignee": null,
+              "priority": "low",
+              "selected": true,
+              "description": "Thuộc mục tiêu: Xây dựng API xác thực",
+              "estimateHours": 1.43,
+              "acceptanceCriteria": [
+                "Có hướng dẫn cài đặt"
+              ]
+            },
+            {
+              "key": "VjB5W4su0vA",
+              "title": "Demo nội bộ và nghiệm thu",
+              "dueDate": null,
+              "assignee": null,
+              "priority": "low",
+              "selected": true,
+              "description": "Thuộc mục tiêu: Xây dựng API xác thực",
+              "estimateHours": 1.42,
+              "acceptanceCriteria": [
+                "Demo end-to-end trên staging"
+              ]
+            }
+          ],
+          "status": "draft",
+          "version": 1,
+          "approvedAt": null,
+          "createdAt": "2026-11-07T13:48:19.296Z",
+          "updatedAt": "2026-11-07T13:48:19.296Z"
+        },
+        "meta": {
+          "callId": "775fb0c1-2217-47da-9c3f-9ec904e5af7c",
+          "model": "taskflow-local-rules",
+          "provider": "local",
+          "latencyMs": 25,
+          "attemptCount": 1,
+          "usageComplete": true
+        }
+      },
+      "queuedAt": "2026-11-07T13:48:19.246Z",
+      "finishedAt": "2026-11-07T13:48:19.299Z",
+      "elapsedMs": 53.726199999997334,
+      "failures": [],
+      "passed": true
+    },
+    {
+      "caseId": "planner-2",
+      "group": "planner-schema",
+      "feature": "planner",
+      "input": {
+        "goal": "Phát triển ứng dụng mobile",
+        "maxHours": 24
+      },
+      "status": 201,
+      "data": {
+        "draft": {
+          "_id": "f3aa3a0a-e13c-438e-875f-c802622ae724",
+          "workspace": "6bdbe210-969c-4c35-bd7e-1fb90c1877a5",
+          "project": "67201921-dfe6-41b3-8b40-f97aeb72155b",
+          "user": "0da75fce-ee03-4c74-a14b-3e5b94fd1bed",
+          "type": "plan",
+          "title": "Phát triển ứng dụng mobile",
+          "input": {
+            "goal": "Phát triển ứng dụng mobile",
+            "deadline": null,
+            "maxHours": 24,
+            "timezone": "Asia/Ho_Chi_Minh"
+          },
+          "items": [
+            {
+              "key": "J9sWcpvKpqA",
+              "title": "Làm rõ yêu cầu và phạm vi: ứng dụng mobile",
+              "dueDate": null,
+              "assignee": null,
+              "priority": "high",
+              "selected": true,
+              "description": "Thuộc mục tiêu: Phát triển ứng dụng mobile",
+              "estimateHours": 2.64,
+              "acceptanceCriteria": [
+                "Có ghi chú yêu cầu được nhóm duyệt",
+                "Xác định rõ ngoài phạm vi"
+              ]
+            },
+            {
+              "key": "Z8QVCRlqgJY",
+              "title": "Thiết kế giao diện mobile cho ứng dụng mobile",
+              "dueDate": null,
+              "assignee": null,
+              "priority": "high",
+              "selected": true,
+              "description": "Thuộc mục tiêu: Phát triển ứng dụng mobile",
+              "estimateHours": 3.69,
+              "acceptanceCriteria": [
+                "Đủ trạng thái loading, lỗi, rỗng",
+                "Đúng kích thước màn hình di động"
+              ]
+            },
+            {
+              "key": "tMYv2dDbDuM",
+              "title": "Thiết kế dữ liệu và đặc tả API",
+              "dueDate": null,
+              "assignee": null,
+              "priority": "high",
+              "selected": true,
+              "description": "Thuộc mục tiêu: Phát triển ứng dụng mobile",
+              "estimateHours": 3.17,
+              "acceptanceCriteria": [
+                "Có schema dữ liệu",
+                "Có đặc tả request/response"
+              ]
+            },
+            {
+              "key": "cH-L7tAzUz0",
+              "title": "Xây dựng API cho ứng dụng mobile",
+              "dueDate": null,
+              "assignee": null,
+              "priority": "high",
+              "selected": true,
+              "description": "Thuộc mục tiêu: Phát triển ứng dụng mobile",
+              "estimateHours": 4.48,
+              "acceptanceCriteria": [
+                "Kiểm tra quyền truy cập",
+                "Validate dữ liệu đầu vào"
+              ]
+            },
+            {
+              "key": "7JZ4FBI4PGk",
+              "title": "Xây dựng giao diện và kết nối API",
+              "dueDate": null,
+              "assignee": null,
+              "priority": "medium",
+              "selected": true,
+              "description": "Thuộc mục tiêu: Phát triển ứng dụng mobile",
+              "estimateHours": 3.96,
+              "acceptanceCriteria": [
+                "Hiển thị lỗi thân thiện",
+                "Không mất dữ liệu khi lỗi mạng"
+              ]
+            },
+            {
+              "key": "q1iv_uL393I",
+              "title": "Viết test tự động cho luồng chính",
+              "dueDate": null,
+              "assignee": null,
+              "priority": "medium",
+              "selected": true,
+              "description": "Thuộc mục tiêu: Phát triển ứng dụng mobile",
+              "estimateHours": 2.9,
+              "acceptanceCriteria": [
+                "Test chạy trong CI",
+                "Bao phủ ca lỗi chính"
+              ]
+            },
+            {
+              "key": "kig1Ud7jpJQ",
+              "title": "Viết tài liệu hướng dẫn cấu hình và sử dụng",
+              "dueDate": null,
+              "assignee": null,
+              "priority": "low",
+              "selected": true,
+              "description": "Thuộc mục tiêu: Phát triển ứng dụng mobile",
+              "estimateHours": 1.58,
+              "acceptanceCriteria": [
+                "Có hướng dẫn cài đặt"
+              ]
+            },
+            {
+              "key": "dayXi4jtogk",
+              "title": "Demo nội bộ và nghiệm thu",
+              "dueDate": null,
+              "assignee": null,
+              "priority": "low",
+              "selected": true,
+              "description": "Thuộc mục tiêu: Phát triển ứng dụng mobile",
+              "estimateHours": 1.58,
+              "acceptanceCriteria": [
+                "Demo end-to-end trên staging"
+              ]
+            }
+          ],
+          "status": "draft",
+          "version": 1,
+          "approvedAt": null,
+          "createdAt": "2026-11-07T13:48:19.337Z",
+          "updatedAt": "2026-11-07T13:48:19.337Z"
+        },
+        "meta": {
+          "callId": "63a36eee-3a02-4db9-9e48-6c5af5410417",
+          "model": "taskflow-local-rules",
+          "provider": "local",
+          "latencyMs": 8,
+          "attemptCount": 1,
+          "usageComplete": true
+        }
+      },
+      "queuedAt": "2026-11-07T13:48:19.309Z",
+      "finishedAt": "2026-11-07T13:48:19.339Z",
+      "elapsedMs": 29.6762000000017,
+      "failures": [],
+      "passed": true
+    },
+    {
+      "caseId": "planner-3",
+      "group": "planner-schema",
+      "feature": "planner",
+      "input": {
+        "goal": "Tích hợp thanh toán VNPay",
+        "maxHours": 24
+      },
+      "status": 201,
+      "data": {
+        "draft": {
+          "_id": "15874b88-9048-447c-8f70-a28ffb34bcf9",
+          "workspace": "6bdbe210-969c-4c35-bd7e-1fb90c1877a5",
+          "project": "67201921-dfe6-41b3-8b40-f97aeb72155b",
+          "user": "0da75fce-ee03-4c74-a14b-3e5b94fd1bed",
+          "type": "plan",
+          "title": "Tích hợp thanh toán VNPay",
+          "input": {
+            "goal": "Tích hợp thanh toán VNPay",
+            "deadline": null,
+            "maxHours": 24,
+            "timezone": "Asia/Ho_Chi_Minh"
+          },
+          "items": [
+            {
+              "key": "xgHRQ-jdhd0",
+              "title": "Nghiên cứu tài liệu API VNPay sandbox",
+              "dueDate": null,
+              "assignee": null,
+              "priority": "high",
+              "selected": true,
+              "description": "Thuộc mục tiêu: Tích hợp thanh toán VNPay",
+              "estimateHours": 2.09,
+              "acceptanceCriteria": [
+                "Có ghi chú yêu cầu được nhóm duyệt",
+                "Xác định rõ ngoài phạm vi"
+              ]
+            },
+            {
+              "key": "AmM-ggI_zyA",
+              "title": "Thiết kế màn hình chọn phương thức thanh toán",
+              "dueDate": null,
+              "assignee": null,
+              "priority": "high",
+              "selected": true,
+              "description": "Thuộc mục tiêu: Tích hợp thanh toán VNPay",
+              "estimateHours": 2.92,
+              "acceptanceCriteria": [
+                "Đủ trạng thái loading, lỗi, rỗng",
+                "Tương thích responsive"
+              ]
+            },
+            {
+              "key": "cs37N0dUufE",
+              "title": "Thiết kế dữ liệu và đặc tả API",
+              "dueDate": null,
+              "assignee": null,
+              "priority": "high",
+              "selected": true,
+              "description": "Thuộc mục tiêu: Tích hợp thanh toán VNPay",
+              "estimateHours": 2.5,
+              "acceptanceCriteria": [
+                "Có schema dữ liệu",
+                "Có đặc tả request/response"
+              ]
+            },
+            {
+              "key": "yv48xsne3Bw",
+              "title": "Xây dựng API tạo giao dịch & xác minh chữ ký",
+              "dueDate": null,
+              "assignee": null,
+              "priority": "high",
+              "selected": true,
+              "description": "Thuộc mục tiêu: Tích hợp thanh toán VNPay",
+              "estimateHours": 3.55,
+              "acceptanceCriteria": [
+                "Kiểm tra quyền truy cập",
+                "Validate dữ liệu đầu vào"
+              ]
+            },
+            {
+              "key": "IlvfGnELjIM",
+              "title": "Xây dựng giao diện và kết nối API",
+              "dueDate": null,
+              "assignee": null,
+              "priority": "medium",
+              "selected": true,
+              "description": "Thuộc mục tiêu: Tích hợp thanh toán VNPay",
+              "estimateHours": 3.13,
+              "acceptanceCriteria": [
+                "Hiển thị lỗi thân thiện",
+                "Không mất dữ liệu khi lỗi mạng"
+              ]
+            },
+            {
+              "key": "eQIo4wejr6Y",
+              "title": "Xử lý callback/IPN và cập nhật trạng thái đơn",
+              "dueDate": null,
+              "assignee": null,
+              "priority": "medium",
+              "selected": true,
+              "description": "Thuộc mục tiêu: Tích hợp thanh toán VNPay",
+              "estimateHours": 2.92,
+              "acceptanceCriteria": [
+                "Callback trùng không xử lý hai lần",
+                "Ghi log giao dịch"
+              ]
+            },
+            {
+              "key": "bu6G1Y7zpls",
+              "title": "Viết test tích hợp thanh toán",
+              "dueDate": null,
+              "assignee": null,
+              "priority": "medium",
+              "selected": true,
+              "description": "Thuộc mục tiêu: Tích hợp thanh toán VNPay",
+              "estimateHours": 2.3,
+              "acceptanceCriteria": [
+                "Test chạy trong CI",
+                "Bao phủ ca lỗi chính"
+              ]
+            },
+            {
+              "key": "8t5rZmAAk-4",
+              "title": "Kiểm thử bảo mật dữ liệu thanh toán",
+              "dueDate": null,
+              "assignee": null,
+              "priority": "medium",
+              "selected": true,
+              "description": "Thuộc mục tiêu: Tích hợp thanh toán VNPay",
+              "estimateHours": 2.09,
+              "acceptanceCriteria": [
+                "Không lộ dữ liệu nhạy cảm",
+                "Không truy cập chéo nhóm"
+              ]
+            },
+            {
+              "key": "g6aW6ZywcG8",
+              "title": "Viết tài liệu hướng dẫn cấu hình và sử dụng",
+              "dueDate": null,
+              "assignee": null,
+              "priority": "low",
+              "selected": true,
+              "description": "Thuộc mục tiêu: Tích hợp thanh toán VNPay",
+              "estimateHours": 1.25,
+              "acceptanceCriteria": [
+                "Có hướng dẫn cài đặt"
+              ]
+            },
+            {
+              "key": "uzhTOBceM-U",
+              "title": "Demo nội bộ và nghiệm thu",
+              "dueDate": null,
+              "assignee": null,
+              "priority": "low",
+              "selected": true,
+              "description": "Thuộc mục tiêu: Tích hợp thanh toán VNPay",
+              "estimateHours": 1.25,
+              "acceptanceCriteria": [
+                "Demo end-to-end trên staging"
+              ]
+            }
+          ],
+          "status": "draft",
+          "version": 1,
+          "approvedAt": null,
+          "createdAt": "2026-11-07T13:48:19.373Z",
+          "updatedAt": "2026-11-07T13:48:19.373Z"
+        },
+        "meta": {
+          "callId": "6693932e-a16c-4dad-bb81-c51c560723fa",
+          "model": "taskflow-local-rules",
+          "provider": "local",
+          "latencyMs": 7,
+          "attemptCount": 1,
+          "usageComplete": true
+        }
+      },
+      "queuedAt": "2026-11-07T13:48:19.348Z",
+      "finishedAt": "2026-11-07T13:48:19.376Z",
+      "elapsedMs": 28.0199999999968,
+      "failures": [],
+      "passed": true
+    },
+    {
+      "caseId": "planner-4",
+      "group": "planner-schema",
+      "feature": "planner",
+      "input": {
+        "goal": "Dashboard quản lý công việc",
+        "maxHours": 24
+      },
+      "status": 201,
+      "data": {
+        "draft": {
+          "_id": "be5b96a1-5de7-4dd9-b995-f6c00e12ccf7",
+          "workspace": "6bdbe210-969c-4c35-bd7e-1fb90c1877a5",
+          "project": "67201921-dfe6-41b3-8b40-f97aeb72155b",
+          "user": "0da75fce-ee03-4c74-a14b-3e5b94fd1bed",
+          "type": "plan",
+          "title": "Dashboard quản lý công việc",
+          "input": {
+            "goal": "Dashboard quản lý công việc",
+            "deadline": null,
+            "maxHours": 24,
+            "timezone": "Asia/Ho_Chi_Minh"
+          },
+          "items": [
+            {
+              "key": "Wryie3783cs",
+              "title": "Làm rõ yêu cầu và phạm vi: Dashboard quản lý công việc",
+              "dueDate": null,
+              "assignee": null,
+              "priority": "high",
+              "selected": true,
+              "description": "Thuộc mục tiêu: Dashboard quản lý công việc",
+              "estimateHours": 2.64,
+              "acceptanceCriteria": [
+                "Có ghi chú yêu cầu được nhóm duyệt",
+                "Xác định rõ ngoài phạm vi"
+              ]
+            },
+            {
+              "key": "F33x3apYmTg",
+              "title": "Thiết kế giao diện cho Dashboard quản lý công việc",
+              "dueDate": null,
+              "assignee": null,
+              "priority": "high",
+              "selected": true,
+              "description": "Thuộc mục tiêu: Dashboard quản lý công việc",
+              "estimateHours": 3.69,
+              "acceptanceCriteria": [
+                "Đủ trạng thái loading, lỗi, rỗng",
+                "Tương thích responsive"
+              ]
+            },
+            {
+              "key": "nFon0sn7-YA",
+              "title": "Thiết kế dữ liệu và đặc tả API",
+              "dueDate": null,
+              "assignee": null,
+              "priority": "high",
+              "selected": true,
+              "description": "Thuộc mục tiêu: Dashboard quản lý công việc",
+              "estimateHours": 3.17,
+              "acceptanceCriteria": [
+                "Có schema dữ liệu",
+                "Có đặc tả request/response"
+              ]
+            },
+            {
+              "key": "Isgp4Q-C5Do",
+              "title": "Xây dựng API cho Dashboard quản lý công việc",
+              "dueDate": null,
+              "assignee": null,
+              "priority": "high",
+              "selected": true,
+              "description": "Thuộc mục tiêu: Dashboard quản lý công việc",
+              "estimateHours": 4.48,
+              "acceptanceCriteria": [
+                "Kiểm tra quyền truy cập",
+                "Validate dữ liệu đầu vào"
+              ]
+            },
+            {
+              "key": "68QYUv8ezwg",
+              "title": "Xây dựng giao diện và kết nối API",
+              "dueDate": null,
+              "assignee": null,
+              "priority": "medium",
+              "selected": true,
+              "description": "Thuộc mục tiêu: Dashboard quản lý công việc",
+              "estimateHours": 3.96,
+              "acceptanceCriteria": [
+                "Hiển thị lỗi thân thiện",
+                "Không mất dữ liệu khi lỗi mạng"
+              ]
+            },
+            {
+              "key": "IWZWHVwLaCA",
+              "title": "Viết test tự động cho luồng chính",
+              "dueDate": null,
+              "assignee": null,
+              "priority": "medium",
+              "selected": true,
+              "description": "Thuộc mục tiêu: Dashboard quản lý công việc",
+              "estimateHours": 2.9,
+              "acceptanceCriteria": [
+                "Test chạy trong CI",
+                "Bao phủ ca lỗi chính"
+              ]
+            },
+            {
+              "key": "rFi_JvCpS-0",
+              "title": "Viết tài liệu hướng dẫn cấu hình và sử dụng",
+              "dueDate": null,
+              "assignee": null,
+              "priority": "low",
+              "selected": true,
+              "description": "Thuộc mục tiêu: Dashboard quản lý công việc",
+              "estimateHours": 1.58,
+              "acceptanceCriteria": [
+                "Có hướng dẫn cài đặt"
+              ]
+            },
+            {
+              "key": "bla9kk5V-rA",
+              "title": "Demo nội bộ và nghiệm thu",
+              "dueDate": null,
+              "assignee": null,
+              "priority": "low",
+              "selected": true,
+              "description": "Thuộc mục tiêu: Dashboard quản lý công việc",
+              "estimateHours": 1.58,
+              "acceptanceCriteria": [
+                "Demo end-to-end trên staging"
+              ]
+            }
+          ],
+          "status": "draft",
+          "version": 1,
+          "approvedAt": null,
+          "createdAt": "2026-11-07T13:48:19.408Z",
+          "updatedAt": "2026-11-07T13:48:19.408Z"
+        },
+        "meta": {
+          "callId": "94aa819e-5033-4f6a-9635-c1d471399e6b",
+          "model": "taskflow-local-rules",
+          "provider": "local",
+          "latencyMs": 7,
+          "attemptCount": 1,
+          "usageComplete": true
+        }
+      },
+      "queuedAt": "2026-11-07T13:48:19.383Z",
+      "finishedAt": "2026-11-07T13:48:19.411Z",
+      "elapsedMs": 27.56579999999667,
+      "failures": [],
+      "passed": true
+    },
+    {
+      "caseId": "planner-5",
+      "group": "planner-schema",
+      "feature": "planner",
+      "input": {
+        "goal": "Xây dựng chatbot có nguồn",
+        "maxHours": 24
+      },
+      "status": 201,
+      "data": {
+        "draft": {
+          "_id": "b1b23b5b-19e1-44d9-92e4-83e6d13a8ca3",
+          "workspace": "6bdbe210-969c-4c35-bd7e-1fb90c1877a5",
+          "project": "67201921-dfe6-41b3-8b40-f97aeb72155b",
+          "user": "0da75fce-ee03-4c74-a14b-3e5b94fd1bed",
+          "type": "plan",
+          "title": "Xây dựng chatbot có nguồn",
+          "input": {
+            "goal": "Xây dựng chatbot có nguồn",
+            "deadline": null,
+            "maxHours": 24,
+            "timezone": "Asia/Ho_Chi_Minh"
+          },
+          "items": [
+            {
+              "key": "J5EBtz8qubE",
+              "title": "Làm rõ yêu cầu và phạm vi: chatbot có nguồn",
+              "dueDate": null,
+              "assignee": null,
+              "priority": "high",
+              "selected": true,
+              "description": "Thuộc mục tiêu: Xây dựng chatbot có nguồn",
+              "estimateHours": 2.24,
+              "acceptanceCriteria": [
+                "Có ghi chú yêu cầu được nhóm duyệt",
+                "Xác định rõ ngoài phạm vi"
+              ]
+            },
+            {
+              "key": "aGGWcHcwk8k",
+              "title": "Thiết kế giao diện cho chatbot có nguồn",
+              "dueDate": null,
+              "assignee": null,
+              "priority": "high",
+              "selected": true,
+              "description": "Thuộc mục tiêu: Xây dựng chatbot có nguồn",
+              "estimateHours": 3.14,
+              "acceptanceCriteria": [
+                "Đủ trạng thái loading, lỗi, rỗng",
+                "Tương thích responsive"
+              ]
+            },
+            {
+              "key": "DE2Tp1bVkUw",
+              "title": "Thiết kế dữ liệu và đặc tả API",
+              "dueDate": null,
+              "assignee": null,
+              "priority": "high",
+              "selected": true,
+              "description": "Thuộc mục tiêu: Xây dựng chatbot có nguồn",
+              "estimateHours": 2.69,
+              "acceptanceCriteria": [
+                "Có schema dữ liệu",
+                "Có đặc tả request/response"
+              ]
+            },
+            {
+              "key": "Cgh73yrqioA",
+              "title": "Xây dựng API cho chatbot có nguồn",
+              "dueDate": null,
+              "assignee": null,
+              "priority": "high",
+              "selected": true,
+              "description": "Thuộc mục tiêu: Xây dựng chatbot có nguồn",
+              "estimateHours": 3.81,
+              "acceptanceCriteria": [
+                "Kiểm tra quyền truy cập",
+                "Validate dữ liệu đầu vào"
+              ]
+            },
+            {
+              "key": "zDUSKyrajuY",
+              "title": "Xây dựng giao diện và kết nối API",
+              "dueDate": null,
+              "assignee": null,
+              "priority": "medium",
+              "selected": true,
+              "description": "Thuộc mục tiêu: Xây dựng chatbot có nguồn",
+              "estimateHours": 3.36,
+              "acceptanceCriteria": [
+                "Hiển thị lỗi thân thiện",
+                "Không mất dữ liệu khi lỗi mạng"
+              ]
+            },
+            {
+              "key": "wlp56NOxN7w",
+              "title": "Xây dựng luồng AI và bộ đề đánh giá",
+              "dueDate": null,
+              "assignee": null,
+              "priority": "medium",
+              "selected": true,
+              "description": "Thuộc mục tiêu: Xây dựng chatbot có nguồn",
+              "estimateHours": 3.59,
+              "acceptanceCriteria": [
+                "Có baseline so sánh",
+                "Có xử lý khi AI lỗi"
+              ]
+            },
+            {
+              "key": "E3gkQjuITi0",
+              "title": "Viết test tự động cho luồng chính",
+              "dueDate": null,
+              "assignee": null,
+              "priority": "medium",
+              "selected": true,
+              "description": "Thuộc mục tiêu: Xây dựng chatbot có nguồn",
+              "estimateHours": 2.47,
+              "acceptanceCriteria": [
+                "Test chạy trong CI",
+                "Bao phủ ca lỗi chính"
+              ]
+            },
+            {
+              "key": "nF8CrJXBe14",
+              "title": "Viết tài liệu hướng dẫn cấu hình và sử dụng",
+              "dueDate": null,
+              "assignee": null,
+              "priority": "low",
+              "selected": true,
+              "description": "Thuộc mục tiêu: Xây dựng chatbot có nguồn",
+              "estimateHours": 1.35,
+              "acceptanceCriteria": [
+                "Có hướng dẫn cài đặt"
+              ]
+            },
+            {
+              "key": "ki5lPDYO-tA",
+              "title": "Demo nội bộ và nghiệm thu",
+              "dueDate": null,
+              "assignee": null,
+              "priority": "low",
+              "selected": true,
+              "description": "Thuộc mục tiêu: Xây dựng chatbot có nguồn",
+              "estimateHours": 1.35,
+              "acceptanceCriteria": [
+                "Demo end-to-end trên staging"
+              ]
+            }
+          ],
+          "status": "draft",
+          "version": 1,
+          "approvedAt": null,
+          "createdAt": "2026-11-07T13:48:19.444Z",
+          "updatedAt": "2026-11-07T13:48:19.444Z"
+        },
+        "meta": {
+          "callId": "6ba265d4-7651-433f-a2aa-d7f51ccee26c",
+          "model": "taskflow-local-rules",
+          "provider": "local",
+          "latencyMs": 7,
+          "attemptCount": 1,
+          "usageComplete": true
+        }
+      },
+      "queuedAt": "2026-11-07T13:48:19.418Z",
+      "finishedAt": "2026-11-07T13:48:19.446Z",
+      "elapsedMs": 28.071100000001024,
+      "failures": [],
+      "passed": true
+    },
+    {
+      "caseId": "planner-member",
+      "group": "permissions",
+      "feature": "planner",
+      "input": {
+        "goal": "Xây dựng quản lý công việc"
+      },
+      "status": 403,
+      "data": {
+        "error": "Chỉ PM được thực hiện thao tác này"
+      },
+      "queuedAt": "2026-11-07T13:48:19.453Z",
+      "finishedAt": "2026-11-07T13:48:19.463Z",
+      "elapsedMs": 9.873599999998987,
+      "failures": [],
+      "passed": true
+    },
+    {
+      "caseId": "planner-viewer",
+      "group": "permissions",
+      "feature": "planner",
+      "input": {
+        "goal": "Xây dựng quản lý công việc"
+      },
+      "status": 403,
+      "data": {
+        "error": "Chỉ PM được thực hiện thao tác này"
+      },
+      "queuedAt": "2026-11-07T13:48:19.470Z",
+      "finishedAt": "2026-11-07T13:48:19.478Z",
+      "elapsedMs": 8.253799999998591,
+      "failures": [],
+      "passed": true
+    },
+    {
+      "caseId": "planner-outside",
+      "group": "permissions",
+      "feature": "planner",
+      "input": {
+        "goal": "Xây dựng quản lý công việc"
+      },
+      "status": 404,
+      "data": {
+        "error": "Không tìm thấy dự án"
+      },
+      "queuedAt": "2026-11-07T13:48:19.485Z",
+      "finishedAt": "2026-11-07T13:48:19.494Z",
+      "elapsedMs": 8.502800000002026,
+      "failures": [],
+      "passed": true
+    },
+    {
+      "caseId": "report-snapshot",
+      "group": "report-metrics",
+      "feature": "report",
+      "input": {
+        "from": "2000-01-01",
+        "to": "2099-01-01"
+      },
+      "status": 201,
+      "data": {
+        "report": {
+          "_id": "3f26482d-2982-41c6-b4b2-d84dcd5be79c",
+          "timezone": "Asia/Ho_Chi_Minh",
+          "periodConvention": "exclusive-end",
+          "workspace": "6bdbe210-969c-4c35-bd7e-1fb90c1877a5",
+          "project": "67201921-dfe6-41b3-8b40-f97aeb72155b",
+          "user": {
+            "_id": "0da75fce-ee03-4c74-a14b-3e5b94fd1bed",
+            "name": "Mai Anh",
+            "email": "mai.anh@nhom24.edu.vn",
+            "title": "PM"
+          },
+          "title": "Báo cáo tiến độ tuần 01-01–01-01 – Evaluation fixture v1",
+          "template": "week",
+          "from": "1999-12-31T17:00:00.000Z",
+          "to": "2099-01-01T17:00:00.000Z",
+          "stats": {
+            "done": 1,
+            "blocked": 1,
+            "overdue": 1,
+            "doneTotal": 1,
+            "totalTasks": 4,
+            "progressPct": 25
+          },
+          "sections": [
+            {
+              "key": "summary",
+              "body": "Trong giai đoạn 01-01 – 01-01, Evaluation fixture v1 hoàn thành 1 công việc; tiến độ chung đạt 25% (1/4). Tại thời điểm tạo báo cáo có 1 việc quá hạn và 1 việc đang bị chặn.",
+              "refs": [
+                {
+                  "_id": "d83af04c-6a1d-41dd-bedd-e1915f8b843d",
+                  "key": "EVAL-1",
+                  "title": "API lịch họp có mã xác nhận EV123",
+                  "status": "todo"
+                },
+                {
+                  "_id": "a0fbe3e0-75b0-4ea3-a0ce-ae42c03bb5dd",
+                  "key": "EVAL-2",
+                  "title": "Giao diện đang chờ API",
+                  "status": "todo"
+                },
+                {
+                  "_id": "906c6131-9877-47ff-b95e-67865aa1ba2a",
+                  "key": "EVAL-3",
+                  "title": "Tài liệu đã hoàn thành",
+                  "status": "done"
+                },
+                {
+                  "_id": "7f75a72f-7c14-4e96-b725-25e99942ba2d",
+                  "key": "EVAL-4",
+                  "title": "Kiểm thử chưa có hạn",
+                  "status": "in_progress"
+                }
+              ],
+              "title": "Tóm tắt",
+              "aiSuggested": false
+            },
+            {
+              "key": "done",
+              "body": "• EVAL-3 Tài liệu đã hoàn thành – chưa giao · xong 07-11",
+              "refs": [
+                {
+                  "_id": "906c6131-9877-47ff-b95e-67865aa1ba2a",
+                  "key": "EVAL-3",
+                  "title": "Tài liệu đã hoàn thành",
+                  "status": "done"
+                }
+              ],
+              "title": "Đã hoàn thành (1 việc)"
+            },
+            {
+              "key": "late",
+              "body": "• EVAL-1 API lịch họp có mã xác nhận EV123 – quá hạn 2 ngày",
+              "refs": [
+                {
+                  "_id": "d83af04c-6a1d-41dd-bedd-e1915f8b843d",
+                  "key": "EVAL-1",
+                  "title": "API lịch họp có mã xác nhận EV123",
+                  "status": "todo"
+                }
+              ],
+              "title": "Đang chậm (1 việc)"
+            },
+            {
+              "key": "blocked",
+              "body": "• EVAL-2 Giao diện đang chờ API – bị chặn bởi EVAL-1",
+              "refs": [
+                {
+                  "_id": "a0fbe3e0-75b0-4ea3-a0ce-ae42c03bb5dd",
+                  "key": "EVAL-2",
+                  "title": "Giao diện đang chờ API",
+                  "status": "todo"
+                },
+                {
+                  "_id": "d83af04c-6a1d-41dd-bedd-e1915f8b843d",
+                  "key": "EVAL-1",
+                  "title": "API lịch họp có mã xác nhận EV123",
+                  "status": "todo"
+                }
+              ],
+              "title": "Đang bị chặn (1 việc)"
+            },
+            {
+              "key": "suggestions",
+              "body": "• EVAL-1 API lịch họp có mã xác nhận EV123 quá hạn 2 ngày: ưu tiên gỡ việc đang chặn.\n• 1 công việc đang bị chặn bởi một việc quá hạn: ưu tiên gỡ việc đang chặn.\n• Như còn 4 giờ công việc nhưng không có giờ khả dụng: cân nhắc giao lại bớt việc.",
+              "refs": [
+                {
+                  "_id": "d83af04c-6a1d-41dd-bedd-e1915f8b843d",
+                  "key": "EVAL-1",
+                  "title": "API lịch họp có mã xác nhận EV123",
+                  "status": "todo"
+                },
+                {
+                  "_id": "a0fbe3e0-75b0-4ea3-a0ce-ae42c03bb5dd",
+                  "key": "EVAL-2",
+                  "title": "Giao diện đang chờ API",
+                  "status": "todo"
+                },
+                {
+                  "_id": "a0fbe3e0-75b0-4ea3-a0ce-ae42c03bb5dd",
+                  "key": "EVAL-2",
+                  "title": "Giao diện đang chờ API",
+                  "status": "todo"
+                },
+                {
+                  "_id": "d83af04c-6a1d-41dd-bedd-e1915f8b843d",
+                  "key": "EVAL-1",
+                  "title": "API lịch họp có mã xác nhận EV123",
+                  "status": "todo"
+                },
+                {
+                  "_id": "d83af04c-6a1d-41dd-bedd-e1915f8b843d",
+                  "key": "EVAL-1",
+                  "title": "API lịch họp có mã xác nhận EV123",
+                  "status": "todo"
+                }
+              ],
+              "title": "Đề xuất",
+              "aiSuggested": true
+            }
+          ],
+          "sourceTasks": [
+            {
+              "_id": "d83af04c-6a1d-41dd-bedd-e1915f8b843d",
+              "key": "EVAL-1",
+              "title": "API lịch họp có mã xác nhận EV123",
+              "status": "todo"
+            },
+            {
+              "_id": "a0fbe3e0-75b0-4ea3-a0ce-ae42c03bb5dd",
+              "key": "EVAL-2",
+              "title": "Giao diện đang chờ API",
+              "status": "todo"
+            },
+            {
+              "_id": "906c6131-9877-47ff-b95e-67865aa1ba2a",
+              "key": "EVAL-3",
+              "title": "Tài liệu đã hoàn thành",
+              "status": "done"
+            },
+            {
+              "_id": "7f75a72f-7c14-4e96-b725-25e99942ba2d",
+              "key": "EVAL-4",
+              "title": "Kiểm thử chưa có hạn",
+              "status": "in_progress"
+            }
+          ],
+          "sourceRevision": "614677be56badcc406ba3abd1304b701351c5ccf33eac6a73f76b833c04988e6",
+          "generatedAt": "2026-11-07T13:48:19.517Z",
+          "status": "draft",
+          "sharedAt": null,
+          "createdAt": "2026-11-07T13:48:19.614Z",
+          "updatedAt": "2026-11-07T13:48:19.614Z",
+          "period_start": "1999-12-31T17:00:00.000Z",
+          "period_end": "2099-01-01T17:00:00.000Z",
+          "sourceState": "current",
+          "missingSources": 0
+        },
+        "meta": {
+          "callId": "9812883a-7122-472e-ab31-7efe5ab59cb3",
+          "model": "taskflow-local-rules",
+          "provider": "local",
+          "latencyMs": 12,
+          "attemptCount": 1,
+          "usageComplete": true
+        }
+      },
+      "queuedAt": "2026-11-07T13:48:19.501Z",
+      "finishedAt": "2026-11-07T13:48:19.624Z",
+      "elapsedMs": 123.21790000000328,
+      "failures": [],
+      "passed": true
+    },
+    {
+      "caseId": "qa-answer",
+      "group": "qa-answer",
+      "feature": "qa",
+      "input": {
+        "question": "EVAL-1 có mã xác nhận gì?"
+      },
+      "status": 200,
+      "data": {
+        "conversation": {
+          "_id": "e1d942b8-4425-409d-8590-54aff98ceb8f",
+          "workspace": "6bdbe210-969c-4c35-bd7e-1fb90c1877a5",
+          "project": "67201921-dfe6-41b3-8b40-f97aeb72155b",
+          "user": "350c9706-7a27-43b6-819f-3109b958e31b",
+          "title": "EVAL-1 có mã xác nhận gì?",
+          "messages": [
+            {
+              "role": "user",
+              "content": "EVAL-1 có mã xác nhận gì?",
+              "createdAt": "2026-11-07T13:48:19.667Z"
+            },
+            {
+              "role": "assistant",
+              "content": "EVAL-1 API lịch họp có mã xác nhận EV123. Trạng thái: Cần làm. Người phụ trách: Như. Hạn chót (Asia/Ho_Chi_Minh): 20:48:19 5/11/2026. Ngày bắt đầu kế hoạch: chưa ghi nhận. [1]\n\nEVAL-2 Giao diện đang chờ API. Trạng thái: Cần làm. Người phụ trách: chưa giao. Hạn chót (Asia/Ho_Chi_Minh): 20:48:19 8/11/2026. Ngày bắt đầu kế hoạch: chưa ghi nhận. [2]",
+              "refused": false,
+              "citations": [
+                {
+                  "n": 1,
+                  "kind": "task",
+                  "label": "EVAL-1 · Mô tả công việc",
+                  "refId": "d83af04c-6a1d-41dd-bedd-e1915f8b843d",
+                  "excerpt": "EVAL-1 API lịch họp có mã xác nhận EV123. Trạng thái: Cần làm. Người phụ trách: Như. Hạn chót (Asia/Ho_Chi_Minh): 20:48:19 5/11/2026. Ngày b…",
+                  "available": true,
+                  "currentUpdatedAt": "2026-11-07T13:48:19.626Z",
+                  "currentVersion": 1
+                },
+                {
+                  "n": 2,
+                  "kind": "task",
+                  "label": "EVAL-2 · Mô tả công việc",
+                  "refId": "a0fbe3e0-75b0-4ea3-a0ce-ae42c03bb5dd",
+                  "excerpt": "…úc thực tế: chưa ghi nhận. Bị chặn bởi: EVAL-1 API lịch họp có mã xác nhận EV123 (Cần làm).",
+                  "available": true,
+                  "currentUpdatedAt": "2026-11-07T13:48:19.628Z",
+                  "currentVersion": 1
+                }
+              ],
+              "createdAt": "2026-11-07T13:48:19.667Z",
+              "sourceRevision": "25731ab1531f18e059f4a6e5de018e2f766c061a1e93b72c61509a9abadbe108",
+              "sourceState": "current"
+            }
+          ],
+          "createdAt": "2026-11-07T13:48:19.669Z",
+          "updatedAt": "2026-11-07T13:48:19.669Z"
+        },
+        "meta": {
+          "callId": "2eb2827b-d65e-476c-b690-47d5dd58ae3f",
+          "model": "taskflow-local-rules",
+          "provider": "local",
+          "latencyMs": 9,
+          "attemptCount": 1,
+          "usageComplete": true
+        }
+      },
+      "queuedAt": "2026-11-07T13:48:19.633Z",
+      "finishedAt": "2026-11-07T13:48:19.671Z",
+      "elapsedMs": 38.72849999999744,
+      "failures": [],
+      "passed": true
+    },
+    {
+      "caseId": "qa-refuse",
+      "group": "qa-refusal",
+      "feature": "qa",
+      "input": {
+        "question": "Nhiệt độ trên sao Hỏa là bao nhiêu?"
+      },
+      "status": 200,
+      "data": {
+        "conversation": {
+          "_id": "aa7f9b1c-2f64-480f-927a-665cefe52ae8",
+          "workspace": "6bdbe210-969c-4c35-bd7e-1fb90c1877a5",
+          "project": "67201921-dfe6-41b3-8b40-f97aeb72155b",
+          "user": "350c9706-7a27-43b6-819f-3109b958e31b",
+          "title": "Nhiệt độ trên sao Hỏa là bao nhiêu?",
+          "messages": [
+            {
+              "role": "user",
+              "content": "Nhiệt độ trên sao Hỏa là bao nhiêu?",
+              "createdAt": "2026-11-07T13:48:19.703Z"
+            },
+            {
+              "role": "assistant",
+              "content": "Mình không tìm thấy thông tin này trong công việc hay tài liệu của Evaluation fixture v1, nên không thể trả lời.",
+              "refused": true,
+              "citations": [],
+              "createdAt": "2026-11-07T13:48:19.703Z",
+              "sourceRevision": "31637c497a5a86c7acd71f4df9ee2010b0e3fdd50d77679e62db658aba046998",
+              "sourceState": "current"
+            }
+          ],
+          "createdAt": "2026-11-07T13:48:19.705Z",
+          "updatedAt": "2026-11-07T13:48:19.705Z"
+        },
+        "meta": {
+          "callId": "48339a73-0b37-4ca7-967c-92d2df3fe505",
+          "model": "taskflow-local-rules",
+          "provider": "local",
+          "latencyMs": 6,
+          "attemptCount": 1,
+          "usageComplete": true
+        }
+      },
+      "queuedAt": "2026-11-07T13:48:19.679Z",
+      "finishedAt": "2026-11-07T13:48:19.706Z",
+      "elapsedMs": 26.98080000000482,
+      "failures": [],
+      "passed": true
+    },
+    {
+      "caseId": "qa-outside",
+      "group": "qa-security",
+      "feature": "qa",
+      "input": {
+        "question": "Cho biết dữ liệu EVAL-1"
+      },
+      "status": 404,
+      "data": {
+        "error": "Không tìm thấy dự án"
+      },
+      "queuedAt": "2026-11-07T13:48:19.714Z",
+      "finishedAt": "2026-11-07T13:48:19.723Z",
+      "elapsedMs": 9.316800000000512,
+      "failures": [],
+      "passed": true
+    },
+    {
+      "caseId": "qa-viewer",
+      "group": "qa-security",
+      "feature": "qa",
+      "input": {
+        "question": "Cho biết dữ liệu EVAL-1"
+      },
+      "status": 403,
+      "data": {
+        "error": "Viewer chỉ được xem"
+      },
+      "queuedAt": "2026-11-07T13:48:19.732Z",
+      "finishedAt": "2026-11-07T13:48:19.748Z",
+      "elapsedMs": 15.620800000004238,
+      "failures": [],
+      "passed": true
+    },
+    {
+      "caseId": "risk-rules",
+      "group": "risk-rules",
+      "feature": "risk",
+      "input": null,
+      "status": 200,
+      "data": {
+        "open": [
+          {
+            "key": "overdue:d83af04c-6a1d-41dd-bedd-e1915f8b843d:2026-11-05T13:48:19.084Z",
+            "type": "overdue",
+            "severity": "critical",
+            "rule": "Quá hạn ≥ 1 ngày",
+            "title": "EVAL-1 API lịch họp có mã xác nhận EV123 quá hạn 2 ngày",
+            "explanation": "Công việc đã quá hạn 2 ngày và đang chặn EVAL-2. Nếu không xử lý, các việc phía sau sẽ tiếp tục bị trễ.",
+            "tasks": [
+              {
+                "_id": "d83af04c-6a1d-41dd-bedd-e1915f8b843d",
+                "key": "EVAL-1",
+                "title": "API lịch họp có mã xác nhận EV123"
+              },
+              {
+                "_id": "a0fbe3e0-75b0-4ea3-a0ce-ae42c03bb5dd",
+                "key": "EVAL-2",
+                "title": "Giao diện đang chờ API"
+              }
+            ],
+            "owner": {
+              "_id": "350c9706-7a27-43b6-819f-3109b958e31b",
+              "name": "Như"
+            },
+            "sourceVersion": "4c5b0d0f5e416a24e4c63d50fac0603abd09ee176185fd1744b94529bcf387b9",
+            "snapshot": {
+              "ruleVersion": "taskflow-risk-v2",
+              "thresholdsVersion": 1,
+              "thresholds": {
+                "blockedByOverdue": true,
+                "dueSoon": false,
+                "dueSoonProgressPct": 80,
+                "overdue": true,
+                "overdueDays": 1,
+                "overload": true,
+                "overloadPct": 100,
+                "reviewStaleDays": 3
+              },
+              "projectId": "67201921-dfe6-41b3-8b40-f97aeb72155b",
+              "type": "overdue",
+              "rule": "Quá hạn ≥ 1 ngày",
+              "tasks": [
+                {
+                  "_id": "a0fbe3e0-75b0-4ea3-a0ce-ae42c03bb5dd",
+                  "key": "EVAL-2",
+                  "title": "Giao diện đang chờ API",
+                  "version": 1,
+                  "status": "todo",
+                  "dueDate": "2026-11-08T13:48:19.084Z",
+                  "assignee": null,
+                  "estimateHours": 2,
+                  "remainingHours": null,
+                  "spentHours": 0,
+                  "reviewSince": null,
+                  "blockedBy": [
+                    {
+                      "_id": "d83af04c-6a1d-41dd-bedd-e1915f8b843d",
+                      "version": 1,
+                      "status": "todo",
+                      "dueDate": "2026-11-05T13:48:19.084Z"
+                    }
+                  ],
+                  "subtasks": {
+                    "total": 0,
+                    "done": 0
+                  }
+                },
+                {
+                  "_id": "d83af04c-6a1d-41dd-bedd-e1915f8b843d",
+                  "key": "EVAL-1",
+                  "title": "API lịch họp có mã xác nhận EV123",
+                  "version": 1,
+                  "status": "todo",
+                  "dueDate": "2026-11-05T13:48:19.084Z",
+                  "assignee": "350c9706-7a27-43b6-819f-3109b958e31b",
+                  "estimateHours": 4,
+                  "remainingHours": 4,
+                  "spentHours": 0,
+                  "reviewSince": null,
+                  "blockedBy": [],
+                  "subtasks": {
+                    "total": 0,
+                    "done": 0
+                  }
+                }
+              ],
+              "owner": {
+                "_id": "350c9706-7a27-43b6-819f-3109b958e31b",
+                "name": "Như"
+              }
+            },
+            "generatedAt": "2026-11-07T13:48:19.761Z"
+          },
+          {
+            "key": "chain:d83af04c-6a1d-41dd-bedd-e1915f8b843d:a0fbe3e0-75b0-4ea3-a0ce-ae42c03bb5dd",
+            "type": "blocked",
+            "severity": "critical",
+            "rule": "Bị chặn bởi việc quá hạn",
+            "title": "1 công việc đang bị chặn bởi một việc quá hạn",
+            "explanation": "EVAL-2 đang chờ EVAL-1 (API lịch họp có mã xác nhận EV123) – việc này đã quá hạn.",
+            "tasks": [
+              {
+                "_id": "a0fbe3e0-75b0-4ea3-a0ce-ae42c03bb5dd",
+                "key": "EVAL-2",
+                "title": "Giao diện đang chờ API"
+              },
+              {
+                "_id": "d83af04c-6a1d-41dd-bedd-e1915f8b843d",
+                "key": "EVAL-1",
+                "title": "API lịch họp có mã xác nhận EV123"
+              }
+            ],
+            "owner": null,
+            "sourceVersion": "e666a34dc86d6d9fd88f8ecbbd3c54d831aa139ef5cae1302d344926b626e0dc",
+            "snapshot": {
+              "ruleVersion": "taskflow-risk-v2",
+              "thresholdsVersion": 1,
+              "thresholds": {
+                "blockedByOverdue": true,
+                "dueSoon": false,
+                "dueSoonProgressPct": 80,
+                "overdue": true,
+                "overdueDays": 1,
+                "overload": true,
+                "overloadPct": 100,
+                "reviewStaleDays": 3
+              },
+              "projectId": "67201921-dfe6-41b3-8b40-f97aeb72155b",
+              "type": "blocked",
+              "rule": "Bị chặn bởi việc quá hạn",
+              "tasks": [
+                {
+                  "_id": "a0fbe3e0-75b0-4ea3-a0ce-ae42c03bb5dd",
+                  "key": "EVAL-2",
+                  "title": "Giao diện đang chờ API",
+                  "version": 1,
+                  "status": "todo",
+                  "dueDate": "2026-11-08T13:48:19.084Z",
+                  "assignee": null,
+                  "estimateHours": 2,
+                  "remainingHours": null,
+                  "spentHours": 0,
+                  "reviewSince": null,
+                  "blockedBy": [
+                    {
+                      "_id": "d83af04c-6a1d-41dd-bedd-e1915f8b843d",
+                      "version": 1,
+                      "status": "todo",
+                      "dueDate": "2026-11-05T13:48:19.084Z"
+                    }
+                  ],
+                  "subtasks": {
+                    "total": 0,
+                    "done": 0
+                  }
+                },
+                {
+                  "_id": "d83af04c-6a1d-41dd-bedd-e1915f8b843d",
+                  "key": "EVAL-1",
+                  "title": "API lịch họp có mã xác nhận EV123",
+                  "version": 1,
+                  "status": "todo",
+                  "dueDate": "2026-11-05T13:48:19.084Z",
+                  "assignee": "350c9706-7a27-43b6-819f-3109b958e31b",
+                  "estimateHours": 4,
+                  "remainingHours": 4,
+                  "spentHours": 0,
+                  "reviewSince": null,
+                  "blockedBy": [],
+                  "subtasks": {
+                    "total": 0,
+                    "done": 0
+                  }
+                }
+              ],
+              "owner": null
+            },
+            "generatedAt": "2026-11-07T13:48:19.761Z"
+          },
+          {
+            "key": "overload:350c9706-7a27-43b6-819f-3109b958e31b:2026-11-02",
+            "type": "overload",
+            "severity": "warning",
+            "rule": "Tải tuần > 100% giờ khả dụng",
+            "title": "Như còn 4 giờ công việc nhưng không có giờ khả dụng",
+            "explanation": "Các việc quá hạn hoặc đến hạn trong tuần còn 4 giờ, vượt ngưỡng 100% của 0 giờ khả dụng. Cân nhắc giao lại hoặc dời hạn một số việc.",
+            "tasks": [
+              {
+                "_id": "d83af04c-6a1d-41dd-bedd-e1915f8b843d",
+                "key": "EVAL-1",
+                "title": "API lịch họp có mã xác nhận EV123"
+              }
+            ],
+            "owner": {
+              "_id": "350c9706-7a27-43b6-819f-3109b958e31b",
+              "name": "Như",
+              "email": "nhu@nhom24.edu.vn",
+              "title": "Frontend / UI/UX"
+            },
+            "sourceVersion": "ced4f1d6511e181a84b3f38f0e3d9eff442cd365a6a54833cb49bb4fd36569cf",
+            "snapshot": {
+              "ruleVersion": "taskflow-risk-v2",
+              "thresholdsVersion": 1,
+              "thresholds": {
+                "blockedByOverdue": true,
+                "dueSoon": false,
+                "dueSoonProgressPct": 80,
+                "overdue": true,
+                "overdueDays": 1,
+                "overload": true,
+                "overloadPct": 100,
+                "reviewStaleDays": 3
+              },
+              "projectId": "67201921-dfe6-41b3-8b40-f97aeb72155b",
+              "type": "overload",
+              "rule": "Tải tuần > 100% giờ khả dụng",
+              "tasks": [
+                {
+                  "_id": "d83af04c-6a1d-41dd-bedd-e1915f8b843d",
+                  "key": "EVAL-1",
+                  "title": "API lịch họp có mã xác nhận EV123",
+                  "version": 1,
+                  "status": "todo",
+                  "dueDate": "2026-11-05T13:48:19.084Z",
+                  "assignee": "350c9706-7a27-43b6-819f-3109b958e31b",
+                  "estimateHours": 4,
+                  "remainingHours": 4,
+                  "spentHours": 0,
+                  "reviewSince": null,
+                  "blockedBy": [],
+                  "subtasks": {
+                    "total": 0,
+                    "done": 0
+                  }
+                }
+              ],
+              "owner": {
+                "_id": "350c9706-7a27-43b6-819f-3109b958e31b",
+                "name": "Như"
+              },
+              "capacity": {
+                "user": "350c9706-7a27-43b6-819f-3109b958e31b",
+                "weekStart": "2026-11-02",
+                "hours": 4,
+                "available": 0,
+                "version": 0,
+                "source": "default"
+              }
+            },
+            "generatedAt": "2026-11-07T13:48:19.761Z"
+          }
+        ],
+        "resolved": [],
+        "rules": {
+          "dueSoon": false,
+          "overdue": true,
+          "overload": true,
+          "overdueDays": 1,
+          "overloadPct": 100,
+          "reviewStaleDays": 3,
+          "blockedByOverdue": true,
+          "dueSoonProgressPct": 80
+        },
+        "rulesVersion": 1,
+        "engineVersion": "taskflow-risk-v2",
+        "access": {
+          "canManage": true,
+          "canWrite": true
+        }
+      },
+      "queuedAt": "2026-11-07T13:48:19.755Z",
+      "finishedAt": "2026-11-07T13:48:19.769Z",
+      "elapsedMs": 14.220199999996112,
+      "failures": [],
+      "passed": true
+    },
+    {
+      "caseId": "risk-explain",
+      "group": "risk-explanation",
+      "feature": "risk",
+      "input": {
+        "key": "$riskKey"
+      },
+      "status": 200,
+      "data": {
+        "explanation": "Công việc đã quá hạn 2 ngày và đang chặn EVAL-2. Nếu không xử lý, các việc phía sau sẽ tiếp tục bị trễ.",
+        "_meta": {
+          "callId": "3db3e46a-0aab-45a0-b24d-8ea466dea183",
+          "model": "taskflow-local-rules",
+          "provider": "local",
+          "latencyMs": 10,
+          "attemptCount": 1,
+          "usageComplete": true
+        },
+        "sourceVersion": "4c5b0d0f5e416a24e4c63d50fac0603abd09ee176185fd1744b94529bcf387b9"
+      },
+      "queuedAt": "2026-11-07T13:48:19.778Z",
+      "finishedAt": "2026-11-07T13:48:19.827Z",
+      "elapsedMs": 48.630599999996775,
+      "failures": [],
+      "passed": true
+    },
+    {
+      "caseId": "risk-empty",
+      "group": "risk-rules",
+      "feature": "risk",
+      "input": null,
+      "status": 200,
+      "data": {
+        "open": [],
+        "resolved": [],
+        "rules": {
+          "dueSoon": false,
+          "overdue": true,
+          "overload": true,
+          "overdueDays": 1,
+          "overloadPct": 100,
+          "reviewStaleDays": 3,
+          "blockedByOverdue": true,
+          "dueSoonProgressPct": 80
+        },
+        "rulesVersion": 1,
+        "engineVersion": "taskflow-risk-v2",
+        "access": {
+          "canManage": true,
+          "canWrite": true
+        }
+      },
+      "queuedAt": "2026-11-07T13:48:19.837Z",
+      "finishedAt": "2026-11-07T13:48:19.851Z",
+      "elapsedMs": 13.568400000003749,
+      "failures": [],
+      "passed": true
+    },
+    {
+      "caseId": "risk-done",
+      "group": "risk-rules",
+      "feature": "risk",
+      "input": null,
+      "status": 200,
+      "data": {
+        "open": [],
+        "resolved": [],
+        "rules": {
+          "dueSoon": false,
+          "overdue": true,
+          "overload": true,
+          "overdueDays": 1,
+          "overloadPct": 100,
+          "reviewStaleDays": 3,
+          "blockedByOverdue": true,
+          "dueSoonProgressPct": 80
+        },
+        "rulesVersion": 1,
+        "engineVersion": "taskflow-risk-v2",
+        "access": {
+          "canManage": true,
+          "canWrite": true
+        }
+      },
+      "queuedAt": "2026-11-07T13:48:19.861Z",
+      "finishedAt": "2026-11-07T13:48:19.876Z",
+      "elapsedMs": 14.901899999997113,
+      "failures": [],
+      "passed": true
+    },
+    {
+      "caseId": "risk-no-deadline",
+      "group": "risk-rules",
+      "feature": "risk",
+      "input": null,
+      "status": 200,
+      "data": {
+        "open": [],
+        "resolved": [],
+        "rules": {
+          "dueSoon": false,
+          "overdue": true,
+          "overload": true,
+          "overdueDays": 1,
+          "overloadPct": 100,
+          "reviewStaleDays": 3,
+          "blockedByOverdue": true,
+          "dueSoonProgressPct": 80
+        },
+        "rulesVersion": 1,
+        "engineVersion": "taskflow-risk-v2",
+        "access": {
+          "canManage": true,
+          "canWrite": true
+        }
+      },
+      "queuedAt": "2026-11-07T13:48:19.884Z",
+      "finishedAt": "2026-11-07T13:48:19.896Z",
+      "elapsedMs": 11.616300000001502,
+      "failures": [],
+      "passed": true
+    },
+    {
+      "caseId": "risk-available-capacity",
+      "group": "risk-rules",
+      "feature": "risk",
+      "input": null,
+      "status": 200,
+      "data": {
+        "open": [
+          {
+            "key": "overdue:d83af04c-6a1d-41dd-bedd-e1915f8b843d:2026-11-05T13:48:19.084Z",
+            "type": "overdue",
+            "severity": "critical",
+            "rule": "Quá hạn ≥ 1 ngày",
+            "title": "EVAL-1 API lịch họp có mã xác nhận EV123 quá hạn 2 ngày",
+            "explanation": "Công việc đã quá hạn 2 ngày và đang chặn EVAL-2. Nếu không xử lý, các việc phía sau sẽ tiếp tục bị trễ.",
+            "tasks": [
+              {
+                "_id": "d83af04c-6a1d-41dd-bedd-e1915f8b843d",
+                "key": "EVAL-1",
+                "title": "API lịch họp có mã xác nhận EV123"
+              },
+              {
+                "_id": "a0fbe3e0-75b0-4ea3-a0ce-ae42c03bb5dd",
+                "key": "EVAL-2",
+                "title": "Giao diện đang chờ API"
+              }
+            ],
+            "owner": {
+              "_id": "350c9706-7a27-43b6-819f-3109b958e31b",
+              "name": "Như"
+            },
+            "sourceVersion": "4c5b0d0f5e416a24e4c63d50fac0603abd09ee176185fd1744b94529bcf387b9",
+            "snapshot": {
+              "ruleVersion": "taskflow-risk-v2",
+              "thresholdsVersion": 1,
+              "thresholds": {
+                "blockedByOverdue": true,
+                "dueSoon": false,
+                "dueSoonProgressPct": 80,
+                "overdue": true,
+                "overdueDays": 1,
+                "overload": true,
+                "overloadPct": 100,
+                "reviewStaleDays": 3
+              },
+              "projectId": "67201921-dfe6-41b3-8b40-f97aeb72155b",
+              "type": "overdue",
+              "rule": "Quá hạn ≥ 1 ngày",
+              "tasks": [
+                {
+                  "_id": "a0fbe3e0-75b0-4ea3-a0ce-ae42c03bb5dd",
+                  "key": "EVAL-2",
+                  "title": "Giao diện đang chờ API",
+                  "version": 1,
+                  "status": "todo",
+                  "dueDate": "2026-11-08T13:48:19.084Z",
+                  "assignee": null,
+                  "estimateHours": 2,
+                  "remainingHours": null,
+                  "spentHours": 0,
+                  "reviewSince": null,
+                  "blockedBy": [
+                    {
+                      "_id": "d83af04c-6a1d-41dd-bedd-e1915f8b843d",
+                      "version": 1,
+                      "status": "todo",
+                      "dueDate": "2026-11-05T13:48:19.084Z"
+                    }
+                  ],
+                  "subtasks": {
+                    "total": 0,
+                    "done": 0
+                  }
+                },
+                {
+                  "_id": "d83af04c-6a1d-41dd-bedd-e1915f8b843d",
+                  "key": "EVAL-1",
+                  "title": "API lịch họp có mã xác nhận EV123",
+                  "version": 1,
+                  "status": "todo",
+                  "dueDate": "2026-11-05T13:48:19.084Z",
+                  "assignee": "350c9706-7a27-43b6-819f-3109b958e31b",
+                  "estimateHours": 4,
+                  "remainingHours": 4,
+                  "spentHours": 0,
+                  "reviewSince": null,
+                  "blockedBy": [],
+                  "subtasks": {
+                    "total": 0,
+                    "done": 0
+                  }
+                }
+              ],
+              "owner": {
+                "_id": "350c9706-7a27-43b6-819f-3109b958e31b",
+                "name": "Như"
+              }
+            },
+            "generatedAt": "2026-11-07T13:48:19.912Z"
+          },
+          {
+            "key": "chain:d83af04c-6a1d-41dd-bedd-e1915f8b843d:a0fbe3e0-75b0-4ea3-a0ce-ae42c03bb5dd",
+            "type": "blocked",
+            "severity": "critical",
+            "rule": "Bị chặn bởi việc quá hạn",
+            "title": "1 công việc đang bị chặn bởi một việc quá hạn",
+            "explanation": "EVAL-2 đang chờ EVAL-1 (API lịch họp có mã xác nhận EV123) – việc này đã quá hạn.",
+            "tasks": [
+              {
+                "_id": "a0fbe3e0-75b0-4ea3-a0ce-ae42c03bb5dd",
+                "key": "EVAL-2",
+                "title": "Giao diện đang chờ API"
+              },
+              {
+                "_id": "d83af04c-6a1d-41dd-bedd-e1915f8b843d",
+                "key": "EVAL-1",
+                "title": "API lịch họp có mã xác nhận EV123"
+              }
+            ],
+            "owner": null,
+            "sourceVersion": "e666a34dc86d6d9fd88f8ecbbd3c54d831aa139ef5cae1302d344926b626e0dc",
+            "snapshot": {
+              "ruleVersion": "taskflow-risk-v2",
+              "thresholdsVersion": 1,
+              "thresholds": {
+                "blockedByOverdue": true,
+                "dueSoon": false,
+                "dueSoonProgressPct": 80,
+                "overdue": true,
+                "overdueDays": 1,
+                "overload": true,
+                "overloadPct": 100,
+                "reviewStaleDays": 3
+              },
+              "projectId": "67201921-dfe6-41b3-8b40-f97aeb72155b",
+              "type": "blocked",
+              "rule": "Bị chặn bởi việc quá hạn",
+              "tasks": [
+                {
+                  "_id": "a0fbe3e0-75b0-4ea3-a0ce-ae42c03bb5dd",
+                  "key": "EVAL-2",
+                  "title": "Giao diện đang chờ API",
+                  "version": 1,
+                  "status": "todo",
+                  "dueDate": "2026-11-08T13:48:19.084Z",
+                  "assignee": null,
+                  "estimateHours": 2,
+                  "remainingHours": null,
+                  "spentHours": 0,
+                  "reviewSince": null,
+                  "blockedBy": [
+                    {
+                      "_id": "d83af04c-6a1d-41dd-bedd-e1915f8b843d",
+                      "version": 1,
+                      "status": "todo",
+                      "dueDate": "2026-11-05T13:48:19.084Z"
+                    }
+                  ],
+                  "subtasks": {
+                    "total": 0,
+                    "done": 0
+                  }
+                },
+                {
+                  "_id": "d83af04c-6a1d-41dd-bedd-e1915f8b843d",
+                  "key": "EVAL-1",
+                  "title": "API lịch họp có mã xác nhận EV123",
+                  "version": 1,
+                  "status": "todo",
+                  "dueDate": "2026-11-05T13:48:19.084Z",
+                  "assignee": "350c9706-7a27-43b6-819f-3109b958e31b",
+                  "estimateHours": 4,
+                  "remainingHours": 4,
+                  "spentHours": 0,
+                  "reviewSince": null,
+                  "blockedBy": [],
+                  "subtasks": {
+                    "total": 0,
+                    "done": 0
+                  }
+                }
+              ],
+              "owner": null
+            },
+            "generatedAt": "2026-11-07T13:48:19.912Z"
+          }
+        ],
+        "resolved": [],
+        "rules": {
+          "dueSoon": false,
+          "overdue": true,
+          "overload": true,
+          "overdueDays": 1,
+          "overloadPct": 100,
+          "reviewStaleDays": 3,
+          "blockedByOverdue": true,
+          "dueSoonProgressPct": 80
+        },
+        "rulesVersion": 1,
+        "engineVersion": "taskflow-risk-v2",
+        "access": {
+          "canManage": true,
+          "canWrite": true
+        }
+      },
+      "queuedAt": "2026-11-07T13:48:19.904Z",
+      "finishedAt": "2026-11-07T13:48:19.919Z",
+      "elapsedMs": 14.911299999999756,
+      "failures": [],
+      "passed": true
+    },
+    {
+      "caseId": "risk-no-dependency",
+      "group": "risk-rules",
+      "feature": "risk",
+      "input": null,
+      "status": 200,
+      "data": {
+        "open": [
+          {
+            "key": "overdue:d83af04c-6a1d-41dd-bedd-e1915f8b843d:2026-11-05T13:48:19.084Z",
+            "type": "overdue",
+            "severity": "warning",
+            "rule": "Quá hạn ≥ 1 ngày",
+            "title": "EVAL-1 API lịch họp có mã xác nhận EV123 quá hạn 2 ngày",
+            "explanation": "Công việc đã quá hạn 2 ngày và chưa hoàn thành.",
+            "tasks": [
+              {
+                "_id": "d83af04c-6a1d-41dd-bedd-e1915f8b843d",
+                "key": "EVAL-1",
+                "title": "API lịch họp có mã xác nhận EV123"
+              }
+            ],
+            "owner": {
+              "_id": "350c9706-7a27-43b6-819f-3109b958e31b",
+              "name": "Như"
+            },
+            "sourceVersion": "66af67210e9fb43d371915e7da215996a8a1ef7becbfa50ee4351a5d86b02c71",
+            "snapshot": {
+              "ruleVersion": "taskflow-risk-v2",
+              "thresholdsVersion": 1,
+              "thresholds": {
+                "blockedByOverdue": true,
+                "dueSoon": false,
+                "dueSoonProgressPct": 80,
+                "overdue": true,
+                "overdueDays": 1,
+                "overload": true,
+                "overloadPct": 100,
+                "reviewStaleDays": 3
+              },
+              "projectId": "67201921-dfe6-41b3-8b40-f97aeb72155b",
+              "type": "overdue",
+              "rule": "Quá hạn ≥ 1 ngày",
+              "tasks": [
+                {
+                  "_id": "d83af04c-6a1d-41dd-bedd-e1915f8b843d",
+                  "key": "EVAL-1",
+                  "title": "API lịch họp có mã xác nhận EV123",
+                  "version": 1,
+                  "status": "todo",
+                  "dueDate": "2026-11-05T13:48:19.084Z",
+                  "assignee": "350c9706-7a27-43b6-819f-3109b958e31b",
+                  "estimateHours": 4,
+                  "remainingHours": 4,
+                  "spentHours": 0,
+                  "reviewSince": null,
+                  "blockedBy": [],
+                  "subtasks": {
+                    "total": 0,
+                    "done": 0
+                  }
+                }
+              ],
+              "owner": {
+                "_id": "350c9706-7a27-43b6-819f-3109b958e31b",
+                "name": "Như"
+              }
+            },
+            "generatedAt": "2026-11-07T13:48:19.936Z"
+          },
+          {
+            "key": "overload:350c9706-7a27-43b6-819f-3109b958e31b:2026-11-02",
+            "type": "overload",
+            "severity": "warning",
+            "rule": "Tải tuần > 100% giờ khả dụng",
+            "title": "Như còn 4 giờ công việc nhưng không có giờ khả dụng",
+            "explanation": "Các việc quá hạn hoặc đến hạn trong tuần còn 4 giờ, vượt ngưỡng 100% của 0 giờ khả dụng. Cân nhắc giao lại hoặc dời hạn một số việc.",
+            "tasks": [
+              {
+                "_id": "d83af04c-6a1d-41dd-bedd-e1915f8b843d",
+                "key": "EVAL-1",
+                "title": "API lịch họp có mã xác nhận EV123"
+              }
+            ],
+            "owner": {
+              "_id": "350c9706-7a27-43b6-819f-3109b958e31b",
+              "name": "Như",
+              "email": "nhu@nhom24.edu.vn",
+              "title": "Frontend / UI/UX"
+            },
+            "sourceVersion": "ced4f1d6511e181a84b3f38f0e3d9eff442cd365a6a54833cb49bb4fd36569cf",
+            "snapshot": {
+              "ruleVersion": "taskflow-risk-v2",
+              "thresholdsVersion": 1,
+              "thresholds": {
+                "blockedByOverdue": true,
+                "dueSoon": false,
+                "dueSoonProgressPct": 80,
+                "overdue": true,
+                "overdueDays": 1,
+                "overload": true,
+                "overloadPct": 100,
+                "reviewStaleDays": 3
+              },
+              "projectId": "67201921-dfe6-41b3-8b40-f97aeb72155b",
+              "type": "overload",
+              "rule": "Tải tuần > 100% giờ khả dụng",
+              "tasks": [
+                {
+                  "_id": "d83af04c-6a1d-41dd-bedd-e1915f8b843d",
+                  "key": "EVAL-1",
+                  "title": "API lịch họp có mã xác nhận EV123",
+                  "version": 1,
+                  "status": "todo",
+                  "dueDate": "2026-11-05T13:48:19.084Z",
+                  "assignee": "350c9706-7a27-43b6-819f-3109b958e31b",
+                  "estimateHours": 4,
+                  "remainingHours": 4,
+                  "spentHours": 0,
+                  "reviewSince": null,
+                  "blockedBy": [],
+                  "subtasks": {
+                    "total": 0,
+                    "done": 0
+                  }
+                }
+              ],
+              "owner": {
+                "_id": "350c9706-7a27-43b6-819f-3109b958e31b",
+                "name": "Như"
+              },
+              "capacity": {
+                "user": "350c9706-7a27-43b6-819f-3109b958e31b",
+                "weekStart": "2026-11-02",
+                "hours": 4,
+                "available": 0,
+                "version": 0,
+                "source": "default"
+              }
+            },
+            "generatedAt": "2026-11-07T13:48:19.936Z"
+          }
+        ],
+        "resolved": [],
+        "rules": {
+          "dueSoon": false,
+          "overdue": true,
+          "overload": true,
+          "overdueDays": 1,
+          "overloadPct": 100,
+          "reviewStaleDays": 3,
+          "blockedByOverdue": true,
+          "dueSoonProgressPct": 80
+        },
+        "rulesVersion": 1,
+        "engineVersion": "taskflow-risk-v2",
+        "access": {
+          "canManage": true,
+          "canWrite": true
+        }
+      },
+      "queuedAt": "2026-11-07T13:48:19.929Z",
+      "finishedAt": "2026-11-07T13:48:19.942Z",
+      "elapsedMs": 13.111300000004121,
+      "failures": [],
+      "passed": true
+    },
+    {
+      "caseId": "risk-parent-child",
+      "group": "risk-rules",
+      "feature": "risk",
+      "input": null,
+      "status": 200,
+      "data": {
+        "open": [
+          {
+            "key": "overdue:d83af04c-6a1d-41dd-bedd-e1915f8b843d:2026-11-05T13:48:19.084Z",
+            "type": "overdue",
+            "severity": "warning",
+            "rule": "Quá hạn ≥ 1 ngày",
+            "title": "EVAL-1 API lịch họp có mã xác nhận EV123 quá hạn 2 ngày",
+            "explanation": "Công việc đã quá hạn 2 ngày và chưa hoàn thành.",
+            "tasks": [
+              {
+                "_id": "d83af04c-6a1d-41dd-bedd-e1915f8b843d",
+                "key": "EVAL-1",
+                "title": "API lịch họp có mã xác nhận EV123"
+              }
+            ],
+            "owner": {
+              "_id": "350c9706-7a27-43b6-819f-3109b958e31b",
+              "name": "Như"
+            },
+            "sourceVersion": "e3e12e16cbe456dad9cfd22345c63a53f66b1c78a396a9dbcf13f15c336be838",
+            "snapshot": {
+              "ruleVersion": "taskflow-risk-v2",
+              "thresholdsVersion": 1,
+              "thresholds": {
+                "blockedByOverdue": true,
+                "dueSoon": false,
+                "dueSoonProgressPct": 80,
+                "overdue": true,
+                "overdueDays": 1,
+                "overload": true,
+                "overloadPct": 100,
+                "reviewStaleDays": 3
+              },
+              "projectId": "67201921-dfe6-41b3-8b40-f97aeb72155b",
+              "type": "overdue",
+              "rule": "Quá hạn ≥ 1 ngày",
+              "tasks": [
+                {
+                  "_id": "d83af04c-6a1d-41dd-bedd-e1915f8b843d",
+                  "key": "EVAL-1",
+                  "title": "API lịch họp có mã xác nhận EV123",
+                  "version": 1,
+                  "status": "todo",
+                  "dueDate": "2026-11-05T13:48:19.084Z",
+                  "assignee": "350c9706-7a27-43b6-819f-3109b958e31b",
+                  "estimateHours": 4,
+                  "remainingHours": 4,
+                  "spentHours": 0,
+                  "reviewSince": null,
+                  "blockedBy": [],
+                  "subtasks": {
+                    "total": 1,
+                    "done": 0
+                  }
+                }
+              ],
+              "owner": {
+                "_id": "350c9706-7a27-43b6-819f-3109b958e31b",
+                "name": "Như"
+              }
+            },
+            "generatedAt": "2026-11-07T13:48:19.963Z"
+          }
+        ],
+        "resolved": [],
+        "rules": {
+          "dueSoon": false,
+          "overdue": true,
+          "overload": true,
+          "overdueDays": 1,
+          "overloadPct": 100,
+          "reviewStaleDays": 3,
+          "blockedByOverdue": true,
+          "dueSoonProgressPct": 80
+        },
+        "rulesVersion": 1,
+        "engineVersion": "taskflow-risk-v2",
+        "access": {
+          "canManage": true,
+          "canWrite": true
+        }
+      },
+      "queuedAt": "2026-11-07T13:48:19.953Z",
+      "finishedAt": "2026-11-07T13:48:19.969Z",
+      "elapsedMs": 15.772600000003877,
+      "failures": [],
+      "passed": true
+    },
+    {
+      "caseId": "risk-blocker-done",
+      "group": "risk-rules",
+      "feature": "risk",
+      "input": null,
+      "status": 200,
+      "data": {
+        "open": [],
+        "resolved": [],
+        "rules": {
+          "dueSoon": false,
+          "overdue": true,
+          "overload": true,
+          "overdueDays": 1,
+          "overloadPct": 100,
+          "reviewStaleDays": 3,
+          "blockedByOverdue": true,
+          "dueSoonProgressPct": 80
+        },
+        "rulesVersion": 1,
+        "engineVersion": "taskflow-risk-v2",
+        "access": {
+          "canManage": true,
+          "canWrite": true
+        }
+      },
+      "queuedAt": "2026-11-07T13:48:19.979Z",
+      "finishedAt": "2026-11-07T13:48:19.991Z",
+      "elapsedMs": 12.55279999999766,
+      "failures": [],
+      "passed": true
+    },
+    {
+      "caseId": "report-empty",
+      "group": "report-metrics",
+      "feature": "report",
+      "input": {
+        "from": "2000-01-01",
+        "to": "2099-01-01"
+      },
+      "status": 201,
+      "data": {
+        "report": {
+          "_id": "0dbf4e12-817c-4b38-b1ca-8a88b0ad8f77",
+          "timezone": "Asia/Ho_Chi_Minh",
+          "periodConvention": "exclusive-end",
+          "workspace": "6bdbe210-969c-4c35-bd7e-1fb90c1877a5",
+          "project": "67201921-dfe6-41b3-8b40-f97aeb72155b",
+          "user": {
+            "_id": "0da75fce-ee03-4c74-a14b-3e5b94fd1bed",
+            "name": "Mai Anh",
+            "email": "mai.anh@nhom24.edu.vn",
+            "title": "PM"
+          },
+          "title": "Báo cáo tiến độ tuần 01-01–01-01 – Evaluation fixture v1",
+          "template": "week",
+          "from": "1999-12-31T17:00:00.000Z",
+          "to": "2099-01-01T17:00:00.000Z",
+          "stats": {
+            "done": 0,
+            "blocked": 0,
+            "overdue": 0,
+            "doneTotal": 0,
+            "totalTasks": 0,
+            "progressPct": 0
+          },
+          "sections": [
+            {
+              "key": "summary",
+              "body": "Trong giai đoạn 01-01 – 01-01, Evaluation fixture v1 hoàn thành 0 công việc; tiến độ chung đạt 0% (0/0). Tại thời điểm tạo báo cáo có 0 việc quá hạn và 0 việc đang bị chặn.",
+              "refs": [],
+              "title": "Tóm tắt",
+              "aiSuggested": false
+            },
+            {
+              "key": "done",
+              "body": "Chưa có công việc hoàn thành trong khoảng thời gian này.",
+              "refs": [],
+              "title": "Đã hoàn thành (0 việc)"
+            },
+            {
+              "key": "late",
+              "body": "Không có công việc chậm.",
+              "refs": [],
+              "title": "Đang chậm (0 việc)"
+            },
+            {
+              "key": "blocked",
+              "body": "Không có công việc bị chặn.",
+              "refs": [],
+              "title": "Đang bị chặn (0 việc)"
+            },
+            {
+              "key": "suggestions",
+              "body": "• Duy trì nhịp độ hiện tại, chưa phát hiện rủi ro theo quy tắc.",
+              "refs": [],
+              "title": "Đề xuất",
+              "aiSuggested": true
+            }
+          ],
+          "sourceTasks": [],
+          "sourceRevision": "111e25b07199115f5e3f7f51172d80d77af9b7bc722afc835c4d13f60c75bc03",
+          "generatedAt": "2026-11-07T13:48:20.012Z",
+          "status": "draft",
+          "sharedAt": null,
+          "createdAt": "2026-11-07T13:48:20.033Z",
+          "updatedAt": "2026-11-07T13:48:20.033Z",
+          "period_start": "1999-12-31T17:00:00.000Z",
+          "period_end": "2099-01-01T17:00:00.000Z",
+          "sourceState": "current",
+          "missingSources": 0
+        },
+        "meta": {
+          "callId": "4683dff3-248f-4449-8200-a3a72e534203",
+          "model": "taskflow-local-rules",
+          "provider": "local",
+          "latencyMs": 6,
+          "attemptCount": 1,
+          "usageComplete": true
+        }
+      },
+      "queuedAt": "2026-11-07T13:48:19.999Z",
+      "finishedAt": "2026-11-07T13:48:20.039Z",
+      "elapsedMs": 39.94499999999971,
+      "failures": [],
+      "passed": true
+    },
+    {
+      "caseId": "report-reopened",
+      "group": "report-metrics",
+      "feature": "report",
+      "input": {
+        "from": "2000-01-01",
+        "to": "2099-01-01"
+      },
+      "status": 201,
+      "data": {
+        "report": {
+          "_id": "a78b1c81-eb57-487f-b2a6-67f813ca5857",
+          "timezone": "Asia/Ho_Chi_Minh",
+          "periodConvention": "exclusive-end",
+          "workspace": "6bdbe210-969c-4c35-bd7e-1fb90c1877a5",
+          "project": "67201921-dfe6-41b3-8b40-f97aeb72155b",
+          "user": {
+            "_id": "0da75fce-ee03-4c74-a14b-3e5b94fd1bed",
+            "name": "Mai Anh",
+            "email": "mai.anh@nhom24.edu.vn",
+            "title": "PM"
+          },
+          "title": "Báo cáo tiến độ tuần 01-01–01-01 – Evaluation fixture v1",
+          "template": "week",
+          "from": "1999-12-31T17:00:00.000Z",
+          "to": "2099-01-01T17:00:00.000Z",
+          "stats": {
+            "done": 0,
+            "blocked": 1,
+            "overdue": 1,
+            "doneTotal": 0,
+            "totalTasks": 4,
+            "progressPct": 0
+          },
+          "sections": [
+            {
+              "key": "summary",
+              "body": "Trong giai đoạn 01-01 – 01-01, Evaluation fixture v1 hoàn thành 0 công việc; tiến độ chung đạt 0% (0/4). Tại thời điểm tạo báo cáo có 1 việc quá hạn và 1 việc đang bị chặn.",
+              "refs": [
+                {
+                  "_id": "d83af04c-6a1d-41dd-bedd-e1915f8b843d",
+                  "key": "EVAL-1",
+                  "title": "API lịch họp có mã xác nhận EV123",
+                  "status": "todo"
+                },
+                {
+                  "_id": "a0fbe3e0-75b0-4ea3-a0ce-ae42c03bb5dd",
+                  "key": "EVAL-2",
+                  "title": "Giao diện đang chờ API",
+                  "status": "todo"
+                },
+                {
+                  "_id": "906c6131-9877-47ff-b95e-67865aa1ba2a",
+                  "key": "EVAL-3",
+                  "title": "Tài liệu đã hoàn thành",
+                  "status": "in_progress"
+                },
+                {
+                  "_id": "7f75a72f-7c14-4e96-b725-25e99942ba2d",
+                  "key": "EVAL-4",
+                  "title": "Kiểm thử chưa có hạn",
+                  "status": "in_progress"
+                }
+              ],
+              "title": "Tóm tắt",
+              "aiSuggested": false
+            },
+            {
+              "key": "done",
+              "body": "Chưa có công việc hoàn thành trong khoảng thời gian này.",
+              "refs": [],
+              "title": "Đã hoàn thành (0 việc)"
+            },
+            {
+              "key": "late",
+              "body": "• EVAL-1 API lịch họp có mã xác nhận EV123 – quá hạn 2 ngày",
+              "refs": [
+                {
+                  "_id": "d83af04c-6a1d-41dd-bedd-e1915f8b843d",
+                  "key": "EVAL-1",
+                  "title": "API lịch họp có mã xác nhận EV123",
+                  "status": "todo"
+                }
+              ],
+              "title": "Đang chậm (1 việc)"
+            },
+            {
+              "key": "blocked",
+              "body": "• EVAL-2 Giao diện đang chờ API – bị chặn bởi EVAL-1",
+              "refs": [
+                {
+                  "_id": "a0fbe3e0-75b0-4ea3-a0ce-ae42c03bb5dd",
+                  "key": "EVAL-2",
+                  "title": "Giao diện đang chờ API",
+                  "status": "todo"
+                },
+                {
+                  "_id": "d83af04c-6a1d-41dd-bedd-e1915f8b843d",
+                  "key": "EVAL-1",
+                  "title": "API lịch họp có mã xác nhận EV123",
+                  "status": "todo"
+                }
+              ],
+              "title": "Đang bị chặn (1 việc)"
+            },
+            {
+              "key": "suggestions",
+              "body": "• EVAL-1 API lịch họp có mã xác nhận EV123 quá hạn 2 ngày: ưu tiên gỡ việc đang chặn.\n• 1 công việc đang bị chặn bởi một việc quá hạn: ưu tiên gỡ việc đang chặn.\n• Như còn 4 giờ công việc nhưng không có giờ khả dụng: cân nhắc giao lại bớt việc.",
+              "refs": [
+                {
+                  "_id": "d83af04c-6a1d-41dd-bedd-e1915f8b843d",
+                  "key": "EVAL-1",
+                  "title": "API lịch họp có mã xác nhận EV123",
+                  "status": "todo"
+                },
+                {
+                  "_id": "a0fbe3e0-75b0-4ea3-a0ce-ae42c03bb5dd",
+                  "key": "EVAL-2",
+                  "title": "Giao diện đang chờ API",
+                  "status": "todo"
+                },
+                {
+                  "_id": "a0fbe3e0-75b0-4ea3-a0ce-ae42c03bb5dd",
+                  "key": "EVAL-2",
+                  "title": "Giao diện đang chờ API",
+                  "status": "todo"
+                },
+                {
+                  "_id": "d83af04c-6a1d-41dd-bedd-e1915f8b843d",
+                  "key": "EVAL-1",
+                  "title": "API lịch họp có mã xác nhận EV123",
+                  "status": "todo"
+                },
+                {
+                  "_id": "d83af04c-6a1d-41dd-bedd-e1915f8b843d",
+                  "key": "EVAL-1",
+                  "title": "API lịch họp có mã xác nhận EV123",
+                  "status": "todo"
+                }
+              ],
+              "title": "Đề xuất",
+              "aiSuggested": true
+            }
+          ],
+          "sourceTasks": [
+            {
+              "_id": "d83af04c-6a1d-41dd-bedd-e1915f8b843d",
+              "key": "EVAL-1",
+              "title": "API lịch họp có mã xác nhận EV123",
+              "status": "todo"
+            },
+            {
+              "_id": "a0fbe3e0-75b0-4ea3-a0ce-ae42c03bb5dd",
+              "key": "EVAL-2",
+              "title": "Giao diện đang chờ API",
+              "status": "todo"
+            },
+            {
+              "_id": "906c6131-9877-47ff-b95e-67865aa1ba2a",
+              "key": "EVAL-3",
+              "title": "Tài liệu đã hoàn thành",
+              "status": "in_progress"
+            },
+            {
+              "_id": "7f75a72f-7c14-4e96-b725-25e99942ba2d",
+              "key": "EVAL-4",
+              "title": "Kiểm thử chưa có hạn",
+              "status": "in_progress"
+            }
+          ],
+          "sourceRevision": "29ea93a05bdf1e1ffb8cc8393cc22c264581101fa7dee2e0e4f9ed186bf4e609",
+          "generatedAt": "2026-11-07T13:48:20.062Z",
+          "status": "draft",
+          "sharedAt": null,
+          "createdAt": "2026-11-07T13:48:20.090Z",
+          "updatedAt": "2026-11-07T13:48:20.090Z",
+          "period_start": "1999-12-31T17:00:00.000Z",
+          "period_end": "2099-01-01T17:00:00.000Z",
+          "sourceState": "current",
+          "missingSources": 0
+        },
+        "meta": {
+          "callId": "d3952644-1c13-4ba6-b349-ed8eecb324cc",
+          "model": "taskflow-local-rules",
+          "provider": "local",
+          "latencyMs": 8,
+          "attemptCount": 1,
+          "usageComplete": true
+        }
+      },
+      "queuedAt": "2026-11-07T13:48:20.047Z",
+      "finishedAt": "2026-11-07T13:48:20.098Z",
+      "elapsedMs": 50.38259999999718,
+      "failures": [],
+      "passed": true
+    }
+  ],
+  "benchmarks": {
+    "planner": {
+      "requests": 1,
+      "errors": 0,
+      "p50Ms": 29.067399999999907,
+      "p95Ms": 29.067399999999907,
+      "sampleTarget": 30,
+      "complete": false,
+      "includesFailures": true,
+      "rows": [
+        {
+          "caseId": "planner-1",
+          "group": "planner-schema",
+          "feature": "planner",
+          "input": {
+            "goal": "Xây dựng API xác thực",
+            "maxHours": 24
+          },
+          "status": 201,
+          "data": {
+            "draft": {
+              "_id": "1d68add1-b753-4eba-a913-06e1fb5ac23a",
+              "workspace": "6bdbe210-969c-4c35-bd7e-1fb90c1877a5",
+              "project": "67201921-dfe6-41b3-8b40-f97aeb72155b",
+              "user": "0da75fce-ee03-4c74-a14b-3e5b94fd1bed",
+              "type": "plan",
+              "title": "Xây dựng API xác thực",
+              "input": {
+                "goal": "Xây dựng API xác thực",
+                "deadline": null,
+                "maxHours": 24,
+                "timezone": "Asia/Ho_Chi_Minh"
+              },
+              "items": [
+                {
+                  "key": "mcE238CvUAA",
+                  "title": "Làm rõ yêu cầu và phạm vi: API xác thực",
+                  "dueDate": null,
+                  "assignee": null,
+                  "priority": "high",
+                  "selected": true,
+                  "description": "Thuộc mục tiêu: Xây dựng API xác thực",
+                  "estimateHours": 2.38,
+                  "acceptanceCriteria": [
+                    "Có ghi chú yêu cầu được nhóm duyệt",
+                    "Xác định rõ ngoài phạm vi"
+                  ]
+                },
+                {
+                  "key": "Ucqexmi-Rpg",
+                  "title": "Thiết kế giao diện cho API xác thực",
+                  "dueDate": null,
+                  "assignee": null,
+                  "priority": "high",
+                  "selected": true,
+                  "description": "Thuộc mục tiêu: Xây dựng API xác thực",
+                  "estimateHours": 3.33,
+                  "acceptanceCriteria": [
+                    "Đủ trạng thái loading, lỗi, rỗng",
+                    "Tương thích responsive"
+                  ]
+                },
+                {
+                  "key": "NNJ5SsDBlxE",
+                  "title": "Thiết kế dữ liệu và đặc tả API",
+                  "dueDate": null,
+                  "assignee": null,
+                  "priority": "high",
+                  "selected": true,
+                  "description": "Thuộc mục tiêu: Xây dựng API xác thực",
+                  "estimateHours": 2.85,
+                  "acceptanceCriteria": [
+                    "Có schema dữ liệu",
+                    "Có đặc tả request/response"
+                  ]
+                },
+                {
+                  "key": "iw4uYNUyttE",
+                  "title": "Xây dựng API cho API xác thực",
+                  "dueDate": null,
+                  "assignee": null,
+                  "priority": "high",
+                  "selected": true,
+                  "description": "Thuộc mục tiêu: Xây dựng API xác thực",
+                  "estimateHours": 4.04,
+                  "acceptanceCriteria": [
+                    "Kiểm tra quyền truy cập",
+                    "Validate dữ liệu đầu vào"
+                  ]
+                },
+                {
+                  "key": "4MnFr1883Js",
+                  "title": "Xây dựng giao diện và kết nối API",
+                  "dueDate": null,
+                  "assignee": null,
+                  "priority": "medium",
+                  "selected": true,
+                  "description": "Thuộc mục tiêu: Xây dựng API xác thực",
+                  "estimateHours": 3.56,
+                  "acceptanceCriteria": [
+                    "Hiển thị lỗi thân thiện",
+                    "Không mất dữ liệu khi lỗi mạng"
+                  ]
+                },
+                {
+                  "key": "JUcu0DAaugM",
+                  "title": "Viết test tự động cho luồng chính",
+                  "dueDate": null,
+                  "assignee": null,
+                  "priority": "medium",
+                  "selected": true,
+                  "description": "Thuộc mục tiêu: Xây dựng API xác thực",
+                  "estimateHours": 2.61,
+                  "acceptanceCriteria": [
+                    "Test chạy trong CI",
+                    "Bao phủ ca lỗi chính"
+                  ]
+                },
+                {
+                  "key": "U0Y1kccsFOI",
+                  "title": "Kiểm thử bảo mật và phân quyền",
+                  "dueDate": null,
+                  "assignee": null,
+                  "priority": "medium",
+                  "selected": true,
+                  "description": "Thuộc mục tiêu: Xây dựng API xác thực",
+                  "estimateHours": 2.38,
+                  "acceptanceCriteria": [
+                    "Không lộ dữ liệu nhạy cảm",
+                    "Không truy cập chéo nhóm"
+                  ]
+                },
+                {
+                  "key": "67df_Wm9C-o",
+                  "title": "Viết tài liệu hướng dẫn cấu hình và sử dụng",
+                  "dueDate": null,
+                  "assignee": null,
+                  "priority": "low",
+                  "selected": true,
+                  "description": "Thuộc mục tiêu: Xây dựng API xác thực",
+                  "estimateHours": 1.43,
+                  "acceptanceCriteria": [
+                    "Có hướng dẫn cài đặt"
+                  ]
+                },
+                {
+                  "key": "OjX_USUNY0E",
+                  "title": "Demo nội bộ và nghiệm thu",
+                  "dueDate": null,
+                  "assignee": null,
+                  "priority": "low",
+                  "selected": true,
+                  "description": "Thuộc mục tiêu: Xây dựng API xác thực",
+                  "estimateHours": 1.42,
+                  "acceptanceCriteria": [
+                    "Demo end-to-end trên staging"
+                  ]
+                }
+              ],
+              "status": "draft",
+              "version": 1,
+              "approvedAt": null,
+              "createdAt": "2026-11-07T13:48:20.132Z",
+              "updatedAt": "2026-11-07T13:48:20.132Z"
+            },
+            "meta": {
+              "callId": "c6b19a1e-70ed-4d04-bbd1-a13e2b056972",
+              "model": "taskflow-local-rules",
+              "provider": "local",
+              "latencyMs": 7,
+              "attemptCount": 1,
+              "usageComplete": true
+            }
+          },
+          "queuedAt": "2026-11-07T13:48:20.107Z",
+          "finishedAt": "2026-11-07T13:48:20.136Z",
+          "elapsedMs": 29.067399999999907,
+          "failures": [],
+          "passed": true
+        }
+      ]
+    },
+    "report": {
+      "requests": 1,
+      "errors": 0,
+      "p50Ms": 48.425600000002305,
+      "p95Ms": 48.425600000002305,
+      "sampleTarget": 30,
+      "complete": false,
+      "includesFailures": true,
+      "rows": [
+        {
+          "caseId": "report-snapshot",
+          "group": "report-metrics",
+          "feature": "report",
+          "input": {
+            "from": "2000-01-01",
+            "to": "2099-01-01"
+          },
+          "status": 201,
+          "data": {
+            "report": {
+              "_id": "8a9e0142-fba8-49e1-9eda-f515cc9b835d",
+              "timezone": "Asia/Ho_Chi_Minh",
+              "periodConvention": "exclusive-end",
+              "workspace": "6bdbe210-969c-4c35-bd7e-1fb90c1877a5",
+              "project": "67201921-dfe6-41b3-8b40-f97aeb72155b",
+              "user": {
+                "_id": "0da75fce-ee03-4c74-a14b-3e5b94fd1bed",
+                "name": "Mai Anh",
+                "email": "mai.anh@nhom24.edu.vn",
+                "title": "PM"
+              },
+              "title": "Báo cáo tiến độ tuần 01-01–01-01 – Evaluation fixture v1",
+              "template": "week",
+              "from": "1999-12-31T17:00:00.000Z",
+              "to": "2099-01-01T17:00:00.000Z",
+              "stats": {
+                "done": 1,
+                "blocked": 1,
+                "overdue": 1,
+                "doneTotal": 1,
+                "totalTasks": 4,
+                "progressPct": 25
+              },
+              "sections": [
+                {
+                  "key": "summary",
+                  "body": "Trong giai đoạn 01-01 – 01-01, Evaluation fixture v1 hoàn thành 1 công việc; tiến độ chung đạt 25% (1/4). Tại thời điểm tạo báo cáo có 1 việc quá hạn và 1 việc đang bị chặn.",
+                  "refs": [
+                    {
+                      "_id": "d83af04c-6a1d-41dd-bedd-e1915f8b843d",
+                      "key": "EVAL-1",
+                      "title": "API lịch họp có mã xác nhận EV123",
+                      "status": "todo"
+                    },
+                    {
+                      "_id": "a0fbe3e0-75b0-4ea3-a0ce-ae42c03bb5dd",
+                      "key": "EVAL-2",
+                      "title": "Giao diện đang chờ API",
+                      "status": "todo"
+                    },
+                    {
+                      "_id": "906c6131-9877-47ff-b95e-67865aa1ba2a",
+                      "key": "EVAL-3",
+                      "title": "Tài liệu đã hoàn thành",
+                      "status": "done"
+                    },
+                    {
+                      "_id": "7f75a72f-7c14-4e96-b725-25e99942ba2d",
+                      "key": "EVAL-4",
+                      "title": "Kiểm thử chưa có hạn",
+                      "status": "in_progress"
+                    }
+                  ],
+                  "title": "Tóm tắt",
+                  "aiSuggested": false
+                },
+                {
+                  "key": "done",
+                  "body": "• EVAL-3 Tài liệu đã hoàn thành – chưa giao · xong 07-11",
+                  "refs": [
+                    {
+                      "_id": "906c6131-9877-47ff-b95e-67865aa1ba2a",
+                      "key": "EVAL-3",
+                      "title": "Tài liệu đã hoàn thành",
+                      "status": "done"
+                    }
+                  ],
+                  "title": "Đã hoàn thành (1 việc)"
+                },
+                {
+                  "key": "late",
+                  "body": "• EVAL-1 API lịch họp có mã xác nhận EV123 – quá hạn 2 ngày",
+                  "refs": [
+                    {
+                      "_id": "d83af04c-6a1d-41dd-bedd-e1915f8b843d",
+                      "key": "EVAL-1",
+                      "title": "API lịch họp có mã xác nhận EV123",
+                      "status": "todo"
+                    }
+                  ],
+                  "title": "Đang chậm (1 việc)"
+                },
+                {
+                  "key": "blocked",
+                  "body": "• EVAL-2 Giao diện đang chờ API – bị chặn bởi EVAL-1",
+                  "refs": [
+                    {
+                      "_id": "a0fbe3e0-75b0-4ea3-a0ce-ae42c03bb5dd",
+                      "key": "EVAL-2",
+                      "title": "Giao diện đang chờ API",
+                      "status": "todo"
+                    },
+                    {
+                      "_id": "d83af04c-6a1d-41dd-bedd-e1915f8b843d",
+                      "key": "EVAL-1",
+                      "title": "API lịch họp có mã xác nhận EV123",
+                      "status": "todo"
+                    }
+                  ],
+                  "title": "Đang bị chặn (1 việc)"
+                },
+                {
+                  "key": "suggestions",
+                  "body": "• EVAL-1 API lịch họp có mã xác nhận EV123 quá hạn 2 ngày: ưu tiên gỡ việc đang chặn.\n• 1 công việc đang bị chặn bởi một việc quá hạn: ưu tiên gỡ việc đang chặn.\n• Như còn 4 giờ công việc nhưng không có giờ khả dụng: cân nhắc giao lại bớt việc.",
+                  "refs": [
+                    {
+                      "_id": "d83af04c-6a1d-41dd-bedd-e1915f8b843d",
+                      "key": "EVAL-1",
+                      "title": "API lịch họp có mã xác nhận EV123",
+                      "status": "todo"
+                    },
+                    {
+                      "_id": "a0fbe3e0-75b0-4ea3-a0ce-ae42c03bb5dd",
+                      "key": "EVAL-2",
+                      "title": "Giao diện đang chờ API",
+                      "status": "todo"
+                    },
+                    {
+                      "_id": "a0fbe3e0-75b0-4ea3-a0ce-ae42c03bb5dd",
+                      "key": "EVAL-2",
+                      "title": "Giao diện đang chờ API",
+                      "status": "todo"
+                    },
+                    {
+                      "_id": "d83af04c-6a1d-41dd-bedd-e1915f8b843d",
+                      "key": "EVAL-1",
+                      "title": "API lịch họp có mã xác nhận EV123",
+                      "status": "todo"
+                    },
+                    {
+                      "_id": "d83af04c-6a1d-41dd-bedd-e1915f8b843d",
+                      "key": "EVAL-1",
+                      "title": "API lịch họp có mã xác nhận EV123",
+                      "status": "todo"
+                    }
+                  ],
+                  "title": "Đề xuất",
+                  "aiSuggested": true
+                }
+              ],
+              "sourceTasks": [
+                {
+                  "_id": "d83af04c-6a1d-41dd-bedd-e1915f8b843d",
+                  "key": "EVAL-1",
+                  "title": "API lịch họp có mã xác nhận EV123",
+                  "status": "todo"
+                },
+                {
+                  "_id": "a0fbe3e0-75b0-4ea3-a0ce-ae42c03bb5dd",
+                  "key": "EVAL-2",
+                  "title": "Giao diện đang chờ API",
+                  "status": "todo"
+                },
+                {
+                  "_id": "906c6131-9877-47ff-b95e-67865aa1ba2a",
+                  "key": "EVAL-3",
+                  "title": "Tài liệu đã hoàn thành",
+                  "status": "done"
+                },
+                {
+                  "_id": "7f75a72f-7c14-4e96-b725-25e99942ba2d",
+                  "key": "EVAL-4",
+                  "title": "Kiểm thử chưa có hạn",
+                  "status": "in_progress"
+                }
+              ],
+              "sourceRevision": "2c205093c74a2073b00d4e62b0ddbfc73b23ed09e423e60c48808951d7f006bd",
+              "generatedAt": "2026-11-07T13:48:20.161Z",
+              "status": "draft",
+              "sharedAt": null,
+              "createdAt": "2026-11-07T13:48:20.186Z",
+              "updatedAt": "2026-11-07T13:48:20.186Z",
+              "period_start": "1999-12-31T17:00:00.000Z",
+              "period_end": "2099-01-01T17:00:00.000Z",
+              "sourceState": "current",
+              "missingSources": 0
+            },
+            "meta": {
+              "callId": "6cab0676-fcc0-4fd1-bc98-fe900de2261d",
+              "model": "taskflow-local-rules",
+              "provider": "local",
+              "latencyMs": 6,
+              "attemptCount": 1,
+              "usageComplete": true
+            }
+          },
+          "queuedAt": "2026-11-07T13:48:20.146Z",
+          "finishedAt": "2026-11-07T13:48:20.194Z",
+          "elapsedMs": 48.425600000002305,
+          "failures": [],
+          "passed": true
+        }
+      ]
+    },
+    "qa": {
+      "requests": 1,
+      "errors": 0,
+      "p50Ms": 28.925900000002002,
+      "p95Ms": 28.925900000002002,
+      "sampleTarget": 30,
+      "complete": false,
+      "includesFailures": true,
+      "rows": [
+        {
+          "caseId": "qa-answer",
+          "group": "qa-answer",
+          "feature": "qa",
+          "input": {
+            "question": "EVAL-1 có mã xác nhận gì?"
+          },
+          "status": 200,
+          "data": {
+            "conversation": {
+              "_id": "bfd68be6-3da9-4881-9cd2-c8857c849ce8",
+              "workspace": "6bdbe210-969c-4c35-bd7e-1fb90c1877a5",
+              "project": "67201921-dfe6-41b3-8b40-f97aeb72155b",
+              "user": "350c9706-7a27-43b6-819f-3109b958e31b",
+              "title": "EVAL-1 có mã xác nhận gì?",
+              "messages": [
+                {
+                  "role": "user",
+                  "content": "EVAL-1 có mã xác nhận gì?",
+                  "createdAt": "2026-11-07T13:48:20.229Z"
+                },
+                {
+                  "role": "assistant",
+                  "content": "EVAL-1 API lịch họp có mã xác nhận EV123. Trạng thái: Cần làm. Người phụ trách: Như. Hạn chót (Asia/Ho_Chi_Minh): 20:48:19 5/11/2026. Ngày bắt đầu kế hoạch: chưa ghi nhận. [1]\n\nEVAL-2 Giao diện đang chờ API. Trạng thái: Cần làm. Người phụ trách: chưa giao. Hạn chót (Asia/Ho_Chi_Minh): 20:48:19 8/11/2026. Ngày bắt đầu kế hoạch: chưa ghi nhận. [2]",
+                  "refused": false,
+                  "citations": [
+                    {
+                      "n": 1,
+                      "kind": "task",
+                      "label": "EVAL-1 · Mô tả công việc",
+                      "refId": "d83af04c-6a1d-41dd-bedd-e1915f8b843d",
+                      "excerpt": "EVAL-1 API lịch họp có mã xác nhận EV123. Trạng thái: Cần làm. Người phụ trách: Như. Hạn chót (Asia/Ho_Chi_Minh): 20:48:19 5/11/2026. Ngày b…",
+                      "available": true,
+                      "currentUpdatedAt": "2026-11-07T13:48:20.196Z",
+                      "currentVersion": 1
+                    },
+                    {
+                      "n": 2,
+                      "kind": "task",
+                      "label": "EVAL-2 · Mô tả công việc",
+                      "refId": "a0fbe3e0-75b0-4ea3-a0ce-ae42c03bb5dd",
+                      "excerpt": "…úc thực tế: chưa ghi nhận. Bị chặn bởi: EVAL-1 API lịch họp có mã xác nhận EV123 (Cần làm).",
+                      "available": true,
+                      "currentUpdatedAt": "2026-11-07T13:48:20.198Z",
+                      "currentVersion": 1
+                    }
+                  ],
+                  "createdAt": "2026-11-07T13:48:20.229Z",
+                  "sourceRevision": "8a79441994f8b5f05b7e078b4ed084ce335d664531d2aadbd6cc84c748984c78",
+                  "sourceState": "current"
+                }
+              ],
+              "createdAt": "2026-11-07T13:48:20.230Z",
+              "updatedAt": "2026-11-07T13:48:20.230Z"
+            },
+            "meta": {
+              "callId": "53862851-c084-4de3-b92a-67a9d269dbf8",
+              "model": "taskflow-local-rules",
+              "provider": "local",
+              "latencyMs": 6,
+              "attemptCount": 1,
+              "usageComplete": true
+            }
+          },
+          "queuedAt": "2026-11-07T13:48:20.203Z",
+          "finishedAt": "2026-11-07T13:48:20.232Z",
+          "elapsedMs": 28.925900000002002,
+          "failures": [],
+          "passed": true
+        }
+      ]
+    },
+    "risk": {
+      "requests": 1,
+      "errors": 0,
+      "p50Ms": 38.03580000000511,
+      "p95Ms": 38.03580000000511,
+      "sampleTarget": 30,
+      "complete": false,
+      "includesFailures": true,
+      "rows": [
+        {
+          "caseId": "risk-explain",
+          "group": "risk-explanation",
+          "feature": "risk",
+          "input": {
+            "key": "$riskKey"
+          },
+          "status": 200,
+          "data": {
+            "explanation": "Công việc đã quá hạn 2 ngày và đang chặn EVAL-2. Nếu không xử lý, các việc phía sau sẽ tiếp tục bị trễ.",
+            "_meta": {
+              "callId": "f37a0ec7-2593-4716-b02d-d4b7acc13c76",
+              "model": "taskflow-local-rules",
+              "provider": "local",
+              "latencyMs": 7,
+              "attemptCount": 1,
+              "usageComplete": true
+            },
+            "sourceVersion": "4c5b0d0f5e416a24e4c63d50fac0603abd09ee176185fd1744b94529bcf387b9"
+          },
+          "queuedAt": "2026-11-07T13:48:20.239Z",
+          "finishedAt": "2026-11-07T13:48:20.277Z",
+          "elapsedMs": 38.03580000000511,
+          "failures": [],
+          "passed": true
+        }
+      ]
+    }
+  },
+  "calls": [
+    {
+      "feature": "planner",
+      "status": "success",
+      "model": "taskflow-local-rules",
+      "provider": "local",
+      "inputTokens": 206,
+      "outputTokens": 622,
+      "latencyMs": 25,
+      "queuedAt": "2026-11-07T13:48:19.262Z",
+      "finishedAt": "2026-11-07T13:48:19.287Z",
+      "attempts": [
+        {
+          "model": "taskflow-local-rules",
+          "number": 1,
+          "status": "success",
+          "provider": "local",
+          "startedAt": "2026-11-07T13:48:19.268Z",
+          "finishedAt": "2026-11-07T13:48:19.287Z",
+          "inputTokens": 206,
+          "outputTokens": 622
+        }
+      ],
+      "usageComplete": true
+    },
+    {
+      "feature": "planner",
+      "status": "success",
+      "model": "taskflow-local-rules",
+      "provider": "local",
+      "inputTokens": 207,
+      "outputTokens": 568,
+      "latencyMs": 8,
+      "queuedAt": "2026-11-07T13:48:19.321Z",
+      "finishedAt": "2026-11-07T13:48:19.329Z",
+      "attempts": [
+        {
+          "model": "taskflow-local-rules",
+          "number": 1,
+          "status": "success",
+          "provider": "local",
+          "startedAt": "2026-11-07T13:48:19.325Z",
+          "finishedAt": "2026-11-07T13:48:19.329Z",
+          "inputTokens": 207,
+          "outputTokens": 568
+        }
+      ],
+      "usageComplete": true
+    },
+    {
+      "feature": "planner",
+      "status": "success",
+      "model": "taskflow-local-rules",
+      "provider": "local",
+      "inputTokens": 207,
+      "outputTokens": 712,
+      "latencyMs": 7,
+      "queuedAt": "2026-11-07T13:48:19.360Z",
+      "finishedAt": "2026-11-07T13:48:19.366Z",
+      "attempts": [
+        {
+          "model": "taskflow-local-rules",
+          "number": 1,
+          "status": "success",
+          "provider": "local",
+          "startedAt": "2026-11-07T13:48:19.363Z",
+          "finishedAt": "2026-11-07T13:48:19.366Z",
+          "inputTokens": 207,
+          "outputTokens": 712
+        }
+      ],
+      "usageComplete": true
+    },
+    {
+      "feature": "planner",
+      "status": "success",
+      "model": "taskflow-local-rules",
+      "provider": "local",
+      "inputTokens": 207,
+      "outputTokens": 575,
+      "latencyMs": 7,
+      "queuedAt": "2026-11-07T13:48:19.394Z",
+      "finishedAt": "2026-11-07T13:48:19.401Z",
+      "attempts": [
+        {
+          "model": "taskflow-local-rules",
+          "number": 1,
+          "status": "success",
+          "provider": "local",
+          "startedAt": "2026-11-07T13:48:19.397Z",
+          "finishedAt": "2026-11-07T13:48:19.401Z",
+          "inputTokens": 207,
+          "outputTokens": 575
+        }
+      ],
+      "usageComplete": true
+    },
+    {
+      "feature": "planner",
+      "status": "success",
+      "model": "taskflow-local-rules",
+      "provider": "local",
+      "inputTokens": 207,
+      "outputTokens": 633,
+      "latencyMs": 7,
+      "queuedAt": "2026-11-07T13:48:19.429Z",
+      "finishedAt": "2026-11-07T13:48:19.437Z",
+      "attempts": [
+        {
+          "model": "taskflow-local-rules",
+          "number": 1,
+          "status": "success",
+          "provider": "local",
+          "startedAt": "2026-11-07T13:48:19.434Z",
+          "finishedAt": "2026-11-07T13:48:19.437Z",
+          "inputTokens": 207,
+          "outputTokens": 633
+        }
+      ],
+      "usageComplete": true
+    },
+    {
+      "feature": "report",
+      "status": "success",
+      "model": "taskflow-local-rules",
+      "provider": "local",
+      "inputTokens": 300,
+      "outputTokens": 99,
+      "latencyMs": 12,
+      "queuedAt": "2026-11-07T13:48:19.585Z",
+      "finishedAt": "2026-11-07T13:48:19.597Z",
+      "attempts": [
+        {
+          "model": "taskflow-local-rules",
+          "number": 1,
+          "status": "success",
+          "provider": "local",
+          "startedAt": "2026-11-07T13:48:19.593Z",
+          "finishedAt": "2026-11-07T13:48:19.597Z",
+          "inputTokens": 300,
+          "outputTokens": 99
+        }
+      ],
+      "usageComplete": true
+    },
+    {
+      "feature": "qa",
+      "status": "success",
+      "model": "taskflow-local-rules",
+      "provider": "local",
+      "inputTokens": 156,
+      "outputTokens": 87,
+      "latencyMs": 9,
+      "queuedAt": "2026-11-07T13:48:19.649Z",
+      "finishedAt": "2026-11-07T13:48:19.658Z",
+      "attempts": [
+        {
+          "model": "taskflow-local-rules",
+          "number": 1,
+          "status": "success",
+          "provider": "local",
+          "startedAt": "2026-11-07T13:48:19.655Z",
+          "finishedAt": "2026-11-07T13:48:19.658Z",
+          "inputTokens": 156,
+          "outputTokens": 87
+        }
+      ],
+      "usageComplete": true
+    },
+    {
+      "feature": "qa",
+      "status": "success",
+      "model": "taskflow-local-rules",
+      "provider": "local",
+      "inputTokens": 9,
+      "outputTokens": 28,
+      "latencyMs": 6,
+      "queuedAt": "2026-11-07T13:48:19.690Z",
+      "finishedAt": "2026-11-07T13:48:19.695Z",
+      "attempts": [
+        {
+          "model": "taskflow-local-rules",
+          "number": 1,
+          "status": "success",
+          "provider": "local",
+          "startedAt": "2026-11-07T13:48:19.693Z",
+          "finishedAt": "2026-11-07T13:48:19.695Z",
+          "inputTokens": 9,
+          "outputTokens": 28
+        }
+      ],
+      "usageComplete": true
+    },
+    {
+      "feature": "risk",
+      "status": "success",
+      "model": "taskflow-local-rules",
+      "provider": "local",
+      "inputTokens": 80,
+      "outputTokens": 26,
+      "latencyMs": 10,
+      "queuedAt": "2026-11-07T13:48:19.797Z",
+      "finishedAt": "2026-11-07T13:48:19.807Z",
+      "attempts": [
+        {
+          "model": "taskflow-local-rules",
+          "number": 1,
+          "status": "success",
+          "provider": "local",
+          "startedAt": "2026-11-07T13:48:19.804Z",
+          "finishedAt": "2026-11-07T13:48:19.807Z",
+          "inputTokens": 80,
+          "outputTokens": 26
+        }
+      ],
+      "usageComplete": true
+    },
+    {
+      "feature": "report",
+      "status": "success",
+      "model": "taskflow-local-rules",
+      "provider": "local",
+      "inputTokens": 300,
+      "outputTokens": 54,
+      "latencyMs": 6,
+      "queuedAt": "2026-11-07T13:48:20.017Z",
+      "finishedAt": "2026-11-07T13:48:20.023Z",
+      "attempts": [
+        {
+          "model": "taskflow-local-rules",
+          "number": 1,
+          "status": "success",
+          "provider": "local",
+          "startedAt": "2026-11-07T13:48:20.020Z",
+          "finishedAt": "2026-11-07T13:48:20.023Z",
+          "inputTokens": 300,
+          "outputTokens": 54
+        }
+      ],
+      "usageComplete": true
+    },
+    {
+      "feature": "report",
+      "status": "success",
+      "model": "taskflow-local-rules",
+      "provider": "local",
+      "inputTokens": 300,
+      "outputTokens": 99,
+      "latencyMs": 8,
+      "queuedAt": "2026-11-07T13:48:20.069Z",
+      "finishedAt": "2026-11-07T13:48:20.077Z",
+      "attempts": [
+        {
+          "model": "taskflow-local-rules",
+          "number": 1,
+          "status": "success",
+          "provider": "local",
+          "startedAt": "2026-11-07T13:48:20.075Z",
+          "finishedAt": "2026-11-07T13:48:20.077Z",
+          "inputTokens": 300,
+          "outputTokens": 99
+        }
+      ],
+      "usageComplete": true
+    },
+    {
+      "feature": "planner",
+      "status": "success",
+      "model": "taskflow-local-rules",
+      "provider": "local",
+      "inputTokens": 206,
+      "outputTokens": 622,
+      "latencyMs": 7,
+      "queuedAt": "2026-11-07T13:48:20.119Z",
+      "finishedAt": "2026-11-07T13:48:20.126Z",
+      "attempts": [
+        {
+          "model": "taskflow-local-rules",
+          "number": 1,
+          "status": "success",
+          "provider": "local",
+          "startedAt": "2026-11-07T13:48:20.123Z",
+          "finishedAt": "2026-11-07T13:48:20.126Z",
+          "inputTokens": 206,
+          "outputTokens": 622
+        }
+      ],
+      "usageComplete": true
+    },
+    {
+      "feature": "report",
+      "status": "success",
+      "model": "taskflow-local-rules",
+      "provider": "local",
+      "inputTokens": 300,
+      "outputTokens": 99,
+      "latencyMs": 6,
+      "queuedAt": "2026-11-07T13:48:20.169Z",
+      "finishedAt": "2026-11-07T13:48:20.175Z",
+      "attempts": [
+        {
+          "model": "taskflow-local-rules",
+          "number": 1,
+          "status": "success",
+          "provider": "local",
+          "startedAt": "2026-11-07T13:48:20.173Z",
+          "finishedAt": "2026-11-07T13:48:20.175Z",
+          "inputTokens": 300,
+          "outputTokens": 99
+        }
+      ],
+      "usageComplete": true
+    },
+    {
+      "feature": "qa",
+      "status": "success",
+      "model": "taskflow-local-rules",
+      "provider": "local",
+      "inputTokens": 156,
+      "outputTokens": 87,
+      "latencyMs": 6,
+      "queuedAt": "2026-11-07T13:48:20.214Z",
+      "finishedAt": "2026-11-07T13:48:20.220Z",
+      "attempts": [
+        {
+          "model": "taskflow-local-rules",
+          "number": 1,
+          "status": "success",
+          "provider": "local",
+          "startedAt": "2026-11-07T13:48:20.219Z",
+          "finishedAt": "2026-11-07T13:48:20.220Z",
+          "inputTokens": 156,
+          "outputTokens": 87
+        }
+      ],
+      "usageComplete": true
+    },
+    {
+      "feature": "risk",
+      "status": "success",
+      "model": "taskflow-local-rules",
+      "provider": "local",
+      "inputTokens": 80,
+      "outputTokens": 26,
+      "latencyMs": 7,
+      "queuedAt": "2026-11-07T13:48:20.251Z",
+      "finishedAt": "2026-11-07T13:48:20.258Z",
+      "attempts": [
+        {
+          "model": "taskflow-local-rules",
+          "number": 1,
+          "status": "success",
+          "provider": "local",
+          "startedAt": "2026-11-07T13:48:20.257Z",
+          "finishedAt": "2026-11-07T13:48:20.258Z",
+          "inputTokens": 80,
+          "outputTokens": 26
+        }
+      ],
+      "usageComplete": true
+    }
+  ],
+  "technicalStatus": "passed",
+  "acceptanceStatus": "pending",
+  "pending": [
+    "Independent human scoring",
+    "Manual/AI baseline with 6 participants",
+    "Hidden acceptance pack"
+  ]
+}
