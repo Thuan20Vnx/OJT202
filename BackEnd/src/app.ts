@@ -23,6 +23,8 @@ import adminRoutes from './routes/admin.js';
 import devRoutes from './routes/dev.js';
 import deliveryRoutes from './routes/delivery.js';
 import planningRoutes from './routes/planning.js';
+import agentRoutes from './routes/agent.js';
+import mcpRoutes from './routes/mcp.js';
 
 export function createApp(options: { staticDir?: string } = {}): express.Express {
   const app = express();
@@ -62,8 +64,9 @@ export function createApp(options: { staticDir?: string } = {}): express.Express
   api.use('/workspaces', workspaceRoutes, capacityRoutes);
   api.use('/notifications', notificationRoutes);
   api.use('/admin', adminRoutes);
+  api.use('/mcp', mcpRoutes);
   if (!config.isProd) api.use('/dev', devRoutes);
-  api.use(projectRoutes, taskRoutes, documentRoutes, dashboardRoutes, aiRoutes, deliveryRoutes, planningRoutes);
+  api.use(projectRoutes, taskRoutes, documentRoutes, dashboardRoutes, aiRoutes, deliveryRoutes, planningRoutes, agentRoutes);
   api.use((_req, res) => res.status(404).json({ error: 'Không tìm thấy API' }));
   // Both paths share handlers, access checks and rate-limit state.
   app.use('/api/v1', api);

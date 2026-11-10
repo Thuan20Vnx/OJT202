@@ -66,6 +66,7 @@ enum TaskSource {
   manual
   ai_planner
   ai_meeting
+  ai_agent
 }
 
 enum DocumentKind {
@@ -81,6 +82,7 @@ enum NotificationType {
   status
   comment
   invite
+  agent
 }
 
 enum EntityType {
@@ -99,6 +101,7 @@ enum AiFeature {
   qa
   risk
   meeting
+  suggest
 }
 
 enum AiCallStatus {
@@ -172,6 +175,9 @@ model User {
   aiCalls            AiCall[]
   aiDrafts           AiDraft[]
   aiReports          AiReport[]
+  repoConnections    RepoConnection[]
+  agentTokens        AgentToken[]
+  agentRuns          AgentRun[]
   aiConversations    AiConversation[]
   riskResolutions    RiskResolution[]
   auditsDone         AdminAudit[]       @relation("AuditAdmin")
@@ -270,6 +276,8 @@ model Workspace {
   aiCalls         AiCall[]
   aiDrafts        AiDraft[]
   aiReports       AiReport[]
+  repoConnections RepoConnection[]
+  agentRuns       AgentRun[]
   aiConversations AiConversation[]
 
   @@map("workspaces")
@@ -354,6 +362,9 @@ model Project {
   /// Ngưỡng của các quy tắc cảnh báo rủi ro
   riskRules   Json          @default("{\"overdueDays\":1,\"overdue\":true,\"blockedByOverdue\":true,\"overload\":true,\"overloadPct\":100,\"dueSoon\":true,\"dueSoonProgressPct\":80,\"reviewStaleDays\":3}")
   riskRulesVersion Int @default(1)
+  /// Gợi ý skill/plugin/công cụ hằng ngày bằng Gemini; giờ theo múi giờ dự án (HH:MM)
+  agentDaily     Boolean @default(false) @map("agent_daily")
+  agentDailyTime String  @default("08:00") @map("agent_daily_time") @db.VarChar(5)
   createdBy   String?       @map("created_by_id") @db.Uuid
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
@@ -368,6 +379,8 @@ model Project {
   activities      Activity[]
   aiDrafts        AiDraft[]
   aiReports       AiReport[]
+  repoConnection  RepoConnection?
+  agentRuns       AgentRun[]
   aiConversations AiConversation[]
   riskResolutions RiskResolution[]
   memberships     ProjectMember[]
@@ -895,4 +908,91 @@ model Counter {
   seq  Int    @default(0)
 
   @@map("counters")
+}
+
+enum RepoProvider {
+  github
+  gitlab
+}
+
+enum AgentRunKind {
+  review
+  security
+  suggest
+}
+
+enum AgentRunStatus {
+  running
+  done
+  failed
+}
+
+/// Repo GitHub/GitLab gắn với dự án: server chỉ đọc metadata (commit, PR, ngôn ngữ), không đọc code. Token mã hóa AES-GCM.
+model RepoConnection {
+  id           String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspace    String       @map("workspace_id") @db.Uuid
+  project      String       @unique @map("project_id") @db.Uuid
+  provider     RepoProvider
+  baseUrl      String       @map("base_url") @db.VarChar(300)
+  repoPath     String       @map("repo_path") @db.VarChar(300)
+  defaultBranch String      @default("main") @map("default_branch") @db.VarChar(200)
+  tokenEnc     String?      @map("token_enc")
+  createdBy    String?      @map("created_by_id") @db.Uuid
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  workspaceRef Workspace @relation(fields: [workspace], references: [id], onDelete: Cascade)
+  projectRef   Project   @relation(fields: [project], references: [id], onDelete: Cascade)
+  createdByRef User?     @relation(fields: [createdBy], references: [id], onDelete: SetNull)
+
+  @@map("repo_connections")
+}
+
+/// Kết quả một lần agent chạy (gợi ý hằng ngày, hoặc báo cáo agent trên máy gửi về). items: phát hiện/gợi ý, mỗi mục có state open|accepted|dismissed.
+model AgentRun {
+  id         String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspace  String         @map("workspace_id") @db.Uuid
+  project    String         @map("project_id") @db.Uuid
+  user       String?        @map("user_id") @db.Uuid
+  kind       AgentRunKind
+  status     AgentRunStatus @default(done)
+  title      String         @db.VarChar(300)
+  target     String?        @db.VarChar(200)
+  summary    String         @default("")
+  focus      Json           @default("[]")
+  items      Json           @default("[]")
+  /// server: Gemini phía server; mcp: agent trên máy người dùng gửi qua MCP
+  source     String         @default("server") @db.VarChar(20)
+  agentName  String?        @map("agent_name") @db.VarChar(80)
+  model      String?
+  error      String?
+  /// Khóa chạy một lần mỗi ngày cho job gợi ý, kể cả khi nhiều server dùng chung database.
+  claimKey   String?        @unique @map("claim_key")
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  workspaceRef Workspace @relation(fields: [workspace], references: [id], onDelete: Cascade)
+  projectRef   Project   @relation(fields: [project], references: [id], onDelete: Cascade)
+  userRef      User?     @relation(fields: [user], references: [id], onDelete: SetNull)
+
+  @@index([project, createdAt])
+  @@map("agent_runs")
+}
+
+/// Token cá nhân cho agent trên máy (Claude Code, Codex, Antigravity) gọi MCP API. Chỉ lưu hash.
+model AgentToken {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user       String    @map("user_id") @db.Uuid
+  name       String    @db.VarChar(80)
+  tokenHash  String    @unique @map("token_hash")
+  prefix     String    @db.VarChar(16)
+  expiresAt  DateTime  @map("expires_at")
+  lastUsedAt DateTime? @map("last_used_at")
+  revokedAt  DateTime? @map("revoked_at")
+  createdAt  DateTime  @default(now())
+
+  userRef User @relation(fields: [user], references: [id], onDelete: Cascade)
+
+  @@index([user])
+  @@map("agent_tokens")
 }

@@ -7,6 +7,7 @@ import Planner from './ai/Planner.jsx';
 import Report from './ai/Report.jsx';
 import Qa from './ai/Qa.jsx';
 import Meeting from './ai/Meeting.jsx';
+import Agent from './ai/Agent.jsx';
 
 export default function Ai() {
   useI18n();
@@ -44,6 +45,7 @@ export default function Ai() {
           { value: 'planner', label: tr("Lập kế hoạch"), icon: 'flag' },
           { value: 'qa', label: tr("Hỏi đáp dự án"), icon: 'forum' },
           { value: 'meeting', label: tr("Ghi chú họp"), icon: 'groups' },
+          { value: 'agent', label: tr("Agent dự án"), icon: 'robot_2' },
         ]}
       />}
       {u && !u.enabled && (
@@ -53,6 +55,7 @@ export default function Ai() {
       {tab === 'report' && <Report key={project._id} {...props} />}
       {tab === 'qa' && <Qa key={project._id} {...props} />}
       {tab === 'meeting' && <Meeting key={project._id} {...props} />}
+      {tab === 'agent' && <Agent key={project._id} {...props} />}
     </div>
   );
 }

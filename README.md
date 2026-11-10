@@ -10,12 +10,12 @@ Bản bổ sung theo góp ý giảng viên: **phân bổ nhiều người/task, 
 |---|---|---|
 | `FrontEnd/` | Giao diện web | React 18 + Vite + Tailwind CSS (Inter, Material Symbols – đúng design system Stitch v2) |
 | `BackEnd/` | API + realtime | Node.js 24 + Express 5 + Prisma 6 + Socket.io, **PostgreSQL** (chưa có thì tự chạy PostgreSQL 17 nhúng) |
-| `AIService/` | Dịch vụ AI | Express 5 – Anthropic Claude (khi có `ANTHROPIC_API_KEY`) hoặc bộ AI nội bộ dựa trên quy tắc |
+| `AIService/` | Dịch vụ AI | Express 5 – Google Gemini (khi có `GEMINI_API_KEY`), tự chuyển sang Groq / OpenRouter / Ollama nếu có cấu hình dự phòng; không có gì thì dùng bộ AI nội bộ dựa trên quy tắc |
 
 ```
 Trình duyệt ──HTTP/WebSocket──▶ BackEnd :4000 ──Prisma──▶ PostgreSQL / Supabase
    (FrontEnd :5173)                    │
-                                       └──HTTP (x-ai-service-key)──▶ AIService :5000 ──▶ Claude (tùy chọn)
+                                       └──HTTP (x-ai-service-key)──▶ AIService :5000 ──▶ Gemini (tùy chọn)
 ```
 
 BackEnd giữ mọi thứ liên quan dữ liệu & quyền (kiểm quyền, hạn mức AI theo ngày, nhật ký gọi AI, lọc nguồn dữ liệu trước khi gửi);
@@ -202,10 +202,10 @@ Frontend hỗ trợ chuyển dần sang TypeScript: entry ở `FrontEnd/src/main
 
 ## Dùng Claude thật cho Trợ lý AI
 
-Đặt trong `AIService/.env` (khóa Anthropic chỉ nằm ở AIService, BackEnd không cần biết):
+Đặt trong `AIService/.env` (khóa Gemini chỉ nằm ở AIService, BackEnd không cần biết):
 
 ```env
-ANTHROPIC_API_KEY=sk-ant-...
+GEMINI_API_KEY=...
 AI_MODEL=claude-opus-5-5
 ```
 
@@ -238,7 +238,7 @@ taskflow/
 ├─ AIService/
 │  ├─ src/
 │  │  ├─ app.js         # API /v1/planner, meeting, qa, report, risk, info (kiểm tra khóa dùng chung)
-│  │  ├─ llm.js         # client Anthropic Claude (tùy chọn)
+│  │  ├─ llm.js         # client Google Gemini (tùy chọn)
 │  │  ├─ text.js        # xử lý tiếng Việt (bỏ dấu, tách từ, chấm điểm)
 │  │  └─ features/      # lập kế hoạch, ghi chú họp, hỏi đáp, báo cáo, diễn giải rủi ro
 │  └─ test/ai.test.js

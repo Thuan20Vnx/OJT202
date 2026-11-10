@@ -103,6 +103,7 @@ export default function Qa({ project, onUsage, disabled }) {
                 <p className="truncate text-body-sm font-medium text-slate-800">{c.title}</p>
                 <p className="text-label-md font-normal text-slate-400">
                   {Math.ceil(c.count / 2)}{tr(" câu hỏi · ")}{timeAgo(c.updatedAt)}
+                  {c.agent && tr(" · từ {0}", [c.agent])}
                 </p>
               </button>
             ))}
@@ -140,10 +141,16 @@ export default function Qa({ project, onUsage, disabled }) {
               </div>
             ) : (
               <div key={i} className="flex gap-2">
-                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-purple-100 text-purple-600">
-                  <Icon name="auto_awesome" size={16} />
+                <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${m.agent ? 'bg-slate-100 text-slate-600' : 'bg-purple-100 text-purple-600'}`}>
+                  <Icon name={m.agent ? 'robot_2' : 'auto_awesome'} size={16} />
                 </span>
                 <div className="min-w-0 max-w-[85%] flex-1">
+                  {m.agent && (
+                    <p className="mb-1 flex flex-wrap items-center gap-1.5 text-label-md font-normal text-slate-500">
+                      <span className="chip border-slate-200 bg-slate-50 text-slate-600">{tr("Từ {0} trên máy", [m.agent])}</span>
+                      {tr("Agent tự viết câu trả lời; TaskFlow chỉ kiểm nguồn trích dẫn có thật.")}
+                    </p>
+                  )}
                   {m.sourceState && m.sourceState !== 'current' && (
                     <Notice tone="warn" className="mb-2">
                       {m.sourceState === 'changed'

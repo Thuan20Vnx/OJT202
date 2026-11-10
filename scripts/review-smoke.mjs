@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 process.env.NODE_ENV = 'test';
 process.env.DATABASE_URL = '';
-process.env.ANTHROPIC_API_KEY = '';
+process.env.GEMINI_API_KEY = '';
 process.env.CLIENT_URL = 'http://localhost:4179';
 const uploads = await fs.mkdtemp(path.join(os.tmpdir(), 'taskflow-review-uploads-'));
 process.env.UPLOAD_DIR = uploads;

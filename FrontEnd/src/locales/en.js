@@ -1,6 +1,12 @@
 // Interface translations only; project content is preserved.
 export const english = {
-  "Múi giờ báo cáo dự án": "Project report timezone",
+  "Từ {0} trên máy": "From {0} on a local machine",
+  "Agent tự viết câu trả lời; TaskFlow chỉ kiểm nguồn trích dẫn có thật.": "Written by the agent; TaskFlow only checks that the cited sources exist.",
+  "Sau khi thêm, mở agent trong thư mục repo của dự án rồi yêu cầu, ví dụ: \"Dùng TaskFlow quét bảo mật dự án này\", \"Hỏi TaskFlow: việc nào đang quá hạn?\" hoặc \"Lập kế hoạch làm trang thanh toán rồi gửi về TaskFlow\". Lệnh có sẵn: security_review, review_pr, suggest_next, ask_project, make_plan, meeting_to_tasks.": "After adding it, open the agent in the project repository and ask, for example: \"Use TaskFlow to security-review this project\", \"Ask TaskFlow: which tasks are overdue?\" or \"Plan the checkout page and send it to TaskFlow\". Available prompts: security_review, review_pr, suggest_next, ask_project, make_plan, meeting_to_tasks.",
+  "Claude Code, Codex hoặc Antigravity chạy bằng gói của chính bạn nên không tốn hạn mức AI của nhóm: tự đọc code trên máy, hỏi đáp về dự án, lập kế hoạch và tách việc từ biên bản họp. Kết quả gửi về TaskFlow dưới dạng bản nháp để PM duyệt. Code không đi qua server TaskFlow.": "Claude Code, Codex or Antigravity run on your own plan, so they do not use the team's AI quota: they read code on your machine, answer project questions, draft plans and extract tasks from meeting notes. Results arrive in TaskFlow as drafts for the PM to approve. Code never passes through the TaskFlow server.",
+  " · từ {0}": " · from {0}",
+  " · dự phòng: {0}": " · fallback: {0}",
+  "Khi nhà cung cấp chính lỗi hoặc hết hạn mức, AI tự chuyển sang nhà cung cấp kế tiếp. Nội dung gửi AI có thể tới các nhà cung cấp này.": "When the main provider fails or runs out of quota, AI switches to the next provider. Content sent to AI may reach these providers.",
   "Ví dụ: Asia/Ho_Chi_Minh, Asia/Tokyo, America/New_York": "Examples: Asia/Ho_Chi_Minh, Asia/Tokyo, America/New_York",
   "Tính hết ngày theo múi giờ dự án: {0}": "Includes the full day in project timezone: {0}",
   "Chưa khai báo giờ khả dụng": "Capacity has not been configured",

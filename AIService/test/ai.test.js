@@ -4,7 +4,7 @@ import { after, before, describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
 
-process.env.ANTHROPIC_API_KEY = '';
+process.env.GEMINI_API_KEY = '';
 process.env.AI_SERVICE_KEY = 'khoa-test';
 
 const { parseDue, localMeeting, extractActions } = await import('../src/features/meeting.js');

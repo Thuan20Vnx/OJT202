@@ -33,6 +33,7 @@ export function History({ items, onOpen, activeId, error, loading, onRetry, empt
             <p className="text-label-md font-normal text-slate-400">
               {timeAgo(d.createdAt)}
               {d.count != null && tr(" · {0} việc", [d.count])}
+              {d.agent && tr(" · từ {0}", [d.agent])}
             </p>
           </button>
         ))}
