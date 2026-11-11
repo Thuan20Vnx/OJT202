@@ -6,10 +6,11 @@ import { api } from '../../lib/api.js';
 import { useApp, useLoad } from '../../lib/app.jsx';
 import { fmtDateTime, fmtTime, timeAgo } from '../../lib/format.js';
 import { useLatestRequest, useProjectInfo, useSocketEvent } from '../../lib/hooks.js';
+import { AGENT_LABELS, AgentRunStatus, AgentSplitButton, CodeSourcePicker, useAgentRun, useCodeSource } from './AgentRun.jsx';
 
 const getSuggestions = () => [tr("Việc nào sắp đến hạn tuần này?"), tr("Vì sao TF-103 đang bị chặn và ai đang xử lý?"), tr("Tóm tắt quyết định trong tài liệu kiến trúc")];
 
-export default function Qa({ project, onUsage, disabled }) {
+export default function Qa({ project, disabled }) {
   useI18n();
   const { me } = useApp();
   const info = useProjectInfo(project._id);
@@ -19,6 +20,8 @@ export default function Qa({ project, onUsage, disabled }) {
   const [q, setQ] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
+  // Câu hỏi đã giao cho agent, hiện ngay trong khung chat trong lúc chờ.
+  const [pending, setPending] = useState(null);
   const end = useRef(null);
   const beginRequest = useLatestRequest();
   const list = useLoad(() => api.get(`/projects/${project._id}/ai/conversations`), [project._id, conv?._id, conv?.messages?.length]);
@@ -27,28 +30,8 @@ export default function Qa({ project, onUsage, disabled }) {
 
   useEffect(() => {
     end.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  }, [conv?.messages?.length, busy]);
+  }, [conv?.messages?.length, busy, pending]);
 
-  const ask = async (question = q) => {
-    if (busy || disabled || question.trim().length < 3) return;
-    const current = beginRequest();
-    setBusy(true);
-    setError(null);
-    setQ('');
-    setConv((c) => ({ ...(c || {}), messages: [...(c?.messages || []), { role: 'user', content: question, createdAt: new Date(), pending: true }] }));
-    try {
-      const d = await api.post(`/projects/${project._id}/ai/ask`, { question, conversation: conv?._id });
-      if (current()) setConv(d.conversation);
-    } catch (e) {
-      if (!current()) return;
-      setError(e);
-      setConv((c) => ({ ...c, messages: c.messages.filter((m) => !m.pending) }));
-      setQ(question);
-    } finally {
-      if (current()) setBusy(false);
-      onUsage();
-    }
-  };
   const open = async (id) => {
     const current = beginRequest();
     setBusy(true);
@@ -67,13 +50,35 @@ export default function Qa({ project, onUsage, disabled }) {
     else navigate({ search: `?task=${c.refId}` });
   };
 
+  // Hỏi đáp chỉ chạy bằng agent trên máy (không tốn lượt AI của nhóm). Câu hỏi hiện ngay trong khung chat khi chờ.
+  const agentRun = useAgentRun({ project, onDone: (job) => { setPending(null); open(job.resultId); } });
+  const code = useCodeSource(project);
+  const ready = !!agentRun.runner?.online && agentRun.runner.agents.includes(agentRun.agent);
+  const canAsk = !disabled && !busy && !agentRun.active && ready;
+  const ask = async (question = q) => {
+    if (!canAsk || question.trim().length < 3) return;
+    setError(null);
+    setQ('');
+    setPending(question);
+    const job = await agentRun.start('qa', { question, conversation: conv?._id || null, source: code.source });
+    if (!job) { setPending(null); setQ(question); }
+  };
+  // Agent báo lỗi hoặc bị hủy: trả câu hỏi về ô nhập để sửa và hỏi lại.
+  useEffect(() => {
+    if (pending && agentRun.job && ['failed', 'cancelled'].includes(agentRun.job.status)) {
+      setQ(pending);
+      setPending(null);
+    }
+  }, [agentRun.job?.status]); // eslint-disable-line react-hooks/exhaustive-deps
+  const messages = pending ? [...(conv?.messages || []), { role: 'user', content: pending, createdAt: agentRun.job?.createdAt || new Date(), pending: true }] : conv?.messages;
+
   const taskCount = scope.data?.tasks;
   const docCount = scope.data?.documents;
 
   return (
-    <div className="grid gap-5 lg:grid-cols-[320px_1fr]">
+    <div className="grid grid-cols-1 gap-5 lg:grid-cols-[320px_1fr]">
       <div className="space-y-4">
-        <button className="btn-primary h-10 w-full" onClick={() => { beginRequest(); setConv(null); setQ(''); setError(null); setBusy(false); }}>
+        <button className="btn-primary h-10 w-full" onClick={() => { beginRequest(); setConv(null); setQ(''); setError(null); setBusy(false); setPending(null); }}>
           <Icon name="add" size={18} />{tr(" Cuộc hỏi mới")}</button>
         <div className="card p-4">
           <p className="mb-2 flex items-center gap-1.5 text-label-lg font-semibold text-slate-900">
@@ -121,7 +126,7 @@ export default function Qa({ project, onUsage, disabled }) {
           <span className="chip border-slate-200 bg-slate-50 text-slate-500">{tr("Chỉ một dự án")}</span>
         </div>
         <div className="scroll-thin flex-1 space-y-5 overflow-y-auto p-5">
-          {!conv?.messages?.length && (
+          {!messages?.length && (
             <div className="flex h-full flex-col items-center justify-center py-12 text-center">
               <span className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-purple-50 text-purple-500">
                 <Icon name="forum" size={30} />
@@ -130,7 +135,7 @@ export default function Qa({ project, onUsage, disabled }) {
               <p className="mt-1 max-w-md text-body-sm text-slate-500">{tr("Mọi câu trả lời đều có trích dẫn nguồn bấm được. Thiếu chứng cứ, trợ lý sẽ từ chối trả lời thay vì đoán.")}</p>
             </div>
           )}
-          {conv?.messages?.map((m, i) =>
+          {messages?.map((m, i) =>
             m.role === 'user' ? (
               <div key={i} className="flex justify-end gap-2">
                 <div className="max-w-[75%]">
@@ -216,7 +221,11 @@ export default function Qa({ project, onUsage, disabled }) {
           )}
           {busy && (
             <div className="flex items-center gap-2 text-body-sm text-slate-500">
-              <Spinner className="text-purple-500" />{tr(" Đang tìm trong dữ liệu dự án…")}</div>
+              <Spinner className="text-purple-500" />{tr(" Đang mở cuộc hỏi đáp…")}</div>
+          )}
+          {pending && agentRun.active && (
+            <div className="flex items-center gap-2 text-body-sm text-slate-500">
+              <Spinner className="text-purple-500" />{tr(" {0} đang tìm câu trả lời trên máy bạn…", [AGENT_LABELS[agentRun.job.agent]])}</div>
           )}
           {error && <Notice tone={error.status === 429 ? 'warn' : 'danger'}>{error.message}</Notice>}
           <div ref={end} />
@@ -229,7 +238,7 @@ export default function Qa({ project, onUsage, disabled }) {
               <button
                 key={s}
                 onClick={() => ask(s)}
-                disabled={busy || disabled}
+                disabled={!canAsk}
                 className="rounded-full border border-slate-200 px-2.5 py-0.5 text-label-md text-slate-600 hover:border-blue-300 hover:text-blue-700"
               >
                 {s}
@@ -241,15 +250,18 @@ export default function Qa({ project, onUsage, disabled }) {
               aria-label={tr("Câu hỏi về dự án")}
               rows={2}
               className="textarea flex-1 resize-none"
-              placeholder={tr("Đặt câu hỏi về công việc, tiến độ hoặc tài liệu của {0}…", [project.name])}
+              placeholder={tr("Hỏi hoặc nhờ agent, ví dụ: đọc code trên GitHub rồi tick hoàn thành các việc đã xong")}
               value={q}
               onChange={(e) => setQ(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), ask())}
             />
-            <button className="btn-primary h-[52px]" onClick={() => ask()} disabled={busy || q.trim().length < 3 || disabled}>
-              <Icon name="send" size={18} />{tr(" Gửi")}</button>
+            <AgentSplitButton run={agentRun} primary height="h-[52px]" icon="send" label={tr("Gửi")} className="shrink-0" onRun={() => ask()} disabled={!canAsk || q.trim().length < 3} />
           </div>
-          <p className="mt-1.5 text-label-md font-normal text-slate-400">{tr("AI có thể sai – luôn kiểm tra nguồn trích dẫn.")}</p>
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+            <CodeSourcePicker code={code} disabled={agentRun.active} className="-ml-1.5" />
+            <span className="text-label-md font-normal text-slate-400">{tr("Gửi bằng {0} trên máy bạn · AI có thể sai, luôn kiểm tra nguồn trích dẫn.", [AGENT_LABELS[agentRun.agent]])}</span>
+          </div>
+          <AgentRunStatus run={agentRun} className="mt-2" />
         </div>
       </div>
     </div>

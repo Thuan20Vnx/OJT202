@@ -4,6 +4,7 @@ import { Field, Icon, Notice, Spinner } from '../../components/ui.jsx';
 import { api } from '../../lib/api.js';
 import { useLoad } from '../../lib/app.jsx';
 import { useLatestRequest, useProjectInfo } from '../../lib/hooks.js';
+import { AgentRunButton, useAgentRun } from './AgentRun.jsx';
 import DraftItems from './DraftItems.jsx';
 import { History } from './Planner.jsx';
 
@@ -50,6 +51,8 @@ export default function Meeting({ project, onUsage, disabled }) {
     }
   };
 
+  const agentRun = useAgentRun({ project, onDone: (job) => open(job.resultId) });
+
   return (
     <div className="grid gap-5 lg:grid-cols-[360px_1fr]">
       <div className="space-y-4">
@@ -69,6 +72,7 @@ export default function Meeting({ project, onUsage, disabled }) {
           {!info?.access?.canManage && <Notice>{tr('Chỉ PM của dự án đang hoạt động được tạo và duyệt việc từ biên bản.')}</Notice>}
           <button className="btn-primary h-10 w-full" onClick={extract} disabled={busy || !f.title.trim() || f.text.trim().length < 10 || disabled || !info?.access?.canManage}>
             {busy ? <Spinner /> : <Icon name="auto_awesome" size={18} />}{tr("Trích action items")}</button>
+          <AgentRunButton run={agentRun} kind="meeting" input={{ title: f.title, text: f.text }} disabled={busy || !f.title.trim() || f.text.trim().length < 10 || !info?.access?.canManage} />
         </div>
         {error && <Notice tone={error.status === 429 ? 'warn' : 'danger'}>{error.message}</Notice>}
         <History items={history.data?.drafts || []} error={history.error} loading={history.loading} onRetry={history.reload} onOpen={open} activeId={draft?._id} />

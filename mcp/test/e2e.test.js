@@ -46,7 +46,7 @@ test('agent thấy đủ công cụ và lệnh soạn sẵn', async () => {
   const client = await connectMcp({ TASKFLOW_URL: base, TASKFLOW_TOKEN: token });
   try {
     const tools = (await client.listTools()).tools.map((t) => t.name).sort();
-    assert.deepEqual(tools, ['get_task', 'list_projects', 'list_tasks', 'project_overview', 'repo_progress', 'save_answer', 'search_project', 'submit_meeting_notes', 'submit_plan', 'submit_report']);
+    assert.deepEqual(tools, ['complete_tasks', 'get_job', 'get_task', 'list_projects', 'list_tasks', 'project_overview', 'repo_progress', 'save_answer', 'search_project', 'submit_meeting_notes', 'submit_plan', 'submit_report']);
     const prompts = (await client.listPrompts()).prompts.map((p) => p.name).sort();
     assert.deepEqual(prompts, ['ask_project', 'make_plan', 'meeting_to_tasks', 'review_pr', 'security_review', 'suggest_next']);
     const text = (await client.getPrompt({ name: 'security_review', arguments: { projectId: pid } })).messages[0].content.text;
@@ -112,8 +112,126 @@ test('hỏi đáp, lập kế hoạch và biên bản họp qua MCP: chỉ tạo
   }
 });
 
+test('runner nhận việc bấm trên web, agent lấy đề bài qua get_job và trả bản nháp', async () => {
+  const { startRunner, buildPrompt } = await import('../src/runner.js');
+  const stop = new AbortController();
+  const prompts = [];
+  // Agent giả: làm đúng việc một agent thật sẽ làm, qua chính MCP server.
+  const fakeAgent = {
+    label: 'Antigravity',
+    run: async (job, prompt) => {
+      prompts.push(prompt);
+      const client = await connectMcp({ TASKFLOW_URL: base, TASKFLOW_TOKEN: token });
+      try {
+        const brief = json(await client.callTool({ name: 'get_job', arguments: { jobId: job.id } }));
+        const sent = await client.callTool({ name: 'submit_plan', arguments: { jobId: job.id, projectId: brief.job.projectId, agent: 'Antigravity', items: [{ title: `Việc cho: ${brief.job.input.goal}`, description: 'Mô tả', acceptanceCriteria: ['Kiểm được'], estimateHours: 2 }] } });
+        return { ok: !sent.isError, output: sent.content[0].text };
+      } finally {
+        await client.close();
+      }
+    },
+  };
+  const logs = [];
+  const running = startRunner({ url: base, token, agents: { antigravity: fakeAgent }, pollMs: 50, signal: stop.signal, log: (line) => logs.push(line) });
+  try {
+    const web = { 'content-type': 'application/json', 'x-taskflow': '1', cookie };
+    let created;
+    for (let i = 0; i < 40 && created?.status !== 201; i += 1) {
+      await new Promise((r) => setTimeout(r, 50));
+      created = await fetch(`${base}/api/projects/${pid}/agent/jobs`, { method: 'POST', headers: web, body: JSON.stringify({ kind: 'plan', agent: 'antigravity', input: { goal: 'Ra mắt trang giá', maxHours: 8 } }) });
+    }
+    assert.equal(created.status, 201, 'runner phải báo online để web giao được việc');
+    const id = (await created.json()).job._id;
+    let job;
+    for (let i = 0; i < 100 && job?.status !== 'done' && job?.status !== 'failed'; i += 1) {
+      await new Promise((r) => setTimeout(r, 100));
+      job = (await (await fetch(`${base}/api/agent/jobs/${id}`, { headers: web })).json()).job;
+    }
+    assert.equal(job.status, 'done', job.error);
+    const draft = (await (await fetch(`${base}/api/ai/drafts/${job.resultId}`, { headers: web })).json()).draft;
+    assert.deepEqual([draft.title, draft.items[0].title, draft.input.maxHours], ['Ra mắt trang giá', 'Việc cho: Ra mắt trang giá', 8]);
+    assert.ok(prompts[0].includes(id) && !prompts[0].includes('Ra mắt trang giá'), 'câu lệnh chỉ chứa mã việc, không chứa nội dung người dùng nhập');
+    assert.ok(!/[\r\n]/.test(buildPrompt({ id, kind: 'qa', agent: 'claude' })));
+  } finally {
+    stop.abort();
+    await running;
+  }
+});
+
+test('runner phân biệt máy chủ bản cũ (chờ và thử lại) với token hỏng (dừng hẳn)', async () => {
+  const { startRunner } = await import('../src/runner.js');
+  // Máy chủ bản cũ: token đúng (/me trả 200) nhưng chưa có API cho runner nên rơi xuống route cần đăng nhập.
+  let meStatus = 200;
+  const old = http.createServer((req, res) => {
+    res.setHeader('content-type', 'application/json');
+    res.statusCode = req.url === '/api/mcp/me' ? meStatus : 401;
+    res.end(JSON.stringify(res.statusCode === 200 ? { user: {} } : { error: 'Bạn cần đăng nhập' }));
+  });
+  await new Promise((r) => old.listen(0, '127.0.0.1', r));
+  const url = `http://127.0.0.1:${old.address().port}`;
+  const agents = { claude: { label: 'Claude Code', run: async () => ({ ok: true }) } };
+  try {
+    const stop = new AbortController();
+    const logs = [];
+    const running = startRunner({ url, token: 'tfp_x', agents, pollMs: 20, signal: stop.signal, log: (line) => logs.push(line) });
+    await new Promise((r) => setTimeout(r, 300));
+    stop.abort();
+    await running;
+    assert.equal(logs.length, 1, 'chỉ báo một lần, không lặp lại mỗi vòng');
+    assert.match(logs[0], /bản cũ/);
+    meStatus = 401;
+    await assert.rejects(startRunner({ url, token: 'tfp_x', agents, pollMs: 20, log: () => {} }), /Tạo token mới/);
+  } finally {
+    await new Promise((r) => old.close(r));
+  }
+});
+
+test('ngắt kết nối trên web thì runner tự dừng; việc đọc code nhận đúng thư mục', async () => {
+  const { startRunner, buildPrompt, prepareCode } = await import('../src/runner.js');
+  const os = await import('node:os');
+  const web = { 'content-type': 'application/json', 'x-taskflow': '1', cookie };
+  const seen = [];
+  const agents = { claude: { label: 'Claude Code', run: async (job, prompt, ctx) => { seen.push({ job, prompt, codeDir: ctx.codeDir }); return { ok: true, output: 'xong' }; } } };
+  const logs = [];
+  const running = startRunner({ url: base, token, agents, pollMs: 50, localDir: os.tmpdir(), log: (line) => logs.push(line) });
+  let created;
+  for (let i = 0; i < 40 && created?.status !== 201; i += 1) {
+    await new Promise((r) => setTimeout(r, 50));
+    created = await fetch(`${base}/api/projects/${pid}/agent/jobs`, { method: 'POST', headers: web, body: JSON.stringify({ kind: 'qa', agent: 'claude', input: { question: 'Đọc code trên máy xem TF-1 xong chưa', source: 'auto' } }) });
+  }
+  assert.equal(created.status, 201);
+  for (let i = 0; i < 40 && !seen.length; i += 1) await new Promise((r) => setTimeout(r, 50));
+  assert.deepEqual([seen[0].job.source, seen[0].codeDir], ['local', os.tmpdir()]);
+  assert.ok(seen[0].prompt.includes(os.tmpdir()) && seen[0].prompt.includes('complete_tasks'));
+  await fetch(`${base}/api/agent/runner/disconnect`, { method: 'POST', headers: web, body: '{}' });
+  await Promise.race([running, new Promise((_, reject) => setTimeout(() => reject(new Error('runner không dừng')), 5000))]);
+  assert.ok(logs.some((line) => /Đã ngắt kết nối từ web/.test(line)));
+  assert.match((await prepareCode({ source: 'local' }, { localDir: null })).error, /Chưa khai báo thư mục/);
+  assert.match((await prepareCode({ source: 'github', repo: 'file:///etc' })).error, /không hợp lệ/);
+  assert.deepEqual(await prepareCode({ source: 'none' }), {});
+  assert.ok(buildPrompt({ id: 'x', kind: 'qa', agent: 'claude', source: 'none' }).includes('không đọc hay sửa file'));
+});
+
+test('không có TASKFLOW_TOKEN thì MCP server dùng token của runner đã cài', async () => {
+  const { mkdtempSync, rmSync } = await import('node:fs');
+  const os = await import('node:os');
+  const path = await import('node:path');
+  const { install } = await import('../src/setup.js');
+  const home = mkdtempSync(path.join(os.tmpdir(), 'taskflow-mcp-home-'));
+  const env = { TASKFLOW_HOME: home, TASKFLOW_SKIP_SYSTEM: '1', TASKFLOW_AGY_CONFIG: path.join(home, 'none', 'x.json') };
+  install({ url: base, token }, { env, print: () => {} });
+  const client = await connectMcp({ ...env, TASKFLOW_TOKEN: '', TASKFLOW_URL: '' });
+  try {
+    const { projects } = json(await client.callTool({ name: 'list_projects', arguments: {} }));
+    assert.ok(projects.some((p) => p.projectId === pid));
+  } finally {
+    await client.close();
+    rmSync(home, { recursive: true, force: true });
+  }
+});
+
 test('thiếu hoặc sai token thì báo lỗi dễ hiểu, không làm hỏng phiên', async () => {
-  const noToken = await connectMcp({ TASKFLOW_URL: base, TASKFLOW_TOKEN: '' });
+  const noToken = await connectMcp({ TASKFLOW_URL: base, TASKFLOW_TOKEN: '', TASKFLOW_HOME: serverPath + '.khong-co' });
   try {
     const r = await noToken.callTool({ name: 'list_projects', arguments: {} });
     assert.equal(r.isError, true);

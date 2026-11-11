@@ -1056,6 +1056,10 @@ describe('Hoàng Anh Sprint 4 — telemetry AI gồm queue và retry', () => {
     const workspace = await db.prisma.workspace.findUnique({ where: { id: ws } });
     await db.prisma.workspace.update({ where: { id: ws }, data: { ai: { ...workspace.ai, timeoutSec: 0.08 } } });
     const originalUrl = config.ai.serviceUrl;
+    // Bỏ mức chờ tối thiểu của tính năng để thử đúng timeout ngắn của workspace.
+    const originalMin = config.ai.featureMinTimeoutMs;
+    config.ai.featureMinTimeoutMs = {};
+    t.after(() => { config.ai.featureMinTimeoutMs = originalMin; });
     let requests = 0;
     const fake = http.createServer((req, res) => {
       req.resume();

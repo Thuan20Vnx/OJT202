@@ -1,6 +1,6 @@
 import { t as tr, useI18n } from '../../lib/i18n.js';
-import { useState } from 'react';
-import { Empty, ErrorBox, Icon, Notice, PageLoader, Select, Spinner, Tabs, Toggle } from '../../components/ui.jsx';
+import { useEffect, useState } from 'react';
+import { Empty, ErrorBox, Field, Icon, Notice, PageLoader, Select, Spinner, Tabs, Toggle } from '../../components/ui.jsx';
 import { api } from '../../lib/api.js';
 import { useLoad, useToast } from '../../lib/app.jsx';
 import { fmtDate, fmtDateTime } from '../../lib/format.js';
@@ -36,6 +36,21 @@ function useAction() {
     }
   };
   return { busy, error, run };
+}
+
+/**
+ * Chữ "i" đặt cạnh tiêu đề: bấm để mở/đóng phần giải thích. Đặt trong khung flex-wrap; phần chữ tự xuống dòng riêng.
+ */
+function Info({ children }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button type="button" className={`icon-btn h-6 w-6 ${open ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`} onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-label={tr('Giải thích')} title={tr('Giải thích')}>
+        <Icon name="info" size={16} />
+      </button>
+      {open && <p className="animate-fade-up basis-full text-label-md font-normal text-slate-500">{children}</p>}
+    </>
+  );
 }
 
 function CopyBlock({ text, label }) {
@@ -98,7 +113,7 @@ function ConnectionCard({ projectId, conn, canManage, onChange, onEdit }) {
   const [confirming, setConfirming] = useState(false);
   const { busy, error, run } = useAction();
   const remove = () => run(async () => {
-    await api.delete(`/projects/${projectId}/repo`);
+    await api.del(`/projects/${projectId}/repo`);
     onChange(null);
     toast(tr('Đã ngắt kết nối repo'));
   });
@@ -136,9 +151,9 @@ function DailyCard({ projectId, settings, canManage, disabled, onSettings, onRun
   return (
     <div className="card space-y-3 p-4">
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1">
           <p className="flex items-center gap-1.5 text-label-lg font-semibold text-slate-900"><Icon name="travel_explore" size={18} className="text-blue-600" />{tr(' Gợi ý hằng ngày')}</p>
-          <p className="text-label-md font-normal text-slate-500">{tr('Gemini tìm MCP server, skill, plugin và thư viện có ích cho dự án từ MCP Registry và npm. Không đọc code.')}</p>
+          <Info>{tr('Gemini tìm MCP server, skill, plugin và thư viện có ích cho dự án từ MCP Registry và npm. Không đọc code.')}</Info>
         </div>
         <Toggle checked={settings.daily} disabled={!canManage || save.busy} label={tr('Gợi ý hằng ngày')} onChange={(v) => patch({ daily: v }, v ? tr('Đã bật gợi ý hằng ngày') : tr('Đã tắt gợi ý hằng ngày'))} />
       </div>
@@ -169,6 +184,67 @@ function configs({ serverPath, apiUrl }, token) {
   };
 }
 
+const DIR_KEY = 'taskflow.agentDir';
+const AGENT_NAMES = { antigravity: 'Antigravity', claude: 'Claude Code', codex: 'Codex' };
+// Lệnh cài được dán vào terminal: không nhận ký tự mà shell hiểu là lệnh.
+const UNSAFE_PATH = /["'`$%&|<>^;\r\n]/;
+
+/** Cài runner chạy nền một lần; sau đó giao việc cho agent ngay từ web, không cần mở terminal. */
+function RunnerSetup({ mcp, token }) {
+  const toast = useToast();
+  const [runner, setRunner] = useState(null);
+  const disconnect = useAction();
+  const stop = () => disconnect.run(async () => {
+    setRunner((await api.post('/agent/runner/disconnect', {})).runner);
+    toast(tr('Đã ngắt kết nối agent trên máy'));
+  });
+  const [dir, setDir] = useState(() => {
+    try { return localStorage.getItem(DIR_KEY) || ''; } catch { return ''; }
+  });
+  useEffect(() => {
+    let alive = true;
+    // Lỗi (kể cả BackEnd bản cũ chưa có API này) vẫn coi là đang tắt để nút Bật agent luôn hiện.
+    const load = () => api.get('/agent/runner').then((d) => alive && setRunner(d.runner)).catch((e) => alive && setRunner({ online: false, agents: [], unsupported: e.status === 404 }));
+    load();
+    const timer = setInterval(load, 8000);
+    return () => { alive = false; clearInterval(timer); };
+  }, []);
+  const changeDir = (value) => {
+    setDir(value);
+    try { localStorage.setItem(DIR_KEY, value); } catch { /* chỉ dùng cho phiên này */ }
+  };
+  const folder = dir.trim();
+  const badPath = UNSAFE_PATH.test(folder);
+  const runnerPath = mcp.serverPath.replace(/index\.js$/, 'runner.js');
+  const command = `node "${runnerPath}" install --url ${mcp.apiUrl} --token ${token || '<TOKEN>'}${folder && !badPath ? ` --dir "${folder}"` : ''}`;
+  return (
+    <div className="space-y-2 border-t border-slate-100 pt-3">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+        <p className="flex items-center gap-1.5 text-label-lg font-semibold text-slate-900"><Icon name="play_circle" size={18} className="text-blue-600" />{tr(' Chạy agent từ web')}</p>
+        <span className={`chip ${runner?.online ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-slate-100 text-slate-600'}`}>
+          <span className={`h-1.5 w-1.5 rounded-full ${runner?.online ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+          {runner?.online ? tr('Đang bật: {0}', [runner.agents.map((a) => AGENT_NAMES[a]).join(', ') || tr('chưa có agent')]) : tr('Đang tắt')}
+        </span>
+        <Info>{tr('Cài một lần: agent tự chạy ẩn mỗi khi bạn đăng nhập Windows. Sau đó bấm "Chạy bằng Antigravity" ở Lập kế hoạch, Hỏi đáp dự án, Ghi chú họp là agent trên máy làm và trả kết quả về web. "Ngắt kết nối" dừng agent ngay và hủy việc đang chờ; bấm "Bật agent" để bật lại.')}</Info>
+        {runner?.online
+          ? <button type="button" className="btn-outline btn-sm ml-auto text-rose-600" disabled={disconnect.busy} onClick={stop}>{disconnect.busy ? <Spinner /> : <Icon name="link_off" size={16} />}{tr(' Ngắt kết nối')}</button>
+          : <a className="btn-outline btn-sm ml-auto" href="taskflow://start"><Icon name="power_settings_new" size={16} />{tr(' Bật agent')}</a>}
+      </div>
+      {disconnect.error && <Notice tone="danger">{disconnect.error.message}</Notice>}
+      {runner?.unsupported && <Notice tone="warn">{tr('Máy chủ TaskFlow đang chạy bản cũ, chưa hỗ trợ giao việc cho agent. Hãy khởi động lại BackEnd rồi tải lại trang.')}</Notice>}
+      <Field label={tr('Thư mục dự án trên máy (không bắt buộc)')} error={badPath ? tr('Đường dẫn chứa ký tự không dùng được trong lệnh cài') : undefined}>
+        <input className="input" value={dir} onChange={(e) => changeDir(e.target.value)} placeholder="C:\Users\ban\Documents\du-an" spellCheck={false} />
+      </Field>
+      {token
+        ? <CopyBlock label={tr('Dán lệnh này vào terminal một lần')} text={command} />
+        : <Notice>{tr('Tạo token ở trên để lấy lệnh cài đặt (token chỉ hiện một lần).')}</Notice>}
+      <p className="text-label-md font-normal text-slate-500">
+        {tr('Lệnh cài chỉ ghi vào tài khoản Windows của bạn. Gỡ cài đặt:')} <code className="break-all rounded bg-slate-100 px-1 text-slate-700">node "{runnerPath}" uninstall</code>
+      </p>
+    </div>
+  );
+}
+
 function LocalAgentCard({ projectId }) {
   const toast = useToast();
   const { data, loading, error, reload, setData } = useLoad(() => api.get('/agent-tokens'), []);
@@ -188,16 +264,16 @@ function LocalAgentCard({ projectId }) {
     });
   };
   const revoke = (id) => action.run(async () => {
-    await api.delete(`/agent-tokens/${id}`);
+    await api.del(`/agent-tokens/${id}`);
     setData((x) => ({ ...x, tokens: x.tokens.filter((t) => t._id !== id) }));
     toast(tr('Đã thu hồi token'));
   });
   const snippet = configs(data.mcp, created)[client];
   return (
     <div className="card space-y-3 p-4">
-      <div>
+      <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
         <p className="flex items-center gap-1.5 text-label-lg font-semibold text-slate-900"><Icon name="terminal" size={18} className="text-blue-600" />{tr(' Agent trên máy (MCP)')}</p>
-        <p className="text-label-md font-normal text-slate-500">{tr('Claude Code, Codex hoặc Antigravity chạy bằng gói của chính bạn nên không tốn hạn mức AI của nhóm: tự đọc code trên máy, hỏi đáp về dự án, lập kế hoạch và tách việc từ biên bản họp. Kết quả gửi về TaskFlow dưới dạng bản nháp để PM duyệt. Code không đi qua server TaskFlow.')}</p>
+        <Info>{tr('Claude Code, Codex hoặc Antigravity chạy bằng gói của chính bạn nên không tốn hạn mức AI của nhóm: tự đọc code trên máy, hỏi đáp về dự án, lập kế hoạch và tách việc từ biên bản họp. Kết quả gửi về TaskFlow dưới dạng bản nháp để PM duyệt. Code không đi qua server TaskFlow.')}</Info>
       </div>
       <form className="flex flex-wrap gap-2" onSubmit={create}>
         <input className="input min-w-0 flex-1" required maxLength={80} placeholder={tr('Tên token, ví dụ: Claude Code trên laptop')} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
@@ -212,10 +288,11 @@ function LocalAgentCard({ projectId }) {
       {action.error && <Notice tone="danger">{action.error.message}</Notice>}
       <Tabs value={client} onChange={setClient} tabs={[{ value: 'claude', label: 'Claude Code' }, { value: 'codex', label: 'Codex' }, { value: 'antigravity', label: 'Antigravity' }]} />
       <CopyBlock label={snippet.file} text={snippet.text} />
-      <div className="space-y-1 text-label-md font-normal text-slate-500">
-        <p>{tr('Sau khi thêm, mở agent trong thư mục repo của dự án rồi yêu cầu, ví dụ: "Dùng TaskFlow quét bảo mật dự án này", "Hỏi TaskFlow: việc nào đang quá hạn?" hoặc "Lập kế hoạch làm trang thanh toán rồi gửi về TaskFlow". Lệnh có sẵn: security_review, review_pr, suggest_next, ask_project, make_plan, meeting_to_tasks.')}</p>
-        <p className="flex flex-wrap items-center gap-1">{tr('Mã dự án:')} <code className="break-all rounded bg-slate-100 px-1 text-slate-700">{projectId}</code></p>
+      <div className="flex flex-wrap items-center gap-x-1 gap-y-1 text-label-md font-normal text-slate-500">
+        <span>{tr('Mã dự án:')}</span> <code className="break-all rounded bg-slate-100 px-1 text-slate-700">{projectId}</code>
+        <Info>{tr('Sau khi thêm, mở agent trong thư mục repo của dự án rồi yêu cầu, ví dụ: "Dùng TaskFlow quét bảo mật dự án này", "Hỏi TaskFlow: việc nào đang quá hạn?" hoặc "Lập kế hoạch làm trang thanh toán rồi gửi về TaskFlow". Lệnh có sẵn: security_review, review_pr, suggest_next, ask_project, make_plan, meeting_to_tasks.')}</Info>
       </div>
+      <RunnerSetup mcp={data.mcp} token={created} />
       {data.tokens.length > 0 && (
         <ul className="divide-y divide-slate-100 border-t border-slate-100">
           {data.tokens.map((t) => (

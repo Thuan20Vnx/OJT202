@@ -68,7 +68,7 @@ export async function usageToday(workspaceId) {
  *
  * feature: planner | meeting | qa | report | risk; payload: dữ liệu đã lọc quyền gửi sang AIService.
  */
-export async function runAi({ workspaceId, userId, feature, payload, minTimeoutMs = 0 }) {
+export async function runAi({ workspaceId, userId, feature, payload, minTimeoutMs = config.ai.featureMinTimeoutMs[feature] ?? 0 }) {
   const queuedAt = new Date();
   const started = performance.now();
   // Giữ chỗ trong transaction ngắn; không giữ khóa trong lúc đợi dịch vụ AI.

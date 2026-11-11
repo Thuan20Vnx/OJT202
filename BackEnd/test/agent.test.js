@@ -233,6 +233,8 @@ describe('Token và MCP API cho agent trên máy', () => {
     const agent = agentClient(token);
     assert.equal((await agent.req('GET', '/api/mcp/projects')).status, 200);
     assert.equal((await agent.req('GET', `/api/projects/${pid}/repo`)).status, 401);
+    const unknown = await agent.req('POST', '/api/mcp/khong-co', {});
+    assert.deepEqual([unknown.status, unknown.data.error], [404, 'Không tìm thấy API cho agent'], 'không rơi xuống route cần đăng nhập');
     assert.equal((await agentClient('tfp_sai').req('GET', '/api/mcp/projects')).status, 401);
     assert.equal((await new Client().req('GET', '/api/mcp/projects')).status, 401);
   });
@@ -410,6 +412,163 @@ describe('Token và MCP API cho agent trên máy', () => {
     assert.deepEqual(tasks.map((t) => [t.source, t.assignee]), [['ai_meeting', members[0].memberId], ['ai_meeting', null]]);
     assert.match(tasks[0].description, /Trích biên bản/);
     await db.prisma.task.deleteMany({ where: { id: { in: tasks.map((t) => t.id) } } });
+  });
+
+  test('giao việc từ web cho agent trên máy: cần runner bật, đúng agent, đúng quyền', async () => {
+    const agent = agentClient(token);
+    const jobs = `/api/projects/${pid}/agent/jobs`;
+    const plan = { kind: 'plan', agent: 'antigravity', input: { goal: 'Làm trang liên hệ', maxHours: 10 } };
+    assert.equal((await pm.req('GET', '/api/agent/runner')).data.runner.online, false);
+    const offline = await pm.req('POST', jobs, plan);
+    assert.deepEqual([offline.status, offline.data.details?.code], [409, 'RUNNER_OFFLINE']);
+    assert.equal((await agent.req('POST', '/api/mcp/runner/poll', { agents: ['claude'] })).data.job, null);
+    assert.deepEqual((await pm.req('GET', '/api/agent/runner')).data.runner.agents, ['claude']);
+    assert.equal((await pm.req('POST', jobs, plan)).data.details.code, 'AGENT_UNAVAILABLE');
+    assert.equal((await agent.req('POST', '/api/mcp/runner/poll', { agents: ['claude', 'antigravity', 'la'] })).status, 400);
+    await agent.req('POST', '/api/mcp/runner/poll', { agents: ['claude', 'antigravity'] });
+    assert.equal((await member.req('POST', jobs, plan)).status, 403, 'thành viên không lập kế hoạch');
+    assert.equal((await member.req('POST', jobs, { kind: 'qa', agent: 'claude', input: { question: 'Ai làm gì?' } })).data.details.code, 'RUNNER_OFFLINE', 'runner của PM không phục vụ người khác');
+    assert.equal((await pm.req('POST', jobs, { ...plan, input: { goal: 'x' } })).status, 400);
+    assert.equal((await pm.req('POST', jobs, { ...plan, input: { goal: 'Làm trang liên hệ', lenh: 'rm -rf' } })).status, 400, 'không nhận trường lạ');
+  });
+
+  test('việc lập kế hoạch: runner nhận một lần, agent lấy đề bài, giới hạn của người dùng thắng lời agent', async () => {
+    const agent = agentClient(token);
+    await agent.req('POST', '/api/mcp/runner/poll', { agents: ['antigravity'] });
+    const created = await pm.req('POST', `/api/projects/${pid}/agent/jobs`, { kind: 'plan', agent: 'antigravity', input: { goal: 'Làm trang liên hệ', maxHours: 10 } });
+    assert.equal(created.status, 201);
+    const id = created.data.job._id;
+    assert.equal((await agent.req('POST', '/api/mcp/runner/poll', { agents: ['antigravity'], claim: false })).data.job, null, 'báo còn sống thì không nhận việc');
+    const claimed = (await agent.req('POST', '/api/mcp/runner/poll', { agents: ['antigravity'] })).data.job;
+    assert.deepEqual(claimed, { jobId: id, kind: 'plan', agent: 'antigravity', projectId: pid, source: 'none', repo: null, branch: null }, 'runner không nhận nội dung người dùng nhập');
+    assert.equal((await agent.req('POST', '/api/mcp/runner/poll', { agents: ['antigravity'] })).data.job, null);
+    assert.equal((await pm.req('GET', `/api/agent/jobs/${id}`)).data.job.status, 'running');
+    const brief = (await agent.req('GET', `/api/mcp/runner/jobs/${id}`)).data;
+    assert.deepEqual([brief.job.kind, brief.job.projectId, brief.job.input.goal, brief.job.input.maxHours], ['plan', pid, 'Làm trang liên hệ', 10]);
+    const other = await member.req('POST', '/api/agent-tokens', { name: 'Máy thành viên 3', days: 7 });
+    assert.equal((await agentClient(other.data.token).req('GET', `/api/mcp/runner/jobs/${id}`)).status, 404, 'người khác không đọc được việc');
+    const url = `/api/mcp/projects/${pid}/plans`;
+    const tooMuch = await agent.req('POST', url, { jobId: id, goal: 'Mục tiêu agent tự đổi', maxHours: 500, items: [planItem({ estimateHours: 20 })] });
+    assert.equal(tooMuch.status, 400);
+    assert.match(tooMuch.data.error, /vượt giới hạn 10 giờ/);
+    assert.equal((await agent.req('POST', `/api/mcp/projects/${pid}/meetings`, { jobId: id, items: [] })).status, 400, 'sai loại việc');
+    const sent = await agent.req('POST', url, { jobId: id, agent: 'Antigravity', items: [planItem()] });
+    assert.equal(sent.status, 201);
+    const job = (await pm.req('GET', `/api/agent/jobs/${id}`)).data.job;
+    assert.deepEqual([job.status, job.resultType, job.resultId], ['done', 'draft', sent.data.draft._id]);
+    const draft = (await pm.req('GET', `/api/ai/drafts/${job.resultId}`)).data.draft;
+    assert.deepEqual([draft.input.goal, draft.input.maxHours, draft.input.agent], ['Làm trang liên hệ', 10, 'Antigravity']);
+    assert.equal((await agent.req('POST', url, { jobId: id, items: [planItem()] })).status, 400, 'việc xong rồi không nhận thêm kết quả');
+    assert.equal((await agent.req('POST', `/api/mcp/runner/jobs/${id}/finish`, { ok: true })).data.job.status, 'done');
+  });
+
+  test('việc hỏi đáp và biên bản họp: câu hỏi, biên bản lấy từ web; agent thoát mà không gửi thì báo lỗi; hủy được', async () => {
+    const agent = agentClient(token);
+    const poll = () => agent.req('POST', '/api/mcp/runner/poll', { agents: ['claude'] });
+    const jobs = `/api/projects/${pid}/agent/jobs`;
+    await poll();
+    const qa = (await pm.req('POST', jobs, { kind: 'qa', agent: 'claude', input: { question: `Ai làm ${taskKeys.todo}?` } })).data.job;
+    await poll();
+    const saved = await agent.req('POST', `/api/mcp/projects/${pid}/answers`, { jobId: qa._id, question: 'Câu hỏi agent bịa', answer: 'Chưa ghi nhận.', agent: 'Claude Code' });
+    assert.equal(saved.status, 201);
+    const done = (await pm.req('GET', `/api/agent/jobs/${qa._id}`)).data.job;
+    assert.deepEqual([done.status, done.resultType, done.resultId], ['done', 'conversation', saved.data.conversationId]);
+    const conv = (await pm.req('GET', `/api/ai/conversations/${done.resultId}`)).data.conversation;
+    assert.equal(conv.messages[0].content, `Ai làm ${taskKeys.todo}?`);
+
+    const text = 'Thuận: mình sẽ viết tài liệu API trong tuần này.';
+    const meeting = (await pm.req('POST', jobs, { kind: 'meeting', agent: 'claude', input: { title: 'Họp tuần', text } })).data.job;
+    await poll();
+    const wrong = await agent.req('POST', `/api/mcp/projects/${pid}/meetings`, { jobId: meeting._id, text: 'Biên bản agent tự viết: giao hết cho Mai.', items: [{ title: 'Giao hết', excerpt: 'giao hết cho Mai' }] });
+    assert.equal(wrong.status, 400, 'trích đoạn phải có trong biên bản người dùng nhập');
+    const failed = await agent.req('POST', `/api/mcp/runner/jobs/${meeting._id}/finish`, { ok: true, output: `Tôi không làm được. Khóa ${SECRET}` });
+    assert.equal(failed.data.job.status, 'failed');
+    const shown = (await pm.req('GET', `/api/agent/jobs/${meeting._id}`)).data.job;
+    assert.match(shown.error, /không gửi kết quả/);
+    assert.ok(!shown.error.includes(SECRET));
+
+    const queued = (await pm.req('POST', jobs, { kind: 'meeting', agent: 'claude', input: { title: 'Họp tuần', text } })).data.job;
+    assert.equal((await member.req('POST', `/api/agent/jobs/${queued._id}/cancel`)).status, 404);
+    assert.equal((await pm.req('POST', `/api/agent/jobs/${queued._id}/cancel`)).data.job.status, 'cancelled');
+    assert.equal((await poll()).data.job, null, 'việc đã hủy không được giao');
+    await db.prisma.agentJob.updateMany({ where: { id: queued._id }, data: { status: 'queued', createdAt: new Date(Date.now() - 4 * 60000) } });
+    assert.equal((await pm.req('GET', `/api/agent/jobs/${queued._id}`)).data.job.status, 'failed', 'chờ quá lâu thì đóng lại');
+  });
+
+  test('nguồn code: tự đoán theo câu chữ, GitHub cần repo đã kết nối, runner chỉ nhận đường dẫn công khai', async () => {
+    const agent = agentClient(token);
+    const poll = () => agent.req('POST', '/api/mcp/runner/poll', { agents: ['claude'] });
+    const jobs = `/api/projects/${pid}/agent/jobs`;
+    await db.prisma.repoConnection.deleteMany({ where: { project: pid } });
+    await poll();
+    const noRepo = await pm.req('POST', jobs, { kind: 'qa', agent: 'claude', input: { question: 'Đọc dự án trên GitHub rồi tick việc đã xong' } });
+    assert.equal(noRepo.status, 400);
+    assert.match(noRepo.data.error, /chưa kết nối repo/);
+    assert.equal((await pm.req('POST', jobs, { kind: 'qa', agent: 'claude', input: { question: 'Hỏi gì đó', source: 'ftp' } })).status, 400);
+    const local = (await pm.req('POST', jobs, { kind: 'qa', agent: 'claude', input: { question: 'Đọc code trên máy xem xong chưa' } })).data.job;
+    assert.equal(local.source, 'local');
+    const claimed = (await poll()).data.job;
+    assert.deepEqual([claimed.jobId, claimed.source, claimed.repo], [local._id, 'local', null]);
+    await pm.req('POST', `/api/agent/jobs/${local._id}/cancel`);
+    assert.equal((await connect()).status, 200);
+    try {
+      const gh = (await pm.req('POST', jobs, { kind: 'plan', agent: 'claude', input: { goal: 'Làm tiếp phần còn thiếu trong repo', source: 'auto' } })).data.job;
+      assert.equal(gh.source, 'github');
+      const next = (await poll()).data.job;
+      assert.deepEqual([next.source, next.branch], ['github', 'main']);
+      assert.match(next.repo, /^https:\/\/.+\/acme\/app$/);
+      await pm.req('POST', `/api/agent/jobs/${gh._id}/cancel`);
+    } finally {
+      await db.prisma.repoConnection.deleteMany({ where: { project: pid } });
+    }
+  });
+
+  test('agent tick hoàn thành: theo luật đổi trạng thái của web, ghi căn cứ thành bình luận', async () => {
+    const agent = agentClient(token);
+    await agent.req('POST', '/api/mcp/runner/poll', { agents: ['claude'] });
+    const job = (await pm.req('POST', `/api/projects/${pid}/agent/jobs`, { kind: 'qa', agent: 'claude', input: { question: 'Tick các việc đã xong', source: 'none' } })).data.job;
+    await agent.req('POST', '/api/mcp/runner/poll', { agents: ['claude'] });
+    const url = `/api/mcp/projects/${pid}/tasks/complete`;
+    assert.equal((await agent.req('POST', url, { jobId: job._id, tasks: [{ taskId: taskKeys.todo, evidence: 'x' }] })).status, 400, 'phải có căn cứ');
+    const r = await agent.req('POST', url, { jobId: job._id, agent: 'Claude Code', tasks: [{ taskId: taskKeys.todo, evidence: `src/app.js đã có chức năng. Khóa ${SECRET}` }, { taskId: 'ZZ-999', evidence: 'không có việc này' }] });
+    assert.equal(r.status, 200);
+    assert.deepEqual(r.data.results.map((x) => x.ok), [true, false], JSON.stringify(r.data.results));
+    const task = await db.prisma.task.findFirst({ where: { project: pid, key: taskKeys.todo } });
+    assert.equal(task.status, 'done');
+    const comment = await db.prisma.comment.findFirst({ where: { task: task.id }, orderBy: { createdAt: 'desc' } });
+    assert.match(comment.body, /\[Claude Code\] Chuyển sang Hoàn thành/);
+    assert.ok(!comment.body.includes(SECRET), 'che bí mật trong căn cứ');
+    const memberAgent = agentClient((await member.req('POST', '/api/agent-tokens', { name: 'Máy thành viên tick', days: 7 })).data.token);
+    const other = await db.prisma.task.findFirst({ where: { project: pid, status: 'todo', deletedAt: null, id: { not: task.id } } });
+    const byMember = await memberAgent.req('POST', url, { tasks: [{ taskId: other.key, evidence: 'src/x.js đã có' }] });
+    assert.ok(['review', undefined].includes(byMember.data.results[0].status), JSON.stringify(byMember.data));
+    assert.notEqual((await db.prisma.task.findUnique({ where: { id: other.id } })).status, 'done', 'thành viên không tự Hoàn thành được');
+    await db.prisma.task.update({ where: { id: other.id }, data: { status: 'todo', reviewSince: null } });
+    const again = await agent.req('POST', url, { jobId: job._id, tasks: [{ taskId: taskKeys.todo, evidence: 'gọi lại lần hai' }] });
+    assert.equal(again.data.results[0].already, true);
+    const plan = (await pm.req('POST', `/api/projects/${pid}/agent/jobs`, { kind: 'plan', agent: 'claude', input: { goal: 'Kế hoạch bất kỳ', source: 'none' } })).data.job;
+    await agent.req('POST', '/api/mcp/runner/poll', { agents: ['claude'] });
+    assert.equal((await agent.req('POST', url, { jobId: plan._id, tasks: [{ taskId: taskKeys.todo, evidence: 'việc lập kế hoạch' }] })).status, 400, 'chỉ việc hỏi đáp được tick');
+    await db.prisma.task.update({ where: { id: task.id }, data: { status: 'todo', completedAt: null, progressPct: 0 } });
+    await pm.req('POST', `/api/agent/jobs/${plan._id}/cancel`);
+    await pm.req('POST', `/api/agent/jobs/${job._id}/cancel`);
+  });
+
+  test('ngắt kết nối từ web: runner phiên đó nhận lệnh dừng, việc chờ bị hủy, phiên mới chạy lại được', async () => {
+    const agent = agentClient(token);
+    const poll = (session) => agent.req('POST', '/api/mcp/runner/poll', { agents: ['claude'], session });
+    await poll('phien-cu-12345678');
+    assert.equal((await pm.req('GET', '/api/agent/runner')).data.runner.online, true);
+    const job = (await pm.req('POST', `/api/projects/${pid}/agent/jobs`, { kind: 'qa', agent: 'claude', input: { question: 'Ai làm gì?' } })).data.job;
+    const off = await pm.req('POST', '/api/agent/runner/disconnect');
+    assert.equal(off.data.runner.online, false);
+    assert.equal((await pm.req('GET', `/api/agent/jobs/${job._id}`)).data.job.status, 'cancelled');
+    const stopped = (await poll('phien-cu-12345678')).data;
+    assert.deepEqual([stopped.stop, stopped.job], [true, null]);
+    assert.equal((await pm.req('GET', '/api/agent/runner')).data.runner.online, false, 'phiên đã ngắt không được tính là đang bật');
+    assert.equal((await poll('phien-moi-87654321')).data.stop, undefined);
+    assert.equal((await pm.req('GET', '/api/agent/runner')).data.runner.online, true);
+    assert.equal((await poll('bad session!')).status, 400);
   });
 
   test('thu hồi hoặc hết hạn thì token mất hiệu lực ngay', async () => {

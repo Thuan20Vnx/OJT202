@@ -5,6 +5,7 @@ import { api } from '../../lib/api.js';
 import { useLoad, useToast } from '../../lib/app.jsx';
 import { isoDate, timeAgo } from '../../lib/format.js';
 import { useLatestRequest, useProjectInfo } from '../../lib/hooks.js';
+import { AgentRunButton, CodeSourcePicker, useAgentRun, useCodeSource } from './AgentRun.jsx';
 import DraftItems from './DraftItems.jsx';
 
 export function History({ items, onOpen, activeId, error, loading, onRetry, empty = tr("Chưa có lịch sử") }) {
@@ -91,6 +92,8 @@ export default function Planner({ project, onUsage, disabled }) {
     }
   };
   const canWrite = !!info?.access?.canManage;
+  const agentRun = useAgentRun({ project, onDone: (job) => open(job.resultId) });
+  const code = useCodeSource(project);
 
   return (
     <div className="grid gap-5 lg:grid-cols-[360px_1fr]">
@@ -125,6 +128,14 @@ export default function Planner({ project, onUsage, disabled }) {
           <Notice tone="warn">{tr("Nếu thiếu ngày, AI không tự suy diễn hạn chót.")}</Notice>
           <button className="btn-primary h-10 w-full" onClick={generate} disabled={busy || f.goal.trim().length < 5 || disabled || !canWrite}>
             {busy ? <Spinner /> : <Icon name="auto_awesome" size={18} />}{tr("Tạo kế hoạch nháp")}</button>
+          <AgentRunButton
+            run={agentRun}
+            kind="plan"
+            input={{ goal: f.goal, deadline: f.deadline || null, people: f.people ? Number(f.people) : null, maxHours: f.maxHours ? Number(f.maxHours) : null, source: code.source }}
+            disabled={busy || f.goal.trim().length < 5 || !canWrite}
+          >
+            <CodeSourcePicker code={code} disabled={agentRun.active} className="-ml-1.5" />
+          </AgentRunButton>
           {!canWrite && <p className="text-label-md font-normal text-slate-500">{tr('Chỉ PM của dự án đang hoạt động được lập và duyệt kế hoạch.')}</p>}
         </div>
         {error && <Notice tone={error.status === 429 ? 'warn' : 'danger'}>{error.message}</Notice>}

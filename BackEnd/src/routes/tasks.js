@@ -700,5 +700,5 @@ router.delete('/comments/:id', async (req, res) => {
   res.json({ ok: true });
 });
 
-export { loadTask, enrich, addDependency };
+export { loadTask, enrich, addDependency, applyUpdate };
 export default router;

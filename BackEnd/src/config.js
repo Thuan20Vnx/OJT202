@@ -84,6 +84,9 @@ export const config = {
     serviceUrl: (env.AI_SERVICE_URL || 'http://localhost:5000').replace(/\/+$/, ''),
     serviceKey: env.AI_SERVICE_KEY || '',
     timeoutMs: Number(env.AI_TIMEOUT_MS || 30000),
+    // Thời gian chờ tối thiểu theo tính năng, thắng cả AI_TIMEOUT_MS lẫn cài đặt workspace: model miễn phí
+    // (Gemini Flash có bước suy luận) thường mất 20–40 giây cho kế hoạch và hỏi đáp, chờ 30 giây là hay báo "AI đang bận".
+    featureMinTimeoutMs: { planner: 90000, qa: 60000, meeting: 60000, report: 60000 },
   },
 };
 

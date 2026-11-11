@@ -4,14 +4,16 @@ import { z } from 'zod';
 import { config } from '../config.js';
 import { isId, nextSeq, prisma } from '../db.js';
 import { assertActiveSession, requireAuth } from '../middleware/auth.js';
-import { assertManage, middlewareProject, projectAccess } from '../middleware/access.js';
+import { assertManage, assertWrite, middlewareProject, projectAccess } from '../middleware/access.js';
 import { logActivity, logActivityIn } from '../services/activity.js';
+import { JOB_AGENTS, cancelJob, createJob, disconnectRunner, getJob, publicJob, runnerStatus } from '../services/agent-jobs.js';
 import { createAgentToken, listAgentTokens, revokeAgentToken } from '../services/agent-tokens.js';
 import { withWorkspaceLock } from '../services/membership.js';
 import { emitProject } from '../services/realtime.js';
 import { encryptToken, parseRepoUrl, repoClient } from '../services/repo/client.js';
 import { buildDiscovery, connectionOf, repoProgress } from '../services/repo/agent.js';
-import { badRequest, notFound, parse } from '../utils/http.js';
+import { isDateInput, parseDate } from '../utils/dates.js';
+import { badRequest, forbidden, notFound, parse } from '../utils/http.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -168,6 +170,80 @@ router.post('/agent-tokens', async (req, res) => {
 router.delete('/agent-tokens/:id', async (req, res) => {
   if (isId(req.params.id)) await revokeAgentToken(req.user.id, req.params.id);
   res.json({ ok: true });
+});
+
+// ===================== GIAO VIỆC CHO AGENT TRÊN MÁY =====================
+router.get('/agent/runner', async (req, res) => {
+  res.json({ runner: await runnerStatus(req.user.id), agents: JOB_AGENTS });
+});
+
+router.post('/agent/runner/disconnect', async (req, res) => {
+  res.json({ runner: await disconnectRunner(req.user.id) });
+});
+
+// Nơi agent đọc code: none = chỉ dữ liệu TaskFlow, github = bản sao repo đã kết nối (runner tự tải về máy bằng git của
+// người dùng), local = thư mục dự án đã khai báo khi cài runner. auto = đoán từ nội dung người dùng nhập.
+export const CODE_SOURCES = ['auto', 'none', 'github', 'local'];
+const sourceField = z.enum(CODE_SOURCES).default('auto');
+const MENTIONS_REPO = /github|gitlab|\brepo\b/i;
+const MENTIONS_CODE = /trên máy|ở máy|máy (mình|tôi|em)|thư mục|local|mã nguồn|source|\bcode\b/i;
+
+export function guessSource(text) {
+  if (MENTIONS_REPO.test(text)) return 'github';
+  if (MENTIONS_CODE.test(text)) return 'local';
+  return 'none';
+}
+
+const jobInputs = {
+  plan: z.object({
+    goal: z.string().trim().min(5, 'Mục tiêu quá ngắn').max(2000),
+    deadline: z.string().refine(isDateInput, 'Hạn hoàn thành không hợp lệ').nullish(),
+    people: z.number().int().min(1).max(50).nullish(),
+    maxHours: z.number().min(1).max(5000).nullish(),
+    source: sourceField,
+  }).strict(),
+  qa: z.object({ question: z.string().trim().min(3, 'Câu hỏi quá ngắn').max(1000), conversation: z.uuid().nullish(), source: sourceField }).strict(),
+  meeting: z.object({ title: z.string().trim().min(1, 'Nhập tên cuộc họp').max(200), text: z.string().trim().min(10, 'Biên bản quá ngắn').max(30000) }).strict(),
+};
+
+/** Xếp một việc cho agent trên máy của chính người bấm. Quyền giống nút AI tương ứng trên web. */
+router.post('/projects/:projectId/agent/jobs', middlewareProject(), async (req, res) => {
+  const body = parse(z.object({ kind: z.enum(['plan', 'qa', 'meeting']), agent: z.enum(JOB_AGENTS), input: z.unknown() }).strict(), req.body);
+  if (body.kind === 'qa') assertWrite(req.pa);
+  else assertManage(req.pa);
+  const input = parse(jobInputs[body.kind], body.input);
+  const project = req.pa.project;
+  // Quản trị đã tắt Trợ lý AI của workspace thì cũng không giao việc cho agent.
+  const workspace = await prisma.workspace.findUnique({ where: { id: project.workspace }, select: { ai: true } });
+  if (!workspace?.ai?.enabled) throw forbidden('Trợ lý AI đang tắt trong cài đặt workspace');
+  if (body.kind === 'plan' && input.deadline) {
+    const deadline = parseDate(input.deadline, req.user.timezone, true);
+    if (deadline.getTime() < Date.now()) throw badRequest('Hạn hoàn thành kế hoạch đã qua');
+    input.deadline = deadline.toISOString();
+  }
+  if (body.kind === 'qa' && input.conversation) {
+    const own = await prisma.aiConversation.findFirst({ where: { id: input.conversation, user: req.user.id, project: project.id }, select: { id: true } });
+    if (!own) throw notFound('Không tìm thấy cuộc hỏi đáp');
+  }
+  if (input.source) {
+    if (input.source === 'auto') input.source = guessSource(body.kind === 'qa' ? input.question : input.goal);
+    if (input.source === 'github') {
+      const conn = await prisma.repoConnection.findUnique({ where: { project: project.id } });
+      if (!conn) throw badRequest('Dự án chưa kết nối repo GitHub/GitLab. PM kết nối ở tab Agent dự án, hoặc chọn đọc thư mục trên máy.');
+      // Chỉ đường dẫn công khai của repo; runner tải bằng git và quyền GitHub của chính người dùng trên máy đó.
+      Object.assign(input, { repo: webUrl(conn), branch: conn.defaultBranch });
+    }
+  }
+  const job = await createJob({ project, userId: req.user.id, kind: body.kind, agent: body.agent, input });
+  res.status(201).json({ job: publicJob(job) });
+});
+
+router.get('/agent/jobs/:id', async (req, res) => {
+  res.json({ job: publicJob(await getJob(req.user.id, req.params.id)) });
+});
+
+router.post('/agent/jobs/:id/cancel', async (req, res) => {
+  res.json({ job: publicJob(await cancelJob(req.user.id, req.params.id)) });
 });
 
 export default router;

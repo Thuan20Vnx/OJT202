@@ -178,6 +178,7 @@ model User {
   repoConnections    RepoConnection[]
   agentTokens        AgentToken[]
   agentRuns          AgentRun[]
+  agentJobs          AgentJob[]
   aiConversations    AiConversation[]
   riskResolutions    RiskResolution[]
   auditsDone         AdminAudit[]       @relation("AuditAdmin")
@@ -278,6 +279,7 @@ model Workspace {
   aiReports       AiReport[]
   repoConnections RepoConnection[]
   agentRuns       AgentRun[]
+  agentJobs       AgentJob[]
   aiConversations AiConversation[]
 
   @@map("workspaces")
@@ -381,6 +383,7 @@ model Project {
   aiReports       AiReport[]
   repoConnection  RepoConnection?
   agentRuns       AgentRun[]
+  agentJobs       AgentJob[]
   aiConversations AiConversation[]
   riskResolutions RiskResolution[]
   memberships     ProjectMember[]
@@ -990,9 +993,57 @@ model AgentToken {
   lastUsedAt DateTime? @map("last_used_at")
   revokedAt  DateTime? @map("revoked_at")
   createdAt  DateTime  @default(now())
+  /// Lần gần nhất runner trên máy (taskflow-runner) dùng token này hỏi việc, và các agent CLI máy đó có.
+  runnerSeenAt DateTime? @map("runner_seen_at")
+  runnerAgents String[]  @default([]) @map("runner_agents")
+  /// Mã phiên của tiến trình runner gần nhất; runnerStop = mã phiên người dùng đã bấm "Ngắt kết nối" trên web.
+  runnerSession String? @map("runner_session") @db.VarChar(64)
+  runnerStop    String? @map("runner_stop") @db.VarChar(64)
 
   userRef User @relation(fields: [user], references: [id], onDelete: Cascade)
 
   @@index([user])
   @@map("agent_tokens")
+}
+
+enum AgentJobKind {
+  plan
+  qa
+  meeting
+}
+
+enum AgentJobStatus {
+  queued
+  running
+  done
+  failed
+  cancelled
+}
+
+/// Việc người dùng bấm trên web để agent trên máy của CHÍNH họ làm (runner nhận qua /api/mcp/runner).
+/// Chỉ ba loại cố định; kết quả quay về bằng bản nháp (ai_drafts) hoặc cuộc hỏi đáp (ai_conversations).
+model AgentJob {
+  id         String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspace  String         @map("workspace_id") @db.Uuid
+  project    String         @map("project_id") @db.Uuid
+  user       String         @map("user_id") @db.Uuid
+  kind       AgentJobKind
+  /// antigravity | claude | codex
+  agent      String         @db.VarChar(20)
+  status     AgentJobStatus @default(queued)
+  input      Json
+  /// draft | conversation
+  resultType String?        @map("result_type") @db.VarChar(20)
+  resultId   String?        @map("result_id") @db.Uuid
+  error      String?        @db.VarChar(1000)
+  createdAt  DateTime       @default(now())
+  startedAt  DateTime?      @map("started_at")
+  finishedAt DateTime?      @map("finished_at")
+
+  workspaceRef Workspace @relation(fields: [workspace], references: [id], onDelete: Cascade)
+  projectRef   Project   @relation(fields: [project], references: [id], onDelete: Cascade)
+  userRef      User      @relation(fields: [user], references: [id], onDelete: Cascade)
+
+  @@index([user, status])
+  @@map("agent_jobs")
 }

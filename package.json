@@ -5,6 +5,7 @@
   "scripts": {
     "install:all": "npm --prefix BackEnd install && npm --prefix AIService install && npm --prefix FrontEnd install && npm --prefix mcp install",
     "dev": "node scripts/dev.mjs",
+    "agent": "node mcp/src/runner.js",
     "build": "npm run typecheck && npm --prefix FrontEnd run build",
     "start": "npm --prefix BackEnd start",
     "start:ai": "npm --prefix AIService start",
