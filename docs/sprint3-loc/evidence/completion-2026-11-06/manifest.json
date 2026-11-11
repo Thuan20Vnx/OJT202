@@ -1,0 +1,131 @@
+{
+  "schemaVersion": 1,
+  "testedBuild": {
+    "revision": "3857d7377a0ede27b3f745319cfc7d670f41aeb5",
+    "sourceHash": "37f446c9d1992ccbb0e216635fa1a8687378149f9d882b589600483f642b1410",
+    "sourceHashAlgorithm": "sha256-lf-v1",
+    "promptHash": "8cfd6b9adb4d3f9eb1a3c37e2c8eea77dc8ac74430c6d2fcec69dae23317804b",
+    "dirty": false,
+    "node": "v24.15.0"
+  },
+  "integratedMain": "8654d8fa3a811f0a347606099a0d3deb44ece8eb",
+  "technicalResults": {
+    "tests": 469,
+    "e2e": 13,
+    "originalReviewProbes": 5,
+    "aiDevelopmentCases": 24,
+    "localProductionSmokeChecks": 17,
+    "failures": 0,
+    "skipped": 0,
+    "build": "passed",
+    "lint": "passed"
+  },
+  "acceptance": {
+    "independentHumanReview": "pending",
+    "hiddenDataset": "pending",
+    "remoteCI": "not-run",
+    "productionVerified": false
+  },
+  "files": {
+    "admin-lock.png": {
+      "sha256": "51afa1abc759695faedc3a62668d0517a367c3a49505d86b7dc29ef1401739f2",
+      "normalization": "binary"
+    },
+    "ai-evaluation.md": {
+      "sha256": "0a880748155d83f39d37ec891345506914ab9fce298312d0872d84cb060af1e8",
+      "normalization": "utf8-lf"
+    },
+    "ai-run.json": {
+      "sha256": "9e40fe7fb31c857b51c604b9d29e9c6372bc96a3a241717f10d0aefe2bcb0924",
+      "normalization": "utf8-lf"
+    },
+    "build-first.txt": {
+      "sha256": "eee485353e5e6354d55dd60942e3f04866421a785e52bd506b8099de9c28ae35",
+      "normalization": "utf8-lf"
+    },
+    "build.txt": {
+      "sha256": "80982a032f7612318ddd7ae3053de874e8fefbbf731191110181c987e575b508",
+      "normalization": "utf8-lf"
+    },
+    "e2e-first.txt": {
+      "sha256": "87383e5beeb0b28d076e4d752aa3742426307502ab1da829434c2165d56c8c89",
+      "normalization": "utf8-lf"
+    },
+    "e2e-workflow-retest.txt": {
+      "sha256": "53b19e44ac40a6fd1388d6d70dfd4edc00f75521c96193fe7b01fcd39840f5ff",
+      "normalization": "utf8-lf"
+    },
+    "e2e.txt": {
+      "sha256": "54105d00b150dfc51712a71272e4112c85b3d312c87faffec3aa321481cd6eb4",
+      "normalization": "utf8-lf"
+    },
+    "evaluation.txt": {
+      "sha256": "963450b1974f0ef6a0bdefdb66b4f77718827fafef399788ff195429b096f4a5",
+      "normalization": "utf8-lf"
+    },
+    "frontend-focused.txt": {
+      "sha256": "757ffe0ec0ca24777277f32cefb0de82ce3fc3235688c40449d92c6f9b3d1cf2",
+      "normalization": "utf8-lf"
+    },
+    "install-backend.txt": {
+      "sha256": "c328e8b91375b9dc8f301d61c00a33673dec6a5312cc45c8e6444c418ae10f05",
+      "normalization": "utf8-lf"
+    },
+    "install-frontend.txt": {
+      "sha256": "8f941413197b9f31fa2764edb7926fa2ca6fc847f7f95d2eedecf106bf73945f",
+      "normalization": "utf8-lf"
+    },
+    "lint-first.txt": {
+      "sha256": "1b08adefa96aca7c5120d6c45c85d17013eebda6586e8289a0d22133ae7cf234",
+      "normalization": "utf8-lf"
+    },
+    "lint.txt": {
+      "sha256": "de4bf2209dce91956dd594654e7e72cfe2f45b89ed231d4c398933258a0d84cf",
+      "normalization": "utf8-lf"
+    },
+    "local-production-smoke.json": {
+      "sha256": "ecc695e3b88fab2ba36cc700e8cf2f7d2fc93f09c4c09cd7e8ba2a95ed555f4e",
+      "normalization": "utf8-lf"
+    },
+    "migration-retest.txt": {
+      "sha256": "630e8647500e799b2a5a962cc78e2a165640ab2ac8a4e048f91850838dde12d6",
+      "normalization": "utf8-lf"
+    },
+    "release-readiness.json": {
+      "sha256": "152aa96406919220e9127927e070941d54bb197667e120830f99637fccdd6ed3",
+      "normalization": "utf8-lf"
+    },
+    "report-source.png": {
+      "sha256": "47c25810cebaffbf33b6bccb81fbf375d6461dc9f3b7490488957d9c8aacc032",
+      "normalization": "binary"
+    },
+    "review-probes.txt": {
+      "sha256": "14c32acf66485c16f2d7b06439c3f9dc8423f968984ad1d438badd9b758eb29a",
+      "normalization": "utf8-lf"
+    },
+    "scores.json": {
+      "sha256": "aaaabfc73cae9b18864c00995a8f52c3c7a4363022551dc69ccd4b3275eeec60",
+      "normalization": "utf8-lf"
+    },
+    "tests-first.txt": {
+      "sha256": "69a6212c72df4c5d368e247fef74c27df04f1a0bf2ca1ab34aa025102f027f7c",
+      "normalization": "utf8-lf"
+    },
+    "tests.txt": {
+      "sha256": "32ac45070dfb28fe9eb2c2aaf2880d0e49674399d57924b940808658fee6b9c2",
+      "normalization": "utf8-lf"
+    },
+    "uat-input.json": {
+      "sha256": "577eac7a44ab537f5611fbe6c57002623a96affee7a808d17d5b431b626ae49d",
+      "normalization": "utf8-lf"
+    },
+    "uat.json": {
+      "sha256": "9ae4810ab0bcf4334501b0dfbf4632b23da298c098d91fc53bb6b9dcf1204942",
+      "normalization": "utf8-lf"
+    },
+    "unit-focused.txt": {
+      "sha256": "8920078287fa86e37e70a156b9ede01d3ab86f8e2e3c5fc812b4ace652e3eca0",
+      "normalization": "utf8-lf"
+    }
+  }
+}

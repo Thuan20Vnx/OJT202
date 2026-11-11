@@ -2,6 +2,10 @@
 
 Đồ án Nhóm 24 (Hoàng Anh, Thuận, Như, Lộc, Đạt, Hiệp). Giao diện dựng theo 23 màn hình thiết kế trên Stitch (dự án *TaskFlow Kanban Interface*), nghiệp vụ theo Product Backlog trong `DN26_CPL_Mock_Project_Nhom24.xlsx`.
 
+Phạm vi sản phẩm: quản lý công việc cho **nhóm phát triển phần mềm khoảng 5–20 người**, phục vụ PM, developer, tester và người theo dõi dự án. PM giao trách nhiệm, phân bổ effort và duyệt hoàn thành; người thực hiện cập nhật công việc mỗi ngày. Chức danh chuyên môn khác quyền truy cập PM/Member/Viewer theo từng dự án. Không bao gồm quản lý lương, tính tiền khách hàng hoặc đánh giá năng suất nhân sự bằng giờ làm.
+
+Bản bổ sung theo góp ý giảng viên: **phân bổ nhiều người/task, loại công việc chuẩn hóa, nhật ký giờ/tiến độ, vấn đề gây trễ, hai thanh kế hoạch–thực tế, tải thành viên xuyên dự án và lịch họp chống trùng**. Hướng dẫn và đối chiếu từng yêu cầu: [nghiệp vụ nhóm phát triển](docs/TEAM_DELIVERY_2026-11-03.md).
+
 | Thư mục | Thành phần | Công nghệ |
 |---|---|---|
 | `FrontEnd/` | Giao diện web | React 18 + Vite + Tailwind CSS (Inter, Material Symbols – đúng design system Stitch v2) |
@@ -19,12 +23,15 @@ AIService chỉ nhận dữ liệu đã lọc và trả kết quả AI (kế ho�
 
 ## Chạy nhanh
 
+Bàn giao Sprint 3 của Nguyễn Bảo Lộc, rà soát lại đủ 11 nhiệm vụ ngày 07/11/2026: [kết quả mới nhất và hai lỗi risk đã sửa](docs/sprint3-loc/RECHECK_2026-11-07.md), [chi tiết tích hợp trước đó](docs/sprint3-loc/COMPLETION_2026-11-07.md), [kịch bản demo](docs/sprint3-loc/DEMO.md). Mã đã kiểm thử tại `5ac8b18`: 475/475 test, 13/13 E2E; nghiệm thu độc lập và CI/deploy remote cần bằng chứng riêng.
+
 Hướng dẫn cài mới trên PowerShell: [cài đặt và bàn giao](docs/design/INSTALL.md). Đối chiếu toàn bộ nhiệm vụ Hoàng Thị Hải Như: [phân công, thay đổi và giới hạn nghiệm thu](docs/NHU_ALL_SPRINTS_2026-10-29.md). Bộ thiết kế hiện tại: [SRS/quyền/workflow](docs/design/SRS.md), [ERD](docs/design/ERD.md), [OpenAPI](docs/design/openapi.json).
 
-Yêu cầu: Node.js ≥ 20.
+Yêu cầu: Node.js ≥ 24.15.0 (backend chạy trực tiếp các module TypeScript).
 
 ```bash
 cd taskflow
+npm ci                                      # TypeScript và công cụ kiểm thử ở root
 npm run install:all
 cp BackEnd/.env.example BackEnd/.env        # rồi đổi JWT_SECRET
 cp AIService/.env.example AIService/.env
@@ -35,6 +42,12 @@ npm run dev                                 # chạy cả AIService + BackEnd + 
 - Không cần cài PostgreSQL: khi `DATABASE_URL` để trống, API tự chạy PostgreSQL 17 nhúng (gói `embedded-postgres`, binary PostgreSQL thật) ở cổng `54329`. Dữ liệu dev lưu ở `BackEnd/.data/pg` nên khởi động lại không mất.
 - Mỗi lần khởi động, API tự áp dụng migration (`prisma migrate deploy`).
 - DB trống sẽ được seed dữ liệu demo của Nhóm 24 (`SEED_DEMO=true`).
+
+### Hợp đồng Sprint 1
+
+- API chuẩn là `/api/v1`; `/api` vẫn là alias tương thích và dùng chung middleware quyền, CSRF, rate limit. Frontend gọi `/api/v1`. Cookie refresh giới hạn trong path auth của API đã đăng nhập.
+- Tiêu chí nghiệm thu task dùng `acceptance_criteria: string` (tối đa 10.000 ký tự), lưu cột PostgreSQL `TEXT`. Migration ghép danh sách cũ bằng xuống dòng, giữ nội dung. API vẫn nhận/trả `acceptanceCriteria: string[]` cho client cũ; không gửi hai trường cùng lúc. Chuỗi rỗng xóa nội dung.
+- `npm run typecheck` kiểm tra strict cho backend bootstrap/validator và frontend entry/router/layout/API client/context. `npm run build` và CI bắt buộc chạy bước này. Các module JS/JSX còn lại chạy cùng TypeScript qua `allowJs`, chưa được kiểm tra strict; đây là thiết lập TypeScript cho kiến trúc ban đầu, không phải chuyển đổi toàn bộ repo. Xem [phạm vi TypeScript](docs/sprint1-loc/TYPESCRIPT.md).
 
 ### Tài khoản demo (chỉ môi trường phát triển)
 
@@ -68,7 +81,24 @@ CLIENT_URL=https://your-taskflow-domain.example
 
 Dùng [App Password của Google](https://support.google.com/accounts/answer/185833?hl=en) sau khi bật xác minh hai bước; không dùng mật khẩu đăng nhập Gmail. Thay các giá trị mẫu, không commit `.env` hay gửi mật khẩu vào chat. Khi chạy local, giữ `CLIENT_URL=http://localhost:5173`. Khởi động lại backend sau khi đổi cấu hình. Port 465 dùng TLS ngay từ đầu; port 587 cần `SMTP_SECURE=false`, `SMTP_REQUIRE_TLS=true` ([tài liệu Nodemailer](https://nodemailer.com/smtp)).
 
-Kiểm chứng sau cấu hình: đăng ký một tài khoản kiểm thử có hộp thư bạn quản lý, nhận thư thật và mở liên kết xác minh; thử gửi lại thư và lời mời. Nếu gửi thư đăng ký lỗi, tài khoản vẫn chờ xác minh và giao diện cho gửi lại, không cần đăng ký lại. Các API khôi phục công khai trả thông báo chung để không tiết lộ email có tài khoản hay không. Production bắt buộc SMTP có TLS; outbox không được chấp nhận.
+### Gửi từ địa chỉ no-reply
+
+Gmail tự đổi địa chỉ người gửi về đúng tài khoản đăng nhập, nên `MAIL_FROM` không thể là một địa chỉ khác nếu chưa khai báo alias. Có hai cách:
+
+- **Có tên miền riêng:** dùng nhà cung cấp hỗ trợ SMTP và xác minh tên miền bằng DNS, ví dụ Resend: `SMTP_HOST=smtp.resend.com`, `SMTP_USER=resend`, `SMTP_PASS=<API key>`, `MAIL_FROM="TaskFlow <no-reply@ten-mien-cua-ban>"`. Tên miền `*.vercel.app` không dùng để gửi mail được.
+- **Không có tên miền:** tạo một tài khoản Gmail riêng như `taskflow.noreply@gmail.com`, dùng App Password của tài khoản đó và đặt `MAIL_FROM="TaskFlow No-Reply <taskflow.noreply@gmail.com>"`.
+
+Mọi email thật đều có header `Auto-Submitted: auto-generated` và dòng nhắc không trả lời.
+
+Kiểm chứng sau cấu hình: đăng ký một tài khoản kiểm thử có hộp thư bạn quản lý, nhận thư thật và mở liên kết xác minh; thử gửi lại thư và lời mời. Nếu gửi thư đăng ký lỗi, tài khoản vẫn chờ xác minh và giao diện cho gửi lại, không cần đăng ký lại. Các API khôi phục công khai trả thông báo chung để không tiết lộ email có tài khoản hay không. Production dùng SMTP có TLS hoặc Gmail API; outbox không được chấp nhận.
+
+## Triển khai
+
+Cấu hình miễn phí: FrontEnd trên Vercel (`vercel.json`), API và AIService trên gói free của Render (`render.yaml`), database và tệp trên Supabase, mail qua Gmail API. Xem từng bước tại [docs/DEPLOY_VERCEL.md](docs/DEPLOY_VERCEL.md).
+
+Gói free của Render chặn cổng SMTP và không có ổ đĩa bền, nên production dùng `MAIL_MODE=gmail` và `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`. Host cho phép SMTP và có ổ đĩa bền thì có thể giữ `MAIL_MODE=smtp` và `UPLOAD_DIR`.
+
+Trước khi mở công khai, chạy `node scripts/check-demo-accounts.js` trong `BackEnd` với `DATABASE_URL` của production để tìm tài khoản còn mật khẩu demo.
 
 ## Kết nối PostgreSQL thật
 
@@ -101,15 +131,17 @@ Bảng, khóa ngoại, enum và chỉ mục được tạo bằng migration tron
 
 `BackEnd/prisma/schema.prisma` gồm 23 bảng: `users`, `sessions`, `tokens`, `workspaces`, `memberships`, `invites`, `projects`, `project_members`, `tasks`, `comments`, `documents`, `document_revisions`, `notifications`, `notification_prefs`, `activities`, `ai_calls`, `ai_drafts`, `ai_reports`, `ai_conversations`, `risk_resolutions`, `admin_audits`, `outbox`, `counters` (đánh số công việc).
 
-- Khóa chính `uuid` (`gen_random_uuid()`), khóa ngoại có `ON DELETE CASCADE / SET NULL` phù hợp (xóa công việc ⇒ xóa bình luận, tệp đính kèm giữ lại).
+- Khóa chính `uuid` (`gen_random_uuid()`), khóa ngoại có `ON DELETE CASCADE / SET NULL` phù hợp. API xóa công việc dùng xóa mềm (`deleted_at`): giữ task và bình luận để truy vết, gỡ phụ thuộc, chuyển tệp đính kèm về thư viện dự án và ghi audit trong cùng transaction.
 - Ràng buộc UNIQUE thay cho kiểm tra trong code: email, `(workspace, user)`, `(project, number)`, `(user, dedupeKey)` chống gửi trùng thông báo, `(project, aiDraftItem)` chống tạo trùng việc khi duyệt AI nhiều lần, `(document, version)`.
-- Danh sách id (thành viên dự án, phụ thuộc công việc, nhắc tên) là mảng `uuid[]` có chỉ mục GIN; dữ liệu lồng nhau ít truy vấn (checklist, cài đặt AI, sprint, nội dung bản nháp/báo cáo AI) là `JSONB`.
+- Danh sách id (thành viên dự án, phụ thuộc công việc, nhắc tên) là mảng `uuid[]` có chỉ mục GIN; dữ liệu lồng nhau ít truy vấn (cài đặt AI, sprint, nội dung bản nháp/báo cáo AI) là `JSONB`. Checklist lưu ở bảng `checklist_items`, có khóa ngoại tới task, thứ tự và trạng thái từng mục.
 - Cập nhật công việc kiểm tra `version` ngay trong câu `UPDATE … WHERE version = ?` nên hai người sửa cùng lúc không ghi đè nhau.
 - API vẫn trả khóa `_id` như trước (đổi tên `id → _id` tại một chỗ khi tuần tự hóa JSON) nên frontend không phải sửa.
 
 Xem/sửa dữ liệu trực quan: `npm --prefix BackEnd run db:studio` (Prisma Studio).
 
 ## Lệnh
+
+Cập nhật 30/10/2026: [bốn mốc ngày kế hoạch/thực tế của task](docs/TASK_DATES_2026-10-30.md). Ngày kết thúc kế hoạch tiếp tục dùng `dueDate` để lịch và nhắc hạn thống nhất.
 
 Frontend hỗ trợ chuyển dần sang TypeScript: entry ở `FrontEnd/src/main.tsx`, component JS/JSX cũ tiếp tục chạy. Kiểm tra với `npm --prefix FrontEnd run lint` và `npm --prefix FrontEnd run typecheck`; CI chạy cả hai. Báo cáo nhiệm vụ Như đến 28/10: [phân công, sửa đổi và minh chứng](docs/NHU_SPRINT1_2026-10-28.md).
 
@@ -222,6 +254,10 @@ taskflow/
 
 ## Thay đổi nhánh Loc (23/10/2026)
 
+**Bàn giao Sprint 1, 01/11/2026:** [hồ sơ rà soát và nghiệm thu phần Lộc](docs/sprint1-loc/REVIEW.md), kèm [SRS và bảng truy vết](docs/sprint1-loc/SRS.md), [kịch bản demo/staging](docs/sprint1-loc/ACCEPTANCE.md). Trạng thái kỹ thuật và xác nhận của nhóm được ghi riêng trong hồ sơ.
+
+**Sprint 2 của Lộc, 02/11/2026:** [phạm vi 5 task trực tiếp, 5 task review và bàn giao local](docs/sprint2-loc/REVIEW.md). Bổ sung search mô tả, API checklist với bảng dữ liệu riêng/version/audit, PM ẩn bình luận và dataset kiểm chứng. Generate lại Prisma sau pull; backend tự áp dụng migration `20261102090000_sprint2_checklist_search`.
+
 **Cập nhật 29/10/2026:** [bàn giao code U003/U007/U009 của Lộc](docs/LOC_SPRINT1_COMPLETION_2026-10-29.md). Hoàn thiện SMTP, xóa mềm, giờ còn lại và giữ bản nháp khi realtime/xung đột phiên bản. Đạt 129 backend + 16 AIService + 36 frontend và 2 kịch bản browser. Người dùng chọn cấu hình Gmail sau; chưa xác nhận gửi Gmail thật hoặc nghiệm thu của nhóm.
 
 Đối chiếu ngày 28/10/2026 theo workbook `(1).xlsx`: [báo cáo lịch sử trước khi sửa](docs/LOC_SPRINT1_READINESS_2026-10-28.md).
@@ -247,3 +283,7 @@ Ngày chót chỉ nhập ngày được hiểu hết ngày theo timezone hồ s�
 ## Hoàng Anh — Sprint 3 (30/10/2026)
 
 [Báo cáo triển khai và kiểm chứng Sprint 3](docs/HOANG_ANH_SPRINT3_2026-10-30.md): planner kiểm schema/giới hạn, chọn người thủ công, version chống ghi đè và duyệt một lần; risk có snapshot/sourceVersion/lý do xử lý; report chốt generatedAt và phát hiện risk resolution thay đổi; hoàn thiện luồng ghi chú họp có chứng cứ. API sửa/duyệt/hủy nháp bắt buộc `version`; xử lý/mở lại risk bắt buộc `sourceVersion`, xử lý cần `reason`. Backend tự áp dụng migration `20261030100000_sprint3_draft_risk_versions`; generate lại Prisma sau pull. Phản hồi demo 3 người thật cần nghiệm thu riêng, không được suy ra từ kết quả test tự động.
+
+## Hoàng Anh — Sprint 4 (03/11/2026)
+
+[Báo cáo triển khai và kiểm chứng](docs/HOANG_ANH_SPRINT4_2026-11-03.md), [runbook đánh giá/UAT/production/demo và gate final](docs/validation/SPRINT4_RUNBOOK.md), [nghiên cứu nghiệp vụ](docs/validation/SPRINT4_RESEARCH.md). Chạy `npm run validate:local` để có run AI + smoke production local trên DB tạm; `npm run validate:install` kiểm cài sạch; `npm run demo:sprint4` tạo phiên demo riêng có reset an toàn; `npm run validate:release` chặn nghiệm thu khi thiếu bằng chứng. Hai người chấm, UAT 6 người, URL HTTPS, restore/performance và cài bởi thành viên khác cần kết quả thật. Backend tự áp dụng migration `20261103090000_ai_evaluation_telemetry`; generate Prisma sau pull. Log AI có timing queue/retry, từng attempt và dấu hiệu token chưa đầy đủ; HTML no-store, assets immutable/404 và Origin/CSP được kiểm trong smoke.

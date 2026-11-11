@@ -128,7 +128,7 @@ export default function MyTasks() {
         <div className="flex flex-wrap items-center gap-2">
           <div className="relative min-w-[220px] flex-1">
             <Icon name="search" size={16} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input aria-label={tr("Tìm công việc")} className="input h-9 pl-8 text-body-sm" placeholder={tr("Tìm theo tên hoặc mã công việc (TF-...)")} value={f.search} onChange={(e) => set('search', e.target.value)} />
+            <input aria-label={tr("Tìm công việc")} className="input h-9 pl-8 text-body-sm" placeholder={tr("Tìm theo tên, mã hoặc mô tả công việc")} value={f.search} onChange={(e) => set('search', e.target.value)} />
           </div>
           <Select className="input h-9 w-auto text-body-sm" value={f.assignee} onChange={(e) => set('assignee', e.target.value)}>
             <option value="me">{tr("Giao cho: Tôi")}</option>

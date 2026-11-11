@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { Field, Icon, Notice, Select, Spinner } from '../../components/ui.jsx';
 import { api } from '../../lib/api.js';
 import { useApp, useLoad, useToast } from '../../lib/app.jsx';
-import { dates } from '../../lib/dates.js';
+import { BUSINESS_TIMEZONE, dates, reportPeriodInput } from '../../lib/dates.js';
 import { fmtDateTime } from '../../lib/format.js';
 import { History } from './Planner.jsx';
 import { useLatestRequest, useProjectInfo } from '../../lib/hooks.js';
@@ -16,9 +16,10 @@ export default function Report({ project, onUsage, disabled }) {
   const toast = useToast();
   const { me } = useApp();
   const info = useProjectInfo(project._id);
+  const reportZone = info?.project?.timezone || project.timezone || BUSINESS_TIMEZONE;
   const canManage = !!info?.access?.canManage;
   const navigate = useNavigate();
-  const [f, setF] = useState({ from: dates.dateKey(new Date(Date.now() - 6 * DAY)), to: dates.dateKey(new Date()), template: 'week' });
+  const [f, setF] = useState({ from: dates.dateKey(new Date(Date.now() - 6 * DAY), reportZone), to: dates.dateKey(new Date(), reportZone), template: 'week' });
   const [report, setReport] = useState(null);
   const [busy, setBusy] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -34,7 +35,7 @@ export default function Report({ project, onUsage, disabled }) {
     setSaving(false);
     setError(null);
     try {
-      const d = await api.post(`/projects/${project._id}/ai/reports`, f);
+      const d = await api.post(`/projects/${project._id}/ai/reports`, reportPeriodInput(f, reportZone));
       if (current()) { setReport(d.report); setEditing(null); }
     } catch (e) {
       if (current()) setError(e);
@@ -90,7 +91,7 @@ export default function Report({ project, onUsage, disabled }) {
 
   return (
     <div className="grid gap-5 lg:grid-cols-[360px_1fr]">
-      <div className="space-y-4">
+      <div className="no-print space-y-4">
         <div className="card space-y-4 p-4">
           <span className="flex items-center gap-1.5 text-label-lg font-semibold text-slate-900">
             <Icon name="tune" size={18} className="text-blue-600" />{tr(" Cấu hình báo cáo")}</span>
@@ -101,7 +102,7 @@ export default function Report({ project, onUsage, disabled }) {
             <Field label={tr("Từ ngày")}>
               <input type="date" className="input" value={f.from} onChange={(e) => setF({ ...f, from: e.target.value })} />
             </Field>
-            <Field label={tr("Đến ngày")} hint={tr("Tính hết ngày theo giờ Việt Nam (UTC+7)")}>
+            <Field label={tr("Đến ngày")} hint={tr('Tính hết ngày theo múi giờ dự án: {0}', [reportZone])}>
               <input type="date" className="input" value={f.to} onChange={(e) => setF({ ...f, to: e.target.value })} />
             </Field>
           </div>
@@ -159,7 +160,7 @@ export default function Report({ project, onUsage, disabled }) {
                 : report.sourceState === 'unknown'
                   ? tr("Bản cũ chưa có thông tin phiên bản nguồn.")
                   : tr("Số liệu quá hạn có thể thay đổi theo thời gian.")}{' '}
-              {report.missingSources > 0 ? tr("{0} công việc nguồn đã bị xóa.", [report.missingSources]) : ''}
+              {report.missingSources > 0 ? tr("{0} công việc nguồn hiện không truy cập được.", [report.missingSources]) : ''}
             </Notice>
             <div className="card mb-3 flex flex-wrap items-center gap-3 px-4 py-3">
               <input
@@ -222,6 +223,8 @@ export default function Report({ project, onUsage, disabled }) {
             <div className="sticky bottom-0 mt-4 flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-pop">
               <span className="mr-auto flex items-center gap-1.5 text-label-md font-normal text-slate-500">
                 <Icon name="link" size={14} />{tr(" Mỗi nhận định đều có liên kết tới công việc nguồn.")}</span>
+              <button className="btn-outline" onClick={() => window.print()}>
+                <Icon name="print" size={16} />{tr(" In / Lưu PDF")}</button>
               <button className="btn-outline" onClick={exportTxt}>
                 <Icon name="download" size={16} />{tr(" Xuất tệp")}</button>
               <button className="btn-outline" onClick={generate} disabled={busy || disabled || !canManage}>

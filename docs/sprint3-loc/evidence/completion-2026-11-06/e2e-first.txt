@@ -1,0 +1,49 @@
+[seed] Tạo dữ liệu demo Nhóm 24…
+[seed] Xong. Đăng nhập: mai.anh@nhom24.edu.vn / TaskFlow@2026  (System Admin: admin@taskflow.local)
+✔ Lộc Sprint 3: báo cáo mở nguồn thật; quản trị lỗi/thử lại, khóa và mở tài khoản (55905.2691ms)
+✔ Nhóm phát triển: nhật ký, phân bổ, issue, timeline, tải thành viên và lịch họp (6675.1715ms)
+✔ Bốn ngày task: tạo, sửa, reload giữ đúng kế hoạch và thực tế (3949.3263ms)
+✔ Như Sprint 2–4: My Tasks, comment retry/mention, nguồn tài liệu AI, capacity và responsive (4755.6329ms)
+✔ Lộc Sprint 2: tìm mô tả, checklist, PM ẩn bình luận và phụ thuộc thử lại khi lỗi (4413.1878ms)
+ℹ LSP2 -> HTTP 400: Mã dự án gồm 2–5 chữ cái
+ℹ LSP -> HTTP 201 with the same seeded owner and member
+✔ Như U031: My Tasks phân trang trên dataset 10.000 task (5392.2904ms)
+✖ U003/U007/U009: SMTP register/invite → task → remaining hours → Review/Done → realtime draft (7225.4684ms)
+✔ Như U009/U010: keyboard, API rollback, hai tab xung đột giữ draft và logout (11043.8654ms)
+✔ Hoàng Anh Sprint 2: thông báo hai tab, mất mạng, capacity tuần, preview xóa và CSV (10295.188ms)
+✔ Hoàng Anh Sprint 3: planner hai tab, duyệt một lần, lý do xử lý rủi ro và biên bản có nguồn (26754.3442ms)
+[error] HttpError: Chưa gửi được email. Vui lòng thử gửi lại sau.
+    at mailUnavailable (file:///D:/Desktop/Nhom24/OJT202/BackEnd/src/services/mailer.js:27:31)
+    at sendMail (file:///D:/Desktop/Nhom24/OJT202/BackEnd/src/services/mailer.js:95:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async sendVerification (file:///D:/Desktop/Nhom24/OJT202/BackEnd/src/routes/auth.js:38:3)
+    at async file:///D:/Desktop/Nhom24/OJT202/BackEnd/src/routes/auth.js:61:3 {
+  status: 503,
+  details: { code: 'MAIL_UNAVAILABLE' }
+}
+✔ SMTP bị từ chối: màn hình cho gửi lại, không báo thư đã gửi thành công (3611.2162ms)
+✔ Hoàng Anh Sprint 4: telemetry AI rõ token chưa biết, CSV và mobile (3211.4703ms)
+✔ API v1: browser giữ refresh cookie đúng path, tự refresh và logout thu hồi phiên (2467.2256ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 12
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 176920.383
+
+✖ failing tests:
+
+test at test\e2e\sprint1.test.mjs:426:1
+✖ U003/U007/U009: SMTP register/invite → task → remaining hours → Review/Done → realtime draft (7225.4684ms)
+  locator.evaluate: Error: strict mode violation: getByRole('dialog').locator('.scroll-thin.overflow-y-auto') resolved to 2 elements:
+      1) <div class="scroll-thin flex-1 overflow-y-auto p-0">…</div> aka locator('div').filter({ hasText: 'Tên công việc *Mô tả' }).nth(4)
+      2) <div class="scroll-thin max-h-32 space-y-1 overflow-y-auto rounded-lg border border-slate-200 p-2">…</div> aka locator('div').filter({ hasText: /^AEHoàng Anh E2E$/ })
+  
+  Call log:
+  [2m  - waiting for getByRole('dialog').locator('.scroll-thin.overflow-y-auto')[22m
+  
+      at TestContext.<anonymous> (D:\Desktop\Nhom24\OJT202\test\e2e\sprint1.test.mjs:466:58) {
+    log: [ "  - waiting for getByRole('dialog').locator('.scroll-thin.overflow-y-auto')" ]
+  }

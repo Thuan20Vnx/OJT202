@@ -37,7 +37,7 @@ const STATUS_VI = { todo: 'Cần làm', in_progress: 'Đang thực hiện', revi
 export async function collectSources(projectId) {
   const [tasks, comments, docs] = await Promise.all([
     prisma.task.findMany({ where: { deletedAt: null, project: projectId } }),
-    prisma.comment.findMany({ where: { project: projectId, taskRef: { deletedAt: null } } }),
+    prisma.comment.findMany({ where: { project: projectId, deletedAt: null, taskRef: { deletedAt: null } } }),
     prisma.document.findMany({ where: { project: projectId, isScan: false, OR: [{ kind: 'doc' }, { mime: 'text/plain' }] } }),
   ]);
   await Promise.all([
@@ -53,9 +53,10 @@ export async function collectSources(projectId) {
       `Trạng thái: ${STATUS_VI[t.status]}.`,
       `Người phụ trách: ${t.assignee?.name || 'chưa giao'}.`,
       t.dueDate ? `Hạn chót (${BUSINESS_TIMEZONE}): ${new Date(t.dueDate).toLocaleString('vi-VN', { timeZone: BUSINESS_TIMEZONE })}.` : 'Chưa có hạn chót.',
+      ...[['plannedStartDate', 'Ngày bắt đầu kế hoạch'], ['actualStartDate', 'Ngày bắt đầu thực tế'], ['actualEndDate', 'Ngày kết thúc thực tế']].map(([field, label]) => t[field] ? `${label} (${BUSINESS_TIMEZONE}): ${new Date(t[field]).toLocaleString('vi-VN', { timeZone: BUSINESS_TIMEZONE })}.` : `${label}: chưa ghi nhận.`),
       (t.blockedBy || []).length ? `Bị chặn bởi: ${t.blockedBy.map((b) => `${b.key} ${b.title} (${STATUS_VI[b.status]})`).join(', ')}.` : '',
       t.description,
-      (t.acceptanceCriteria || []).join('. '),
+      t.acceptanceCriteria,
     ]
       .filter(Boolean)
       .join(' ');

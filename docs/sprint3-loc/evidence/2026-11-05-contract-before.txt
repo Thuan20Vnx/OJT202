@@ -1,0 +1,76 @@
+✔ Lộc Sprint 3 M01 explicit self (19.2113ms)
+✔ Lộc Sprint 3 M02 no person (0.9748ms)
+✔ Lộc Sprint 3 M03 duplicate names (0.7406ms)
+✔ Lộc Sprint 3 M04 multiple recipients (0.2929ms)
+✔ Lộc Sprint 3 M05 two dates (0.3014ms)
+✔ Lộc Sprint 3 M06 two weekdays (0.1654ms)
+✔ Lộc Sprint 3 M07 cancelled (0.1365ms)
+✔ Lộc Sprint 3 M08 paused (0.1069ms)
+✔ Lộc Sprint 3 M09 invalid date (0.3039ms)
+✔ Lộc Sprint 3 M10 incomplete date (0.4431ms)
+✔ Lộc Sprint 3 M11 no deadline (0.3118ms)
+✔ Lộc Sprint 3 M12 unknown speaker (0.3169ms)
+✔ Lộc Sprint 3 M13 named recipient (0.2792ms)
+✔ Lộc Sprint 3 M14 relative ambiguity (0.0961ms)
+✔ Lộc Sprint 3 M15 leap date (0.4606ms)
+✔ Lộc Sprint 3: trích đoạn ở nửa sau biên bản 30.000 ký tự không bị cắt ngầm (1.0487ms)
+✔ Lộc Sprint 3: provider không tự chọn một người trong hai người trùng tên (0.4395ms)
+✔ U021 gateway: từ chối HTTP AI sai shape, thiếu AC, NUL và vượt ngân sách (8.592ms)
+✔ U021 gateway: không nhận ngày AI tự đặt, ngày quá khứ hoặc vượt hạn kế hoạch (2.0881ms)
+✔ U027 gateway: trích đoạn phải thuộc biên bản, giữ cả dấu và khoảng trắng (1.5772ms)
+✖ Lộc Sprint 3 U027: sourceSpan trỏ chính xác vào nguồn, không tin offset từ AI (2.2934ms)
+✖ Lộc Sprint 3 U022: gateway không nhận narrative sai kiểu hoặc ký tự NUL (0.2043ms)
+ℹ tests 22
+ℹ suites 0
+ℹ pass 20
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 197.4181
+
+✖ failing tests:
+
+test at BackEnd\test\ai-contracts.test.js:23:1
+✖ Lộc Sprint 3 U027: sourceSpan trỏ chính xác vào nguồn, không tin offset từ AI (2.2934ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+  + undefined
+  - {
+  -   end: 26,
+  -   start: 12
+  - }
+  
+      at TestContext.<anonymous> (file:///D:/Desktop/Nhom24/OJT202/BackEnd/test/ai-contracts.test.js:27:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1201:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:831:18)
+      at Test.postRun (node:internal/test_runner/test:1330:19)
+      at Test.run (node:internal/test_runner/test:1258:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: { start: 12, end: 26 },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at BackEnd\test\ai-contracts.test.js:32:1
+✖ Lộc Sprint 3 U022: gateway không nhận narrative sai kiểu hoặc ký tự NUL (0.2043ms)
+  AssertionError [ERR_ASSERTION]: Missing expected exception.
+      at TestContext.<anonymous> (file:///D:/Desktop/Nhom24/OJT202/BackEnd/test/ai-contracts.test.js:34:12)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1201:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:831:18)
+      at Test.postRun (node:internal/test_runner/test:1330:19)
+      at Test.run (node:internal/test_runner/test:1258:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'throws',
+    diff: 'simple'
+  }

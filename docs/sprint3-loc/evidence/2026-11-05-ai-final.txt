@@ -1,0 +1,55 @@
+
+> taskflow-ai-service@1.0.0 test
+> node --test "test/**/*.test.js"
+
+▶ Bộ AI nội bộ
+  ✔ U021: provider phải trả đúng 5–15 mục đầy đủ AC, không tự cắt hoặc chấp nhận JSON lỗi (27.4622ms)
+  ✔ U027: không đoán người/hạn từ provider khi trích đoạn không chứng minh được (4.8431ms)
+  ✔ U027: câu phủ định không tạo action nhưng người tên Huy vẫn được nhận diện (0.7721ms)
+  ✔ ghi chú họp: không rõ người/hạn thì để trống (1.3195ms)
+  ✔ lập kế hoạch: tổng giờ không vượt mức tối đa sau làm tròn, không tự đặt hạn (2.2621ms)
+  ✔ biên bản: ISO không bị đọc nhầm, ngày sai/thiếu tháng để trống, cuối ngày đúng profile (2.7323ms)
+  ✔ biên bản: ngày mai đi qua DST vẫn đúng cuối ngày, không phụ thuộc TZ máy (2.7912ms)
+  ✔ tên thành viên chứa ký tự regex vẫn nhận đúng và không làm hỏng biên bản (0.5998ms)
+  ✔ báo cáo dùng ngày dự án Việt Nam trên máy chủ UTC (1.17ms)
+  ✔ kế hoạch giữ cuối ngày và không vượt timestamp hạn cụ thể (4.0543ms)
+  ✔ provider không được trả kế hoạch quá giờ, giờ vô hạn hoặc hạn sai (8.4219ms)
+  ✔ provider biên bản: ngày sai để trống, ngày hợp lệ đổi về cuối ngày profile (1.3618ms)
+  ✔ provider biên bản sai cấu trúc hoặc thiếu tiêu đề không được tạo việc rỗng (0.7947ms)
+  ✔ hỏi đáp: có trích dẫn khi có nguồn, từ chối khi thiếu chứng cứ (0.7651ms)
+✔ Bộ AI nội bộ (61.5358ms)
+▶ API HTTP
+  ✔ health + thông tin nhà cung cấp (38.4352ms)
+  ✔ sai / thiếu khóa dùng chung bị từ chối (401) (18.236ms)
+  ✔ dữ liệu không hợp lệ (400) (18.0851ms)
+  ✔ /v1/planner trả bản nháp + token + model (2.3224ms)
+  ✔ /v1/meeting, /v1/qa, /v1/report, /v1/risk (9.5815ms)
+✔ API HTTP (86.9991ms)
+✔ Lộc Sprint 3 M01 explicit self (19.2564ms)
+✔ Lộc Sprint 3 M02 no person (0.9606ms)
+✔ Lộc Sprint 3 M03 duplicate names (0.7453ms)
+✔ Lộc Sprint 3 M04 multiple recipients (0.3028ms)
+✔ Lộc Sprint 3 M05 two dates (0.3583ms)
+✔ Lộc Sprint 3 M06 two weekdays (0.1784ms)
+✔ Lộc Sprint 3 M07 cancelled (0.1425ms)
+✔ Lộc Sprint 3 M08 paused (0.1278ms)
+✔ Lộc Sprint 3 M09 invalid date (0.3268ms)
+✔ Lộc Sprint 3 M10 incomplete date (0.4517ms)
+✔ Lộc Sprint 3 M11 no deadline (0.3879ms)
+✔ Lộc Sprint 3 M12 unknown speaker (0.3058ms)
+✔ Lộc Sprint 3 M13 named recipient (0.2781ms)
+✔ Lộc Sprint 3 M14 relative ambiguity (0.1053ms)
+✔ Lộc Sprint 3 M15 leap date (0.5001ms)
+✔ Lộc Sprint 3: trích đoạn ở nửa sau biên bản 30.000 ký tự không bị cắt ngầm (1.1255ms)
+✔ Lộc Sprint 3: provider không tự chọn một người trong hai người trùng tên (0.4603ms)
+✔ Lộc Sprint 3: tên ngắn lồng trong tên dài chỉ ưu tiên tại cùng vị trí (0.5062ms)
+✔ P2: explicit cancellation must not create a meeting action item (1.2698ms)
+✔ P2: provider excerpts must actually occur in the meeting source (16.7495ms)
+ℹ tests 39
+ℹ suites 2
+ℹ pass 39
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 436.2187

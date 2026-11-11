@@ -1,0 +1,56 @@
+[seed] Tạo dữ liệu demo Nhóm 24…
+[seed] Xong. Đăng nhập: mai.anh@nhom24.edu.vn / TaskFlow@2026  (System Admin: admin@taskflow.local)
+▶ Lộc Sprint 2
+  ✖ Sprint2 hardening: checklist stale ưu tiên 409 và 50 mục không ghi dở (634.7759ms)
+  ✖ Sprint2 hardening: GET checklist đọc items và version cùng snapshot khi có writer (407.5227ms)
+✖ Lộc Sprint 2 (47510.7244ms)
+ℹ tests 2
+ℹ suites 1
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 49746.3768
+
+✖ failing tests:
+
+test at BackEnd\test\api.test.js:2573:3
+✖ Sprint2 hardening: checklist stale ưu tiên 409 và 50 mục không ghi dở (634.7759ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  400 !== 409
+  
+      at TestContext.<anonymous> (file:///D:/Desktop/Nhom24/OJT202/BackEnd/test/api.test.js:2577:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Promise.all (index 0)
+      at async Suite.run (node:internal/test_runner/test:1619:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 400,
+    expected: 409,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at BackEnd\test\api.test.js:2584:3
+✖ Sprint2 hardening: GET checklist đọc items và version cùng snapshot khi có writer (407.5227ms)
+  AssertionError [ERR_ASSERTION]: never pair old version with new checklist
+  + actual - expected
+  
+  + 'Sau thay đổi'
+  - 'Trước thay đổi'
+  
+      at TestContext.<anonymous> (file:///D:/Desktop/Nhom24/OJT202/BackEnd/test/api.test.js:2608:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'Sau thay đổi',
+    expected: 'Trước thay đổi',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

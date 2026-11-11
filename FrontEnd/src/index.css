@@ -267,3 +267,11 @@
     scroll-behavior: auto !important;
   }
 }
+
+
+/* In báo cáo và bảng đóng góp: chỉ giữ nội dung, lưu PDF bằng hộp thoại in của trình duyệt */
+@media print {
+  aside, header, nav, .no-print { display: none !important; }
+  html, body, #root, main, #root > div { height: auto !important; overflow: visible !important; background: #fff !important; }
+  .card { box-shadow: none !important; break-inside: avoid; }
+}

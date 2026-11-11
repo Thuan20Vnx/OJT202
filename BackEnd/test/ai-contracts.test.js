@@ -19,3 +19,28 @@ test('U027 gateway: trích đoạn phải thuộc biên bản, giữ cả dấu 
   assert.equal(validateAiResult('meeting', { items: [item] }, payload).items.length, 1);
   assert.throws(() => validateAiResult('meeting', { items: [{ ...item, excerpt: 'Mai Anh sẽ deploy thanh toán.' }] }, payload));
 });
+
+test('Lộc Sprint 3 U027: sourceSpan trỏ chính xác vào nguồn, không tin offset từ AI', () => {
+  const payload = { text: 'Biên bản 😀\nLộc: viết API.' };
+  const item = { title: 'Viết API', excerpt: 'Lộc: viết API.' };
+  const out = validateAiResult('meeting', { items: [item] }, payload).items[0];
+  assert.deepEqual(out.sourceSpan, { start: payload.text.indexOf(item.excerpt), end: payload.text.length });
+  assert.equal(payload.text.slice(out.sourceSpan.start, out.sourceSpan.end), item.excerpt);
+  assert.throws(() => validateAiResult('meeting', { items: [{ ...item, sourceSpan: { start: 0, end: 4 } }] }, payload));
+});
+
+test('U027: phải xác định vị trí khi câu lặp và không nhận cùng một việc hai lần', () => {
+  const item = { title: 'Viết API', excerpt: 'Lộc: viết API' };
+  const payload = { text: [item.excerpt, item.excerpt].join('\n') };
+  const first = { ...item, sourceSpan: { start: 0, end: item.excerpt.length } };
+  const second = { ...item, sourceSpan: { start: item.excerpt.length + 1, end: payload.text.length } };
+  const validate = (items) => validateAiResult('meeting', { items }, payload);
+  assert.throws(() => validate([item]), /thiếu vị trí/);
+  assert.throws(() => validate([first, first]), /trùng tiêu đề/);
+  assert.equal(validate([first, second]).items.length, 2);
+});
+
+test('Lộc Sprint 3 U022: gateway không nhận narrative sai kiểu hoặc ký tự NUL', () => {
+  for (const result of [null, {}, { summary: {}, suggestions: '' }, { summary: 'x', suggestions: 'bad\u0000' }])
+    assert.throws(() => validateAiResult('report', result, {}));
+});

@@ -1,0 +1,13 @@
+[seed] Tạo dữ liệu demo Nhóm 24…
+[seed] Xong. Đăng nhập: mai.anh@nhom24.edu.vn / TaskFlow@2026  (System Admin: admin@taskflow.local)
+▶ Hoàng Anh Sprint 4 — telemetry AI gồm queue và retry
+  ✔ U029: CSV AI không cắt âm thầm khi snapshot có hơn 10.000 log (1613.6755ms)
+✔ Hoàng Anh Sprint 4 — telemetry AI gồm queue và retry (45551.2237ms)
+ℹ tests 1
+ℹ suites 1
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 47566.5485

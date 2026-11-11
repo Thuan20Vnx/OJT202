@@ -57,12 +57,18 @@ test('changing language updates the actual task form without losing its draft', 
   }, React.createElement(CreateTaskModal, { open: true, onClose() {} })))); });
   try {
     const title = () => tree.root.findAllByType('input').find(node => node.props.maxLength === 200);
+    const criteria = () => tree.root.findAllByType('textarea').find(node => node.props.maxLength === 10000);
     await act(() => title().props.onChange({ target: { value: 'Bản nháp của Như' } }));
+    await act(() => criteria().props.onChange({ target: { value: 'Tiêu chí của Lộc\n\nGiữ dòng trống' } }));
     await act(() => setLanguage('en'));
     assert.equal(title().props.value, 'Bản nháp của Như');
     assert.equal(title().props.placeholder, 'Example: Design the Notifications screen');
+    assert.equal(criteria().props['aria-label'], 'Acceptance criteria');
+    assert.equal(criteria().props.value, 'Tiêu chí của Lộc\n\nGiữ dòng trống');
     assert.ok(JSON.stringify(tree.toJSON()).includes('Create task'));
     await act(() => setLanguage('vi'));
     assert.equal(title().props.value, 'Bản nháp của Như');
+    assert.equal(criteria().props['aria-label'], 'Tiêu chí nghiệm thu');
+    assert.equal(criteria().props.value, 'Tiêu chí của Lộc\n\nGiữ dòng trống');
   } finally { await act(() => tree.unmount()); }
 });

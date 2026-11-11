@@ -32,7 +32,9 @@ function checkProject(found, userId) {
   const projectRole = membership.role === 'viewer' ? 'viewer' : memberships[0].role;
   const canWrite = projectRole !== 'viewer' && project.status !== 'archived';
   const canManage = project.status !== 'archived' && projectRole === 'pm';
-  return { project, membership, projectRole, role: projectRole === 'viewer' ? 'viewer' : membership.role, canWrite, canManage };
+  // Giảng viên chỉ xem như Viewer nhưng được góp ý bằng bình luận.
+  const canComment = canWrite || (membership.isMentor && project.status !== 'archived');
+  return { project, membership, projectRole, role: projectRole === 'viewer' ? 'viewer' : membership.role, canWrite, canManage, canComment };
 }
 
 export async function projectAccess(userId, projectId, db = prisma) {
@@ -43,7 +45,7 @@ export async function projectAccess(userId, projectId, db = prisma) {
 /** Công việc + dự án + membership trong một truy vấn */
 export async function taskAccess(userId, taskId, db = prisma) {
   if (!isId(taskId)) throw notFound('Không tìm thấy công việc');
-  const found = await db.task.findUnique({ where: { deletedAt: null, id: taskId }, include: { projectRef: { include: withMembership(userId) } } });
+  const found = await db.task.findUnique({ where: { deletedAt: null, id: taskId }, include: { contributors: true, projectRef: { include: withMembership(userId) } } });
   if (!found) throw notFound('Không tìm thấy công việc');
   const { projectRef, ...task } = found;
   return { task, ...checkProject(projectRef, userId) };
@@ -63,13 +65,17 @@ export function assertWrite(access, msg) {
   }
 }
 
+export function assertComment(access) {
+  if (!access.canComment) throw forbidden(access.project?.status === 'archived' ? 'Dự án đã lưu trữ, chỉ được xem' : 'Viewer chỉ được xem');
+}
+
 export function assertManage(access) {
   if (!access.canManage) throw forbidden(access.project.status === 'archived' ? 'Dự án đã lưu trữ, chỉ được xem' : 'Chỉ PM được thực hiện thao tác này');
 }
 
 // Dùng chung cho API và các view Kanban/list/detail; quyền ghi nội dung khác quyền đổi trạng thái.
 export function taskPermissions(access, userId, task = access.task) {
-  const canUpdate = access.canWrite && (access.projectRole === 'pm' || (task.assignee === userId && task.status !== 'done'));
+  const canUpdate = access.canWrite && (access.projectRole === 'pm' || ((task.assignee === userId || task.contributors?.some((c) => c.user === userId)) && task.status !== 'done'));
   const allowedStatuses = !canUpdate ? [] : access.projectRole === 'pm'
     ? ['todo', 'in_progress', 'review', ...(task.status === 'review' || task.status === 'done' ? ['done'] : [])]
     : ({ todo: ['todo', 'in_progress'], in_progress: ['todo', 'in_progress', 'review'], review: ['in_progress', 'review'] }[task.status] || []);

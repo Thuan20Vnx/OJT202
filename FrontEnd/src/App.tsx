@@ -1,8 +1,9 @@
 import { t as tr, useI18n } from './lib/i18n.js';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { lazy, Suspense } from 'react';
+import type { ReactNode } from 'react';
 import { useApp } from './lib/app.jsx';
-import AppShell from './components/AppShell.jsx';
+import AppShell from './components/AppShell.tsx';
 import { ErrorBox, PageLoader } from './components/ui.jsx';
 import Login from './pages/auth/Login.jsx';
 import ForgotPassword from './pages/auth/ForgotPassword.jsx';
@@ -13,6 +14,13 @@ import Overview from './pages/Overview.jsx';
 import Board from './pages/Board.jsx';
 import MyTasks from './pages/MyTasks.jsx';
 const Calendar = lazy(() => import('./pages/Calendar.jsx'));
+const Timeline = lazy(() => import('./pages/Timeline.jsx'));
+const TeamWorkload = lazy(() => import('./pages/TeamWorkload.jsx'));
+const Meetings = lazy(() => import('./pages/Meetings.jsx'));
+const Sprints = lazy(() => import('./pages/Sprints.jsx'));
+const Issues = lazy(() => import('./pages/Issues.jsx'));
+const Contributions = lazy(() => import('./pages/Contributions.jsx'));
+const Mentoring = lazy(() => import('./pages/Mentoring.jsx'));
 const Documents = lazy(() => import('./pages/Documents.jsx'));
 const Ai = lazy(() => import('./pages/Ai.jsx'));
 const Notifications = lazy(() => import('./pages/Notifications.jsx'));
@@ -37,7 +45,7 @@ function Connecting() {
   );
 }
 
-function RequireAuth({ children, needWorkspace = true }) {
+function RequireAuth({ children, needWorkspace = true }: { children: ReactNode; needWorkspace?: boolean }) {
   useI18n();
   const { me, workspaces } = useApp();
   const loc = useLocation();
@@ -47,7 +55,7 @@ function RequireAuth({ children, needWorkspace = true }) {
   return children;
 }
 
-function PublicOnly({ children }) {
+function PublicOnly({ children }: { children: ReactNode }) {
   useI18n();
   const { me } = useApp();
   const loc = useLocation();
@@ -56,7 +64,7 @@ function PublicOnly({ children }) {
   return children;
 }
 
-function WorkspaceGate({ children }) {
+function WorkspaceGate({ children }: { children: ReactNode }) {
   useI18n();
   const { ws, workspaces, me, wsError, reloadWorkspace } = useApp();
   if (!workspaces.length && me?.isSystemAdmin) return <Navigate to="/admin" replace />;
@@ -113,6 +121,13 @@ export default function App() {
           }
         >
           <Route path="/admin" element={<Admin />} />
+          <Route path="/timeline" element={<WorkspaceGate><Timeline /></WorkspaceGate>} />
+          <Route path="/team" element={<WorkspaceGate><TeamWorkload /></WorkspaceGate>} />
+          <Route path="/meetings" element={<WorkspaceGate><Meetings /></WorkspaceGate>} />
+          <Route path="/sprints" element={<WorkspaceGate><Sprints /></WorkspaceGate>} />
+          <Route path="/issues" element={<WorkspaceGate><Issues /></WorkspaceGate>} />
+          <Route path="/contributions" element={<WorkspaceGate><Contributions /></WorkspaceGate>} />
+          <Route path="/mentoring" element={<Mentoring />} />
           <Route path="/profile" element={<Profile />} />
           <Route
             path="/overview"

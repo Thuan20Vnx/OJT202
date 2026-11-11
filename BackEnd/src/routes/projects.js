@@ -1,5 +1,5 @@
 import { withWorkspaceLock } from '../services/membership.js';
-import { isDateInput, parseDate } from '../utils/dates.js';
+import { BUSINESS_TIMEZONE, isDateInput, isTimeZone, parseDate } from '../utils/dates.js';
 import { Router } from 'express';
 import { z } from 'zod';
 import { USER, ilike, isId, populate, populateAll, prisma } from '../db.js';
@@ -23,6 +23,7 @@ const projectBase = z
     name: z.string({ error: 'Vui lòng nhập tên dự án' }).trim().min(1, 'Vui lòng nhập tên dự án').max(100),
     description: z.string().trim().max(2000),
     color: z.enum(COLORS),
+    timezone: z.string().refine(isTimeZone, 'Múi giờ dự án không hợp lệ'),
     keyPrefix: z
       .string()
       .trim()
@@ -40,6 +41,7 @@ const projectBase = z
 const projectBody = projectBase.extend({
   description: projectBase.shape.description.default(''),
   color: projectBase.shape.color.default('blue'),
+  timezone: projectBase.shape.timezone.default(BUSINESS_TIMEZONE),
   members: projectBase.shape.members.default([]),
 })
   .superRefine((v, ctx) => {
@@ -59,6 +61,14 @@ function normalizeDates(body, timezone) {
   }
 }
 
+/** Form dự án vẫn sửa được Sprint hiện tại: giữ bảng sprints khớp với bản sao trong projects.sprint. */
+async function syncActiveSprint(tx, project, sprint) {
+  if (!sprint.name) return;
+  const fields = { goal: sprint.goal || '', start: sprint.start ? new Date(sprint.start) : null, end: sprint.end ? new Date(sprint.end) : null, status: 'active', closedAt: null };
+  await tx.sprint.updateMany({ where: { project, status: 'active', name: { not: sprint.name } }, data: { status: 'planned' } });
+  await tx.sprint.upsert({ where: { project_name: { project, name: sprint.name } }, create: { project, name: sprint.name, ...fields }, update: { ...fields, version: { increment: 1 } } });
+}
+
 const SPRINT_DEFAULT = { name: '', goal: '', start: null, end: null };
 /** Sprint lưu JSONB: gộp với giá trị cũ, ngày lưu dạng ISO */
 const mergeSprint = (cur, patch) => ({
@@ -76,7 +86,7 @@ async function projectStats(projectIds) {
            COUNT(*) FILTER (WHERE status = 'done')::int AS done,
            COUNT(*) FILTER (WHERE status <> 'done' AND "dueDate" IS NOT NULL AND "dueDate" < now())::int AS overdue
     FROM tasks
-    WHERE project_id = ANY(${projectIds}::uuid[]) AND parent_id IS NULL AND deleted_at IS NULL
+    WHERE project_id = ANY(${projectIds}::uuid[]) AND parent_task_id IS NULL AND deleted_at IS NULL
     GROUP BY project_id`;
   return Object.fromEntries(rows.map(({ id, ...r }) => [id, r]));
 }
@@ -115,12 +125,15 @@ router.post('/workspaces/:wsId/projects', middlewareWorkspace('wsId', 'admin'), 
   if (body.manager && body.manager !== req.user.id) throw badRequest('Người tạo dự án phải là PM; hãy chuyển giao sau khi tạo');
   const { members: requested, memberRoles = {}, manager, ...fields } = body;
   const project = await withWorkspaceLock(wsId, async (tx) => {
-    const members = [...new Set([...requested, req.user.id])];
+    // Giảng viên của workspace tự động xem được dự án mới.
+    const mentors = await tx.membership.findMany({ where: { workspace: wsId, isMentor: true }, select: { user: true } });
+    const members = [...new Set([...requested, req.user.id, ...mentors.map((m) => m.user)])];
     const wsMembers = await tx.membership.findMany({ where: { workspace: wsId, user: { in: members } } });
     const current = wsMembers.find((m) => m.user === req.user.id);
     if (!current || !['owner', 'admin'].includes(current.role)) throw forbidden('Chỉ Owner/Admin được tạo dự án');
     const p = await tx.project.create({ data: { ...fields, sprint: mergeSprint({}, fields.sprint || {}), keyPrefix: fields.keyPrefix || 'TF', workspace: wsId, members: [], manager: req.user.id, createdBy: req.user.id } });
     const roster = members.map((user) => ({ user, role: user === req.user.id ? 'pm' : memberRoles[user] || (wsMembers.find((m) => m.user === user)?.role === 'viewer' ? 'viewer' : 'member') }));
+    await syncActiveSprint(tx, p.id, p.sprint);
     const result = await saveProjectMembers(tx, { ...p, memberships: [] }, roster, req.user.id, req.user.id);
     await projectAudit(tx, result, req.user.id, 'Tạo dự án', {}, { members, manager: req.user.id });
     return result;
@@ -173,7 +186,10 @@ router.patch('/projects/:projectId', middlewareProject(), async (req, res) => {
       await saveProjectMembers(tx, cur, roster, manager || cur.manager, req.user.id);
       removed.push(...cur.members.filter((u) => !ids.includes(u)));
     }
-    if (body.sprint) data.sprint = mergeSprint(cur.sprint, body.sprint);
+    if (body.sprint) {
+      data.sprint = mergeSprint(cur.sprint, body.sprint);
+      await syncActiveSprint(tx, cur.id, data.sprint);
+    }
     validateSprint(data.sprint);
     const result = await tx.project.update({ where: { id: cur.id }, data });
     await projectAudit(tx, result, req.user.id, 'Cập nhật dự án', { members: cur.members, manager: cur.manager }, { fields: Object.keys(body), members: result.members, manager: result.manager });

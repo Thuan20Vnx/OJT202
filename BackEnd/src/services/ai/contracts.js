@@ -21,9 +21,24 @@ export function validateAiResult(feature, result, payload) {
     return parsed;
   }
   if (feature === 'meeting') {
-    const parsed = z.object({ items: z.array(common.extend({ excerpt: text(30000).trim().min(1) })).max(20) }).parse(result);
-    if (parsed.items.some((item) => !payload.text.includes(item.excerpt))) throw new Error('Trích đoạn AI không tồn tại trong biên bản gốc');
+    const span = z.object({ start: z.number().int().min(0), end: z.number().int().min(1) }).strict();
+    const parsed = z.object({ items: z.array(common.extend({ excerpt: text(30000).trim().min(1), sourceSpan: span.optional() })).max(20) }).parse(result);
+    const seen = new Set();
+    for (const item of parsed.items) {
+      const start = item.sourceSpan?.start ?? payload.text.indexOf(item.excerpt);
+      const end = item.sourceSpan?.end ?? start + item.excerpt.length;
+      if (start < 0 || end > payload.text.length || payload.text.slice(start, end) !== item.excerpt)
+        throw new Error('Trích đoạn AI không tồn tại trong biên bản gốc');
+      if (!item.sourceSpan && payload.text.indexOf(item.excerpt, start + 1) !== -1)
+        throw new Error('Trích đoạn AI trùng nhiều vị trí và thiếu vị trí nguồn');
+      const key = JSON.stringify([start, end, item.title.toLowerCase()]);
+      if (seen.has(key)) throw new Error('Công việc AI trùng tiêu đề và vị trí nguồn');
+      seen.add(key);
+      // Zero-based UTF-16 offsets, [start,end), against the immutable draft input.text.
+      item.sourceSpan = { start, end };
+    }
     return parsed;
   }
+  if (feature === 'report') return z.object({ summary: text(20000), suggestions: text(20000) }).parse(result);
   return result;
 }

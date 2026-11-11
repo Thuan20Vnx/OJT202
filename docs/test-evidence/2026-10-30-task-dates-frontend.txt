@@ -1,0 +1,90 @@
+
+> taskflow-client@1.0.0 test
+> node --import ./test/helpers/register-jsx.js --test test/*.test.js
+
+(node:19300) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:19300) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+✔ 401 đang chờ từ phiên ẩn danh không đăng xuất phiên vừa xác minh (108.6943ms)
+✔ download: lỗi mạng được chuẩn hóa; hết phiên thật mới phát unauthorized (14.2616ms)
+✔ JSON sai hoặc kết nối đứt khi đọc body được báo bằng ApiError (15.5511ms)
+✔ download làm mới phiên và tải đủ byte; refresh 503 không đăng xuất (30.2622ms)
+✔ refresh gặp 503 không đăng xuất người dùng và không xoay token khi /me lỗi server (31.7381ms)
+✔ lỗi mạng trong refresh hoặc retry được chuẩn hóa thành ApiError (26.5367ms)
+✔ refresh trả 401 mới phát sự kiện hết phiên (29.337ms)
+✔ nhiều request 401 đồng thời chỉ xoay refresh một lần (30.9249ms)
+(node:10176) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:10176) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+✔ useLoad không giữ dữ liệu dự án trước khi dự án mới tải lỗi (18.0135ms)
+✔ reload cũ không được thay thế kết quả của phạm vi mới (6.465ms)
+✔ quyền bị vô hiệu hóa chỉ tải lại đúng dự án và khóa ghi trong lúc chờ (4.2905ms)
+✔ quyền dự án không còn lấy từ cache cũ sau khi component đã đóng và resync (2.8777ms)
+✔ chọn lịch sử sau cùng thắng phản hồi cũ đến muộn (25.9542ms)
+✔ mở lịch sử thất bại được báo trên giao diện, không reject khỏi handler (6.3768ms)
+✔ đổi dự án xóa kế hoạch đang mở và bỏ phản hồi tạo nháp cũ (13.1806ms)
+✔ báo cáo lưu lỗi giữ nguyên editor và nội dung để thử lại (58.1211ms)
+✔ mở báo cáo khác đóng editor cũ để không lưu nhầm nội dung sang báo cáo mới (14.6132ms)
+✔ hỏi đáp chặn Enter gửi lặp khi đang chờ và bỏ phản hồi sau Cuộc hỏi mới (14.3159ms)
+✔ duyệt nháp phải chờ lưu checkbox và không duyệt khi còn sửa chưa lưu (8.0557ms)
+(node:18452) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:18452) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+✔ switches catalogs and dates at runtime, preserving interpolation values (26.6865ms)
+✔ stores preference and updates document language (0.6697ms)
+✔ translates server validation and risk templates without translating task titles (4.1776ms)
+✔ changing language updates the actual task form without losing its draft (52.1769ms)
+(node:25828) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:25828) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+✔ U011: debounce chỉ lấy chuỗi cuối, hủy timer khi unmount (66.012ms)
+✔ U014: lỗi gửi giữ bình luận và không reject; Ctrl+Enter không gửi lặp (12.2823ms)
+✔ U014: mention hỗ trợ mũi tên, Enter và Escape (5.2499ms)
+✔ U019: giờ trống không thành 0, giờ 0 được gửi đúng và lỗi giữ form (7.5226ms)
+✔ U011/U031: API lỗi không báo danh sách rỗng hoặc crash (41.5857ms)
+✔ U025: dùng API thống kê nhỏ, lỗi nguồn/lịch sử hiện rõ, không giả số 0 (8.4073ms)
+(node:11392) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:11392) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+✔ task có đủ 4 ngày; PM gửi ngày kế hoạch và thực tế cùng version (124.3944ms)
+✔ Member chỉ sửa ngày thực tế, nút lưu không gửi các trường kế hoạch (31.0163ms)
+✔ U010-T2: thẻ có nút mở bằng bàn phím và select trạng thái đúng quyền (4.0559ms)
+✔ U010-T2: lỗi move chỉ rollback thẻ thất bại, giữ thẻ khác và khóa gửi lặp (32.8597ms)
+✔ U010-T3: Viewer không có kéo thả hoặc điều khiển ghi trên thẻ (7.0673ms)
+✔ U009-T2: phản hồi realtime đang chờ không ghi đè draft hoặc version gốc (19.4377ms)
+✔ U009-T2: tạo task gửi đúng thuộc tính, chặn bấm lặp và giữ form khi API lỗi (14.8916ms)
+✔ U009-T2: chưa tải được quyền thì không gửi tạo công việc (3.7453ms)
+(node:23324) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:23324) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+✔ Cài đặt AI: tải lần đầu thất bại có lỗi và Thử lại, không crash (39.5947ms)
+✔ Lời mời: tải lần đầu thất bại có lỗi và Thử lại, không crash (5.6064ms)
+✔ Cài đặt AI: bật tính năng và resync không xóa hạn mức/timeout đang nhập (29.5489ms)
+✔ Cài đặt AI: hạn mức trống không được lưu thành 0 (8.161ms)
+✔ Cài đặt AI: lưu lỗi giữ dữ liệu, thử lại cho phép hạn mức 0 có chủ ý (18.4085ms)
+✔ Cài đặt AI: lỗi nhật ký có Thử lại và lỗi xuất CSV được báo (12.6669ms)
+✔ Lời mời: gửi lại và hủy lỗi được xử lý, giữ mục để thử lại (11.8696ms)
+✔ Hồ sơ: lỗi đổi mật khẩu không có fields vẫn được hiển thị (15.8895ms)
+✔ Hồ sơ: lỗi tải phiên có Thử lại, lỗi thu hồi phiên không thoát khỏi handler (9.6878ms)
+(node:13876) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:13876) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+✔ Member gửi Review, không thể tự duyệt Done (2.9331ms)
+✔ PM chỉ được duyệt Done từ Review, có thể mở lại Done (0.737ms)
+✔ Viewer, dự án archived hoặc chưa tải quyền không có thao tác ghi (1.6491ms)
+✔ My Tasks dùng quyền server: Member bắt đầu rồi gửi Review, không duyệt hoặc mở lại (0.8276ms)
+✔ Kanban và My Tasks cùng giới hạn PM duyệt Done sau Review (0.3811ms)
+(node:17428) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:17428) ExperimentalWarning: localStorage is not available because --localstorage-file was not provided.
+✔ P2: a pending realtime reload must preserve edits started while it was loading (111.899ms)
+✔ out-of-order realtime responses cannot replace the newest task (21.375ms)
+✔ explicit reload discards the old draft but keeps edits started during the reload (32.5286ms)
+ℹ tests 54
+ℹ suites 0
+ℹ pass 54
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 8401.8095

@@ -1,0 +1,20 @@
+npm warn deprecated node-domexception@1.0.0: Use your platform's native DOMException instead
+
+> taskflow-server@1.0.0 postinstall
+> prisma generate
+
+Prisma schema loaded from prisma\schema.prisma
+
+✔ Generated Prisma Client (v6.19.3) to .\node_modules\@prisma\client in 229ms
+
+Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+
+Tip: Need your database queries to be 1000x faster? Accelerate offers you that and more: https://pris.ly/tip-2-accelerate
+
+
+added 196 packages, and audited 197 packages in 12s
+
+46 packages are looking for funding
+  run `npm fund` for details
+
+found 0 vulnerabilities

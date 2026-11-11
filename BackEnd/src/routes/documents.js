@@ -10,6 +10,7 @@ import { assertWrite, documentAccess, middlewareProject, projectAccess } from '.
 import { logActivityIn } from '../services/activity.js';
 import { withWorkspaceLock } from '../services/membership.js';
 import { emitProject } from '../services/realtime.js';
+import { readFile, removeFile, saveFile } from '../services/storage.js';
 import { badRequest, conflict, forbidden, notFound, parse } from '../utils/http.js';
 import { pagination } from '../utils/http.js';
 import { randomToken } from '../utils/security.js';
@@ -21,7 +22,6 @@ const MAX_EDIT_LENGTH = 200000;
 const textBody = z.string().max(MAX_EDIT_LENGTH).refine((s) => !s.includes('\u0000'), 'Văn bản không được chứa ký tự NUL');
 const isTextDocument = (doc) => doc.kind === 'doc' || doc.mime === 'text/plain';
 const originalUpload = (doc) => doc.kind === 'file' && doc.mime === 'text/plain' && doc.version === 1 && doc.storageKey;
-const storedPath = (doc) => path.join(config.uploadDir, path.basename(doc.storageKey));
 
 // Uploaded text is cached only for preview/AI. Version 1 remains the original file,
 // including legacy uploads whose cached content was truncated.
@@ -30,7 +30,7 @@ async function editableContent(doc, enforceLimit = true) {
   let content = doc.content;
   if (originalUpload(doc)) {
     try {
-      const bytes = await fs.promises.readFile(storedPath(doc));
+      const bytes = await readFile(doc.storageKey);
       content = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes);
     } catch (error) {
       if (error.code === 'ENOENT') throw notFound('Tệp gốc không còn tồn tại');
@@ -46,12 +46,17 @@ async function editableContent(doc, enforceLimit = true) {
 fs.mkdirSync(config.uploadDir, { recursive: true });
 
 // Chỉ nhận PDF/TXT/PNG/JPG – kiểm tra cả đuôi tệp lẫn MIME, không nhận tệp thực thi
+const isZip = (b) => b[0] === 0x50 && b[1] === 0x4b && ((b[2] === 0x03 && b[3] === 0x04) || (b[2] === 0x05 && b[3] === 0x06));
 const ALLOWED = {
   '.pdf': ['application/pdf'],
   '.txt': ['text/plain'],
   '.png': ['image/png'],
   '.jpg': ['image/jpeg'],
   '.jpeg': ['image/jpeg'],
+  '.docx': ['application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/octet-stream'],
+  '.xlsx': ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/octet-stream'],
+  '.pptx': ['application/vnd.openxmlformats-officedocument.presentationml.presentation', 'application/octet-stream'],
+  '.zip': ['application/zip', 'application/x-zip-compressed', 'application/octet-stream'],
 };
 // Chữ ký đầu tệp (magic bytes) để chặn đổi đuôi
 const MAGIC = {
@@ -64,6 +69,11 @@ const MAGIC = {
     try { new TextDecoder('utf-8', { fatal: true }).decode(b); return true; }
     catch { return false; }
   },
+  // Office hiện đại và zip đều là tệp ZIP, bắt đầu bằng PK (PK với zip rỗng)
+  '.docx': isZip,
+  '.xlsx': isZip,
+  '.pptx': isZip,
+  '.zip': isZip,
 };
 
 const upload = multer({
@@ -72,7 +82,7 @@ const upload = multer({
   fileFilter: (_req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
     if (!ALLOWED[ext] || !ALLOWED[ext].includes(file.mimetype)) {
-      return cb(Object.assign(new Error(`${file.originalname} không được hỗ trợ – chỉ nhận PDF, TXT, PNG, JPG`), { status: 400 }));
+      return cb(Object.assign(new Error(`${file.originalname} không được hỗ trợ – chỉ nhận PDF, TXT, PNG, JPG, DOCX, XLSX, PPTX, ZIP`), { status: 400 }));
     }
     cb(null, true);
   },
@@ -96,15 +106,21 @@ async function storeFiles(req, project, taskId) {
   }
   const written = [];
   try {
+    // Lưu tệp trước khi giữ khóa: gọi mạng tới Storage không được kéo dài transaction.
+    const keys = new Map();
+    for (const file of req.files || []) {
+      const key = `${randomToken(16)}${path.extname(file.originalname).toLowerCase()}`;
+      await saveFile(key, file.buffer, file.mimetype);
+      written.push(key);
+      keys.set(file, key);
+    }
     return await withWorkspaceLock(project.workspace, async (tx) => {
       assertWrite(await projectAccess(req.user.id, project.id, tx));
       if (taskId && !(await tx.task.findFirst({ where: { deletedAt: null, id: taskId, project: project.id } }))) throw badRequest('Công việc không còn thuộc dự án');
       const out = [];
       for (const file of req.files || []) {
         const ext = path.extname(file.originalname).toLowerCase();
-        const key = `${randomToken(16)}${ext}`;
-        await fs.promises.writeFile(path.join(config.uploadDir, key), file.buffer);
-        written.push(key);
+        const key = keys.get(file);
         const isText = ext === '.txt';
         const doc = await tx.document.create({
           data: {
@@ -117,7 +133,7 @@ async function storeFiles(req, project, taskId) {
             size: file.size,
             storageKey: key,
             // Ảnh (thường là bản scan) được lưu nhưng không OCR, không dùng cho Trợ lý AI
-            isScan: !isText && ext !== '.pdf',
+            isScan: ['.png', '.jpg', '.jpeg'].includes(ext),
             content: isText ? file.buffer.toString('utf8').slice(0, 200000) : '',
             uploadedBy: req.user.id,
           },
@@ -138,12 +154,12 @@ async function storeFiles(req, project, taskId) {
       return out;
     });
   } catch (error) {
-    await Promise.all(written.map((key) => fs.promises.rm(path.join(config.uploadDir, key), { force: true }).catch(() => {})));
+    await Promise.all(written.map((key) => removeFile(key).catch(() => {})));
     throw error;
   }
 }
 
-const TYPE_EXT = { pdf: ['.pdf'], txt: ['.txt'], png: ['.png'], jpg: ['.jpg', '.jpeg'] };
+const TYPE_EXT = { pdf: ['.pdf'], txt: ['.txt'], png: ['.png'], jpg: ['.jpg', '.jpeg'], office: ['.docx', '.xlsx', '.pptx'], zip: ['.zip'] };
 
 router.get('/projects/:projectId/documents', middlewareProject(), async (req, res) => {
   const and = [{ project: req.pa.project.id }];
@@ -329,22 +345,26 @@ router.get('/documents/:id/download', async (req, res) => {
   res.setHeader('Cache-Control', 'private, no-store');
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(doc.name)}`);
+  const stored = async (message) => {
+    try {
+      return await readFile(doc.storageKey);
+    } catch (error) {
+      if (error.code === 'ENOENT') throw notFound(message);
+      throw error;
+    }
+  };
   if (originalUpload(doc)) {
-    const file = storedPath(doc);
-    if (!fs.existsSync(file)) throw notFound('Tệp gốc không còn tồn tại');
+    const bytes = await stored('Tệp gốc không còn tồn tại');
     res.type('text/plain; charset=utf-8');
-    return fs.createReadStream(file).on('error', () => res.destroy()).pipe(res);
+    return res.send(bytes);
   }
   if (doc.kind === 'doc' || doc.mime === 'text/plain' || !doc.storageKey) {
     res.type('text/plain; charset=utf-8');
     return res.send(doc.content);
   }
-  const file = path.join(config.uploadDir, path.basename(doc.storageKey));
-  if (!fs.existsSync(file)) throw notFound('Tệp không còn tồn tại');
+  const bytes = await stored('Tệp không còn tồn tại');
   res.type(doc.mime);
-  fs.createReadStream(file)
-    .on('error', () => res.destroy())
-    .pipe(res);
+  res.send(bytes);
 });
 
 router.delete('/documents/:id', async (req, res) => {
@@ -358,7 +378,7 @@ router.delete('/documents/:id', async (req, res) => {
     await tx.document.delete({ where: { id: doc.id } }); // lịch sử phiên bản xóa theo (CASCADE)
     await logActivityIn(tx, { workspace: doc.workspace, project: doc.project, actor: req.user.id, action: 'Xóa tệp', entityType: 'file', entityId: doc.id, entityLabel: doc.name });
   });
-  if (doc.storageKey) await fs.promises.rm(path.join(config.uploadDir, path.basename(doc.storageKey)), { force: true });
+  if (doc.storageKey) await removeFile(doc.storageKey);
   await emitProject(doc.project, 'documents:changed', { action: 'delete', documentIds: [doc.id], sourceInvalidated: true });
   res.json({ ok: true });
 });

@@ -11,6 +11,7 @@ import Meeting from './ai/Meeting.jsx';
 export default function Ai() {
   useI18n();
   const { tab = 'planner' } = useParams();
+  const reportOnly = tab === 'report';
   const navigate = useNavigate();
   const { project } = useApp();
   const usage = useLoad(() => (project ? api.get(`/projects/${project._id}/ai/usage`) : Promise.resolve(null)), [project?._id, tab]);
@@ -23,7 +24,7 @@ export default function Ai() {
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="flex items-center gap-2 text-headline-lg text-slate-900">
-            <Icon name="auto_awesome" className="text-purple-500" size={26} />{tr(" Trợ lý AI")}</h1>
+            <Icon name={reportOnly ? 'bar_chart' : 'auto_awesome'} className="text-purple-500" size={26} />{reportOnly ? tr('Báo cáo tiến độ') : tr(" Trợ lý AI")}</h1>
           <p className="text-body-sm text-slate-500">{tr("Gợi ý của AI luôn ở dạng nháp – chỉ được tạo khi bạn duyệt.")}</p>
         </div>
         {u && (
@@ -35,17 +36,16 @@ export default function Ai() {
           </div>
         )}
       </div>
-      <Tabs
+      {!reportOnly && <Tabs
         className="mb-5"
         value={tab}
         onChange={(v) => navigate(`/ai/${v}`)}
         tabs={[
           { value: 'planner', label: tr("Lập kế hoạch"), icon: 'flag' },
-          { value: 'report', label: tr("Báo cáo tiến độ"), icon: 'bar_chart' },
           { value: 'qa', label: tr("Hỏi đáp dự án"), icon: 'forum' },
           { value: 'meeting', label: tr("Ghi chú họp"), icon: 'groups' },
         ]}
-      />
+      />}
       {u && !u.enabled && (
         <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-body-sm text-amber-800">{tr("Trợ lý AI đang tắt cho workspace này. Owner/Admin có thể bật lại trong Cài đặt Workspace › Trợ lý AI.")}</div>
       )}

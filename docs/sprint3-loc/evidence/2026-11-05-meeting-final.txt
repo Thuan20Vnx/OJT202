@@ -1,0 +1,35 @@
+[seed] Tạo dữ liệu demo Nhóm 24…
+[seed] Xong. Đăng nhập: mai.anh@nhom24.edu.vn / TaskFlow@2026  (System Admin: admin@taskflow.local)
+▶ Trợ lý AI (U021–U027)
+  ✔ kế hoạch nháp 5–15 việc; không có hạn thì không tự đặt; duyệt nhiều lần không tạo trùng (252.8486ms)
+  ✔ hỏi đáp có nguồn; thiếu chứng cứ thì từ chối (261.6071ms)
+  ✔ hỏi đáp không đọc được dự án không có quyền (79.5695ms)
+  ✔ báo cáo: số liệu tính từ DB (198.3931ms)
+  ✔ vượt hạn mức AI trả 429 nhưng CRUD vẫn hoạt động (125.4392ms)
+  ✔ ghi chú họp qua AIService: không rõ người/hạn thì để trống (102.5509ms)
+[ai] qa lỗi: AI_CALL_FAILED
+[error] HttpError: AI đang bận, vui lòng thử lại sau. Các chức năng khác vẫn hoạt động bình thường.
+    at runAi (file:///D:/Desktop/Nhom24/OJT202/BackEnd/src/services/ai/gateway.js:90:13)
+    at async file:///D:/Desktop/Nhom24/OJT202/BackEnd/src/routes/ai.js:488:15 {
+  status: 503,
+  details: { code: 'AI_UNAVAILABLE' }
+}
+  ✔ AIService không chạy: tính năng AI báo bận (503), CRUD vẫn hoạt động (118.5547ms)
+  ✔ cảnh báo rủi ro dựa trên quy tắc (146.1044ms)
+✔ Trợ lý AI (U021–U027) (44943.9447ms)
+▶ Lộc Sprint 3: meeting, report, admin security
+  ✔ U027: nguồn bất biến, sửa preview, duyệt đồng thời một lần và từ chối nguồn bị sửa (435.0579ms)
+✔ Lộc Sprint 3: meeting, report, admin security (435.3842ms)
+▶ AI: hạn biên bản và giới hạn kế hoạch
+  ✔ biên bản qua HTTP và duyệt task giữ ngày ISO/cuối ngày profile, ngày sai để trống (140.9432ms)
+  ✔ kế hoạch 1 giờ hợp lệ, sửa vượt giới hạn bị chặn trước khi tạo task (236.9944ms)
+  ✔ hạn kế hoạch đã qua không gọi AI; bản nháp không chọn việc không bị đánh dấu đã duyệt (108.8473ms)
+✔ AI: hạn biên bản và giới hạn kế hoạch (487.0669ms)
+ℹ tests 12
+ℹ suites 3
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 47372.7834

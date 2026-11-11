@@ -1,6 +1,6 @@
 # ERD và từ điển dữ liệu
 
-Version 2026-10-30. Sinh từ `BackEnd/prisma/schema.prisma`; SQL migration là nguồn triển khai. Mảng UUID và JSONB không tự tạo FK; quan hệ bên dưới chỉ lấy từ `@relation(fields:...)` thật.
+Version 2026-11-03. Sinh từ `BackEnd/prisma/schema.prisma`; SQL migration là nguồn triển khai. Mảng UUID và JSONB không tự tạo FK; quan hệ bên dưới chỉ lấy từ `@relation(fields:...)` thật.
 
 ```mermaid
 erDiagram
@@ -8,17 +8,13 @@ erDiagram
     String id PK
     String email
     String name
-    String passwordHash
+    String googleId
     Boolean emailVerified
     String title
     String timezone
     Boolean isSystemAdmin
     Boolean isLocked
-    String lockReason
-    String lockNote
-    DateTime lockedAt
     String lockedBy
-    DateTime lastLoginAt
     DateTime createdAt
     DateTime updatedAt
   }
@@ -26,14 +22,7 @@ erDiagram
     Boolean remember
     String id PK
     String user
-    String refreshHash
-    String family
-    String userAgent
-    String ip
     DateTime lastUsedAt
-    DateTime expiresAt
-    DateTime revokedAt
-    String replacedBy
     DateTime createdAt
     DateTime updatedAt
   }
@@ -41,8 +30,13 @@ erDiagram
     String id PK
     String user
     String hash
-    DateTime expiresAt
-    DateTime usedAt
+    DateTime createdAt
+    DateTime updatedAt
+  }
+  Otp {
+    String id PK
+    String user
+    Int attempts
     DateTime createdAt
     DateTime updatedAt
   }
@@ -63,6 +57,8 @@ erDiagram
     String user
     String title
     Float weeklyHours
+    String specialties
+    Boolean isMentor
     DateTime createdAt
     DateTime updatedAt
   }
@@ -70,7 +66,6 @@ erDiagram
     String workspace
     String user
     DateTime weekStart
-    Float hours
     Int version
     DateTime createdAt
     DateTime updatedAt
@@ -78,25 +73,21 @@ erDiagram
   Invite {
     String id PK
     String workspace
-    String email
     String projects
     String tokenHash
+    Boolean mentor
     String invitedBy
-    DateTime expiresAt
-    DateTime acceptedAt
-    DateTime revokedAt
     DateTime createdAt
     DateTime updatedAt
   }
   Project {
+    String timezone
     String id PK
     String workspace
     String name
     String description
     String color
     String keyPrefix
-    DateTime startDate
-    DateTime endDate
     String members
     String manager
     Json sprint
@@ -114,39 +105,113 @@ erDiagram
     String id PK
     String workspace
     String project
-    Int number
-    String key
     String title
     String description
     String acceptanceCriteria
     String assignee
     String creator
-    DateTime dueDate
-    Float estimateHours
     Float spentHours
-    Float remainingHours
+    Float legacySpentHours
+    String workType
+    Int progressPct
     DateTime deletedAt
     String labels
     String sprint
     String parent
-    Json checklist
     String blockedBy
     Float order
     Int version
-    DateTime reviewSince
-    DateTime completedAt
-    String aiDraftItem
     DateTime createdAt
     DateTime updatedAt
   }
+  ChecklistItem {
+    String id PK
+    String task
+    String title
+    Boolean isDone
+    Int position
+  }
+  TaskContributor {
+    String task
+    String user
+    String responsibility
+  }
+  TaskDailyUpdate {
+    String id PK
+    String task
+    String user
+    DateTime workDate
+    String completed
+    String nextStep
+    String blockers
+    Int version
+    DateTime createdAt
+    DateTime updatedAt
+  }
+  ProjectLabel {
+    String project
+    String name
+    DateTime createdAt
+  }
+  Sprint {
+    String id PK
+    String project
+    String name
+    String goal
+    String status
+    Int version
+    DateTime createdAt
+    DateTime updatedAt
+  }
+  RateCounter {
+    String key PK
+    Int count
+    DateTime windowStart
+  }
+  TaskIssue {
+    String id PK
+    String project
+    String task
+    String type
+    String affectedUser
+    DateTime startDate
+    DateTime endDate
+    String reporter
+    String owner
+    String title
+    String severity
+    String cause
+    String action
+    String status
+    String resolution
+    Int version
+    DateTime createdAt
+    DateTime updatedAt
+  }
+  ProjectMeeting {
+    String id PK
+    String project
+    String creator
+    String title
+    String agenda
+    String location
+    String status
+    Int version
+    DateTime createdAt
+    DateTime updatedAt
+  }
+  MeetingParticipant {
+    String meeting
+    String user
+  }
   Comment {
+    DateTime deletedAt
     String id PK
     String task
     String project
     String author
     String body
     String mentions
-    DateTime editedAt
     DateTime createdAt
     DateTime updatedAt
   }
@@ -156,9 +221,6 @@ erDiagram
     String project
     String task
     String name
-    String mime
-    Int size
-    String storageKey
     Boolean isScan
     String content
     Int version
@@ -169,8 +231,6 @@ erDiagram
   DocumentRevision {
     String id PK
     String document
-    Int version
-    String content
     String author
     DateTime createdAt
   }
@@ -181,10 +241,6 @@ erDiagram
     String project
     String task
     String actor
-    String text
-    String excerpt
-    DateTime readAt
-    String dedupeKey
     DateTime createdAt
     DateTime updatedAt
   }
@@ -203,23 +259,18 @@ erDiagram
     String workspace
     String project
     String actor
-    String action
     String entityId
-    String entityLabel
-    String field
-    Json before
-    Json after
     DateTime createdAt
   }
   AiCall {
     String id PK
     String workspace
     String user
-    String model
     Int inputTokens
     Int outputTokens
     Int latencyMs
-    String error
+    Json attempts
+    Boolean usageComplete
     DateTime createdAt
   }
   AiDraft {
@@ -227,29 +278,20 @@ erDiagram
     String workspace
     String project
     String user
-    String title
-    Json input
     Json items
     Int version
-    DateTime approvedAt
     DateTime createdAt
     DateTime updatedAt
   }
   AiReport {
+    String periodConvention
     String id PK
     String workspace
     String project
     String user
-    String title
-    String template
-    DateTime from
-    DateTime to
-    Json stats
     Json sections
     String sourceTasks
     String sourceRevision
-    DateTime generatedAt
-    DateTime sharedAt
     DateTime createdAt
     DateTime updatedAt
   }
@@ -258,7 +300,6 @@ erDiagram
     String workspace
     String project
     String user
-    String title
     Json messages
     DateTime createdAt
     DateTime updatedAt
@@ -266,11 +307,8 @@ erDiagram
   RiskResolution {
     String id PK
     String project
-    String key
-    String title
     String sourceVersion
     String reason
-    Json snapshot
     String resolvedBy
     DateTime createdAt
     DateTime updatedAt
@@ -278,18 +316,11 @@ erDiagram
   AdminAudit {
     String id PK
     String admin
-    String action
     String targetUser
-    String reason
-    String note
     DateTime createdAt
   }
   Outbox {
     String id PK
-    String to
-    String subject
-    String text
-    String link
     DateTime createdAt
   }
   Counter {
@@ -299,6 +330,7 @@ erDiagram
   User |o--o{ User : "lockedBy"
   User ||--o{ Session : "user"
   User ||--o{ Token : "user"
+  User ||--o{ Otp : "user"
   User ||--o{ Workspace : "owner"
   Workspace ||--o{ Membership : "workspace"
   User ||--o{ Membership : "user"
@@ -315,6 +347,22 @@ erDiagram
   User |o--o{ Task : "assignee"
   User |o--o{ Task : "creator"
   Task |o--o{ Task : "parent"
+  Task ||--o{ ChecklistItem : "task"
+  Task ||--o{ TaskContributor : "task"
+  User ||--o{ TaskContributor : "user"
+  Task ||--o{ TaskDailyUpdate : "task"
+  User ||--o{ TaskDailyUpdate : "user"
+  Project ||--o{ ProjectLabel : "project"
+  Project ||--o{ Sprint : "project"
+  Project ||--o{ TaskIssue : "project"
+  Task |o--o{ TaskIssue : "task"
+  User ||--o{ TaskIssue : "reporter"
+  User |o--o{ TaskIssue : "owner"
+  User |o--o{ TaskIssue : "affectedUser"
+  Project ||--o{ ProjectMeeting : "project"
+  User ||--o{ ProjectMeeting : "creator"
+  ProjectMeeting ||--o{ MeetingParticipant : "meeting"
+  User ||--o{ MeetingParticipant : "user"
   Task ||--o{ Comment : "task"
   Project ||--o{ Comment : "project"
   User ||--o{ Comment : "author"
@@ -360,6 +408,8 @@ model User {
   email         String    @unique
   name          String    @db.VarChar(80)
   passwordHash  String
+  /// Mã `sub` của tài khoản Google đã liên kết (đăng nhập bằng Google)
+  googleId      String?   @unique
   emailVerified Boolean   @default(false)
   title         String    @default("")
   timezone      String    @default("Asia/Ho_Chi_Minh")
@@ -378,6 +428,7 @@ model User {
   lockedUsers        User[]             @relation("UserLockedBy")
   sessions           Session[]
   tokens             Token[]
+  otps               Otp[]
   ownedWorkspaces    Workspace[]
   memberships        Membership[]
   invitesSent        Invite[]
@@ -400,6 +451,14 @@ model User {
   riskResolutions    RiskResolution[]
   auditsDone         AdminAudit[]       @relation("AuditAdmin")
   auditsReceived     AdminAudit[]       @relation("AuditTarget")
+  contributions      TaskContributor[]
+  dailyUpdates       TaskDailyUpdate[]
+  issuesRaised       TaskIssue[]        @relation("IssueReporter")
+  issuesOwned        TaskIssue[]        @relation("IssueOwner")
+
+  issuesAffecting TaskIssue[] @relation("IssueAffected")
+  meetingsCreated    ProjectMeeting[]
+  meetingInvites     MeetingParticipant[]
 
   @@map("users")
 }
@@ -452,6 +511,27 @@ model Token {
 }
 ```
 
+### Otp
+
+```prisma
+model Otp {
+  id        String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user      String      @map("user_id") @db.Uuid
+  purpose   OtpPurpose
+  codeHash  String
+  attempts  Int         @default(0)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  userRef User @relation(fields: [user], references: [id], onDelete: Cascade)
+
+  @@index([user, purpose])
+  @@map("otps")
+}
+```
+
 ### Workspace
 
 ```prisma
@@ -494,6 +574,10 @@ model Membership {
   role        WorkspaceRole
   title       String        @default("")
   weeklyHours Float         @default(20)
+  /// Vai trò chuyên môn, một người có thể giữ nhiều vai trò: developer, tester…
+  specialties String[]      @default([])
+  /// Giảng viên hướng dẫn: role luôn là viewer, được thêm bình luận và trang theo dõi nhóm
+  isMentor    Boolean       @default(false)
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
@@ -536,6 +620,7 @@ model Invite {
   role       WorkspaceRole @default(member)
   projects   String[]      @default([]) @db.Uuid
   tokenHash  String        @unique
+  mentor     Boolean       @default(false)
   invitedBy  String        @map("invited_by_id") @db.Uuid
   expiresAt  DateTime
   acceptedAt DateTime?
@@ -555,6 +640,7 @@ model Invite {
 
 ```prisma
 model Project {
+  timezone    String        @default("Asia/Ho_Chi_Minh")
   id          String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   workspace   String        @map("workspace_id") @db.Uuid
   name        String        @db.VarChar(100)
@@ -588,6 +674,10 @@ model Project {
   aiConversations AiConversation[]
   riskResolutions RiskResolution[]
   memberships     ProjectMember[]
+  meetings        ProjectMeeting[]
+  labelCatalog    ProjectLabel[]
+  sprints         Sprint[]
+  issues          TaskIssue[]
 
   @@index([workspace])
   @@index([members], type: Gin)
@@ -623,21 +713,25 @@ model Task {
   key                String
   title              String     @db.VarChar(200)
   description        String     @default("")
-  acceptanceCriteria String[]   @default([])
+  acceptanceCriteria String     @default("") @map("acceptance_criteria")
   status             TaskStatus @default(todo)
   priority           Priority   @default(medium)
   assignee           String?    @map("assignee_id") @db.Uuid
   creator            String?    @map("creator_id") @db.Uuid
   dueDate            DateTime?
+  plannedStartDate   DateTime?
+  actualStartDate    DateTime?
+  actualEndDate      DateTime?
   estimateHours      Float?
   spentHours         Float      @default(0)
+  legacySpentHours   Float      @default(0)
+  workType           String     @default("unclassified") @db.VarChar(30)
+  progressPct        Int        @default(0)
   remainingHours     Float?
   deletedAt          DateTime?  @map("deleted_at")
   labels             String[]   @default([])
   sprint             String     @default("")
-  parent             String?    @map("parent_id") @db.Uuid
-  /// [{ text, done }]
-  checklist          Json       @default("[]")
+  parent             String?    @map("parent_task_id") @db.Uuid
   blockedBy          String[]   @default([]) @db.Uuid
   order              Float      @default(0)
   version            Int        @default(1)
@@ -654,7 +748,11 @@ model Task {
   creatorRef    User?          @relation("TaskCreator", fields: [creator], references: [id], onDelete: SetNull)
   parentRef     Task?          @relation("Subtasks", fields: [parent], references: [id], onDelete: Cascade)
   subtasks      Task[]         @relation("Subtasks")
+  contributors  TaskContributor[]
+  dailyUpdates  TaskDailyUpdate[]
+  issues        TaskIssue[]
   comments      Comment[]
+  checklistItems ChecklistItem[]
   documents     Document[]
   notifications Notification[]
 
@@ -662,6 +760,8 @@ model Task {
   // NULL không trùng nhau trong UNIQUE của PostgreSQL => chỉ ràng buộc việc tạo từ AI
   @@unique([project, aiDraftItem])
   @@index([project, status])
+  @@index([project, status, dueDate], map: "tasks_project_status_due_idx")
+  @@index([workspace, assignee, dueDate], map: "tasks_workspace_assignee_due_idx")
   @@index([project, deletedAt])
   @@index([assignee])
   @@index([parent])
@@ -670,10 +770,194 @@ model Task {
 }
 ```
 
+### ChecklistItem
+
+```prisma
+model ChecklistItem {
+  id       String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  task     String  @map("task_id") @db.Uuid
+  title    String  @db.VarChar(300)
+  isDone   Boolean @default(false) @map("is_done")
+  position Int     @default(0)
+  taskRef  Task    @relation(fields: [task], references: [id], onDelete: Cascade)
+
+  @@index([task, position])
+  @@map("checklist_items")
+}
+```
+
+### TaskContributor
+
+```prisma
+model TaskContributor {
+  task           String @db.Uuid
+  user           String @db.Uuid
+  responsibility String @default("") @db.VarChar(300)
+  plannedHours   Float
+  remainingHours Float
+  taskRef Task @relation(fields: [task], references: [id], onDelete: Cascade)
+  userRef User @relation(fields: [user], references: [id], onDelete: Cascade)
+  @@id([task, user])
+  @@index([user])
+  @@map("task_contributors")
+}
+```
+
+### TaskDailyUpdate
+
+```prisma
+model TaskDailyUpdate {
+  id             String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  task           String @db.Uuid
+  user           String @db.Uuid
+  workDate       DateTime @db.Date
+  hours          Float
+  completed      String @db.VarChar(2000)
+  nextStep       String @default("") @db.VarChar(2000)
+  blockers       String @default("") @db.VarChar(2000)
+  progressPct    Int
+  version        Int @default(1)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  taskRef Task @relation(fields: [task], references: [id], onDelete: Cascade)
+  userRef User @relation(fields: [user], references: [id], onDelete: Cascade)
+  @@unique([task, user, workDate])
+  @@index([user, workDate])
+  @@map("task_daily_updates")
+}
+```
+
+### ProjectLabel
+
+```prisma
+model ProjectLabel {
+  project   String   @db.Uuid
+  name      String   @db.VarChar(40)
+  createdAt DateTime @default(now())
+
+  projectRef Project @relation(fields: [project], references: [id], onDelete: Cascade)
+
+  @@id([project, name])
+  @@map("project_labels")
+}
+```
+
+### Sprint
+
+```prisma
+model Sprint {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  project   String    @db.Uuid
+  name      String    @db.VarChar(60)
+  goal      String    @default("") @db.VarChar(300)
+  start     DateTime?
+  end       DateTime?
+  /// planned | active | closed
+  status    String    @default("planned") @db.VarChar(20)
+  closedAt  DateTime?
+  version   Int       @default(1)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @default(now()) @updatedAt
+
+  projectRef Project @relation(fields: [project], references: [id], onDelete: Cascade)
+
+  @@unique([project, name])
+  @@map("sprints")
+}
+```
+
+### RateCounter
+
+```prisma
+model RateCounter {
+  key         String    @id @db.VarChar(120)
+  count       Int       @default(0)
+  windowStart DateTime  @default(now())
+  lockedUntil DateTime?
+
+  @@index([windowStart])
+  @@map("rate_counters")
+}
+```
+
+### TaskIssue
+
+```prisma
+model TaskIssue {
+  id         String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  project    String @db.Uuid
+  /// Không bắt buộc: vấn đề như ốm/vắng mặt thuộc về dự án, không thuộc một công việc
+  task       String? @db.Uuid
+  /// technical | absence | scope | external | other
+  type       String @default("technical") @db.VarChar(20)
+  affectedUser String? @db.Uuid
+  startDate  DateTime? @db.Date
+  endDate    DateTime? @db.Date
+  reporter   String @db.Uuid
+  owner      String? @db.Uuid
+  title      String @db.VarChar(200)
+  severity   String @db.VarChar(20)
+  cause      String @db.VarChar(2000)
+  action     String @db.VarChar(2000)
+  status     String @default("open") @db.VarChar(20)
+  resolution String @default("") @db.VarChar(2000)
+  version    Int @default(1)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  projectRef Project @relation(fields: [project], references: [id], onDelete: Cascade)
+  taskRef Task? @relation(fields: [task], references: [id], onDelete: Cascade)
+  reporterRef User @relation("IssueReporter", fields: [reporter], references: [id])
+  ownerRef User? @relation("IssueOwner", fields: [owner], references: [id], onDelete: SetNull)
+  affectedRef User? @relation("IssueAffected", fields: [affectedUser], references: [id], onDelete: SetNull)
+  @@index([task, status])
+  @@index([project, status])
+  @@map("task_issues")
+}
+```
+
+### ProjectMeeting
+
+```prisma
+model ProjectMeeting {
+  id        String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  project   String @db.Uuid
+  creator   String @db.Uuid
+  title     String @db.VarChar(200)
+  agenda    String @default("") @db.VarChar(4000)
+  location  String @default("") @db.VarChar(500)
+  startAt   DateTime
+  endAt     DateTime
+  status    String @default("scheduled") @db.VarChar(20)
+  version   Int @default(1)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  projectRef Project @relation(fields: [project], references: [id], onDelete: Cascade)
+  creatorRef User @relation(fields: [creator], references: [id])
+  participants MeetingParticipant[]
+  @@index([project, startAt])
+  @@map("project_meetings")
+}
+```
+
+### MeetingParticipant
+
+```prisma
+model MeetingParticipant {
+  meeting String @db.Uuid
+  user    String @db.Uuid
+  meetingRef ProjectMeeting @relation(fields: [meeting], references: [id], onDelete: Cascade)
+  userRef User @relation(fields: [user], references: [id], onDelete: Cascade)
+  @@id([meeting, user])
+  @@index([user])
+  @@map("meeting_participants")
+}
+```
+
 ### Comment
 
 ```prisma
 model Comment {
+  deletedAt DateTime? @map("deleted_at")
   id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   task      String    @map("task_id") @db.Uuid
   project   String    @map("project_id") @db.Uuid
@@ -835,6 +1119,11 @@ model AiCall {
   inputTokens  Int          @default(0)
   outputTokens Int          @default(0)
   latencyMs    Int          @default(0)
+  queuedAt     DateTime?
+  finishedAt   DateTime?
+  provider     String?
+  attempts     Json         @default("[]")
+  usageComplete Boolean     @default(false)
   status       AiCallStatus
   error        String?
   createdAt    DateTime     @default(now())
@@ -879,6 +1168,8 @@ model AiDraft {
 
 ```prisma
 model AiReport {
+  timezone         String?
+  periodConvention String @default("legacy-inclusive")
   id          String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   workspace   String         @map("workspace_id") @db.Uuid
   project     String         @map("project_id") @db.Uuid

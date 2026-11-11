@@ -55,6 +55,16 @@ const alert = { key: 'overdue:task', type: 'overdue', severity: 'warning', sourc
 const risks = (item = alert) => ({ open: [item], resolved: [], rules: { overdueDays: 1, overloadPct: 100, dueSoonProgressPct: 80 }, access: { canManage: true, canWrite: true } });
 const riskPage = (project = 'p') => React.createElement(MemoryRouter, {}, React.createElement(AppCtx.Provider, { value: { project: { _id: project, name: project } } }, React.createElement(Risks)));
 
+test('Recheck U026: read-only users see rules and sources without AI or reassign controls', async (t) => {
+  t.mock.method(api, 'get', async () => ({ ...risks(), access: { canManage: false, canWrite: false } }));
+  const tree = await mount(t, riskPage());
+  assert.match(text(tree.root), /Giải thích theo quy tắc/);
+  assert.ok(button(tree, 'Xem công việc'));
+  assert.equal(Boolean(button(tree, 'Diễn giải bằng AI')), false);
+  assert.equal(Boolean(button(tree, 'Giao lại')), false);
+  assert.equal(Boolean(button(tree, 'Đã xử lý')), false);
+});
+
 test('U026: modal yêu cầu lý do, gửi sourceVersion và giữ lý do khi nguồn đã thay đổi', async (t) => {
   t.mock.method(api, 'get', async () => risks());
   const post = t.mock.method(api, 'post', async () => { throw new ApiError(409, 'Nguồn cảnh báo đã thay đổi'); });

@@ -8,6 +8,7 @@ import { meUser } from '../services/serialize.js';
 import { badRequest, forbidden, notFound, parse } from '../utils/http.js';
 import { passwordIssues, sha256 } from '../utils/security.js';
 import { withWorkspaceLock } from '../services/membership.js';
+import { addMentorToProjects } from './workspaces.js';
 import { disconnectUser, refreshUserAccess } from '../services/realtime.js';
 import { withUserLock } from '../services/sessions.js';
 import { isTimeZone } from '../utils/dates.js';
@@ -23,7 +24,38 @@ router.get('/', async (req, res) => {
   });
   res.json({
     user: meUser(req.user),
-    workspaces: memberships.map((m) => ({ ...m.workspaceRef, role: m.role })),
+    workspaces: memberships.map((m) => ({ ...m.workspaceRef, role: m.role, isMentor: m.isMentor })),
+  });
+});
+
+// Giảng viên: tiến độ mọi nhóm đang hướng dẫn trên một màn hình.
+router.get('/mentoring', async (req, res) => {
+  const memberships = await prisma.membership.findMany({ where: { user: req.user.id, isMentor: true }, include: { workspaceRef: { select: { id: true, name: true } } }, orderBy: { createdAt: 'asc' } });
+  const projects = await prisma.project.findMany({
+    where: { workspace: { in: memberships.map((m) => m.workspace) }, status: 'active', memberships: { some: { user: req.user.id } } },
+    select: { id: true, name: true, color: true, workspace: true, sprint: true },
+    orderBy: { createdAt: 'asc' },
+  });
+  const ids = projects.map((p) => p.id);
+  const [tasks, issues] = await Promise.all([
+    prisma.task.findMany({ where: { project: { in: ids }, parent: null, deletedAt: null }, select: { project: true, status: true, dueDate: true } }),
+    prisma.taskIssue.groupBy({ by: ['project'], where: { project: { in: ids }, status: 'open' }, _count: { _all: true } }),
+  ]);
+  const now = new Date();
+  res.json({
+    groups: memberships.map((m) => ({
+      workspace: m.workspaceRef,
+      projects: projects.filter((p) => p.workspace === m.workspace).map((p) => {
+        const mine = tasks.filter((t) => t.project === p.id);
+        const done = mine.filter((t) => t.status === 'done').length;
+        return {
+          ...p, total: mine.length, done,
+          progressPct: mine.length ? Math.round((done / mine.length) * 100) : 0,
+          overdue: mine.filter((t) => t.status !== 'done' && t.dueDate && t.dueDate < now).length,
+          openIssues: issues.find((i) => i.project === p.id)?._count._all || 0,
+        };
+      }),
+    })),
   });
 });
 
@@ -129,9 +161,10 @@ router.post('/invites/:token/accept', async (req, res) => {
     if (!count) throw badRequest('Lời mời đã hết hạn hoặc không còn hiệu lực');
     const membership = await tx.membership.upsert({
       where: { workspace_user: { workspace: inv.workspace, user: userId } },
-      create: { workspace: inv.workspace, user: userId, role: inv.role },
+      create: { workspace: inv.workspace, user: userId, role: inv.role, isMentor: inv.mentor },
       update: {},
     });
+    if (membership.isMentor) await addMentorToProjects(tx, inv.workspace, userId);
     // Thêm vào các dự án được chỉ định (không trùng)
     const projects = await tx.project.findMany({
       where: { id: { in: inv.projects }, workspace: inv.workspace, status: 'active', memberships: { some: { user: inv.invitedBy, role: 'pm' }, none: { user: userId } }, workspaceRef: { memberships: { some: { user: inv.invitedBy, role: { not: 'viewer' } } } } },

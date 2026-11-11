@@ -1,0 +1,114 @@
+[seed] Tạo dữ liệu demo Nhóm 24…
+[seed] Xong. Đăng nhập: mai.anh@nhom24.edu.vn / TaskFlow@2026  (System Admin: admin@taskflow.local)
+▶ Lộc Sprint 3: meeting, report, admin security
+  ✖ Recheck U026: Viewer and archived projects cannot spend AI quota (549.2248ms)
+  ✖ Recheck U026: risk AI rechecks project-role before returning (372.7442ms)
+  ✖ Recheck U026: risk AI rechecks workspace-role before returning (377.6957ms)
+  ✖ Recheck U026: risk AI rechecks archive before returning (368.9712ms)
+  ✖ Recheck U026: overload sources include only the current contributor remaining work (388.191ms)
+✖ Lộc Sprint 3: meeting, report, admin security (45993.508ms)
+ℹ tests 5
+ℹ suites 1
+ℹ pass 0
+ℹ fail 5
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 47709.6907
+
+✖ failing tests:
+
+test at BackEnd\test\helpers\loc-sprint3.js:193:5
+✖ Recheck U026: Viewer and archived projects cannot spend AI quota (549.2248ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  200 !== 403
+
+      at TestContext.<anonymous> (file:///D:/Desktop/Nhom24/OJT202/BackEnd/test/helpers/loc-sprint3.js:201:14)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Promise.all (index 4)
+      at async Suite.run (node:internal/test_runner/test:1619:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 200,
+    expected: 403,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at BackEnd\test\helpers\loc-sprint3.js:213:73
+✖ Recheck U026: risk AI rechecks project-role before returning (372.7442ms)
+  AssertionError [ERR_ASSERTION]: {"explanation":"Output before permission change","_meta":{"callId":"89fbf01a-5c68-4f9b-ae69-cfe2db77ebf2","model":"fixture","provider":"test","latencyMs":9,"attemptCount":1,"usageComplete":false},"sourceVersion":"1e107db15cb14f0de225e3efe022dd4191abd09082d3949450d97598c30bbcf8"}
+
+  200 !== 403
+
+      at TestContext.<anonymous> (file:///D:/Desktop/Nhom24/OJT202/BackEnd/test/helpers/loc-sprint3.js:227:14)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 200,
+    expected: 403,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at BackEnd\test\helpers\loc-sprint3.js:213:73
+✖ Recheck U026: risk AI rechecks workspace-role before returning (377.6957ms)
+  AssertionError [ERR_ASSERTION]: {"explanation":"Output before permission change","_meta":{"callId":"6278717e-adee-4561-bb79-532d42dfbe32","model":"fixture","provider":"test","latencyMs":8,"attemptCount":1,"usageComplete":false},"sourceVersion":"30d3da9ddf2d4d7d6e4d87b888a9df378e1939a09e03bb33cdd4d0e9090a4a67"}
+
+  200 !== 403
+
+      at TestContext.<anonymous> (file:///D:/Desktop/Nhom24/OJT202/BackEnd/test/helpers/loc-sprint3.js:227:14)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 200,
+    expected: 403,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at BackEnd\test\helpers\loc-sprint3.js:213:73
+✖ Recheck U026: risk AI rechecks archive before returning (368.9712ms)
+  AssertionError [ERR_ASSERTION]: {"explanation":"Output before permission change","_meta":{"callId":"9c91514e-2306-426f-b9db-4ce635b3db8f","model":"fixture","provider":"test","latencyMs":9,"attemptCount":1,"usageComplete":false},"sourceVersion":"6a1086f72a0050d1aa75e2d98f6d0f39c7ebf08fa5e90bfd4d35f46368c9f6f2"}
+
+  200 !== 403
+
+      at TestContext.<anonymous> (file:///D:/Desktop/Nhom24/OJT202/BackEnd/test/helpers/loc-sprint3.js:227:14)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 200,
+    expected: 403,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at BackEnd\test\helpers\loc-sprint3.js:231:5
+✖ Recheck U026: overload sources include only the current contributor remaining work (388.191ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    [
+  +   'ba5651cf-bf5b-4757-aec5-e8f31f7ede4c',
+      '01f19d9f-83cc-422e-b310-5b3a36f66e04'
+    ]
+
+      at TestContext.<anonymous> (file:///D:/Desktop/Nhom24/OJT202/BackEnd/test/helpers/loc-sprint3.js:245:14)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 'ba5651cf-bf5b-4757-aec5-e8f31f7ede4c', '01f19d9f-83cc-422e-b310-5b3a36f66e04' ],
+    expected: [ '01f19d9f-83cc-422e-b310-5b3a36f66e04' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

@@ -1,0 +1,31 @@
+[seed] Tạo dữ liệu demo Nhóm 24…
+[seed] Xong. Đăng nhập: mai.anh@nhom24.edu.vn / TaskFlow@2026  (System Admin: admin@taskflow.local)
+▶ Lộc Sprint 3: meeting, report, admin security
+  ✔ U023 review: upstream 429 không lộ secret trong response/log và CRUD vẫn chạy (418.7327ms)
+  ✔ U023 review: upstream 500 không lộ secret trong response/log và CRUD vẫn chạy (360.329ms)
+  ✔ U023 review: upstream 503 không lộ secret trong response/log và CRUD vẫn chạy (353.2862ms)
+  ✔ U022: provider bịa hoàn thành không thay số liệu; snapshot giữ nguyên sau reopen và revoke chặn nguồn (591.1217ms)
+  ✔ U027: nguồn bất biến, sửa preview, duyệt đồng thời một lần và từ chối nguồn bị sửa (626.7466ms)
+  ✔ U028: lock khi meeting đang chạy chặn kết quả và ghi dữ liệu (516.3969ms)
+  ✔ U028: lock khi reports đang chạy chặn kết quả và ghi dữ liệu (509.9626ms)
+  ✔ U028: lock khi ask đang chạy chặn kết quả và ghi dữ liệu (452.3496ms)
+  ✔ U028: lock khi risk đang chạy chặn kết quả và ghi dữ liệu (459.487ms)
+  ✔ U028: logout khi meeting đang chạy chặn kết quả và ghi dữ liệu (520.0901ms)
+  ✔ U028: logout khi reports đang chạy chặn kết quả và ghi dữ liệu (476.313ms)
+  ✔ U028: logout khi ask đang chạy chặn kết quả và ghi dữ liệu (452.9074ms)
+  ✔ U028: logout khi risk đang chạy chặn kết quả và ghi dữ liệu (425.9622ms)
+[error] Error: Loc Sprint3 simulated audit failure
+    at tx.adminAudit.create (file:///D:/Desktop/Nhom24/OJT202/BackEnd/test/helpers/loc-sprint3.js:217:52)
+    at file:///D:/Desktop/Nhom24/OJT202/BackEnd/src/routes/admin.js:81:25
+    at async Proxy._transactionWithCallback (D:\Desktop\Nhom24\OJT202\BackEnd\node_modules\@prisma\client\runtime\library.js:130:8120)
+    at async file:///D:/Desktop/Nhom24/OJT202/BackEnd/src/routes/admin.js:74:3
+  ✔ U028: khóa Owner giữ membership; unlock không hồi sinh phiên; không mass assign role; audit atomic (510.6133ms)
+✔ Lộc Sprint 3: meeting, report, admin security (50458.4587ms)
+ℹ tests 14
+ℹ suites 1
+ℹ pass 14
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 51971.0284

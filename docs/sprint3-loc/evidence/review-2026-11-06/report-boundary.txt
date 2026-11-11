@@ -1,0 +1,34 @@
+{"firstPeriod":1,"secondPeriod":1,"expected":[0,1]}
+✖ Review U022: adjacent half-open periods must count a boundary task once (Process B255) (43871.9028ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 44587.0173
+
+✖ failing tests:
+
+test at docs\sprint3-loc\evidence\review-2026-11-06\report-boundary.test.mjs:16:1
+✖ Review U022: adjacent half-open periods must count a boundary task once (Process B255) (43871.9028ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+  -   0,
+      1,
+  +   1
+    ]
+  
+      at TestContext.<anonymous> (file:///D:/Desktop/Nhom24/OJT202/docs/sprint3-loc/evidence/review-2026-11-06/report-boundary.test.mjs:24:10)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 1, 1 ],
+    expected: [ 0, 1 ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

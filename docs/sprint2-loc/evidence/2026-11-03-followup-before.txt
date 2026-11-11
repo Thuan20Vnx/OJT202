@@ -1,0 +1,120 @@
+✖ Sprint2 followup: lỗi tải/gỡ phụ thuộc được xử lý và có thể thử lại (64.0163ms)
+✖ Sprint2 followup: danh sách phụ thuộc đến muộn không lọt sang task mới (18.5577ms)
+✖ Sprint2 followup: gỡ phụ thuộc cũ không thay task đang mở (12.131ms)
+✖ Sprint2 followup: dependency không nâng version của draft chưa lưu để ghi đè nội dung mới (15.3374ms)
+✖ Sprint2 followup: đổi trạng thái subtask khóa click lặp và không reload task cũ (9.8885ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 0
+ℹ fail 5
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1328.6349
+
+✖ failing tests:
+
+test at test\task-detail.test.js:34:1
+✖ Sprint2 followup: lỗi tải/gỡ phụ thuộc được xử lý và có thể thử lại (64.0163ms)
+  AssertionError [ERR_ASSERTION]: load errors must not reject from event handler
+  + actual - expected
+  
+  + Error: NETWORK_DEPENDENCY_ERROR
+  +     at Object.<anonymous> (file:///D:/Desktop/Nhom24/OJT202/FrontEnd/test/task-detail.test.js:36:49)
+  +     at Object.apply (node:internal/test_runner/mock/mock:756:20)
+  +     at Object.openDeps [as onClick] (file:///D:/Desktop/Nhom24/OJT202/FrontEnd/src/components/TaskDetailModal.jsx:404:27)
+  +     at file:///D:/Desktop/Nhom24/OJT202/FrontEnd/test/task-detail.test.js:38:83
+  +     at act (D:\Desktop\Nhom24\OJT202\FrontEnd\node_modules\react\cjs\react.development.js:2512:16)
+  +     at TestContext.<anonymous> (file:///D:/Desktop/Nhom24/OJT202/FrontEnd/test/task-detail.test.js:38:9)
+  +     at async Test.run (node:internal/test_runner/test:1208:7)
+  +     at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3)
+  - undefined
+  
+      at TestContext.<anonymous> (file:///D:/Desktop/Nhom24/OJT202/FrontEnd/test/task-detail.test.js:41:10)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: Error: NETWORK_DEPENDENCY_ERROR
+        at Object.<anonymous> (file:///D:/Desktop/Nhom24/OJT202/FrontEnd/test/task-detail.test.js:36:49)
+        at Object.apply (node:internal/test_runner/mock/mock:756:20)
+        at Object.openDeps [as onClick] (file:///D:/Desktop/Nhom24/OJT202/FrontEnd/src/components/TaskDetailModal.jsx:404:27)
+        at file:///D:/Desktop/Nhom24/OJT202/FrontEnd/test/task-detail.test.js:38:83
+        at act (D:\Desktop\Nhom24\OJT202\FrontEnd\node_modules\react\cjs\react.development.js:2512:16)
+        at TestContext.<anonymous> (file:///D:/Desktop/Nhom24/OJT202/FrontEnd/test/task-detail.test.js:38:9)
+        at async Test.run (node:internal/test_runner/test:1208:7)
+        at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3),
+    expected: undefined,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test\task-detail.test.js:49:1
+✖ Sprint2 followup: danh sách phụ thuộc đến muộn không lọt sang task mới (18.5577ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(!JSON.stringify(tree.toJSON()).includes('OLD_TASK_OPTIONS'))
+  
+      at TestContext.<anonymous> (file:///D:/Desktop/Nhom24/OJT202/FrontEnd/test/task-detail.test.js:61:10)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at test\task-detail.test.js:64:1
+✖ Sprint2 followup: gỡ phụ thuộc cũ không thay task đang mở (12.131ms)
+  AssertionError [ERR_ASSERTION]: new task must remain rendered
+  + actual - expected
+  
+  + undefined
+  - 'Original'
+  
+      at TestContext.<anonymous> (file:///D:/Desktop/Nhom24/OJT202/FrontEnd/test/task-detail.test.js:71:10)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: 'Original',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test\task-detail.test.js:74:1
+✖ Sprint2 followup: dependency không nâng version của draft chưa lưu để ghi đè nội dung mới (15.3374ms)
+  AssertionError [ERR_ASSERTION]: keep original draft version so the server detects external edits
+  
+  3 !== 1
+  
+      at TestContext.<anonymous> (file:///D:/Desktop/Nhom24/OJT202/FrontEnd/test/task-detail.test.js:82:10)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 3,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test\task-detail.test.js:86:1
+✖ Sprint2 followup: đổi trạng thái subtask khóa click lặp và không reload task cũ (9.8885ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  2 !== 1
+  
+      at TestContext.<anonymous> (file:///D:/Desktop/Nhom24/OJT202/FrontEnd/test/task-detail.test.js:98:10)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 2,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

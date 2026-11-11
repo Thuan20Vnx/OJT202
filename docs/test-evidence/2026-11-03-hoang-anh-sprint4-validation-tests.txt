@@ -1,0 +1,27 @@
+
+> test:validation
+> node --test scripts/validation/test/*.test.mjs
+
+✔ statistics: p95 keeps slow failures; even-sample median and missing values are explicit (1.9429ms)
+✔ packs: duplicate cases, prototype paths, missing assertions and external routes fail closed (2.7918ms)
+✔ CLI rejects duplicate/missing options instead of overwriting run inputs (0.3128ms)
+✔ build identity survives Windows/Linux line endings without normalizing binary fixtures (0.5036ms)
+✔ UAT: absent humans stay pending with denominator 30 and no invented completion rate (0.4492ms)
+✔ UAT: assisted success does not count; duplicate trials and mixed builds are rejected (0.6697ms)
+✔ UAT: 26/30 fails; baseline needs balanced crossover and preserved quality (0.4096ms)
+✔ UAT: latest independent retest controls blocking issue, older pass cannot hide a new failure (0.3217ms)
+✔ AI scores: missing judges have unknown quality; developer pack cannot become acceptance (6.0293ms)
+✔ AI scores: both independent grades persist; disagreement needs a third adjudicator (14.7404ms)
+✔ AI scores: one wrong report metric or any leakage fails even if prose/refusal averages pass (6.5868ms)
+✔ AI scores reject altered outputs even when run ID, pack and revision remain unchanged (0.758ms)
+✔ release: missing gates, wrong build, empty AI rubric and localhost smoke cannot permit final tag (0.5885ms)
+✔ release permits final only when every required gate passes on the same clean build (3.0786ms)
+✔ production smoke refuses plaintext remote URL and credentials embedded in URL (0.5631ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 15
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 125.1829

@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { USER, populate, prisma } from '../db.js';
-import { requireAuth } from '../middleware/auth.js';
+import { assertActiveSession, requireAuth } from '../middleware/auth.js';
 import { assertWrite, middlewareProject, projectAccess } from '../middleware/access.js';
 import { logActivityIn } from '../services/activity.js';
 import { withWorkspaceLock } from '../services/membership.js';
@@ -42,6 +42,8 @@ router.get('/projects/:projectId/overview', middlewareProject(), async (req, res
     blocked: ov.blocked.map(brief),
     byStatus: ov.byStatus,
     burndown: ov.burndown,
+    schedule: ov.schedule,
+    labels: ov.labels,
     sprint: ov.project.sprint,
     workload: load.map(({ tasks, taskIds, ...w }) => w),
     risks: risks.open.slice(0, 3),
@@ -53,8 +55,8 @@ router.get('/projects/:projectId/overview', middlewareProject(), async (req, res
 router.get('/projects/:projectId/overview.csv', middlewareProject(), async (req, res) => {
   const ov = await projectOverview(req.pa.project.id, { project: req.pa.project });
   const rows = [
-    ['Mã', 'Tên công việc', 'Trạng thái', 'Ưu tiên', 'Hạn chót', 'Hoàn thành lúc'],
-    ...ov.tasks.map((t) => [t.key, t.title, t.status, t.priority, t.dueDate ? dateKey(t.dueDate) : '', t.completedAt ? new Date(t.completedAt).toISOString() : '']),
+    ['Mã', 'Tên công việc', 'Trạng thái', 'Ưu tiên', 'Ngày bắt đầu kế hoạch', 'Ngày kết thúc kế hoạch', 'Ngày bắt đầu thực tế', 'Ngày kết thúc thực tế', 'Duyệt hoàn thành lúc'],
+    ...ov.tasks.map((t) => [t.key, t.title, t.status, t.priority, ...[t.plannedStartDate, t.dueDate, t.actualStartDate, t.actualEndDate].map((d) => d ? dateKey(d) : ''), t.completedAt ? new Date(t.completedAt).toISOString() : '']),
   ];
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
   res.setHeader('Content-Disposition', 'attachment; filename="tong-quan-du-an.csv"');
@@ -73,6 +75,7 @@ router.post('/projects/:projectId/risks/resolve', middlewareProject(), async (re
     reason: z.string().trim().min(3, 'Nhập lý do xử lý cảnh báo (ít nhất 3 ký tự)').max(1000), title: z.string().max(300).optional(),
   }).strict(), req.body);
   await withWorkspaceLock(req.pa.project.workspace, async (tx) => {
+    await assertActiveSession(req, tx, true);
     const access = await projectAccess(req.user.id, req.pa.project.id, tx);
     assertWrite(access);
     const previous = await tx.riskResolution.findUnique({ where: { project_key: { project: access.project.id, key } } });
@@ -103,6 +106,7 @@ router.delete('/projects/:projectId/risks/resolve', middlewareProject(), async (
   assertWrite(req.pa);
   const { key, sourceVersion } = parse(z.object({ key: z.string().min(1).max(100000), sourceVersion: z.string().regex(/^[a-f0-9]{64}$/) }), req.query);
   await withWorkspaceLock(req.pa.project.workspace, async (tx) => {
+    await assertActiveSession(req, tx, true);
     const access = await projectAccess(req.user.id, req.pa.project.id, tx);
     assertWrite(access);
     const current = await tx.riskResolution.findUnique({ where: { project_key: { project: access.project.id, key } } });
@@ -126,6 +130,7 @@ router.delete('/projects/:projectId/risks/resolve', middlewareProject(), async (
 
 // AI chỉ DIỄN GIẢI cảnh báo đã xác định bằng quy tắc
 router.post('/projects/:projectId/risks/explain', middlewareProject(), async (req, res) => {
+  assertWrite(req.pa);
   const { key } = parse(z.object({ key: z.string().min(1) }), req.body);
   const now = new Date();
   const { open } = await riskAlerts(req.pa.project.id, { project: req.pa.project, now });
@@ -138,7 +143,9 @@ router.post('/projects/:projectId/risks/explain', middlewareProject(), async (re
     payload: { alert: { rule: alert.rule, title: alert.title, explanation: alert.explanation, tasks: alert.tasks.map(({ key, title }) => ({ key, title })) } },
   });
   await withWorkspaceLock(req.pa.project.workspace, async (tx) => {
+    await assertActiveSession(req, tx, true);
     const access = await projectAccess(req.user.id, req.pa.project.id, tx);
+    assertWrite(access);
     const current = (await riskAlerts(access.project.id, { project: access.project, now, db: tx })).open.find((a) => a.key === key);
     if (!current || current.sourceVersion !== alert.sourceVersion)
       throw conflict('Cảnh báo đã thay đổi trong lúc AI diễn giải. Vui lòng tải lại.', { code: 'AI_SOURCES_CHANGED' });

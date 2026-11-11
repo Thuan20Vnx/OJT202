@@ -150,21 +150,35 @@ export async function populate(rows, pathStr, model, select, db = prisma) {
   const parts = pathStr.split('.');
   const key = parts.pop();
   const holders = [];
-  const walk = (obj, i) => {
+  const walk = (obj, i, projectId) => {
     if (!obj || typeof obj !== 'object') return;
-    if (i === parts.length) return holders.push(obj);
+    if (i === parts.length) return holders.push({ obj, projectId });
     const v = obj[parts[i]];
-    for (const x of Array.isArray(v) ? v : [v]) walk(x, i + 1);
+    for (const x of Array.isArray(v) ? v : [v]) walk(x, i + 1, projectId);
   };
-  for (const r of list) walk(r, 0);
+  for (const r of list) walk(r, 0, r?.project?.id ?? r?.project);
   const ids = new Set();
-  for (const h of holders) for (const v of [h[key]].flat()) if (isId(v)) ids.add(v);
-  const found = ids.size ? await db[model].findMany({ where: { id: { in: [...ids] }, ...(model === 'task' && { deletedAt: null }) }, select: { ...select, id: true } }) : [];
-  const byId = new Map(found.map((f) => [f.id, f]));
-  for (const h of holders) {
-    const v = h[key];
-    if (Array.isArray(v)) h[key] = v.map((id) => (typeof id === 'string' ? byId.get(id) : id)).filter(Boolean);
-    else if (typeof v === 'string') h[key] = byId.get(v) ?? null;
+  for (const { obj } of holders) for (const v of [obj[key]].flat()) if (isId(v)) ids.add(v);
+  const isTask = model === 'task';
+  // Even when several projects share one batch, a task link belongs only to its own project.
+  const projects = isTask ? [...new Set(holders.map((h) => h.projectId).filter(isId))] : [];
+  const found = ids.size ? await db[model].findMany({
+    where: { id: { in: [...ids] }, ...(isTask && { deletedAt: null, project: { in: projects } }) },
+    select: { ...select, id: true, ...(isTask && { project: true }) },
+  }) : [];
+  const byId = new Map(found.map((row) => {
+    const { project, ...fields } = row;
+    return [row.id, { project, record: isTask && !select?.project ? fields : row }];
+  }));
+  for (const { obj, projectId } of holders) {
+    const resolve = (id) => {
+      const link = byId.get(id);
+      if (isTask) return link?.project === projectId ? link?.record : null;
+      return typeof id === 'string' ? link?.record : id;
+    };
+    const v = obj[key];
+    if (Array.isArray(v)) obj[key] = v.map(resolve).filter(Boolean);
+    else if (typeof v === 'string' || isTask) obj[key] = resolve(v) ?? null;
   }
   return rows;
 }
@@ -185,8 +199,8 @@ export async function nextSeq(name, db = prisma) {
 }
 
 /** Đếm theo nhóm, trả { [giá trị]: số lượng } */
-export async function countBy(model, field, where) {
-  const rows = await prisma[model].groupBy({ by: [field], where, _count: { _all: true } });
+export async function countBy(model, field, where, db = prisma) {
+  const rows = await db[model].groupBy({ by: [field], where, _count: { _all: true } });
   return Object.fromEntries(rows.map((r) => [r[field], r._count._all]));
 }
 

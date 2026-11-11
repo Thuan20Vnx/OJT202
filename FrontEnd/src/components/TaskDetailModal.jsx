@@ -6,6 +6,10 @@ import { useApp, useToast } from '../lib/app.jsx';
 import { PRIORITY, STATUS, dueInfo, fileIcon, fileSize, fmtDate, fmtDateTime, isoDate, timeAgo } from '../lib/format.js';
 import { useProjectInfo, useSocketEvent } from '../lib/hooks.js';
 import { MemberPicker } from './CreateTaskModal.jsx';
+import TaskDates, { TASK_DATES } from './TaskDates.jsx';
+import LabelPicker from './LabelPicker.jsx';
+import TaskDelivery from './TaskDelivery.jsx';
+import { WORK_TYPES } from '../lib/delivery.js';
 import { Avatar, Confirm, Dropdown, Icon, MenuItem, Notice, PageLoader, Progress, Spinner, StatusChip } from './ui.jsx';
 
 function Section({ icon, title, right, children, tone = 'text-slate-500' }) {
@@ -141,14 +145,41 @@ export default function TaskDetailModal({ taskId, onClose }) {
   const activeTask = useRef(taskId);
   activeTask.current = taskId;
   const mounted = useRef(false);
+  const taskScope = useRef(0);
+  const mutation = useRef(null);
+  const [updating, setUpdating] = useState(false);
   const [comments, setComments] = useState([]);
+  const [commentsError, setCommentsError] = useState(null);
+  const [commentsLoading, setCommentsLoading] = useState(false);
+  const commentsSequence = useRef(0);
+  const commentMutations = useRef(new Set());
+  const [busyComments, setBusyComments] = useState(new Set());
+  const commentRevision = useRef(0);
+  const commentChanges = useRef(new Map());
+  const receiveComment = useCallback((id, comment) => {
+    // There is no restore API: a delayed response/event cannot undo deletion.
+    if (comment && commentChanges.current.get(id)?.comment === null) return;
+    commentChanges.current.set(id, { revision: ++commentRevision.current, comment });
+    setComments((rows) => {
+      const result = new Map(rows.map((row) => [row._id, row]));
+      if (comment) result.set(id, comment); else result.delete(id);
+      return [...result.values()];
+    });
+  }, []);
   const [tab, setTab] = useState('comments');
   const [saving, setSaving] = useState(false);
   const [newSub, setNewSub] = useState('');
+  const subRequest = useRef(null);
   const [newCheck, setNewCheck] = useState('');
   const [depOpen, setDepOpen] = useState(false);
   const [depOptions, setDepOptions] = useState([]);
+  const depRequest = useRef(null);
+  const [depLoading, setDepLoading] = useState(false);
+  const [depError, setDepError] = useState(null);
+  const subMutations = useRef(new Set());
+  const [busySubs, setBusySubs] = useState(new Set());
   const [editing, setEditing] = useState(null);
+  const editingSession = useRef(0);
   const [confirmDel, setConfirmDel] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const deleteLock = useRef(false);
@@ -157,10 +188,66 @@ export default function TaskDetailModal({ taskId, onClose }) {
   const info = useProjectInfo(data?.task?.project);
   const members = info?.project?.members || [];
 
+  const invalidateRequests = useCallback(() => {
+    taskScope.current++;
+    editingSession.current++;
+    mutation.current = null;
+    subRequest.current = null;
+    depRequest.current = null;
+    subMutations.current = new Set();
+    commentMutations.current = new Set();
+    commentsSequence.current++;
+    setCommentsError(null);
+    setCommentsLoading(false);
+    setBusyComments(new Set());
+    deleteLock.current = false;
+    setUpdating(false);
+    setSaving(false);
+    setDeleting(false);
+    setBusySubs(new Set());
+    setDepOpen(false);
+    setDepLoading(false);
+    setDepError(null);
+  }, []);
+
+  const loadComments = useCallback(async () => {
+    if (!mounted.current || activeTask.current !== taskId) return;
+    const scope = taskScope.current;
+    const sequence = ++commentsSequence.current;
+    const revision = commentRevision.current;
+    const current = () => mounted.current && activeTask.current === taskId && scope === taskScope.current && sequence === commentsSequence.current;
+    setCommentsLoading(true);
+    setCommentsError(null);
+    try {
+      const { comments: rows } = await api.get(`/tasks/${taskId}/comments`);
+      if (!current()) return;
+      const result = new Map(rows.map((comment) => [comment._id, comment]));
+      for (const [id, change] of commentChanges.current) {
+        // Deletion is permanent; also protect changes received during this read.
+        if (change.comment === null) result.delete(id);
+        else if (change.revision > revision) result.set(id, change.comment);
+      }
+      setComments([...result.values()]);
+    } catch (e) {
+      if (!current()) return;
+      if ([403, 404].includes(e.status)) {
+        invalidateRequests();
+        setData(null);
+        setForm(null);
+        setComments([]);
+        setError(e);
+      } else setCommentsError(e);
+    } finally {
+      if (current()) setCommentsLoading(false);
+    }
+  }, [taskId, invalidateRequests]);
+
   const load = useCallback(async ({ discard = false } = {}) => {
+    if (!mounted.current || activeTask.current !== taskId) return;
+    const scope = taskScope.current;
     const sequence = ++loadSequence.current;
     const revision = editRevision.current;
-    const current = () => mounted.current && activeTask.current === taskId && sequence === loadSequence.current;
+    const current = () => mounted.current && activeTask.current === taskId && scope === taskScope.current && sequence === loadSequence.current;
     try {
       setError(null);
       const d = await api.get(`/tasks/${taskId}`);
@@ -175,10 +262,14 @@ export default function TaskDetailModal({ taskId, onClose }) {
       setForm({
         title: d.task.title,
         description: d.task.description,
-        acceptanceCriteria: d.task.acceptanceCriteria || [],
+        acceptanceCriteria: d.task.acceptance_criteria ?? (d.task.acceptanceCriteria || []).join('\n'),
         assignee: d.task.assignee?._id || '',
         dueDate: isoDate(d.task.dueDate),
+        plannedStartDate: isoDate(d.task.plannedStartDate),
+        actualStartDate: isoDate(d.task.actualStartDate),
+        actualEndDate: isoDate(d.task.actualEndDate),
         priority: d.task.priority,
+        workType: d.task.workType || 'unclassified',
         estimateHours: d.task.estimateHours ?? '',
         spentHours: d.task.spentHours ?? 0,
         remainingHours: d.task.remainingHours ?? '',
@@ -187,32 +278,42 @@ export default function TaskDetailModal({ taskId, onClose }) {
       setDirty(false);
       dirtyRef.current = false;
       setStale(false);
-      const c = await api.get(`/tasks/${taskId}/comments`);
-      if (current()) setComments(c.comments);
+      await loadComments();
     } catch (e) {
       if (current()) {
-        if ([403, 404].includes(e.status)) { setData(null); setForm(null); setComments([]); }
+        if ([403, 404].includes(e.status)) {
+          invalidateRequests();
+          setData(null); setForm(null); setComments([]);
+        }
         setError(e);
       }
     }
-  }, [taskId]);
+  }, [taskId, loadComments, invalidateRequests]);
 
   useEffect(() => {
     mounted.current = true;
+    invalidateRequests();
+    setNewCheck('');
+    setNewSub('');
+    setEditing(null);
+    setConfirmDel(null);
     dirtyRef.current = false;
     editRevision.current++;
     setDirty(false);
     setData(null);
     setForm(null);
     setComments([]);
+    commentChanges.current.clear();
+    commentRevision.current = 0;
     setDepOptions([]);
     load();
     return () => { mounted.current = false; loadSequence.current++; };
-  }, [load]);
+  }, [load, invalidateRequests]);
   useSocketEvent('dependencies:changed', () => load(), [load]);
   useSocketEvent(
     'access:changed',
     () => {
+      invalidateRequests();
       dirtyRef.current = false;
       editRevision.current++;
       setDirty(false);
@@ -222,7 +323,7 @@ export default function TaskDetailModal({ taskId, onClose }) {
       setDepOptions([]);
       load();
     },
-    [load],
+    [load, invalidateRequests],
   );
   useEffect(() => {
     if (data?.task?.project) {
@@ -242,12 +343,12 @@ export default function TaskDetailModal({ taskId, onClose }) {
     },
     [taskId, dirty, data?.task?.version, load],
   );
-  useSocketEvent('comment:new', ({ taskId: t, comment }) => t === taskId && setComments((cs) => (cs.some((c) => c._id === comment._id) ? cs : [...cs, comment])), [taskId]);
-  useSocketEvent('comment:updated', ({ comment }) => setComments((cs) => cs.map((c) => (c._id === comment._id ? comment : c))), []);
-  useSocketEvent('comment:deleted', ({ commentId }) => setComments((cs) => cs.filter((c) => c._id !== commentId)), []);
+  useSocketEvent('comment:new', ({ taskId: t, comment }) => t === taskId && receiveComment(comment._id, comment), [taskId, receiveComment]);
+  useSocketEvent('comment:updated', ({ taskId: t, comment }) => t === taskId && receiveComment(comment._id, comment), [taskId, receiveComment]);
+  useSocketEvent('comment:deleted', ({ taskId: t, commentId }) => t === taskId && receiveComment(commentId, null), [taskId, receiveComment]);
   useSocketEvent('task:deleted', ({ taskId: t }) => t === taskId && onClose(), [taskId]);
 
-  if (error) {
+  if (error && (!data || !form || data.task._id !== taskId)) {
     return (
       <Shell onClose={onClose}>
         <div className="p-8">
@@ -277,40 +378,59 @@ export default function TaskDetailModal({ taskId, onClose }) {
   };
 
   const patch = async (body) => {
+    if (mutation.current) throw new Error(tr('Đang lưu thay đổi, vui lòng chờ.'));
+    const operation = { scope: taskScope.current };
+    mutation.current = operation;
+    setUpdating(true);
+    const current = () => mounted.current && activeTask.current === taskId && taskScope.current === operation.scope;
     loadSequence.current++; // invalidate loads started before this mutation
     try {
       const { task: t } = await api.patch(`/tasks/${task._id}`, { ...body, version: task.version });
-      if (!mounted.current || activeTask.current !== taskId) return t;
+      if (!current()) return t;
+      // A legacy server/proxy may return a later writer's snapshot. Keep this
+      // form's original version so a subsequent save cannot overwrite it.
+      if (t.version !== task.version + 1) throw Object.assign(new Error(tr("Công việc vừa được người khác cập nhật.")), { status: 409 });
       loadSequence.current++;
       setData((d) => ({ ...d, task: t }));
       return t;
     } catch (e) {
+      if (!current()) throw e;
       if (e.status === 409) {
         setStale(true);
         toast(tr("Công việc vừa được cập nhật. Nội dung đang nhập được giữ lại; hãy sao chép phần cần giữ trước khi tải lại."), 'info');
       } else toast(e.message, 'error');
       throw e;
+    } finally {
+      if (current() && mutation.current === operation) {
+        mutation.current = null;
+        setUpdating(false);
+      }
     }
   };
 
   const save = async () => {
+    if (mutation.current) return;
     if (!form.title.trim()) return toast(tr("Vui lòng nhập tên công việc"), 'error');
     setSaving(true);
     const revision = editRevision.current;
+    const scope = taskScope.current;
     try {
       await patch({
         title: form.title,
         description: form.description,
-        acceptanceCriteria: form.acceptanceCriteria.filter((x) => x.trim()),
+        acceptance_criteria: form.acceptanceCriteria,
         assignee: form.assignee || null,
         dueDate: form.dueDate === isoDate(task.dueDate) ? task.dueDate : form.dueDate || null,
+        ...Object.fromEntries(TASK_DATES.filter(([key]) => form[key] !== isoDate(task[key])).map(([key]) => [key, form[key] || null])),
         priority: form.priority,
+        workType: form.workType,
         estimateHours: form.estimateHours === '' ? null : Number(form.estimateHours),
         spentHours: Number(form.spentHours) || 0,
         remainingHours: form.remainingHours === '' ? null : Number(form.remainingHours),
         labels: form.labels,
       });
-      if (mounted.current && activeTask.current === taskId && revision === editRevision.current) {
+      if (!mounted.current || activeTask.current !== taskId || scope !== taskScope.current) return;
+      if (revision === editRevision.current) {
         dirtyRef.current = false;
         setDirty(false);
         setStale(false);
@@ -319,94 +439,190 @@ export default function TaskDetailModal({ taskId, onClose }) {
     } catch {
       /* đã báo lỗi */
     } finally {
-      setSaving(false);
+      if (mounted.current && scope === taskScope.current) setSaving(false);
     }
   };
 
   const changeStatus = async (status) => {
-    try { await patch({ status }); await load(); } catch { /* patch hiển thị lỗi */ }
+    const scope = taskScope.current;
+    try {
+      await patch({ status });
+      if (mounted.current && activeTask.current === taskId && scope === taskScope.current) await load();
+    } catch { /* patch hiển thị lỗi */ }
+  };
+
+  const saveRemainingHours = async () => {
+    if (mutation.current) return;
+    const scope = taskScope.current;
+    const revision = editRevision.current;
+    const current = () => mounted.current && activeTask.current === taskId && scope === taskScope.current;
+    setSaving(true);
+    try {
+      await patch({ ...(!task.contributors?.length && { remainingHours: form.remainingHours === '' ? null : Number(form.remainingHours) }),
+        ...Object.fromEntries(TASK_DATES.filter(([key]) => key.startsWith('actual') && form[key] !== isoDate(task[key])).map(([key]) => [key, form[key] || null])),
+      });
+      if (!current()) return;
+      if (revision === editRevision.current) {
+        dirtyRef.current = false;
+        setDirty(false);
+      }
+      await load();
+      if (current()) toast(tr("Đã cập nhật giờ còn lại"));
+    } catch { /* patch hiển thị lỗi */ }
+    finally { if (current()) setSaving(false); }
   };
 
   const addSub = async () => {
-    if (!newSub.trim()) return;
+    if (!newSub.trim() || subRequest.current) return;
+    const operation = { scope: taskScope.current };
+    subRequest.current = operation;
+    const submitted = newSub;
+    const current = () => mounted.current && activeTask.current === taskId && operation.scope === taskScope.current;
     try {
-      await api.post(`/projects/${task.project}/tasks`, { title: newSub.trim(), parent: task._id, assignee: task.assignee?._id || null });
-      setNewSub('');
-      load();
+      await api.post(`/projects/${task.project}/tasks`, { title: submitted.trim(), parent: task._id, assignee: task.assignee?._id || null });
+      if (current()) {
+        setNewSub((value) => value === submitted ? '' : value);
+        await load();
+      }
     } catch (e) {
-      toast(e.message, 'error');
+      if (current()) toast(e.message, 'error');
+    } finally {
+      if (current() && subRequest.current === operation) subRequest.current = null;
     }
   };
   const toggleSub = async (s) => {
+    if (subMutations.current.has(s._id)) return;
+    const scope = taskScope.current;
+    const current = () => mounted.current && activeTask.current === taskId && scope === taskScope.current;
+    subMutations.current.add(s._id);
+    setBusySubs(new Set(subMutations.current));
     try {
       const next = s.status === 'done' ? 'todo' : s.status === 'review' && access.canManage ? 'done' : 'review';
       await api.patch(`/tasks/${s._id}`, { status: next, version: s.version });
-      load();
+      if (current()) await load();
     } catch (e) {
-      toast(e.message, 'error');
-      load();
+      if (current()) { toast(e.message, 'error'); await load(); }
+    } finally {
+      if (current()) {
+        subMutations.current.delete(s._id);
+        setBusySubs(new Set(subMutations.current));
+      }
     }
   };
 
   const saveChecklist = async (checklist) => {
-    await patch({ checklist }).catch(() => {});
+    const scope = taskScope.current;
+    try {
+      await patch({ checklist });
+      return mounted.current && activeTask.current === taskId && scope === taskScope.current;
+    } catch { return false; }
   };
 
-  const openDeps = async () => {
-    setDepOpen((o) => !o);
-    if (!depOptions.length) {
-      const d = await api.get(`/projects/${task.project}/tasks`);
-      setDepOptions(d.tasks.filter((t) => t._id !== task._id));
-    }
-  };
-  const addDep = async (id) => {
+  const loadDeps = async () => {
+    if (depRequest.current) return;
+    const request = { scope: taskScope.current };
+    depRequest.current = request;
+    const current = () => mounted.current && activeTask.current === taskId && request.scope === taskScope.current && depRequest.current === request;
+    setDepLoading(true);
+    setDepError(null);
     try {
-      const { task: t } = await api.post(`/tasks/${task._id}/dependencies`, { blockedBy: id });
-      setData((d) => ({ ...d, task: t }));
-      setDepOpen(false);
+      const d = await api.get(`/projects/${task.project}/tasks`);
+      if (current()) setDepOptions(d.tasks.filter((t) => t._id !== task._id));
     } catch (e) {
-      toast(e.message, 'error');
+      if (current()) setDepError(e.message);
+    } finally {
+      if (current()) { depRequest.current = null; setDepLoading(false); }
     }
   };
-  const removeDep = async (id) => {
-    const { task: t } = await api.del(`/tasks/${task._id}/dependencies/${id}`);
-    setData((d) => ({ ...d, task: t }));
+  const openDeps = () => {
+    setDepOpen((open) => !open);
+    if (!depOpen && !depOptions.length) return loadDeps();
   };
+  const changeDependency = async (request) => {
+    if (mutation.current) return;
+    const operation = { scope: taskScope.current };
+    mutation.current = operation;
+    setUpdating(true);
+    const current = () => mounted.current && activeTask.current === taskId && operation.scope === taskScope.current;
+    try {
+      await request();
+      if (current()) {
+        setDepOpen(false);
+        // Reload refreshes a clean form; an unsaved draft keeps its original
+        // version and requires explicit reload, preserving conflict detection.
+        await load();
+      }
+    } catch (e) {
+      if (current()) toast(e.message, 'error');
+    } finally {
+      if (current() && mutation.current === operation) { mutation.current = null; setUpdating(false); }
+    }
+  };
+  const addDep = (id) => changeDependency(() => api.post(`/tasks/${task._id}/dependencies`, { blockedBy: id }));
+  const removeDep = (id) => changeDependency(() => api.del(`/tasks/${task._id}/dependencies/${id}`));
 
   const upload = async (list) => {
     if (!list?.length) return;
+    const scope = taskScope.current;
+    const current = () => mounted.current && activeTask.current === taskId && scope === taskScope.current;
     const fd = new FormData();
     [...list].forEach((f) => fd.append('files', f));
     fd.append('task', task._id);
     try {
       await api.upload(`/projects/${task.project}/documents/upload`, fd);
+      if (!current()) return;
       toast(tr("Đã tải tệp lên"));
       load();
     } catch (e) {
-      toast(e.message, 'error');
+      if (current()) toast(e.message, 'error');
     }
   };
 
   const sendComment = async (body) => {
+    const scope = taskScope.current;
     try {
       const { comment } = await api.post(`/tasks/${task._id}/comments`, { body });
-      setComments((cs) => (cs.some((c) => c._id === comment._id) ? cs : [...cs, comment]));
+      if (mounted.current && activeTask.current === taskId && scope === taskScope.current) receiveComment(comment._id, comment);
     } catch (e) {
-      toast(e.message, 'error');
+      if (mounted.current && activeTask.current === taskId && scope === taskScope.current) toast(e.message, 'error');
       throw e;
     }
   };
   const updateComment = async (id, body) => {
+    const scope = taskScope.current;
+    const session = editingSession.current;
     const { comment } = await api.patch(`/comments/${id}`, { body });
-    setComments((cs) => cs.map((c) => (c._id === id ? comment : c)));
-    setEditing(null);
+    if (!mounted.current || activeTask.current !== taskId || scope !== taskScope.current) return;
+    receiveComment(id, comment);
+    if (session === editingSession.current) setEditing((current) => current === id ? null : current);
+  };
+  const editComment = (id) => { editingSession.current++; setEditing(id); };
+
+  const deleteComment = async (id) => {
+    if (commentMutations.current.has(id)) return;
+    const scope = taskScope.current;
+    const current = () => mounted.current && activeTask.current === taskId && scope === taskScope.current;
+    commentMutations.current.add(id);
+    setBusyComments(new Set(commentMutations.current));
+    try {
+      await api.del(`/comments/${id}`);
+      if (current()) receiveComment(id, null);
+    } catch (e) {
+      if (current()) toast(e.message, 'error');
+    } finally {
+      if (current()) {
+        commentMutations.current.delete(id);
+        setBusyComments(new Set(commentMutations.current));
+      }
+    }
   };
 
   const remove = async (confirm) => {
     if (deleteLock.current) return;
     deleteLock.current = true;
     setDeleting(true);
-    const current = () => mounted.current && activeTask.current === task._id;
+    const scope = taskScope.current;
+    const current = () => mounted.current && activeTask.current === task._id && scope === taskScope.current;
     try {
       if (!confirm) {
         const { impact } = await api.get(`/tasks/${task._id}/deletion-preview`);
@@ -424,7 +640,7 @@ export default function TaskDetailModal({ taskId, onClose }) {
         const { impact } = await api.get(`/tasks/${task._id}/deletion-preview`).catch(() => ({ impact: null }));
         if (current()) setConfirmDel(impact);
       }
-    } finally { deleteLock.current = false; setDeleting(false); }
+    } finally { if (current()) { deleteLock.current = false; setDeleting(false); } }
   };
 
   const subDone = subtasks.filter((s) => s.status === 'done').length;
@@ -463,7 +679,7 @@ export default function TaskDetailModal({ taskId, onClose }) {
           <span className="chip h-7 border-rose-200 bg-rose-50 px-2.5 text-rose-700">
             <Icon name="block" size={14} />{tr("Đang bị chặn")}</span>
         )}
-        {!canWrite && <span className="chip h-7 border-slate-200 bg-slate-50 text-slate-500">{access.archived ? tr("Dự án đã lưu trữ – chỉ xem") : access.canUpdateProgress ? tr("Cập nhật trạng thái và giờ còn lại") : tr("Chỉ xem")}</span>}
+        {!canWrite && <span className="chip h-7 border-slate-200 bg-slate-50 text-slate-500">{access.archived ? tr("Dự án đã lưu trữ – chỉ xem") : access.canUpdateProgress ? tr("Cập nhật tiến độ thực tế") : tr("Chỉ xem")}</span>}
         <div className="ml-auto flex items-center gap-1">
           <button
             className="btn-ghost btn-sm"
@@ -493,6 +709,10 @@ export default function TaskDetailModal({ taskId, onClose }) {
         <div className="border-b border-amber-200 bg-amber-50 px-6 py-2 text-body-sm text-amber-800">{tr("Công việc vừa được người khác cập nhật.")}{' '}
           <button className="font-semibold underline" onClick={() => load({ discard: true })}>{tr("Tải lại")}</button>{' '}{tr("(thay đổi chưa lưu của bạn sẽ mất)")}</div>
       )}
+      {error && <div role="alert" className="flex items-center gap-3 border-b border-rose-200 bg-rose-50 px-6 py-2 text-body-sm text-rose-700">
+        <span>{error.message}</span>
+        <button className="btn-outline btn-sm" onClick={() => load()}>{tr("Thử lại")}</button>
+      </div>}
 
       <div className="grid min-h-0 flex-1 overflow-hidden lg:grid-cols-[1fr_320px]">
         {/* Cột chính */}
@@ -506,6 +726,7 @@ export default function TaskDetailModal({ taskId, onClose }) {
             className="w-full resize-none border-0 bg-transparent p-0 text-headline-lg text-slate-900 focus:ring-0 disabled:text-slate-900"
           />
 
+          <TaskDelivery task={task} members={members} onSaved={load} />
           <Section icon="notes" title={tr("Mô tả công việc")}>
             <textarea
               aria-label={tr("Mô tả công việc")}
@@ -517,38 +738,15 @@ export default function TaskDetailModal({ taskId, onClose }) {
             />
             <div className="mt-3 rounded-lg border border-slate-100 bg-slate-50/60 p-3">
               <p className="mb-1.5 text-label-md font-semibold text-slate-700">{tr("Tiêu chí nghiệm thu")}</p>
-              {form.acceptanceCriteria.map((c, i) => (
-                <div key={i} className="flex items-center gap-2 py-0.5">
-                  <Icon name="check_circle" size={16} className="icon-fill text-blue-600" />
-                  <input
-                    disabled={!canWrite}
-                    className="flex-1 border-0 bg-transparent p-0 text-body-sm focus:ring-0"
-                    value={c}
-                    onChange={(e) =>
-                      setF(
-                        'acceptanceCriteria',
-                        form.acceptanceCriteria.map((x, j) => (j === i ? e.target.value : x)),
-                      )
-                    }
-                  />
-                  {canWrite && (
-                    <button
-                      className="text-slate-300 hover:text-rose-500"
-                      onClick={() =>
-                        setF(
-                          'acceptanceCriteria',
-                          form.acceptanceCriteria.filter((_, j) => j !== i),
-                        )
-                      }
-                    >
-                      <Icon name="close" size={14} />
-                    </button>
-                  )}
-                </div>
-              ))}
-              {canWrite && (
-                <button className="mt-1 text-label-md text-blue-600 hover:underline" onClick={() => setF('acceptanceCriteria', [...form.acceptanceCriteria, ''])}>{tr("+ Thêm tiêu chí")}</button>
-              )}
+              <textarea
+                aria-label={tr("Tiêu chí nghiệm thu")}
+                disabled={!canWrite}
+                className="textarea min-h-[100px]"
+                maxLength={10000}
+                value={form.acceptanceCriteria}
+                onChange={(e) => setF('acceptanceCriteria', e.target.value)}
+                placeholder={tr("Chưa có tiêu chí nghiệm thu")}
+              />
             </div>
           </Section>
 
@@ -564,9 +762,12 @@ export default function TaskDetailModal({ taskId, onClose }) {
                     {depOpen && (
                       <div className="absolute right-0 z-20 mt-1 max-h-64 w-80 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-pop">
                         <p className="px-2 py-1 text-label-md font-normal text-slate-400">{tr("Công việc này bị chặn bởi…")}</p>
+                        {depLoading && <div role="status" className="px-2 py-2"><Spinner /></div>}
+                        {depError && <div className="px-2 py-2"><p role="alert" className="text-body-sm text-rose-700">{depError}</p><button className="btn-outline btn-sm mt-2" onClick={loadDeps}>{tr('Thử lại')}</button></div>}
                         {depOptions.map((t) => (
                           <button
                             key={t._id}
+                            disabled={updating}
                             onClick={() => addDep(t._id)}
                             className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-body-sm hover:bg-slate-50"
                           >
@@ -593,7 +794,7 @@ export default function TaskDetailModal({ taskId, onClose }) {
                     <span className="flex-1 truncate text-slate-600">{b.title}</span>
                     <StatusChip status={b.status} />
                     {canWrite && (
-                      <button className="text-slate-400 hover:text-rose-500" onClick={() => removeDep(b._id)} title={tr("Gỡ phụ thuộc")}>
+                      <button disabled={updating} className="text-slate-400 hover:text-rose-500" onClick={() => removeDep(b._id)} title={tr("Gỡ phụ thuộc")}>
                         <Icon name="link_off" size={16} />
                       </button>
                     )}
@@ -627,7 +828,8 @@ export default function TaskDetailModal({ taskId, onClose }) {
                   <div key={s._id} className="flex items-center gap-3 rounded-lg border border-slate-200 px-3 py-2 text-body-sm">
                     <input
                       type="checkbox"
-                      disabled={!canWrite}
+                      aria-label={s.title}
+                      disabled={!canWrite || busySubs.has(s._id)}
                       className="form-checkbox h-4 w-4 rounded text-blue-600"
                       checked={s.status === 'done'}
                       onChange={() => toggleSub(s)}
@@ -645,7 +847,11 @@ export default function TaskDetailModal({ taskId, onClose }) {
                     placeholder={tr("+ Thêm công việc con rồi nhấn Enter (tối đa 1 cấp)")}
                     value={newSub}
                     onChange={(e) => setNewSub(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && addSub()}
+                    onKeyDown={(e) => {
+                      if (e.key !== 'Enter' || e.nativeEvent?.isComposing) return;
+                      e.preventDefault();
+                      return addSub();
+                    }}
                   />
                 )}
               </div>
@@ -658,17 +864,20 @@ export default function TaskDetailModal({ taskId, onClose }) {
                 <label key={c._id || i} className="flex items-center gap-2 text-body-sm">
                   <input
                     type="checkbox"
-                    disabled={!canWrite}
+                    aria-label={c.text}
+                    disabled={!canWrite || updating}
                     className="form-checkbox h-4 w-4 rounded text-blue-600"
                     checked={c.done}
-                    onChange={() => saveChecklist(task.checklist.map((x, j) => ({ text: x.text, done: j === i ? !x.done : x.done })))}
+                    onChange={() => saveChecklist(task.checklist.map((x, j) => ({ ...x, done: j === i ? !x.done : x.done })))}
                   />
                   <span className={`flex-1 ${c.done ? 'text-slate-400 line-through' : ''}`}>{c.text}</span>
                   {canWrite && (
                     <button
                       type="button"
+                      aria-label={tr('Xóa mục checklist {0}', [c.text])}
+                      disabled={updating}
                       className="text-slate-300 hover:text-rose-500"
-                      onClick={() => saveChecklist(task.checklist.filter((_, j) => j !== i).map(({ text, done }) => ({ text, done })))}
+                      onClick={() => saveChecklist(task.checklist.filter((_, j) => j !== i))}
                     >
                       <Icon name="close" size={14} />
                     </button>
@@ -681,10 +890,14 @@ export default function TaskDetailModal({ taskId, onClose }) {
                   placeholder={tr("+ Thêm mục checklist")}
                   value={newCheck}
                   onChange={(e) => setNewCheck(e.target.value)}
-                  onKeyDown={(e) => {
+                  onKeyDown={async (e) => {
+                    if (e.nativeEvent?.isComposing || mutation.current) return;
                     if (e.key === 'Enter' && newCheck.trim()) {
-                      saveChecklist([...(task.checklist || []).map(({ text, done }) => ({ text, done })), { text: newCheck.trim(), done: false }]);
-                      setNewCheck('');
+                      e.preventDefault();
+                      const submitted = newCheck;
+                      if (await saveChecklist([...(task.checklist || []), { text: submitted.trim(), done: false }])) {
+                        setNewCheck((value) => value === submitted ? '' : value);
+                      }
                     }
                   }}
                 />
@@ -701,7 +914,7 @@ export default function TaskDetailModal({ taskId, onClose }) {
               )
             }
           >
-            <input ref={fileInput} type="file" multiple hidden accept=".pdf,.txt,.png,.jpg,.jpeg" onChange={(e) => upload(e.target.files)} />
+            <input ref={fileInput} type="file" multiple hidden accept=".docx,.xlsx,.pptx,.zip,.pdf,.txt,.png,.jpg,.jpeg" onChange={(e) => upload(e.target.files)} />
             <div
               className="grid gap-2 sm:grid-cols-2"
               onDragOver={(e) => e.preventDefault()}
@@ -741,6 +954,11 @@ export default function TaskDetailModal({ taskId, onClose }) {
             </div>
             {tab === 'comments' ? (
               <div className="space-y-4">
+                {commentsLoading && <div role="status" aria-label={tr("Đang tải bình luận")}><Spinner /></div>}
+                {commentsError && <div role="alert" className="flex items-center gap-2 text-body-sm text-rose-700">
+                  <span>{commentsError.message}</span>
+                  <button className="btn-outline btn-sm" onClick={loadComments}>{tr("Thử lại")}</button>
+                </div>}
                 {comments.map((c) => (
                   <div key={c._id} className="flex gap-3">
                     <Avatar user={c.author} size={30} />
@@ -751,24 +969,20 @@ export default function TaskDetailModal({ taskId, onClose }) {
                           {timeAgo(c.createdAt)}
                           {c.editedAt && tr(" · đã sửa")}
                         </span>
-                        {access.canWrite && c.author?._id === me?._id && editing !== c._id && (
+                        {access.canWrite && (c.author?._id === me?._id || canWrite) && editing !== c._id && (
                           <span className="ml-auto flex gap-2 text-label-md">
-                            <button className="text-slate-400 hover:text-blue-600" onClick={() => setEditing(c._id)}>{tr("Sửa")}</button>
+                            {c.author?._id === me?._id && <button className="text-slate-400 hover:text-blue-600" onClick={() => editComment(c._id)}>{tr("Sửa")}</button>}
                             <button
                               className="text-slate-400 hover:text-rose-600"
-                              onClick={async () => {
-                                try {
-                                  await api.del(`/comments/${c._id}`);
-                                  setComments((cs) => cs.filter((x) => x._id !== c._id));
-                                } catch (e) { toast(e.message, 'error'); }
-                              }}
-                            >{tr("Xóa")}</button>
+                              disabled={busyComments.has(c._id)}
+                              onClick={() => deleteComment(c._id)}
+                            >{tr(c.author?._id === me?._id ? 'Xóa' : 'Ẩn bình luận vi phạm')}</button>
                           </span>
                         )}
                       </div>
                       {access.canWrite && editing === c._id ? (
                         <div className="mt-1">
-                          <CommentBox members={members} initial={c.body} autoFocus onCancel={() => setEditing(null)} onSend={(b) => updateComment(c._id, b)} />
+                          <CommentBox members={members} initial={c.body} autoFocus onCancel={() => editComment(null)} onSend={(b) => updateComment(c._id, b)} />
                         </div>
                       ) : (
                         <p className="mt-0.5 whitespace-pre-wrap break-words text-body-sm text-slate-700">{renderBody(c.body)}</p>
@@ -776,7 +990,7 @@ export default function TaskDetailModal({ taskId, onClose }) {
                     </div>
                   </div>
                 ))}
-                {access.canWrite && <CommentBox members={members} onSend={sendComment} />}
+                {(access.canWrite || access.canComment) && <CommentBox members={members} onSend={sendComment} />}
               </div>
             ) : (
               <div className="space-y-3">
@@ -809,13 +1023,10 @@ export default function TaskDetailModal({ taskId, onClose }) {
           <Prop label={tr("Người tạo")}>
             <PersonLine user={task.creator} />
           </Prop>
-          <Prop label={tr("Hạn chót")}>
+          <Prop label="Loại công việc"><select aria-label="Loại công việc" className="input h-9" disabled={!canWrite} value={form.workType} onChange={(e) => setF('workType', e.target.value)}>{Object.entries(WORK_TYPES).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></Prop>
+          <Prop label={tr("Lịch công việc")}>
             <span className="mb-1 block text-label-sm text-slate-500">{task.dueDate ? tr("Hạn hiện tại: {0}", [fmtDateTime(task.dueDate)]) : ''}</span>
-            {canWrite ? (
-              <input type="date" className="input h-9" value={form.dueDate} onChange={(e) => setF('dueDate', e.target.value)} />
-            ) : (
-              <span>{task.dueDate ? fmtDate(task.dueDate, { year: true }) : tr("Chưa đặt hạn")}</span>
-            )}
+            <TaskDates value={form} onChange={setF} canPlan={canWrite} canActual={access.canUpdateProgress} />
             {due && due.tone === 'danger' && <span className="mt-1 inline-block rounded-md bg-rose-100 px-2 py-0.5 text-label-sm text-rose-700">{due.text}</span>}
           </Prop>
           <Prop label={tr("Độ ưu tiên")}>
@@ -832,74 +1043,41 @@ export default function TaskDetailModal({ taskId, onClose }) {
               ))}
             </div>
           </Prop>
-          <Prop label={tr("Ước lượng thời gian")}>
-            <div className="flex items-center gap-2">
-              <input
-                type="number"
-                min="0"
-                disabled={!canWrite}
-                className="input h-9"
-                value={form.estimateHours}
-                onChange={(e) => setF('estimateHours', e.target.value)}
-                placeholder={tr("Giờ")}
-              />
-              <span className="text-body-sm text-slate-400">/</span>
-              <input type="number" min="0" disabled={!canWrite} className="input h-9" value={form.spentHours} onChange={(e) => setF('spentHours', e.target.value)} title={tr("Đã làm")} />
+          <Prop label={tr("Giờ công")}>
+            <div className="grid grid-cols-2 gap-2">
+              <label className="text-label-md font-normal text-slate-500">
+                {tr("Ước lượng (PM đặt)")}
+                <input
+                  type="number"
+                  min="0"
+                  disabled={!canWrite || !!task.contributors?.length}
+                  className="input mt-1 h-9 text-right tabular-nums"
+                  value={form.estimateHours}
+                  onChange={(e) => setF('estimateHours', e.target.value)}
+                  placeholder={tr("Chưa có")}
+                />
+              </label>
+              <label className="text-label-md font-normal text-slate-500">
+                {tr("Đã làm (từ nhật ký)")}
+                <input type="number" min="0" disabled={!canWrite || task.hasDailyUpdates} className="input mt-1 h-9 text-right tabular-nums" value={form.spentHours} onChange={(e) => setF('spentHours', e.target.value)} />
+              </label>
             </div>
-            {Number(form.estimateHours) > 0 && <Progress value={(Number(form.spentHours) / Number(form.estimateHours)) * 100} className="mt-2" />}
-            <p className="mt-1 text-label-md font-normal text-slate-400">{tr("Ước lượng / Đã làm (giờ)")}</p>
+            {Number(form.estimateHours) > 0 && <p className="mt-2 text-right text-label-md tabular-nums text-slate-600">{tr("Đã dùng {0}% giờ ước lượng", [Math.round(Number(form.spentHours) / Number(form.estimateHours) * 100)])}</p>}
+            <p className="mt-1 text-label-md font-normal text-slate-500">
+              {task.hasDailyUpdates
+                ? tr("Tổng giờ lấy từ nhật ký; sửa bản ghi nhật ký để điều chỉnh.")
+                : access.canUpdateProgress && !canWrite
+                  ? tr("Ghi giờ đã làm ở mục Tiến độ & cộng tác, số này tự cộng dồn.")
+                  : tr("Giờ đã làm không phải % tiến độ: tiến độ do người thực hiện báo trong nhật ký.")}
+            </p>
           </Prop>
           <Prop label={tr("Giờ còn lại")}>
-            <input aria-label={tr("Giờ còn lại")} type="number" min="0" max="1000" disabled={!access.canUpdateProgress} className="input h-9" value={form.remainingHours} onChange={(e) => setF('remainingHours', e.target.value)} placeholder={tr("Chưa ước lượng")} />
-            {!canWrite && access.canUpdateProgress && <button className="btn-outline btn-sm mt-2" disabled={saving || !dirty} onClick={async () => {
-              setSaving(true);
-              const revision = editRevision.current;
-              try {
-                await patch({ remainingHours: form.remainingHours === '' ? null : Number(form.remainingHours) });
-                if (revision === editRevision.current && activeTask.current === taskId) {
-                  dirtyRef.current = false;
-                  setDirty(false);
-                }
-                await load();
-                toast(tr("Đã cập nhật giờ còn lại"));
-              }
-              catch { /* patch hiển thị lỗi */ }
-              finally { setSaving(false); }
-            }}>{tr("Lưu giờ còn lại")}</button>}
+            <input aria-label={tr("Giờ còn lại")} type="number" min="0" max="1000" disabled={!access.canUpdateProgress || !!task.contributors?.length} className="input h-9 text-right tabular-nums" value={form.remainingHours} onChange={(e) => setF('remainingHours', e.target.value)} placeholder={tr("Chưa ước lượng")} />
+            {!!task.contributors?.length && <p className="mt-1 text-label-md text-slate-500">Cập nhật giờ của từng người trong mục Tiến độ & cộng tác.</p>}
+            {!canWrite && access.canUpdateProgress && <button className="btn-outline btn-sm mt-2" disabled={saving || updating || !dirty} onClick={saveRemainingHours}>{tr("Lưu giờ còn lại")}</button>}
           </Prop>
           <Prop label={tr("Nhãn")}>
-            <div className="flex flex-wrap gap-1.5">
-              {form.labels.map((l) => (
-                <span key={l} className="chip border-slate-200 bg-white text-slate-600">
-                  {l}
-                  {canWrite && (
-                    <button
-                      onClick={() =>
-                        setF(
-                          'labels',
-                          form.labels.filter((x) => x !== l),
-                        )
-                      }
-                    >
-                      <Icon name="close" size={12} />
-                    </button>
-                  )}
-                </span>
-              ))}
-              {canWrite && (
-                <input
-                  className="input h-[22px] w-24 rounded-md px-2 text-label-md"
-                  placeholder={tr("+ Nhãn")}
-                  onKeyDown={(e) => {
-                    const v = e.currentTarget.value.trim();
-                    if (e.key === 'Enter' && v) {
-                      if (!form.labels.includes(v)) setF('labels', [...form.labels, v]);
-                      e.currentTarget.value = '';
-                    }
-                  }}
-                />
-              )}
-            </div>
+            <LabelPicker projectId={task.project} value={form.labels} onChange={(labels) => setF('labels', labels)} disabled={!canWrite} canCreate={canWrite} />
           </Prop>
           {task.sprint && (
             <Prop label="Sprint">
@@ -926,7 +1104,7 @@ export default function TaskDetailModal({ taskId, onClose }) {
         {canWrite && (
           <span className="ml-auto flex gap-2">
             <button className="btn-outline" onClick={() => load({ discard: true })} disabled={!dirty}>{tr("Hủy")}</button>
-            <button className="btn-primary" onClick={save} disabled={!dirty || saving}>
+            <button className="btn-primary" onClick={save} disabled={!dirty || saving || updating}>
               {saving && <Spinner />}{tr("Lưu thay đổi")}</button>
           </span>
         )}

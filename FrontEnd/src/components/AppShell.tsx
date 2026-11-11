@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import type { ProjectSummary, UserSummary } from '../lib/app-context.ts';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { useApp, useToast } from '../lib/app.jsx';
@@ -14,17 +15,45 @@ const NAV = [
   { to: '/overview', icon: 'dashboard', get label() { return tr("Tổng quan"); }, en: 'Overview' },
   { to: '/board', icon: 'view_kanban', get label() { return tr("Bảng công việc"); }, en: 'Board' },
   { to: '/my-tasks', icon: 'task_alt', get label() { return tr("Việc của tôi"); }, en: 'My tasks', badge: 'mine' },
-  { to: '/calendar', icon: 'calendar_month', get label() { return tr("Lịch dự án"); }, en: 'Calendar' },
+  { to: '/calendar', icon: 'calendar_month', get label() { return tr('Tiến độ & lịch'); }, en: 'Schedule' },
+  { to: '/team', icon: 'group', get label() { return tr('Tải thành viên'); }, en: 'Team workload' },
   { to: '/documents', icon: 'description', get label() { return tr("Tài liệu"); }, en: 'Documents' },
   { to: '/ai', icon: 'auto_awesome', get label() { return tr("Trợ lý AI"); }, en: 'AI assistant', ai: true },
-  { to: '/reports', icon: 'bar_chart', get label() { return tr("Báo cáo"); }, en: 'Reports' },
 ];
 
-const CRUMBS = {
+const SCHEDULE_PATHS = ['/calendar', '/timeline', '/sprints', '/meetings'];
+const OVERVIEW_PATHS = ['/overview', '/reports', '/ai/report', '/risks', '/issues', '/contributions'];
+function navIsActive(to: string, pathname: string) {
+  if (to === '/calendar') return SCHEDULE_PATHS.includes(pathname);
+  if (to === '/overview') return OVERVIEW_PATHS.includes(pathname);
+  if (to === '/ai') return pathname.startsWith('/ai') && pathname !== '/ai/report';
+  return pathname === to;
+}
+
+function SectionNavigation() {
+  const { pathname } = useLocation();
+  useI18n();
+  const schedule = SCHEDULE_PATHS.includes(pathname);
+  if (!schedule && !OVERVIEW_PATHS.includes(pathname)) return null;
+  const tabs = schedule
+    ? [{ to: '/calendar', label: tr('Lịch công việc'), icon: 'calendar_month' }, { to: '/timeline', label: tr('Kế hoạch & thực tế'), icon: 'timeline' }, { to: '/sprints', label: tr('Sprint & Backlog'), icon: 'sprint' }, { to: '/meetings', label: tr('Lịch họp'), icon: 'event' }]
+    : [{ to: '/overview', label: tr('Tổng quan'), icon: 'dashboard' }, { to: '/reports', label: tr('Báo cáo'), icon: 'bar_chart' }, { to: '/risks', label: tr('Cảnh báo rủi ro'), icon: 'warning' }, { to: '/issues', label: tr('Vấn đề'), icon: 'flag' }, { to: '/contributions', label: tr('Đóng góp'), icon: 'groups' }];
+  return <nav aria-label={schedule ? tr('Tiến độ & lịch') : tr('Tổng quan dự án')} className="flex flex-wrap gap-2 border-b border-slate-200 bg-white px-4 py-3 lg:px-6">
+    {tabs.map((tab) => {
+      const active = pathname === tab.to || (tab.to === '/reports' && pathname === '/ai/report');
+      return <Link key={tab.to} to={tab.to} aria-current={active ? 'page' : undefined} className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-label-md font-semibold ${active ? 'bg-blue-50 text-blue-700' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'}`}><Icon name={tab.icon} size={17} />{tab.label}</Link>;
+    })}
+  </nav>;
+}
+
+const CRUMBS: Record<string, string[]> = {
+  get '/timeline'() { return [tr('Tiến độ & lịch'), tr('Kế hoạch & thực tế')]; },
+  get '/team'() { return [tr('Tải thành viên')]; },
+  get '/meetings'() { return [tr('Tiến độ & lịch'), tr('Lịch họp')]; },
   get '/overview'() { return [tr("Tổng quan")]; },
   get '/board'() { return [tr("Bảng Kanban")]; },
   get '/my-tasks'() { return [tr("Việc của tôi")]; },
-  get '/calendar'() { return [tr("Lịch dự án")]; },
+  get '/calendar'() { return [tr('Tiến độ & lịch'), tr('Lịch công việc')]; },
   get '/documents'() { return [tr("Tài liệu")]; },
   get '/ai'() { return [tr("Trợ lý AI")]; },
   get '/reports'() { return [tr("Trợ lý AI")]; },
@@ -35,18 +64,18 @@ const CRUMBS = {
   get '/profile'() { return [tr("Hồ sơ cá nhân")]; },
   get '/admin'() { return [tr("Quản trị hệ thống")]; },
 };
-const PROJECT_SCOPED = ['/overview', '/board', '/calendar', '/documents', '/ai', '/reports', '/risks'];
+const PROJECT_SCOPED = ['/overview', '/board', '/calendar', '/documents', '/ai', '/reports', '/risks', '/timeline', '/meetings'];
 
 function SearchBox() {
   useI18n();
   const { wsId, setProjectId } = useApp();
   const [q, setQ] = useState('');
-  const [res, setRes] = useState(null);
+  const [res, setRes] = useState<{ projects: ProjectSummary[]; tasks: { _id: string; key: string; title: string; status: string; project: { _id: string } }[] } | null>(null);
   const [open, setOpen] = useState(false);
-  const ref = useRef(null);
+  const ref = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
   useEffect(() => {
-    const onKey = (e) => {
+    const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
         ref.current?.focus();
@@ -57,7 +86,7 @@ function SearchBox() {
   }, []);
   useEffect(() => {
     if (!q.trim() || !wsId) return setRes(null);
-    const t = setTimeout(() => api.get(`/workspaces/${wsId}/search?q=${encodeURIComponent(q)}`).then(setRes).catch(() => {}), 200);
+    const t = setTimeout(() => api.get<NonNullable<typeof res>>(`/workspaces/${wsId}/search?q=${encodeURIComponent(q)}`).then(setRes).catch(() => {}), 200);
     return () => clearTimeout(t);
   }, [q, wsId]);
   return (
@@ -111,7 +140,7 @@ function SearchBox() {
   );
 }
 
-function TopBar({ onToggleSidebar, onCreate, sidebarOpen }) {
+function TopBar({ onToggleSidebar, onCreate, sidebarOpen }: { onToggleSidebar: () => void; onCreate: () => void; sidebarOpen: boolean }) {
   const { me, ws, role, unread, logout, theme, toggleTheme, project, canManageProject } = useApp();
   const { language: lang, setLanguage: setLang } = useI18n();
   const { setMe } = useApp();
@@ -121,19 +150,20 @@ function TopBar({ onToggleSidebar, onCreate, sidebarOpen }) {
   const loc = useLocation();
   const navigate = useNavigate();
   const base = '/' + loc.pathname.split('/')[1];
-  const crumbs = CRUMBS[base] || [];
+  const crumbs = loc.pathname === '/ai/report' ? [tr('Tổng quan'), tr('Báo cáo')] : CRUMBS[base] || [];
   const settingsTab = loc.pathname.split('/')[2];
-  const tail = base === '/settings' ? { members: tr("Thành viên & Phân quyền"), invites: tr("Lời mời"), ai: tr("Cài đặt AI"), activity: tr("Nhật ký hoạt động"), general: tr("Thông tin chung") }[settingsTab] : null;
+  const settingsLabels: Record<string, string> = { members: tr('Thành viên & Phân quyền'), invites: tr('Lời mời'), ai: tr('Cài đặt AI'), activity: tr('Nhật ký hoạt động'), general: tr('Thông tin chung') };
+  const tail = base === '/settings' ? settingsLabels[settingsTab] : null;
 
-  const changeLang = async (l) => {
+  const changeLang = async (l: string) => {
     if (languagePending.current || l === lang) return;
     languagePending.current = true;
     setSavingLanguage(true);
     setLang(l);
     try {
-      const data = await api.patch('/me', { language: l });
+      const data = await api.patch<{ user: UserSummary }>('/me', { language: l });
       setMe(data.user);
-    } catch (error) { toast(error.message, 'error'); }
+    } catch (error) { toast(error instanceof Error ? error.message : tr('Đã có lỗi xảy ra'), 'error'); }
     finally { languagePending.current = false; setSavingLanguage(false); }
   };
 
@@ -201,7 +231,7 @@ function TopBar({ onToggleSidebar, onCreate, sidebarOpen }) {
               <Avatar user={me} size={32} />
               <span className="hidden flex-col text-left xl:flex">
                 <span className="whitespace-nowrap text-label-md font-semibold leading-none text-slate-900">{me?.name}</span>
-                <span className="whitespace-nowrap text-[11px] leading-tight text-slate-500">{me?.title || ROLE[role] || ''}</span>
+                <span className="whitespace-nowrap text-[11px] leading-tight text-slate-500">{me?.title || (role && ROLE[role]) || ''}</span>
               </span>
             </button>
           }
@@ -222,16 +252,19 @@ function TopBar({ onToggleSidebar, onCreate, sidebarOpen }) {
   );
 }
 
-function Sidebar({ collapsed, overlay, onClose }) {
+function Sidebar({ collapsed, overlay, onClose }: { collapsed: boolean; overlay: boolean; onClose: () => void }) {
   useI18n();
   const { ws, workspaces, setWsId, activeProjects, project, setProjectId, me, role } = useApp();
-  const [mine, setMine] = useState(null);
+  const navItems = workspaces.some((w) => w.isMentor)
+    ? [...NAV, { to: '/mentoring', icon: 'school', get label() { return tr('Các nhóm hướng dẫn'); }, en: 'My groups' }]
+    : NAV;
+  const [mine, setMine] = useState(0);
   const navigate = useNavigate();
   const loc = useLocation();
   useEffect(() => {
     if (!ws) return;
     api
-      .get(`/workspaces/${ws.workspace._id}/my-tasks?limit=1`)
+      .get<{ summary: { today: number; overdue: number } }>(`/workspaces/${ws.workspace._id}/my-tasks?limit=1`)
       .then((d) => setMine(d.summary.today + d.summary.overdue))
       .catch(() => {});
   }, [ws, loc.pathname]);
@@ -285,17 +318,17 @@ function Sidebar({ collapsed, overlay, onClose }) {
         <div>
           <div className="section-label mb-1.5 px-2">{tr("Điều hướng")}</div>
           <nav className="space-y-0.5">
-            {NAV.map((n, i) => (
+            {navItems.map((n, i) => (
               <NavLink
                 key={n.to}
                 to={n.to}
                 style={{ animationDelay: `${i * 35}ms` }}
-                className={({ isActive }) => `nav-item animate-fade-up ${isActive || (n.to === '/overview' && loc.pathname === '/risks') ? 'nav-item-active' : ''} justify-between`}
+                className={() => `nav-item animate-fade-up ${navIsActive(n.to, loc.pathname) ? 'nav-item-active' : ''} justify-between`}
               >
-                {({ isActive }) => (
+                {() => (
                   <>
                     <span className="flex items-center gap-2.5">
-                      <Icon name={n.icon} className={n.ai ? 'text-purple-500' : isActive ? 'text-blue-600' : 'text-slate-400'} />
+                      <Icon name={n.icon} className={n.ai ? 'text-purple-500' : navIsActive(n.to, loc.pathname) ? 'text-blue-600' : 'text-slate-400'} />
                       <span>{n.label}</span>
                     </span>
                     {n.badge && mine > 0 && <span className="rounded-full bg-blue-100 px-2 py-0.5 text-label-sm text-blue-800">{mine}</span>}
@@ -366,7 +399,7 @@ function Sidebar({ collapsed, overlay, onClose }) {
 }
 
 /** Giữ phần tử trong DOM thêm `ms` khi đóng để chạy hiệu ứng ra; `shown` bật sau 1 khung hình để chạy hiệu ứng vào */
-function usePresence(open, ms) {
+function usePresence(open: boolean, ms: number) {
   const [mounted, setMounted] = useState(open);
   const [shown, setShown] = useState(open);
   useEffect(() => {
@@ -416,6 +449,7 @@ export default function AppShell() {
         <Sidebar collapsed={collapsed} overlay={narrow} onClose={() => setCollapsed(true)} />
         <main id="main-content" className="scroll-thin min-w-0 flex-1 overflow-y-auto bg-slate-50">
           <ErrorBoundary key={loc.pathname}>
+            <SectionNavigation />
             <Outlet />
           </ErrorBoundary>
         </main>

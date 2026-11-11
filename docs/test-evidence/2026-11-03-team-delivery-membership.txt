@@ -1,0 +1,21 @@
+[seed] Tạo dữ liệu demo Nhóm 24…
+[seed] Xong. Đăng nhập: mai.anh@nhom24.edu.vn / TaskFlow@2026  (System Admin: admin@taskflow.local)
+▶ Sprint 1 Hoàng Anh — quyền dự án và workflow (U006-T1, U008-T1, U010-T1)
+  ✔ gỡ thành viên bỏ gán task; project và bảng thành viên luôn đồng bộ (583.3478ms)
+✔ Sprint 1 Hoàng Anh — quyền dự án và workflow (U006-T1, U008-T1, U010-T1) (44502.0515ms)
+▶ Lộc: phân quyền và nghiệp vụ bổ sung
+  ✔ gỡ khỏi project: bỏ giao task cha/con, tăng version, giữ audit và thu hồi API/file/AI/thông báo (945.7962ms)
+  ✔ gỡ khỏi workspace: bỏ giao, gỡ PM và không để lại quyền dự án (986.9737ms)
+  ✔ hạ PM xuống Viewer: vẫn đọc được, không được ghi/duyệt/lưu trữ và task được bỏ giao (956.1623ms)
+  ✔ giao task đồng thời gỡ thành viên: không để lại assignee ngoài dự án (786.9269ms)
+  ✔ giao lại task đồng thời gỡ thành viên: version và assignee vẫn nhất quán (883.9711ms)
+  ✔ socket đang mở bị thu hồi khi gỡ thành viên, không join lại hoặc nhận sự kiện (898.7418ms)
+✔ Lộc: phân quyền và nghiệp vụ bổ sung (5461.1577ms)
+ℹ tests 7
+ℹ suites 2
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 51943.1776

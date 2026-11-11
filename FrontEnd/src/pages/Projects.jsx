@@ -198,8 +198,8 @@ function ProjectModal({ open, project, members, meId, wsId, onClose, onSaved }) 
     setErrors({});
     setF(
       project
-        ? { name: project.name, description: project.description, color: project.color, startDate: isoDate(project.startDate), endDate: isoDate(project.endDate), members: project.members.map((m) => m._id), manager: project.manager?._id, memberRoles: project.memberRoles || {} }
-        : { name: '', description: '', color: 'blue', startDate: '', endDate: '', members: meId ? [meId] : [], memberRoles: {} },
+        ? { name: project.name, description: project.description, color: project.color, timezone: project.timezone || 'Asia/Ho_Chi_Minh', startDate: isoDate(project.startDate), endDate: isoDate(project.endDate), members: project.members.map((m) => m._id), manager: project.manager?._id, memberRoles: project.memberRoles || {} }
+        : { name: '', description: '', color: 'blue', timezone: 'Asia/Ho_Chi_Minh', startDate: '', endDate: '', members: meId ? [meId] : [], memberRoles: {} },
     );
   }, [open, project, meId]);
   const dateError = f.startDate && f.endDate && f.endDate < f.startDate ? tr("Ngày kết thúc không được trước ngày bắt đầu") : '';
@@ -250,6 +250,9 @@ function ProjectModal({ open, project, members, meId, wsId, onClose, onSaved }) 
             onChange={(e) => setF({ ...f, description: e.target.value })}
             placeholder={tr("Mô tả ngắn gọn mục tiêu của dự án...")}
           />
+        </Field>
+        <Field label={tr('Múi giờ báo cáo dự án')} error={errors.timezone} hint={tr('Ví dụ: Asia/Ho_Chi_Minh, Asia/Tokyo, America/New_York')}>
+          <input className="input" aria-label={tr('Múi giờ báo cáo dự án')} value={f.timezone} onChange={(e) => setF({ ...f, timezone: e.target.value })} />
         </Field>
         <div>
           <span className="label">{tr("Màu nhận diện")}</span>

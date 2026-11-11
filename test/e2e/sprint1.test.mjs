@@ -72,6 +72,180 @@ async function status(page, name) {
   await expect(page.getByRole('button', { name: 'Đổi trạng thái công việc' })).toContainText(name);
 }
 
+test('Lộc Sprint 3: báo cáo mở nguồn thật; quản trị lỗi/thử lại, khóa và mở tài khoản', { timeout: 120000 }, async () => {
+  const owner = await context();
+  const system = await context();
+  const member = await context();
+  const errorStart = errors.length;
+  const headers = { 'x-taskflow': '1' };
+  try {
+    await login(owner.page, 'mai.anh@nhom24.edu.vn');
+    const made = await owner.ctx.request.post(`/api/v1/workspaces/${seed.workspace.id}/projects`, { headers, data: { name: 'Lộc Sprint 3 báo cáo', keyPrefix: 'LSP', members: [seed.users.nhu.id] } });
+    assert.equal(made.status(), 201, await made.text());
+    const project = (await made.json()).project;
+    const created = await owner.ctx.request.post(`/api/v1/projects/${project._id}/tasks`, { headers, data: { title: 'Nguồn báo cáo Sprint 3' } });
+    const task = (await created.json()).task;
+    await db.prisma.task.update({ where: { id: task._id }, data: { status: 'done', completedAt: new Date(), remainingHours: 0 } });
+    await owner.page.evaluate(({ ws, project }) => { localStorage.setItem('tf_ws', ws); localStorage.setItem('tf_project', project); }, { ws: seed.workspace.id, project: project._id });
+    await owner.page.goto('/ai/report');
+    const reportRequest = owner.page.waitForRequest((r) => r.method() === 'POST' && r.url().endsWith(`/projects/${project._id}/ai/reports`));
+    await owner.page.getByRole('button', { name: 'Tạo báo cáo', exact: false }).click();
+    const period = (await reportRequest).postDataJSON();
+    assert.ok(period.period_start && period.period_end);
+    assert.equal(period.from, undefined);
+    assert.ok(new Date(period.period_end) > new Date(period.period_start));
+    await expect(owner.page.getByText('Đã hoàn thành (1 việc)', { exact: true })).toBeVisible();
+    await owner.page.getByRole('button', { name: task.key, exact: true }).first().click();
+    await expect(owner.page).toHaveURL(new RegExp(`task=${task._id}`));
+    await expect(owner.page.getByRole('dialog')).toContainText(task.title);
+    await owner.page.screenshot({ path: path.join(artifacts, 'loc-sprint3-report-source.png'), fullPage: true, animations: 'disabled' });
+
+    await login(member.page, 'nhu@nhom24.edu.vn');
+    await login(system.page, 'admin@taskflow.local');
+    await system.page.route('**/api/v1/admin/users*', (route) => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'Lỗi kiểm thử tải quản trị' }) }));
+    await system.page.goto('/admin');
+    await expect(system.page.getByRole('alert').filter({ hasText: 'Lỗi kiểm thử tải quản trị' })).toBeVisible();
+    await system.page.unroute('**/api/v1/admin/users*');
+    await system.page.getByRole('button', { name: 'Thử lại', exact: true }).click();
+    await system.page.getByPlaceholder('Tìm theo tên hoặc email').fill('nhu@nhom24.edu.vn');
+    const row = system.page.getByRole('row').filter({ hasText: 'nhu@nhom24.edu.vn' });
+    await row.getByRole('button').click();
+    await system.page.getByRole('button', { name: 'Khóa tài khoản', exact: true }).click();
+    const modal = system.page.getByRole('dialog');
+    await modal.getByRole('combobox').click();
+    await system.page.getByRole('option', { name: 'Khác', exact: true }).click();
+    await modal.getByRole('textbox').fill('Nghiệm chứng local Sprint 3');
+    await modal.getByRole('button', { name: 'Khóa tài khoản', exact: false }).click();
+    await expect(row).toContainText('Đã khóa');
+    assert.equal((await member.ctx.request.get('/api/v1/me')).status(), 401);
+    await system.page.screenshot({ path: path.join(artifacts, 'loc-sprint3-admin-lock.png'), fullPage: true, animations: 'disabled' });
+    await row.getByRole('button').click();
+    await system.page.getByRole('button', { name: 'Mở khóa', exact: true }).click();
+    await expect(row).toContainText('Đang hoạt động');
+    assert.equal((await member.ctx.request.get('/api/v1/me')).status(), 401, 'unlock must not resurrect a revoked session');
+    await system.page.getByRole('button', { name: 'Nhật ký quản trị', exact: false }).click();
+    await expect(system.page.getByText('Nghiệm chứng local Sprint 3', { exact: false })).toBeVisible();
+    assert.deepEqual(errors.slice(errorStart), []);
+  } finally {
+    await db.prisma.user.update({ where: { id: seed.users.nhu.id }, data: { isLocked: false } });
+    await Promise.all([owner.ctx.close(), system.ctx.close(), member.ctx.close()]);
+  }
+});
+
+test('Nhóm phát triển: nhật ký, phân bổ, issue, timeline, tải thành viên và lịch họp', { timeout: 120000 }, async () => {
+  const { ctx, page } = await context();
+  const headers = { 'x-taskflow': '1' };
+  try {
+    await login(page, 'mai.anh@nhom24.edu.vn');
+    const response = await ctx.request.post(`/api/workspaces/${seed.workspace.id}/projects`, { headers, data: { name: 'Demo nghiệp vụ phần mềm', keyPrefix: 'DEV', members: [seed.users.nhu.id] } });
+    assert.equal(response.status(), 201);
+    const project = (await response.json()).project;
+    const created = await ctx.request.post(`/api/projects/${project._id}/tasks`, { headers, data: { title: 'Kiểm thử luồng đăng nhập', assignee: seed.users.maianh.id, workType: 'testing', plannedStartDate: '2026-01-01', dueDate: '2026-01-10', estimateHours: 8 } });
+    assert.equal(created.status(), 201);
+    const task = (await created.json()).task;
+    await page.evaluate((id) => localStorage.setItem('tf_project', id), project._id);
+    await page.goto(`/board?task=${task._id}`);
+    const detail = page.getByRole('dialog', { name: 'Chi tiết công việc' });
+    await detail.getByRole('button', { name: /Tiến độ & cộng tác/ }).click();
+    await detail.getByRole('button', { name: 'Phân bổ effort', exact: true }).click();
+    await detail.getByRole('button', { name: 'Thêm người thực hiện', exact: true }).click();
+    await detail.getByLabel('Người thực hiện 1').click();
+    await page.getByRole('option', { name: 'Mai Anh', exact: true }).click();
+    await detail.getByLabel('Trách nhiệm 1').fill('Viết test tích hợp');
+    await detail.getByLabel('Giờ phân bổ 1').fill('6');
+    await detail.getByLabel('Giờ còn lại 1').fill('6');
+    await detail.getByRole('button', { name: 'Thêm người thực hiện', exact: true }).click();
+    await detail.getByLabel('Người thực hiện 2').click();
+    await page.getByRole('option', { name: 'Như', exact: true }).click();
+    await detail.getByLabel('Trách nhiệm 2').fill('Review test case');
+    await detail.getByLabel('Giờ phân bổ 2').fill('2');
+    await detail.getByLabel('Giờ còn lại 2').fill('2');
+    const savedAllocation = page.waitForResponse((r) => r.url().endsWith(`/tasks/${task._id}/contributors`) && r.request().method() === 'PUT');
+    await detail.getByRole('button', { name: 'Lưu phân bổ', exact: true }).click();
+    assert.equal((await savedAllocation).status(), 200);
+    await detail.getByRole('button', { name: 'Nhật ký hằng ngày', exact: true }).click();
+    await detail.getByLabel('Giờ đã làm trong ngày').fill('2');
+    await detail.getByLabel('Giờ còn lại của tôi').fill('4');
+    await detail.getByLabel('Tiến độ task (%)').fill('30');
+    await detail.getByLabel('Đã làm được gì?').fill('Đã viết test đăng nhập thành công');
+    const savedLog = page.waitForResponse((r) => r.url().includes('/daily-updates/') && r.request().method() === 'PUT');
+    await detail.getByRole('button', { name: 'Lưu nhật ký', exact: true }).click();
+    assert.equal((await savedLog).status(), 200);
+    await expect(detail.getByText('Đã viết test đăng nhập thành công', { exact: true })).toBeVisible();
+    await detail.getByRole('button', { name: /^Vấn đề \(/ }).click();
+    await detail.getByLabel('Tên vấn đề').fill('Chờ API xác thực');
+    await detail.getByLabel('Nguyên nhân', { exact: true }).fill('Đối tác chưa chốt response');
+    await detail.getByLabel('Hướng xử lý').fill('Dùng mock để tiếp tục test');
+    await detail.getByRole('button', { name: 'Ghi nhận vấn đề', exact: true }).click();
+    await expect(detail.getByRole('heading', { name: /Chờ API xác thực/ })).toBeVisible();
+    await page.screenshot({ path: path.join(artifacts, 'delivery-task.png'), fullPage: true });
+    await page.goto('/timeline');
+    await expect(page.getByTestId('schedule-comparison')).toBeVisible();
+    await expect(page.getByRole('img', { name: /^Kế hoạch:/ })).toBeVisible();
+    await expect(page.getByRole('img', { name: /^Thực tế:/ })).toBeVisible();
+    await page.goto('/team');
+    await expect(page.getByRole('heading', { name: 'Tải công việc thành viên', exact: true })).toBeVisible();
+    await expect(page.getByText(/Chỉ tổng hợp dự án bạn có quyền xem/)).toBeVisible();
+    await page.goto('/meetings');
+    await page.getByRole('button', { name: 'Đặt lịch họp', exact: true }).click();
+    const meeting = page.getByRole('dialog');
+    await meeting.getByLabel('Tên cuộc họp').fill('Review test case');
+    await meeting.getByLabel('Bắt đầu họp').fill('2090-01-01T09:00');
+    await meeting.getByLabel('Kết thúc họp').fill('2090-01-01T10:00');
+    await meeting.getByLabel('Như', { exact: true }).check();
+    await meeting.getByRole('button', { name: 'Lưu lịch họp', exact: true }).click();
+    await expect(meeting).not.toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Review test case', exact: true })).toBeVisible();
+    await page.screenshot({ path: path.join(artifacts, 'delivery-meeting.png'), fullPage: true });
+    await page.getByRole('button', { name: 'Đặt lịch họp', exact: true }).click();
+    await meeting.getByLabel('Tên cuộc họp').fill('Lịch trùng');
+    await meeting.getByLabel('Bắt đầu họp').fill('2090-01-01T09:30');
+    await meeting.getByLabel('Kết thúc họp').fill('2090-01-01T10:30');
+    await meeting.getByRole('button', { name: 'Lưu lịch họp', exact: true }).click();
+    await expect(meeting.getByRole('alert')).toContainText('trùng thời gian');
+    await expect(meeting.getByLabel('Tên cuộc họp')).toHaveValue('Lịch trùng');
+    assert.deepEqual(errors, []);
+  } finally { await ctx.close(); }
+});
+
+test('Bốn ngày task: tạo, sửa, reload giữ đúng kế hoạch và thực tế', { timeout: 90000 }, async () => {
+  const { ctx, page } = await context();
+  try {
+    await login(page, 'mai.anh@nhom24.edu.vn');
+    const r = await ctx.request.post(`/api/workspaces/${seed.workspace.id}/projects`, { headers: { 'x-taskflow': '1' }, data: { name: 'Bốn ngày công việc', keyPrefix: 'DATE' } });
+    assert.equal(r.status(), 201);
+    const project = (await r.json()).project;
+    await page.evaluate((id) => localStorage.setItem('tf_project', id), project._id);
+    await page.goto('/board');
+    await page.getByRole('button', { name: 'Tạo công việc', exact: true }).click();
+    const create = page.getByRole('dialog');
+    await create.getByLabel('Tên công việc').fill('Task có bốn mốc ngày');
+    await create.getByLabel('Ngày bắt đầu kế hoạch', { exact: true }).fill('2026-10-01');
+    await create.getByLabel('Ngày kết thúc kế hoạch', { exact: true }).fill('2026-10-31');
+    await create.getByLabel('Ngày bắt đầu thực tế', { exact: true }).fill('2020-01-02');
+    await create.getByLabel('Ngày kết thúc thực tế', { exact: true }).fill('2020-01-03');
+    await create.getByRole('button', { name: 'Tạo công việc', exact: true }).click();
+    await expect(create).not.toBeVisible();
+    const task = await db.prisma.task.findFirst({ where: { project: project._id, title: 'Task có bốn mốc ngày' } });
+    await page.goto(`/board?task=${task.id}`);
+    const detail = page.getByRole('dialog', { name: 'Chi tiết công việc' });
+    await expect(detail.getByLabel('Ngày bắt đầu kế hoạch', { exact: true })).toHaveValue('2026-10-01');
+    await expect(detail.getByLabel('Ngày kết thúc kế hoạch', { exact: true })).toHaveValue('2026-10-31');
+    await expect(detail.getByLabel('Ngày bắt đầu thực tế', { exact: true })).toHaveValue('2020-01-02');
+    await expect(detail.getByLabel('Ngày kết thúc thực tế', { exact: true })).toHaveValue('2020-01-03');
+    await detail.getByLabel('Ngày bắt đầu kế hoạch', { exact: true }).fill('2026-10-02');
+    await detail.getByLabel('Ngày kết thúc thực tế', { exact: true }).fill('2020-01-04');
+    const saved = page.waitForResponse((response) => response.request().method() === 'PATCH' && response.url().endsWith(`/tasks/${task.id}`));
+    await detail.getByRole('button', { name: 'Lưu thay đổi', exact: true }).click();
+    assert.equal((await saved).status(), 200);
+    await page.reload();
+    await expect(detail.getByLabel('Ngày bắt đầu kế hoạch', { exact: true })).toHaveValue('2026-10-02');
+    await expect(detail.getByLabel('Ngày kết thúc thực tế', { exact: true })).toHaveValue('2020-01-04');
+    await page.screenshot({ path: path.join(artifacts, 'task-four-dates.png'), fullPage: true });
+    assert.deepEqual(errors, []);
+  } finally { await ctx.close(); }
+});
+
 test('Như Sprint 2–4: My Tasks, comment retry/mention, nguồn tài liệu AI, capacity và responsive', { timeout: 120000 }, async () => {
   const owner = await context();
   const { page, ctx } = owner;
@@ -95,12 +269,12 @@ test('Như Sprint 2–4: My Tasks, comment retry/mention, nguồn tài liệu AI
     await comment.press('ArrowDown');
     await comment.press('Enter');
     await expect(comment).toHaveValue(/@.*Như /);
-    await page.route(`**/api/tasks/${task._id}/comments`, (route) => route.request().method() === 'POST' ? route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'Lỗi gửi để thử lại' }) }) : route.continue());
+    await page.route(`**/api/v1/tasks/${task._id}/comments`, (route) => route.request().method() === 'POST' ? route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'Lỗi gửi để thử lại' }) }) : route.continue());
     await comment.fill('Bình luận cần giữ khi lỗi');
     await comment.press('Control+Enter');
     await expect(page.getByRole('alert').filter({ hasText: 'Lỗi gửi để thử lại' })).toBeVisible();
     await expect(comment).toHaveValue('Bình luận cần giữ khi lỗi');
-    await page.unroute(`**/api/tasks/${task._id}/comments`);
+    await page.unroute(`**/api/v1/tasks/${task._id}/comments`);
     await comment.press('Control+Enter');
     await expect(comment).toHaveValue('');
     await expect(page.getByText('Bình luận cần giữ khi lỗi', { exact: true })).toBeVisible();
@@ -132,6 +306,94 @@ test('Như Sprint 2–4: My Tasks, comment retry/mention, nguồn tài liệu AI
     await page.goto('/documents');
     await expect(page.getByRole('button', { name: doc.name, exact: true })).toBeVisible();
     await page.screenshot({ path: path.join(artifacts, 'nhu-documents-mobile.png'), fullPage: true });
+    assert.deepEqual(errors, []);
+  } finally { await ctx.close(); }
+});
+
+test('Lộc Sprint 2: tìm mô tả, checklist, PM ẩn bình luận và phụ thuộc thử lại khi lỗi', { timeout: 90000 }, async (t) => {
+  const { page, ctx } = await context();
+  try {
+    await login(page, 'mai.anh@nhom24.edu.vn');
+    const headers = { 'x-taskflow': '1' };
+    const projectUrl = `/api/v1/workspaces/${seed.workspace.id}/projects`;
+    // Seed: Mai Anh owns the workspace; Như is already a workspace member.
+    // Sprint numbers belong in the name: keyPrefix only accepts 2–5 letters.
+    const projectData = { name: 'Loc Sprint2 E2E', keyPrefix: 'LSP', members: [seed.users.nhu.id] };
+    const invalid = await ctx.request.post(projectUrl, { headers, data: { ...projectData, keyPrefix: 'LSP2' } });
+    assert.equal(invalid.status(), 400, await invalid.text());
+    const invalidBody = await invalid.json();
+    assert.equal(invalidBody.details.fields.keyPrefix, 'Mã dự án gồm 2–5 chữ cái');
+    t.diagnostic(`LSP2 -> HTTP ${invalid.status()}: ${invalidBody.details.fields.keyPrefix}`);
+    const response = await ctx.request.post(projectUrl, { headers, data: projectData });
+    assert.equal(response.status(), 201, await response.text());
+    t.diagnostic(`LSP -> HTTP ${response.status()} with the same seeded owner and member`);
+    const project = (await response.json()).project;
+    const created = await ctx.request.post(`/api/v1/projects/${project._id}/tasks`, { headers, data: { title: 'Nghiệm thu checklist', description: 'Từ khóa riêng loc2description', assignee: seed.users.maianh.id } });
+    assert.equal(created.status(), 201);
+    const task = (await created.json()).task;
+    await db.prisma.comment.create({ data: { task: task._id, project: project._id, author: seed.users.nhu.id, body: 'Bình luận để kiểm tra quyền ẩn' } });
+    await page.evaluate(({ ws, pid }) => { localStorage.setItem('tf_ws', ws); localStorage.setItem('tf_project', pid); }, { ws: seed.workspace.id, pid: project._id });
+    await page.goto('/my-tasks');
+    await page.getByRole('textbox', { name: 'Tìm công việc', exact: true }).fill('loc2description');
+    await page.getByRole('button', { name: task.title, exact: true }).click();
+    const dialog = page.getByRole('dialog', { name: 'Chi tiết công việc' });
+    const input = dialog.getByPlaceholder('+ Thêm mục checklist', { exact: true });
+    await input.fill('Checklist qua giao diện');
+    await page.route(`**/api/v1/tasks/${task._id}`, (route) => route.request().method() === 'PATCH' ? route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'Lỗi checklist để thử lại' }) }) : route.continue());
+    await input.press('Enter');
+    await expect(page.getByText('Lỗi checklist để thử lại', { exact: true })).toBeVisible();
+    await expect(input).toHaveValue('Checklist qua giao diện');
+    await page.unroute(`**/api/v1/tasks/${task._id}`);
+    await input.press('Enter');
+    await expect(input).toHaveValue('');
+    const check = dialog.getByRole('checkbox', { name: 'Checklist qua giao diện', exact: true });
+    // Controlled checkbox is confirmed by the server response, not optimistically.
+    await check.click();
+    await expect(check).toBeChecked();
+    await dialog.getByRole('button', { name: 'Ẩn bình luận vi phạm', exact: true }).click();
+    await expect(dialog.getByText('Bình luận để kiểm tra quyền ẩn', { exact: true })).toHaveCount(0);
+    await page.reload();
+    // My Tasks keeps ?task= in the URL, so reload restores the open dialog.
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole('checkbox', { name: 'Checklist qua giao diện', exact: true })).toBeChecked();
+    await expect(dialog.getByText('Bình luận để kiểm tra quyền ẩn', { exact: true })).toHaveCount(0);
+    await dialog.screenshot({ path: path.join(artifacts, 'loc-sprint2-checklist.png') });
+    const dependency = await ctx.request.post(`/api/v1/projects/${project._id}/tasks`, { headers, data: { title: 'Blocker Sprint2' } });
+    assert.equal(dependency.status(), 201);
+    const blocker = (await dependency.json()).task;
+    const listUrl = `**/api/v1/projects/${project._id}/tasks`;
+    await page.route(listUrl, (route) => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'Lỗi tải phụ thuộc để thử lại' }) }));
+    await dialog.getByRole('button', { name: '+ Thêm phụ thuộc', exact: true }).click();
+    await expect(dialog.getByRole('alert').filter({ hasText: 'Lỗi tải phụ thuộc để thử lại' })).toBeVisible();
+    await page.unroute(listUrl);
+    await dialog.getByRole('button', { name: 'Thử lại', exact: true }).click();
+    await dialog.getByRole('button').filter({ hasText: 'Blocker Sprint2' }).click();
+    await expect(dialog.getByText('Bị chặn bởi', { exact: true })).toBeVisible();
+    const removeUrl = `**/api/v1/tasks/${task._id}/dependencies/${blocker._id}`;
+    await page.route(removeUrl, (route) => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'Lỗi gỡ phụ thuộc để thử lại' }) }));
+    await dialog.getByTitle('Gỡ phụ thuộc', { exact: true }).click();
+    await expect(page.getByText('Lỗi gỡ phụ thuộc để thử lại', { exact: true })).toBeVisible();
+    await expect(dialog.getByText('Bị chặn bởi', { exact: true })).toBeVisible();
+    await page.unroute(removeUrl);
+    const composer = dialog.getByRole('textbox', { name: 'Nội dung bình luận', exact: true });
+    await composer.fill('Bản nháp giữ qua lỗi tải bình luận');
+    const commentsUrl = `**/api/v1/tasks/${task._id}/comments`;
+    await page.route(commentsUrl, (route) => route.request().method() === 'GET'
+      ? route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'Lỗi tải bình luận để thử lại' }) })
+      : route.continue());
+    await dialog.getByTitle('Gỡ phụ thuộc', { exact: true }).click();
+    await expect(dialog.getByText('Chưa có phụ thuộc', { exact: true })).toBeVisible();
+    await expect(dialog.getByRole('alert').filter({ hasText: 'Lỗi tải bình luận để thử lại' })).toBeVisible();
+    await expect(composer).toHaveValue('Bản nháp giữ qua lỗi tải bình luận');
+    await dialog.getByRole('textbox', { name: 'Tên công việc', exact: true }).fill('Bản nháp task giữ khi retry bình luận');
+    await page.unroute(commentsUrl);
+    await dialog.getByRole('button', { name: 'Thử lại', exact: true }).click();
+    await expect(dialog.getByText('Lỗi tải bình luận để thử lại', { exact: true })).toHaveCount(0);
+    await expect(composer).toHaveValue('Bản nháp giữ qua lỗi tải bình luận');
+    await expect(dialog.getByRole('textbox', { name: 'Tên công việc', exact: true })).toHaveValue('Bản nháp task giữ khi retry bình luận');
+    const persisted = await db.prisma.checklistItem.findFirstOrThrow({ where: { task: task._id } });
+    assert.equal(persisted.isDone, true);
+    assert.equal(await db.prisma.activity.count({ where: { project: project._id, action: 'Ẩn bình luận vi phạm' } }), 1);
     assert.deepEqual(errors, []);
   } finally { await ctx.close(); }
 });
@@ -198,15 +460,21 @@ test('U003/U007/U009: SMTP register/invite → task → remaining hours → Revi
     await page.getByRole('button', { name: 'Tạo công việc', exact: true }).click();
     const create = page.getByRole('dialog');
     await create.getByLabel('Tên công việc').fill('Kiểm thử workflow Sprint 1');
+    await create.getByLabel('Tiêu chí nghiệm thu').fill('Lưu đúng tiêu chí bằng tiếng Việt\n\nPM duyệt trước khi Done');
     await create.getByRole('button', { name: 'Chọn người nhận' }).click();
     await create.getByRole('button', { name: /Như/ }).click();
+    await create.getByLabel('Tên công việc').scrollIntoViewIfNeeded();
+    await create.screenshot({ path: path.join(artifacts, 'acceptance-create.png') });
     await create.getByRole('button', { name: 'Tạo công việc', exact: true }).click();
     await expect(create).not.toBeVisible();
     await expect(page.getByText('Kiểm thử workflow Sprint 1', { exact: true })).toBeVisible();
     const task = await db.prisma.task.findFirst({ where: { project: project.id, title: 'Kiểm thử workflow Sprint 1' } });
+    assert.equal(task.acceptanceCriteria, 'Lưu đúng tiêu chí bằng tiếng Việt\n\nPM duyệt trước khi Done');
 
     await member.page.goto(`/board?task=${task.id}`);
     await expect(member.page.getByRole('dialog', { name: 'Chi tiết công việc' })).toBeVisible();
+    await expect(member.page.getByLabel('Tiêu chí nghiệm thu')).toHaveValue(task.acceptanceCriteria);
+    await expect(member.page.getByLabel('Tiêu chí nghiệm thu')).toBeDisabled();
     await status(member.page, 'Đang thực hiện');
     await member.page.getByLabel('Giờ còn lại').fill('2.5');
     await member.page.getByRole('button', { name: 'Lưu giờ còn lại', exact: true }).click();
@@ -224,6 +492,13 @@ test('U003/U007/U009: SMTP register/invite → task → remaining hours → Revi
     await expect.poll(async () => (await db.prisma.task.findUnique({ where: { id: task.id } })).completedAt).not.toBeNull();
     await status(page, 'Đang thực hiện');
     assert.equal((await db.prisma.task.findUnique({ where: { id: task.id } })).completedAt, null);
+    const revisedCriteria = 'Nghiệm thu sau khi kiểm tra quyền\n\nGiữ nguyên dòng trống';
+    await page.getByLabel('Tiêu chí nghiệm thu').fill(revisedCriteria);
+    await page.getByRole('button', { name: 'Lưu thay đổi', exact: true }).click();
+    await expect.poll(async () => (await db.prisma.task.findUnique({ where: { id: task.id } })).acceptanceCriteria).toBe(revisedCriteria);
+    await page.reload();
+    await expect(page.getByLabel('Tiêu chí nghiệm thu')).toHaveValue(revisedCriteria);
+    await page.getByRole('dialog', { name: 'Chi tiết công việc' }).screenshot({ path: path.join(artifacts, 'acceptance-detail.png') });
     const title = page.getByRole('dialog').locator('textarea').first();
     await title.fill('Bản nháp chưa lưu của Lộc');
     const currentTask = await db.prisma.task.findUnique({ where: { id: task.id } });
@@ -304,11 +579,11 @@ test('Như U009/U010: keyboard, API rollback, hai tab xung đột giữ draft v�
     await expect(select).toHaveValue('in_progress');
 
     // Fault injection is restricted to this test's move endpoint.
-    await page.route(`**/api/tasks/${task._id}/move`, (route) => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'Lỗi move kiểm thử' }) }));
+    await page.route(`**/api/v1/tasks/${task._id}/move`, (route) => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'Lỗi move kiểm thử' }) }));
     await select.selectOption('review');
     await expect(page.getByText('Lỗi move kiểm thử', { exact: true })).toBeVisible();
     await expect(select).toHaveValue('in_progress');
-    await page.unroute(`**/api/tasks/${task._id}/move`);
+    await page.unroute(`**/api/v1/tasks/${task._id}/move`);
 
     const open = page.getByRole('button', { name: `Mở ${task.key}: Như keyboard task`, exact: true });
     await open.focus();
@@ -334,7 +609,7 @@ test('Như U009/U010: keyboard, API rollback, hai tab xung đột giữ draft v�
     await expect(dialog).not.toBeVisible();
     await expect(select).toBeVisible();
     await page.screenshot({ path: path.join(artifacts, 'nhu-keyboard-kanban.png'), fullPage: true });
-    assert.equal((await owner.ctx.request.post('/api/auth/logout', { headers, data: {} })).status(), 200);
+    assert.equal((await owner.ctx.request.post('/api/v1/auth/logout', { headers, data: {} })).status(), 200);
     await page.goto('/board');
     await expect(page).toHaveURL(/\/login/);
     assert.deepEqual(errors, []);
@@ -519,6 +794,12 @@ test('Hoàng Anh Sprint 3: planner hai tab, duyệt một lần, lý do xử lý
     await page.getByLabel('Biên bản / ghi chú họp (dán văn bản)', { exact: true }).fill('Cần ai đó kiểm thử API.\nMai Anh: mình sẽ viết tài liệu ngày 2099-02-15\nMai Anh: Không cần triển khai thanh toán nữa, hủy công việc này.');
     await page.getByRole('button', { name: 'Trích action items', exact: true }).click();
     await expect(page.getByRole('heading', { name: /Action items nháp.*2/ })).toBeVisible();
+    const notes = page.getByLabel('Biên bản / ghi chú họp (dán văn bản)', { exact: true });
+    const originalNotes = await notes.inputValue();
+    await notes.fill('Lộc: gửi báo cáo mới cho Như');
+    await expect(page.getByText(/Biên bản đã thay đổi/)).toBeVisible();
+    await expect(page.getByRole('button', { name: /Duyệt & tạo/ })).toHaveCount(0);
+    await notes.fill(originalNotes);
     await expect(page.getByRole('button', { name: 'Chưa rõ người phụ trách', exact: true })).toHaveCount(1);
     await page.screenshot({ path: path.join(artifacts, 'hoang-anh-sprint3-meeting.png'), fullPage: true });
     await page.getByRole('button', { name: /Duyệt & tạo/ }).click();
@@ -552,5 +833,58 @@ test('SMTP bị từ chối: màn hình cho gửi lại, không báo thư đã g
     const token = messages[0].raw.match(/verify-email\?token=([A-Za-z0-9_-]+)/)?.[1];
     await user.page.goto(`/verify-email?token=${token}`);
     await expect(user.page).toHaveURL(/\/onboarding/, { timeout: 10000 });
+  } finally { await user.ctx.close(); }
+});
+
+test('Hoàng Anh Sprint 4: telemetry AI rõ token chưa biết, CSV và mobile', { timeout: 60000 }, async () => {
+  const user = await context();
+  try {
+    await db.prisma.aiCall.create({ data: { workspace: seed.workspace.id, user: seed.users.maianh.id, feature: 'qa', model: 'E2E unknown token usage', provider: 'local', status: 'timeout', queuedAt: new Date(Date.now() - 100), finishedAt: new Date(), latencyMs: 100, usageComplete: false, attempts: [{ number: 1, status: 'timeout', inputTokens: null, outputTokens: null }] } });
+    await login(user.page, 'mai.anh@nhom24.edu.vn');
+    await user.page.evaluate(({ ws, project }) => { localStorage.setItem('tf_ws', ws); localStorage.setItem('tf_project', project); }, { ws: seed.workspace.id, project: seed.projects.website.id });
+    await user.page.goto('/settings/ai');
+    await expect(user.page.getByText('Token đã ghi nhận', { exact: true })).toBeVisible();
+    await expect(user.page.getByText('Độ trễ p95', { exact: true })).toBeVisible();
+    await expect(user.page.getByText('E2E unknown token usage', { exact: true })).toBeVisible();
+    await expect(user.page.getByTitle('Chỉ gồm token đã biết; timeout có thể vẫn bị nhà cung cấp tính phí').first()).toContainText('≥');
+    const [download] = await Promise.all([user.page.waitForEvent('download'), user.page.getByRole('button', { name: 'Xuất CSV', exact: true }).click()]);
+    const stream = await download.createReadStream();
+    const chunks = [];
+    for await (const chunk of stream) chunks.push(chunk);
+    const csv = Buffer.concat(chunks).toString('utf8');
+    assert.match(csv, /Token đầy đủ/);
+    assert.match(csv, /Bắt đầu chờ/);
+    assert.match(csv, /E2E unknown token usage/);
+    await user.page.locator('#main-content').evaluate((element) => { element.scrollTop = 0; });
+    await user.page.screenshot({ path: path.join(artifacts, 'hoang-anh-sprint4-ai-desktop.png'), fullPage: true });
+    await user.page.setViewportSize({ width: 390, height: 844 });
+    await expect(user.page.getByRole('button', { name: 'Mở/đóng menu', exact: true })).toHaveAttribute('aria-expanded', 'false');
+    await expect(user.page.locator('aside')).toHaveCount(0);
+    assert.equal(await user.page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true);
+    await user.page.screenshot({ path: path.join(artifacts, 'hoang-anh-sprint4-ai-mobile.png'), fullPage: true });
+    assert.deepEqual(errors, []);
+  } finally { await user.ctx.close(); }
+});
+
+test('API v1: browser giữ refresh cookie đúng path, tự refresh và logout thu hồi phiên', { timeout: 30000 }, async () => {
+  const user = await context();
+  try {
+    await login(user.page, 'mai.anh@nhom24.edu.vn');
+    const original = (await user.ctx.cookies()).find((c) => c.name === 'tf_rt');
+    assert.equal(original?.path, '/api/v1/auth');
+    assert.equal(original?.httpOnly, true);
+    await user.ctx.clearCookies({ name: 'tf_at' });
+    const refreshed = user.page.waitForResponse((r) => r.url().endsWith('/api/v1/auth/refresh') && r.status() === 200);
+    await user.page.reload();
+    await refreshed;
+    await expect(user.page).toHaveURL(/\/overview/);
+    const rotated = (await user.ctx.cookies()).find((c) => c.name === 'tf_rt');
+    assert.equal(rotated?.path, '/api/v1/auth');
+    assert.notEqual(rotated?.value, original?.value);
+    const logout = await user.ctx.request.post('/api/v1/auth/logout', { headers: { 'x-taskflow': '1' } });
+    assert.equal(logout.status(), 200);
+    assert.equal((await user.ctx.cookies()).filter((c) => ['tf_at', 'tf_rt'].includes(c.name)).length, 0);
+    await user.page.reload();
+    await expect(user.page).toHaveURL(/\/login/);
   } finally { await user.ctx.close(); }
 });

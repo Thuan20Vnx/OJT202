@@ -1,0 +1,91 @@
+{
+  "schemaVersion": 1,
+  "kind": "production-smoke",
+  "mode": "local-production",
+  "origin": "http://127.0.0.1:51189",
+  "build": {
+    "revision": "3857d7377a0ede27b3f745319cfc7d670f41aeb5",
+    "sourceHash": "37f446c9d1992ccbb0e216635fa1a8687378149f9d882b589600483f642b1410",
+    "sourceHashAlgorithm": "sha256-lf-v1",
+    "promptHash": "8cfd6b9adb4d3f9eb1a3c37e2c8eea77dc8ac74430c6d2fcec69dae23317804b",
+    "dirty": false,
+    "node": "v24.15.0"
+  },
+  "observedBuild": {
+    "revision": "3857d7377a0ede27b3f745319cfc7d670f41aeb5",
+    "sourceHash": "37f446c9d1992ccbb0e216635fa1a8687378149f9d882b589600483f642b1410"
+  },
+  "checkedAt": "2026-11-06T14:38:38.908Z",
+  "checks": [
+    {
+      "name": "health-json",
+      "passed": true
+    },
+    {
+      "name": "build-identity",
+      "passed": true
+    },
+    {
+      "name": "private-json:/api/workspaces",
+      "passed": true
+    },
+    {
+      "name": "private-json:/api/__missing_smoke",
+      "passed": true
+    },
+    {
+      "name": "private-json:/api/dev/outbox",
+      "passed": true
+    },
+    {
+      "name": "versioned-api",
+      "passed": true
+    },
+    {
+      "name": "route-reload",
+      "passed": true
+    },
+    {
+      "name": "html-no-store",
+      "passed": true
+    },
+    {
+      "name": "security-headers",
+      "passed": true
+    },
+    {
+      "name": "build-assets-listed",
+      "passed": true
+    },
+    {
+      "name": "asset:/assets/index-0CfXItg7.js",
+      "passed": true
+    },
+    {
+      "name": "asset:/assets/index-DKYPFMdW.css",
+      "passed": true
+    },
+    {
+      "name": "missing-asset-404",
+      "passed": true
+    },
+    {
+      "name": "foreign-origin-rejected",
+      "passed": true
+    },
+    {
+      "name": "foreign-preflight-blocked",
+      "passed": true
+    },
+    {
+      "name": "secure-auth-cookies",
+      "passed": true
+    },
+    {
+      "name": "session-cleanup",
+      "passed": true
+    }
+  ],
+  "status": "passed",
+  "productionVerified": false
+}

@@ -1,0 +1,136 @@
+
+> test
+> npm --prefix AIService test && npm --prefix BackEnd test && npm --prefix FrontEnd test
+
+
+> taskflow-ai-service@1.0.0 test
+> node --test "test/**/*.test.js"
+
+▶ Bộ AI nội bộ
+  ✔ U021: provider phải trả đúng 5–15 mục đầy đủ AC, không tự cắt hoặc chấp nhận JSON lỗi (29.5051ms)
+  ✔ U027: không đoán người/hạn từ provider khi trích đoạn không chứng minh được (5.0155ms)
+  ✔ U027: câu phủ định không tạo action nhưng người tên Huy vẫn được nhận diện (0.8534ms)
+  ✔ ghi chú họp: không rõ người/hạn thì để trống (1.3241ms)
+  ✔ lập kế hoạch: tổng giờ không vượt mức tối đa sau làm tròn, không tự đặt hạn (2.5644ms)
+  ✔ biên bản: ISO không bị đọc nhầm, ngày sai/thiếu tháng để trống, cuối ngày đúng profile (2.9959ms)
+  ✔ biên bản: ngày mai đi qua DST vẫn đúng cuối ngày, không phụ thuộc TZ máy (3.2157ms)
+  ✔ tên thành viên chứa ký tự regex vẫn nhận đúng và không làm hỏng biên bản (0.694ms)
+  ✔ báo cáo dùng ngày dự án Việt Nam trên máy chủ UTC (1.2509ms)
+  ✔ kế hoạch giữ cuối ngày và không vượt timestamp hạn cụ thể (4.2523ms)
+  ✔ provider không được trả kế hoạch quá giờ, giờ vô hạn hoặc hạn sai (9.6671ms)
+  ✔ provider biên bản: ngày sai để trống, ngày hợp lệ đổi về cuối ngày profile (1.5551ms)
+  ✔ provider biên bản sai cấu trúc hoặc thiếu tiêu đề không được tạo việc rỗng (0.8472ms)
+  ✔ hỏi đáp: có trích dẫn khi có nguồn, từ chối khi thiếu chứng cứ (0.7764ms)
+✔ Bộ AI nội bộ (66.6723ms)
+▶ API HTTP
+  ✖ health + thông tin nhà cung cấp (15.525ms)
+  ✖ sai / thiếu khóa dùng chung bị từ chối (401) (4.9191ms)
+  ✖ dữ liệu không hợp lệ (400) (5.9954ms)
+  ✖ /v1/planner trả bản nháp + token + model (2.0844ms)
+  ✖ /v1/meeting, /v1/qa, /v1/report, /v1/risk (1.8289ms)
+✖ API HTTP (30.8771ms)
+✔ Lộc Sprint 3 M01 explicit self (21.8785ms)
+✔ Lộc Sprint 3 M02 no person (1.1381ms)
+✔ Lộc Sprint 3 M03 duplicate names (0.9253ms)
+✔ Lộc Sprint 3 M04 multiple recipients (0.3929ms)
+✔ Lộc Sprint 3 M05 two dates (0.1967ms)
+✔ Lộc Sprint 3 M06 two weekdays (0.1521ms)
+✔ Lộc Sprint 3 M07 cancelled (0.1359ms)
+✔ Lộc Sprint 3 M08 paused (0.1234ms)
+✔ Lộc Sprint 3 M09 invalid date (0.4843ms)
+✔ Lộc Sprint 3 M10 incomplete date (0.3991ms)
+✔ Lộc Sprint 3 M11 no deadline (0.3481ms)
+✔ Lộc Sprint 3 M12 unknown speaker (0.2825ms)
+✔ Lộc Sprint 3 M13 named recipient (0.2464ms)
+✔ Lộc Sprint 3 M14 relative ambiguity (0.1151ms)
+✔ Lộc Sprint 3 M15 leap date (0.5374ms)
+✔ Lộc Sprint 3 M16 named subject (0.3177ms)
+✔ Lộc Sprint 3 M17 recipient (0.2769ms)
+✔ Lộc Sprint 3 M18 recipient without speaker (0.2775ms)
+✔ Lộc Sprint 3 M19 reassigned (0.2227ms)
+✔ Lộc Sprint 3 M20 explicit stop (0.1429ms)
+✔ Lộc Sprint 3 M21 self with namesake (0.2496ms)
+✔ Lộc Sprint 3 M22 negative acceptance criterion (0.5044ms)
+✔ Lộc Sprint 3: trích đoạn ở nửa sau biên bản 30.000 ký tự không bị cắt ngầm (1.2564ms)
+✔ Lộc Sprint 3: provider không tự chọn một người trong hai người trùng tên (0.441ms)
+✔ Lộc Sprint 3: tên ngắn lồng trong tên dài chỉ ưu tiên tại cùng vị trí (0.5573ms)
+✔ U027: dòng trùng nhau giữ hai vị trí UTF-16 khác nhau sau emoji và CRLF (1.4184ms)
+✔ U027: provider cắt mất phủ định hoặc dùng trích đoạn trùng vị trí (0.9947ms)
+✔ U027: trích riêng tên và ngày không được làm mất sự mơ hồ của cả dòng (1.2008ms)
+✔ P2: explicit cancellation must not create a meeting action item (1.5019ms)
+✔ P2: provider excerpts must actually occur in the meeting source (17.6355ms)
+ℹ tests 49
+ℹ suites 2
+ℹ pass 44
+ℹ fail 5
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 629.2786
+
+✖ failing tests:
+
+test at test\ai.test.js:194:3
+✖ health + thông tin nhà cung cấp (15.525ms)
+  [TypeError: fetch failed] {
+    [cause]: Error: connect EACCES 127.0.0.1:51976
+        at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1705:16) {
+      errno: -4092,
+      code: 'EACCES',
+      syscall: 'connect',
+      address: '127.0.0.1',
+      port: 51976
+    }
+  }
+
+test at test\ai.test.js:200:3
+✖ sai / thiếu khóa dùng chung bị từ chối (401) (4.9191ms)
+  [TypeError: fetch failed] {
+    [cause]: Error: connect EACCES 127.0.0.1:51976
+        at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1705:16) {
+      errno: -4092,
+      code: 'EACCES',
+      syscall: 'connect',
+      address: '127.0.0.1',
+      port: 51976
+    }
+  }
+
+test at test\ai.test.js:205:3
+✖ dữ liệu không hợp lệ (400) (5.9954ms)
+  [TypeError: fetch failed] {
+    [cause]: Error: connect EACCES 127.0.0.1:51976
+        at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1705:16) {
+      errno: -4092,
+      code: 'EACCES',
+      syscall: 'connect',
+      address: '127.0.0.1',
+      port: 51976
+    }
+  }
+
+test at test\ai.test.js:213:3
+✖ /v1/planner trả bản nháp + token + model (2.0844ms)
+  [TypeError: fetch failed] {
+    [cause]: Error: connect EACCES 127.0.0.1:51976
+        at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1705:16) {
+      errno: -4092,
+      code: 'EACCES',
+      syscall: 'connect',
+      address: '127.0.0.1',
+      port: 51976
+    }
+  }
+
+test at test\ai.test.js:221:3
+✖ /v1/meeting, /v1/qa, /v1/report, /v1/risk (1.8289ms)
+  [TypeError: fetch failed] {
+    [cause]: Error: connect EACCES 127.0.0.1:51976
+        at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1705:16) {
+      errno: -4092,
+      code: 'EACCES',
+      syscall: 'connect',
+      address: '127.0.0.1',
+      port: 51976
+    }
+  }

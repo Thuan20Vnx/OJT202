@@ -1,0 +1,89 @@
+
+> test:e2e
+> npm run build && node --test --test-concurrency=1 test/e2e/sprint1.test.mjs
+
+
+> build
+> npm run typecheck && npm --prefix FrontEnd run build
+
+
+> typecheck
+> tsc -p BackEnd/tsconfig.json && tsc -p FrontEnd/tsconfig.json
+
+
+> taskflow-client@1.0.0 build
+> vite build
+
+vite v6.4.5 building for production...
+transforming...
+✓ 131 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                                          1.12 kB │ gzip:   0.66 kB
+dist/assets/inter-vietnamese-wght-normal-CBcvBZtf.woff2                 10.25 kB
+dist/assets/inter-greek-ext-wght-normal-DlzME5K_.woff2                  11.23 kB
+dist/assets/inter-cyrillic-wght-normal-DqGufNeO.woff2                   18.75 kB
+dist/assets/inter-greek-wght-normal-CkhJZR-_.woff2                      19.00 kB
+dist/assets/inter-cyrillic-ext-wght-normal-BOeWTOD4.woff2               25.96 kB
+dist/assets/inter-latin-wght-normal-Dx4kXJAl.woff2                      48.26 kB
+dist/assets/inter-latin-ext-wght-normal-DO1Apj_S.woff2                  85.07 kB
+dist/assets/material-symbols-outlined-latin-400-normal-BhEvR8fk.woff2  323.33 kB
+dist/assets/material-symbols-outlined-latin-400-normal-QdgSk6Ss.woff   379.56 kB
+dist/assets/index-B4EXg05Y.css                                          74.74 kB │ gzip:  13.27 kB
+dist/assets/Notifications-oITiVW4T.js                                    9.81 kB │ gzip:   3.72 kB
+dist/assets/Admin-wtVXuUIL.js                                           10.06 kB │ gzip:   3.41 kB
+dist/assets/Projects-B4S3Aj_S.js                                        11.06 kB │ gzip:   4.14 kB
+dist/assets/Calendar-CONeVteG.js                                        11.71 kB │ gzip:   4.10 kB
+dist/assets/Documents-DfvOjoEn.js                                       14.31 kB │ gzip:   4.94 kB
+dist/assets/Settings-DHQFBl1R.js                                        37.17 kB │ gzip:  10.36 kB
+dist/assets/Ai-Cw1drylT.js                                              41.04 kB │ gzip:  11.03 kB
+dist/assets/index-yQ9EgcMZ.js                                          483.02 kB │ gzip: 148.00 kB
+✓ built in 1.97s
+[seed] Tạo dữ liệu demo Nhóm 24…
+[seed] Xong. Đăng nhập: mai.anh@nhom24.edu.vn / TaskFlow@2026  (System Admin: admin@taskflow.local)
+✔ Như Sprint 2–4: My Tasks, comment retry/mention, nguồn tài liệu AI, capacity và responsive (49910.2355ms)
+✔ Như U031: My Tasks phân trang trên dataset 10.000 task (5724.4849ms)
+✔ U003/U007/U009: SMTP register/invite → task → remaining hours → Review/Done → realtime draft (14119.6382ms)
+✖ Như U009/U010: keyboard, API rollback, hai tab xung đột giữ draft và logout (15208.9489ms)
+✔ Hoàng Anh Sprint 2: thông báo hai tab, mất mạng, capacity tuần, preview xóa và CSV (9962.2584ms)
+✔ Hoàng Anh Sprint 3: planner hai tab, duyệt một lần, lý do xử lý rủi ro và biên bản có nguồn (26593.6639ms)
+[error] HttpError: Chưa gửi được email. Vui lòng thử gửi lại sau.
+    at sendMail (file:///D:/Desktop/Nhom24/OJT202/BackEnd/src/services/mailer.js:41:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async sendVerification (file:///D:/Desktop/Nhom24/OJT202/BackEnd/src/routes/auth.js:34:3)
+    at async file:///D:/Desktop/Nhom24/OJT202/BackEnd/src/routes/auth.js:50:3 {
+  status: 503,
+  details: { code: 'MAIL_UNAVAILABLE' }
+}
+✔ SMTP bị từ chối: màn hình cho gửi lại, không báo thư đã gửi thành công (3496.9166ms)
+✔ API v1: browser giữ refresh cookie đúng path, tự refresh và logout thu hồi phiên (2505.646ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 7
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 144925.688
+
+✖ failing tests:
+
+test at test\e2e\sprint1.test.mjs:293:1
+✖ Như U009/U010: keyboard, API rollback, hai tab xung đột giữ draft và logout (15208.9489ms)
+  Error: expect(page).toHaveURL(expected) failed
+  
+  Expected pattern: /\/login/
+  Received string:  "http://127.0.0.1:56189/board"
+  Timeout: 5000ms
+  
+  Call log:
+    - Expect "toHaveURL" with timeout 5000ms
+      13 × locator resolved to <html lang="vi" class="h-full">…</html>
+         - unexpected value "http://127.0.0.1:56189/board"
+  
+      at captureRawStack (D:\Desktop\Nhom24\OJT202\node_modules\playwright-core\lib\coreBundle.js:9282:17)
+      at callMatcherAsStep (D:\Desktop\Nhom24\OJT202\node_modules\playwright\lib\matchers\expect.js:13316:57)
+      at Object.toHaveURL (D:\Desktop\Nhom24\OJT202\node_modules\playwright\lib\matchers\expect.js:13308:23)
+      at TestContext.<anonymous> (D:\Desktop\Nhom24\OJT202\test\e2e\sprint1.test.mjs:352:24) {
+    matcherResult: { name: 'toHaveURL', expected: /\/login/, message: 'expect(page).toHaveURL(expected) failed\n\nExpected pattern: /\\/login/\nReceived string:  "http://127.0.0.1:56189/board"\nTimeout: 5000ms\n\nCall log:\n  - Expect "toHaveURL" with timeout 5000ms\n    13 × locator resolved to <html lang="vi" class="h-full">…</html>\n       - unexpected value "http://127.0.0.1:56189/board"\n', pass: false, actual: 'http://127.0.0.1:56189/board', log: [ '  - Expect "toHaveURL" with timeout 5000ms', '    13 × locator resolved to <html lang="vi" class="h-full">…</html>', '       - unexpected value "http://127.0.0.1:56189/board"' ], timeout: 5000, ariaSnapshot: `- banner:\n  - button "Mở/đóng menu" [expanded]\n  - link "TaskFlow":\n    - /url: /overview\n  - navigation: Không gian làm việc Như Sprint 1 Bảng Kanban\n  - textbox "Tìm kiếm công việc... (⌘K)"\n  - text: ⌘K\n  - group "Ngôn ngữ":\n    - button "vi" [pressed]\n    - button "en"\n  - button "Chuyển chế độ sáng/tối"\n  - button "Thông báo"\n  - button "Tạo công việc"\n  - button "MA Mai Anh PM"\n- complementary:\n  - button "N Như keyboard regression Pro"\n  - text: Điều hướng\n  - navigation:\n    - link "Tổng quan":\n      - /url: /overview\n    - link "Bảng công việc":\n      - /url: /board\n    - link "Việc của tôi":\n      - /url: /my-tasks\n    - link "Lịch dự án":\n      - /url: /calendar\n    - link "Tài liệu":\n      - /url: /documents\n    - link "Trợ lý AI Mới":\n      - /url: /ai\n    - link "Báo cáo":\n      - /url: /reports\n  - text: Dự án gần đây\n  - link "Xem tất cả":\n    - /url: /projects\n  - button "Thêm dự án"\n  - navigation:\n    - button "Như Sprint 1"\n  - link "Cài đặt Workspace":\n    - /url: /settings/members\n  - link "Trợ giúp & Tài liệu":\n    - /url: https://github.com\n- main:\n  - heading "Như Sprint 1" [level=1]\n  - text: Đang diễn ra Tiến độ 0% (0/1) Bảng Kanban\n  - button "Danh sách"\n  - button "Lịch"\n  - textbox "Lọc theo tên, mã..."\n  - combobox: Mọi người nhận\n  - combobox: Mọi ưu tiên\n  - text: MA Cần làm 0\n  - button "Thêm công việc"\n  - paragraph: Kéo thẻ vào đây\n  - button "Thêm công việc"\n  - text: Đang thực hiện 1\n  - button "Thêm công việc"\n  - group "TF-1 Như keyboard task":\n    - text: TF-1 Cao\n    - 'button "Mở TF-1: Như keyboard task"': Như keyboard task\n    - text: 28 Th10 Đổi trạng thái\n    - combobox "Trạng thái TF-1":\n      - option "Cần làm"\n      - option "Đang thực hiện" [selected]\n      - option "Đang kiểm duyệt"\n  - button "Thêm công việc"\n  - text: Đang kiểm duyệt 0\n  - button "Thêm công việc"\n  - paragraph: Kéo thẻ vào đây\n  - button "Thêm công việc"\n  - text: Hoàn thành 0\n  - paragraph: Kéo thẻ vào đây` }
+  }

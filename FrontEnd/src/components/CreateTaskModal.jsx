@@ -6,19 +6,27 @@ import { useApp, useToast } from '../lib/app.jsx';
 import { PRIORITY, STATUS, STATUS_ORDER } from '../lib/format.js';
 import { useProjectInfo } from '../lib/hooks.js';
 import { Avatar, Field, Icon, Modal, Select, Spinner } from './ui.jsx';
-import { timeZone } from '../lib/dates.js';
+import TaskDates from './TaskDates.jsx';
+import { WORK_TYPES } from '../lib/delivery.js';
+import LabelPicker from './LabelPicker.jsx';
 
 const empty = (status = 'todo') => ({
   title: '',
   description: '',
-  acceptanceCriteria: [],
+  acceptanceCriteria: '',
   subtasks: [],
   status: status === 'done' ? 'review' : status,
   assignee: '',
   dueDate: '',
+  workType: 'development',
+  plannedStartDate: '',
+  actualStartDate: '',
+  actualEndDate: '',
   priority: 'medium',
   estimateHours: '',
   labels: [],
+  collaborators: [],
+  sprint: null,
 });
 
 export function MemberPicker({ members = [], value, onChange, placeholder = tr("Chưa giao"), allowEmpty = true }) {
@@ -78,6 +86,7 @@ export function MemberPicker({ members = [], value, onChange, placeholder = tr("
   );
 }
 
+/** @param {{open: boolean, onClose: () => void, defaultStatus?: string, projectId?: string, onCreated?: (task: {_id: string}) => void}} props */
 export default function CreateTaskModal({ open, onClose, defaultStatus, projectId: forcedProject, onCreated }) {
   useI18n();
   const { project, me, canManageProject } = useApp();
@@ -88,9 +97,8 @@ export default function CreateTaskModal({ open, onClose, defaultStatus, projectI
   const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState(false);
   const [more, setMore] = useState(false);
-  const [newCrit, setNewCrit] = useState('');
   const [newSub, setNewSub] = useState('');
-  const [newLabel, setNewLabel] = useState('');
+  const [sprints, setSprints] = useState([]);
   const files = useRef(null);
   const [picked, setPicked] = useState([]);
   const submitting = useRef(false);
@@ -101,17 +109,26 @@ export default function CreateTaskModal({ open, onClose, defaultStatus, projectI
       setF(empty(defaultStatus));
       setErrors({});
       setPicked([]);
-      setNewCrit('');
       setNewSub('');
-      setNewLabel('');
     }
   }, [open, defaultStatus]);
+  useEffect(() => {
+    if (!open || !pid) return undefined;
+    let active = true;
+    Promise.resolve().then(() => api.get(`/projects/${pid}/sprints`)).then((d) => { if (active) setSprints((d?.sprints || []).filter((s) => s.status !== 'closed')); }).catch(() => {});
+    return () => { active = false; };
+  }, [open, pid]);
 
   const set = (k) => (v) => setF((s) => ({ ...s, [k]: v?.target ? v.target.value : v }));
+  const collaborators = f.collaborators.filter((id) => id !== f.assignee);
+  const workers = (info?.project?.members || []).filter((m) => m.role !== 'viewer' && m.projectRole !== 'viewer');
 
   const submit = async () => {
     if (submitting.current || !canCreate) return;
     if (!f.title.trim()) return setErrors({ title: tr("Vui lòng nhập tên công việc") });
+    if (collaborators.length && !f.assignee) return setErrors({ assignee: tr("Chọn người chịu trách nhiệm chính trước") });
+    if (collaborators.length && !(Number(f.estimateHours) > 0)) return setErrors({ estimateHours: tr("Nhập giờ ước lượng để chia cho những người cùng làm") });
+    if (collaborators.length && f.subtasks.length) return setErrors({ assignee: tr("Công việc có việc con thì phân công ở từng việc con") });
     submitting.current = true;
     setBusy(true);
     setErrors({});
@@ -119,13 +136,19 @@ export default function CreateTaskModal({ open, onClose, defaultStatus, projectI
       const { task } = await api.post(`/projects/${pid}/tasks`, {
         title: f.title,
         description: f.description,
-        acceptanceCriteria: f.acceptanceCriteria,
+        acceptance_criteria: f.acceptanceCriteria,
         status: f.status,
         priority: f.priority,
         assignee: f.assignee || null,
         dueDate: f.dueDate || null, // để trống => không có hạn chót
+        workType: f.workType,
+        plannedStartDate: f.plannedStartDate || null,
+        ...(f.actualStartDate && { actualStartDate: f.actualStartDate }),
+        ...(f.actualEndDate && { actualEndDate: f.actualEndDate }),
         estimateHours: f.estimateHours === '' ? null : Number(f.estimateHours),
         labels: f.labels,
+        ...(collaborators.length && { collaborators }),
+        ...(f.sprint !== null && { sprint: f.sprint }),
       });
       for (const title of f.subtasks) await api.post(`/projects/${pid}/tasks`, { title, parent: task._id, assignee: f.assignee || null });
       if (picked.length) {
@@ -199,31 +222,14 @@ export default function CreateTaskModal({ open, onClose, defaultStatus, projectI
               <span className="label mb-0 flex items-center gap-1.5">
                 <Icon name="verified" size={16} className="text-emerald-500" />{tr("Tiêu chí nghiệm thu")}</span>
             </div>
-            <div className="space-y-1.5">
-              {f.acceptanceCriteria.map((c, i) => (
-                <div key={i} className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-body-sm">
-                  <Icon name="check_circle" size={16} className="text-emerald-500" />
-                  <span className="flex-1">{c}</span>
-                  <button className="text-slate-400 hover:text-rose-500" onClick={() => set('acceptanceCriteria')(f.acceptanceCriteria.filter((_, j) => j !== i))}>
-                    <Icon name="close" size={16} />
-                  </button>
-                </div>
-              ))}
-              <div className="flex gap-2">
-                <input
-                  className="input h-9"
-                  placeholder={tr("Thêm tiêu chí rồi nhấn Enter")}
-                  value={newCrit}
-                  onChange={(e) => setNewCrit(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' && newCrit.trim()) {
-                      set('acceptanceCriteria')([...f.acceptanceCriteria, newCrit.trim()]);
-                      setNewCrit('');
-                    }
-                  }}
-                />
-              </div>
-            </div>
+            <textarea
+              aria-label={tr("Tiêu chí nghiệm thu")}
+              className="textarea min-h-[100px]"
+              maxLength={10000}
+              value={f.acceptanceCriteria}
+              onChange={set('acceptanceCriteria')}
+              placeholder={tr("Nhập điều kiện cần đạt để nghiệm thu công việc...")}
+            />
           </div>
           <div>
             <span className="label flex items-center gap-1.5">
@@ -264,7 +270,7 @@ export default function CreateTaskModal({ open, onClose, defaultStatus, projectI
               <span>{tr("Kéo thả hoặc ")}<span className="font-semibold text-blue-600">{tr("duyệt tệp")}</span>{tr(" từ máy tính")}</span>
               <span className="text-label-md font-normal text-slate-400">{tr("PDF, TXT, PNG, JPG – tối đa 10MB")}</span>
             </button>
-            <input ref={files} type="file" multiple hidden accept=".pdf,.txt,.png,.jpg,.jpeg" onChange={(e) => setPicked([...e.target.files])} />
+            <input ref={files} type="file" multiple hidden accept=".docx,.xlsx,.pptx,.zip,.pdf,.txt,.png,.jpg,.jpeg" onChange={(e) => setPicked([...e.target.files])} />
             {picked.map((p) => (
               <p key={p.name} className="mt-1 text-body-sm text-slate-600">
                 <Icon name="description" size={14} /> {p.name}
@@ -287,9 +293,23 @@ export default function CreateTaskModal({ open, onClose, defaultStatus, projectI
           <Field label={tr("Người nhận")} error={errors.assignee}>
             <MemberPicker members={members} value={f.assignee} onChange={set('assignee')} />
           </Field>
-          <Field label={tr("Hạn chót")} error={errors.dueDate} hint={tr("Hết ngày (23:59:59), {0}. Để trống nếu không có hạn.", [timeZone()])}>
-            <input type="date" className="input" value={f.dueDate} onChange={set('dueDate')} />
-          </Field>
+          {workers.length > 1 && (
+            <fieldset>
+              <legend className="label">{tr("Người cùng làm")}</legend>
+              <div className="scroll-thin max-h-32 space-y-1 overflow-y-auto rounded-lg border border-slate-200 p-2">
+                {workers.filter((m) => m._id !== f.assignee).map((m) => (
+                  <label key={m._id} className="flex items-center gap-2 text-body-sm text-slate-700">
+                    <input type="checkbox" className="form-checkbox rounded text-blue-600" checked={f.collaborators.includes(m._id)} onChange={() => set('collaborators')(f.collaborators.includes(m._id) ? f.collaborators.filter((x) => x !== m._id) : [...f.collaborators, m._id])} />
+                    <Avatar user={m} size={20} />
+                    <span className="truncate">{m.name}</span>
+                  </label>
+                ))}
+              </div>
+              {collaborators.length > 0 && <p className="mt-1 text-label-md font-normal text-slate-500">{tr("Giờ ước lượng được chia đều cho {0} người; PM chỉnh lại ở mục Phân bổ effort.", [collaborators.length + 1])}</p>}
+            </fieldset>
+          )}
+          <Field label="Loại công việc"><Select className="input" value={f.workType} onChange={set('workType')}>{Object.entries(WORK_TYPES).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</Select></Field>
+          <TaskDates value={f} onChange={(key, value) => set(key)(value)} errors={errors} />
           <div>
             <span className="label">{tr("Mức độ ưu tiên")}</span>
             <div className="grid grid-cols-3 rounded-lg bg-slate-100 p-0.5">
@@ -311,35 +331,14 @@ export default function CreateTaskModal({ open, onClose, defaultStatus, projectI
           </Field>
           <div>
             <span className="label">{tr("Nhãn")}</span>
-            <div className="flex flex-wrap gap-1.5">
-              {f.labels.map((l) => (
-                <span key={l} className="chip border-slate-200 bg-white text-slate-600">
-                  {l}
-                  <button onClick={() => set('labels')(f.labels.filter((x) => x !== l))}>
-                    <Icon name="close" size={12} />
-                  </button>
-                </span>
-              ))}
-              <input
-                className="input h-[22px] w-28 rounded-md px-2 text-label-md"
-                placeholder={tr("+ Thêm nhãn")}
-                value={newLabel}
-                onChange={(e) => setNewLabel(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && newLabel.trim()) {
-                    if (!f.labels.includes(newLabel.trim())) set('labels')([...f.labels, newLabel.trim()]);
-                    setNewLabel('');
-                  }
-                }}
-              />
-            </div>
+            <LabelPicker projectId={pid} value={f.labels} onChange={set('labels')} canCreate={canCreate} />
           </div>
-          {info?.project?.sprint?.name && (
-            <div className="flex items-center justify-between text-body-sm">
-              <span className="text-slate-500">Sprint</span>
-              <span className="rounded-md bg-blue-50 px-2 py-0.5 text-label-md text-blue-700">{info.project.sprint.name}</span>
-            </div>
-          )}
+          <Field label="Sprint">
+            <Select className="input" value={f.sprint ?? info?.project?.sprint?.name ?? ''} onChange={set('sprint')}>
+              <option value="">{tr("Backlog (chưa xếp Sprint)")}</option>
+              {sprints.map((s) => <option key={s._id} value={s.name}>{s.name}</option>)}
+            </Select>
+          </Field>
           <div className="rounded-xl border border-purple-200 bg-purple-50 p-3">
             <p className="flex items-center gap-1.5 text-label-md font-semibold text-purple-700">
               <Icon name="auto_awesome" size={16} />{tr(" Gợi ý từ Trợ lý AI")}</p>

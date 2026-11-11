@@ -30,6 +30,7 @@ const db = await import('../src/db.js');
 const { initRealtime, emitProject } = await import('../src/services/realtime.js');
 const { projectOverview, riskAlerts, weekRange, workload } = await import('../src/services/metrics.js');
 const { config } = await import('../src/config.js');
+const { locSprint3 } = await import('./helpers/loc-sprint3.js');
 
 let server;
 let base;
@@ -38,8 +39,9 @@ let realtime;
 
 class Client {
   cookies = {};
+  constructor(prefix = '') { this.prefix = prefix; }
   async req(method, url, body) {
-    const res = await fetch(base + url, {
+    const res = await fetch(base + this.prefix + url, {
       method,
       headers: {
         'content-type': 'application/json',
@@ -67,6 +69,7 @@ class Client {
   get = (u) => this.req('GET', u);
   post = (u, b = {}) => this.req('POST', u, b);
   patch = (u, b) => this.req('PATCH', u, b);
+  put = (u, b) => this.req('PUT', u, b);
   del = (u) => this.req('DELETE', u);
   async login(email) {
     const r = await this.post('/auth/login', { email, password: DEMO_PASSWORD });
@@ -74,6 +77,123 @@ class Client {
     return this;
   }
 }
+
+describe('Nghiệp vụ nhóm phát triển: phân bổ, nhật ký, issue, workload và lịch họp', () => {
+  test('đồng thời xuyên workspace: không đặt trùng lịch và không ghi quá 24 giờ/người/ngày', async () => {
+    const a = await permissionFixture(), b = await permissionFixture();
+    const meeting = { title: 'Khung giờ kiểm thử đồng thời', agenda: '', location: '', startAt: '2091-01-01T02:00:00Z', endAt: '2091-01-01T03:00:00Z', participants: [seed.users.nhu.id] };
+    const bookings = await Promise.all([a.owner.post(`/projects/${a.pid}/meetings`, meeting), b.owner.post(`/projects/${b.pid}/meetings`, meeting)]);
+    assert.deepEqual(bookings.map((r) => r.status).sort(), [201, 409]);
+    const t1 = await a.create({ assignee: seed.users.nhu.id }), t2 = await b.create({ assignee: seed.users.nhu.id });
+    const log = { version: 0, hours: 13, completed: 'Ghi nhận kiểm thử tích hợp', nextStep: '', blockers: '', progressPct: 30, remainingHours: 5 };
+    const logs = await Promise.all([a.member.put(`/tasks/${t1._id}/daily-updates/2026-01-03`, { ...log, taskVersion: t1.version }), b.member.put(`/tasks/${t2._id}/daily-updates/2026-01-03`, { ...log, taskVersion: t2.version })]);
+    assert.deepEqual(logs.map((r) => r.status).sort(), [200, 400]);
+  });
+  test('phân bổ nhiều người: kiểm quyền, trùng người, trách nhiệm, phiên bản và task con', async () => {
+    const { owner, member, pid, create } = await permissionFixture();
+    const task = await create({ assignee: seed.users.nhu.id, workType: 'testing' });
+    const url = `/tasks/${task._id}/contributors`;
+    const items = [{ user: seed.users.nhu.id, responsibility: 'Viết test API', plannedHours: 6, remainingHours: 6 }, { user: seed.users.maianh.id, responsibility: 'Review test', plannedHours: 2, remainingHours: 2 }];
+    assert.equal((await member.put(url, { version: task.version, items })).status, 403);
+    assert.equal((await owner.put(url, { version: task.version, items: [items[0], items[0]] })).status, 400);
+    const saved = await owner.put(url, { version: task.version, items });
+    assert.equal(saved.status, 200, JSON.stringify(saved.data));
+    assert.equal(saved.data.task.estimateHours, 8);
+    assert.equal((await owner.put(url, { version: task.version, items })).status, 409);
+    const mine = await member.get(`/workspaces/${saved.data.task.workspace || (await db.prisma.project.findUnique({ where: { id: pid } })).workspace}/my-tasks?assignee=me`);
+    assert.ok(mine.data.items.some((t) => t._id === task._id));
+    assert.equal((await owner.patch(`/projects/${pid}`, { members: [seed.users.maianh.id, seed.users.dat.id, seed.users.linh.id] })).status, 200);
+    const revoked = (await owner.get(`/tasks/${task._id}/delivery`)).data;
+    assert.equal(revoked.contributors.length, 1);
+    assert.equal(revoked.task.estimateHours, 2);
+    assert.equal((await member.get(`/tasks/${task._id}/delivery`)).status, 404);
+    assert.ok(await db.prisma.activity.findFirst({ where: { entityId: task._id, action: 'Thu hồi phân bổ khi thành viên rời dự án' } }));
+    const parent = await create();
+    await create({ parent: parent._id });
+    assert.equal((await owner.put(`/tasks/${parent._id}/contributors`, { version: parent.version, items })).status, 400);
+  });
+
+  test('nhật ký sửa thay giờ cũ, không cộng trùng; tổng giờ/ngày, tiến độ độc lập và ACL', async () => {
+    const { owner, member, ws, create } = await permissionFixture();
+    const task = await create({ assignee: seed.users.nhu.id, spentHours: 1, estimateHours: 8 });
+    const date = '2026-01-01';
+    const url = `/tasks/${task._id}/daily-updates/${date}`;
+    const body = { version: 0, taskVersion: task.version, hours: 2, completed: 'Đã viết kiểm thử đăng nhập', nextStep: 'Test lỗi token', blockers: '', progressPct: 30, remainingHours: 6 };
+    const first = await member.put(url, body);
+    assert.equal(first.status, 200, JSON.stringify(first.data));
+    assert.equal((await member.put(url, body)).status, 409);
+    const delivery = (await member.get(`/tasks/${task._id}/delivery?date=${date}`)).data;
+    assert.equal(delivery.task.spentHours, 3);
+    assert.equal(delivery.task.progressPct, 30);
+    const edited = await member.put(url, { ...body, hours: 3, version: first.data.update.version, taskVersion: delivery.taskVersion });
+    assert.equal(edited.status, 200, JSON.stringify(edited.data));
+    const after = (await owner.get(`/tasks/${task._id}/delivery?date=${date}`)).data;
+    assert.equal(after.task.spentHours, 4);
+    assert.equal(after.total, 1);
+    assert.equal(after.loggedHours, 3);
+    assert.equal((await owner.patch(`/tasks/${task._id}`, { version: after.taskVersion, spentHours: 99 })).status, 400);
+    const second = await create({ assignee: seed.users.nhu.id });
+    assert.equal((await member.put(`/tasks/${second._id}/daily-updates/${date}`, { ...body, hours: 22, taskVersion: second.version })).status, 400);
+    assert.equal((await member.put(`/tasks/${second._id}/daily-updates/2099-01-01`, { ...body, taskVersion: second.version })).status, 400);
+    const viewer = await new Client().login('khanh.linh@nhom24.edu.vn');
+    assert.equal((await viewer.put(url, { ...body, taskVersion: after.taskVersion })).status, 403);
+    const workload = await member.get(`/workspaces/${ws}/team-workload`);
+    assert.equal(workload.status, 200, JSON.stringify(workload.data));
+  });
+
+  test('issue yêu cầu nguyên nhân/hướng xử lý; đóng có kết quả và kiểm phiên bản', async () => {
+    const { owner, member, other, create } = await permissionFixture();
+    const task = await create();
+    const url = `/tasks/${task._id}/issues`;
+    const body = { title: 'API đối tác chưa sẵn sàng', cause: 'Đối tác đổi contract', action: 'Dùng mock và xác nhận contract', severity: 'high', owner: seed.users.nhu.id };
+    assert.equal((await member.post(url, { ...body, cause: '' })).status, 400);
+    const r = await member.post(url, body);
+    assert.equal(r.status, 201, JSON.stringify(r.data));
+    const path = `${url}/${r.data.issue._id}`;
+    assert.equal((await other.patch(path, { version: 1, status: 'resolved', resolution: 'Xong' })).status, 403);
+    assert.equal((await member.patch(path, { version: 1, status: 'resolved', resolution: '' })).status, 400);
+    assert.equal((await owner.patch(path, { version: 1, status: 'resolved', resolution: 'Đã xác nhận contract và chạy test tích hợp' })).status, 200);
+    assert.equal((await member.patch(path, { version: 1, status: 'open', resolution: '' })).status, 409);
+  });
+
+  test('workload xuyên dự án: capacity tính một lần, effort chia đúng người, ẩn dự án ngoài quyền', async () => {
+    const { owner, member, ws, pid, create } = await permissionFixture();
+    const task = await create({ assignee: seed.users.nhu.id, dueDate: '2026-01-02', plannedStartDate: '2026-01-01' });
+    const allocated = await owner.put(`/tasks/${task._id}/contributors`, { version: task.version, items: [{ user: seed.users.nhu.id, responsibility: 'Coding', plannedHours: 6, remainingHours: 6 }, { user: seed.users.maianh.id, responsibility: 'Review', plannedHours: 2, remainingHours: 2 }] });
+    assert.equal(allocated.status, 200, JSON.stringify(allocated.data));
+    const p2 = await owner.post(`/workspaces/${ws}/projects`, { name: 'Dự án thứ hai', members: [seed.users.nhu.id] });
+    await owner.post(`/projects/${p2.data.project._id}/tasks`, { title: 'Task dự án hai', assignee: seed.users.nhu.id, estimateHours: 4, remainingHours: 4, dueDate: '2026-01-02' });
+    const hidden = await owner.post(`/workspaces/${ws}/projects`, { name: 'Dự án riêng' });
+    await owner.post(`/projects/${hidden.data.project._id}/tasks`, { title: 'Task không được lộ', estimateHours: 999 });
+    const r = await member.get(`/workspaces/${ws}/team-workload?week=2026-01-05`);
+    assert.equal(r.status, 200, JSON.stringify(r.data));
+    const user = r.data.people.find((p) => p.user._id === seed.users.nhu.id);
+    assert.equal(user.remainingHours, 10);
+    assert.equal(user.available, 20);
+    assert.equal(user.loadPct, 50);
+    assert.equal(user.roleByProject.length, 2);
+    assert.ok(r.data.people.every((p) => p.tasks.every((t) => t.project !== hidden.data.project._id)));
+    assert.equal((await member.get(`/projects/${pid}/delivery-timeline?limit=1`)).data.tasks.length, 1);
+  });
+
+  test('lịch họp: chống trùng xuyên dự án, hủy giải phóng lịch, kiểm quyền và stale version', async () => {
+    const { owner, member, other, ws, pid } = await permissionFixture();
+    const p2 = await owner.post(`/workspaces/${ws}/projects`, { name: 'Lịch dự án khác', members: [seed.users.nhu.id, seed.users.dat.id] });
+    const url = `/projects/${pid}/meetings`;
+    const body = { title: 'Review sprint', agenda: 'Kiểm tra tiến độ và blocker', location: 'Phòng A', startAt: '2090-01-01T02:00:00Z', endAt: '2090-01-01T03:00:00Z', participants: [seed.users.nhu.id] };
+    const r = await owner.post(url, body);
+    assert.equal(r.status, 201, JSON.stringify(r.data));
+    assert.equal((await member.post(`/projects/${p2.data.project._id}/meetings`, body)).status, 409);
+    assert.equal((await other.put(`${url}/${r.data.meeting._id}`, { ...body, version: 1 })).status, 403);
+    assert.equal((await owner.post(`${url}/${r.data.meeting._id}/cancel`, { version: 1 })).status, 200);
+    assert.equal((await owner.post(`${url}/${r.data.meeting._id}/cancel`, { version: 1 })).status, 409);
+    assert.equal((await member.post(`/projects/${p2.data.project._id}/meetings`, body)).status, 201);
+    assert.equal((await owner.post(url, { ...body, endAt: body.startAt })).status, 400);
+    const viewer = await new Client().login('khanh.linh@nhom24.edu.vn');
+    assert.equal((await viewer.post(url, body)).status, 403);
+    assert.equal((await viewer.get(url)).status, 200);
+  });
+});
 
 /** Đặt hạn mức AI/ngày của workspace demo (cột JSONB) */
 async function setDailyLimit(n) {
@@ -942,6 +1062,72 @@ describe('Hoàng Anh Sprint 3 — planner và nguồn cảnh báo', () => {
   });
 });
 
+describe('Hoàng Anh Sprint 4 — telemetry AI gồm queue và retry', () => {
+  test('U029: CSV AI không cắt âm thầm khi snapshot có hơn 10.000 log', async () => {
+    const { owner, ws } = await permissionFixture();
+    await db.prisma.aiCall.createMany({ data: Array.from({ length: 10001 }, () => ({ workspace: ws, feature: 'qa', status: 'success', model: 'csv-boundary-fixture' })) });
+    const response = await owner.get(`/workspaces/${ws}/ai/calls.csv`);
+    assert.equal(response.status, 400);
+    assert.match(response.data.error, /10.000/);
+  });
+  test('U029: thời gian chờ workspace lock nằm trong latency và có callId/nguồn provider', async () => {
+    const { owner, ws, pid } = await permissionFixture();
+    let release, arrive;
+    const ready = new Promise((resolve) => { arrive = resolve; });
+    const gate = new Promise((resolve) => { release = resolve; });
+    const held = db.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM workspaces WHERE id = ${ws}::uuid FOR UPDATE`;
+      arrive(); await gate;
+    });
+    await ready;
+    const pending = owner.post(`/projects/${pid}/ai/plan`, { goal: 'Xây dựng API quản lý công việc' });
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    release(); await held;
+    const result = await pending;
+    assert.equal(result.status, 201);
+    assert.ok(result.data.meta.latencyMs >= 100);
+    const call = await db.prisma.aiCall.findUnique({ where: { id: result.data.meta.callId } });
+    assert.equal(call.provider, 'local');
+    assert.equal(call.attempts.length, 1);
+    assert.equal(call.usageComplete, true);
+    assert.ok(call.finishedAt >= call.queuedAt);
+    const summary = await owner.get(`/workspaces/${ws}/ai`);
+    assert.equal(summary.data.today.p95LatencyMs, call.latencyMs);
+    assert.equal(summary.data.today.unknownUsageCalls, 0);
+  });
+  test('U029: timeout/retry giữ từng attempt, không tính token chưa biết là chi phí bằng 0', async (t) => {
+    const { owner, ws, pid } = await permissionFixture();
+    const workspace = await db.prisma.workspace.findUnique({ where: { id: ws } });
+    await db.prisma.workspace.update({ where: { id: ws }, data: { ai: { ...workspace.ai, timeoutSec: 0.08 } } });
+    const originalUrl = config.ai.serviceUrl;
+    let requests = 0;
+    const fake = http.createServer((req, res) => {
+      req.resume();
+      if (++requests === 1) return;
+      res.setHeader('content-type', 'application/json');
+      res.end(JSON.stringify({ model: 'test-only', provider: 'test-provider', inputTokens: 2, outputTokens: 3, result: { items: Array.from({ length: 5 }, (_, i) => ({ title: `Task ${i}`, description: 'Mô tả', acceptanceCriteria: ['Kiểm được'], estimateHours: 1, dueDate: null })) } }));
+    });
+    await new Promise((resolve) => fake.listen(0, '127.0.0.1', resolve));
+    config.ai.serviceUrl = `http://127.0.0.1:${fake.address().port}`;
+    t.after(async () => { config.ai.serviceUrl = originalUrl; fake.closeAllConnections(); await new Promise((resolve) => fake.close(resolve)); });
+    const result = await owner.post(`/projects/${pid}/ai/plan`, { goal: 'Xây dựng API retry' });
+    assert.equal(result.status, 201, JSON.stringify(result.data));
+    const call = await db.prisma.aiCall.findUnique({ where: { id: result.data.meta.callId } });
+    assert.equal(call.status, 'retried_success');
+    assert.equal(result.data.meta.attemptCount, 2);
+    assert.deepEqual(call.attempts.map((a) => a.status), ['timeout', 'success']);
+    assert.equal(call.attempts[0].inputTokens, null);
+    assert.equal(call.inputTokens, 2);
+    assert.equal(call.outputTokens, 3);
+    assert.equal(call.usageComplete, false);
+    assert.ok(call.latencyMs >= 80);
+    const summary = await owner.get(`/workspaces/${ws}/ai`);
+    assert.equal(summary.data.today.unknownUsageCalls, 1);
+    assert.equal(summary.data.today.tokens, 5);
+    assert.equal(summary.data.today.p95LatencyMs, call.latencyMs);
+  });
+});
+
 describe('Trợ lý AI (U021–U027)', () => {
   test('kế hoạch nháp 5–15 việc; không có hạn thì không tự đặt; duyệt nhiều lần không tạo trùng', async () => {
     const c = await new Client().login('mai.anh@nhom24.edu.vn');
@@ -1205,6 +1391,52 @@ describe('Rà soát 26/10 vòng 2: phạm vi thông báo và thời gian phiên'
 });
 
 let fixtureNumber = 0;
+describe('Bốn mốc ngày công việc', () => {
+  test('PM quản kế hoạch; người nhận sửa thực tế, không sửa kế hoạch; kiểm version và audit', async () => {
+    const { owner, member, other, pid, create } = await permissionFixture();
+    const task = await create({ assignee: seed.users.nhu.id, plannedStartDate: '2026-10-01', dueDate: '2026-10-31', actualStartDate: '2020-01-02', actualEndDate: '2020-01-03' });
+    assert.ok(task.plannedStartDate && task.actualStartDate && task.actualEndDate);
+    assert.equal((await member.patch(`/tasks/${task._id}`, { version: task.version, plannedStartDate: '2026-10-02' })).status, 403);
+    assert.equal((await other.patch(`/tasks/${task._id}`, { version: task.version, actualStartDate: '2020-01-01' })).status, 403);
+    const changed = await member.patch(`/tasks/${task._id}`, { version: task.version, actualStartDate: '2020-01-01' });
+    assert.equal(changed.status, 200);
+    assert.equal(changed.data.task.actualStartDate, '2019-12-31T17:00:00.000Z');
+    assert.equal((await owner.patch(`/tasks/${task._id}`, { version: task.version, actualEndDate: '2020-01-04' })).status, 409);
+    const audit = await db.prisma.activity.findFirst({ where: { entityId: task._id, field: 'actualStartDate' } });
+    assert.ok(audit);
+    const csv = await owner.get(`/projects/${pid}/overview.csv`);
+    assert.match(csv.data, /Ngày bắt đầu kế hoạch/);
+    assert.match(csv.data, /Ngày kết thúc thực tế/);
+  });
+  test('ngày sai/đảo thứ tự/tương lai bị chặn cả khi tạo và sửa một đầu khoảng', async () => {
+    const { owner, pid, create } = await permissionFixture();
+    for (const fields of [{ plannedStartDate: '2026-11-01', dueDate: '2026-10-31' }, { actualStartDate: '2020-01-03', actualEndDate: '2020-01-02' }, { actualStartDate: '2099-01-01' }, { dueDate: '2026-02-30' }]) {
+      assert.equal((await owner.post(`/projects/${pid}/tasks`, { title: 'Ngày sai', ...fields })).status, 400);
+    }
+    const task = await create({ plannedStartDate: '2026-10-01', dueDate: '2026-10-31' });
+    const invalid = await owner.patch(`/tasks/${task._id}`, { version: task.version, plannedStartDate: '2026-11-01' });
+    assert.equal(invalid.status, 400);
+    assert.ok(invalid.data.details.fields.dueDate);
+    assert.equal((await owner.get(`/tasks/${task._id}`)).data.task.version, task.version);
+  });
+  test('kanban ghi bắt đầu, Done ghi kết thúc; mở lại giữ bắt đầu và xóa kết thúc', async () => {
+    const { owner, member, create } = await permissionFixture();
+    const task = await create({ assignee: seed.users.nhu.id });
+    const started = await member.post(`/tasks/${task._id}/move`, { version: task.version, status: 'in_progress', order: 1 });
+    assert.equal(started.status, 200);
+    assert.ok(started.data.task.actualStartDate);
+    const review = await member.patch(`/tasks/${task._id}`, { version: started.data.task.version, status: 'review' });
+    const done = await owner.patch(`/tasks/${task._id}`, { version: review.data.task.version, status: 'done' });
+    assert.equal(done.status, 200);
+    assert.ok(done.data.task.actualEndDate && done.data.task.completedAt);
+    const reopened = await owner.patch(`/tasks/${task._id}`, { version: done.data.task.version, status: 'todo' });
+    assert.equal(reopened.status, 200);
+    assert.equal(reopened.data.task.actualStartDate, started.data.task.actualStartDate);
+    assert.equal(reopened.data.task.actualEndDate, null);
+    assert.equal(reopened.data.task.completedAt, null);
+  });
+});
+
 async function permissionFixture() {
   const owner = await new Client().login('mai.anh@nhom24.edu.vn');
   const member = await new Client().login('nhu@nhom24.edu.vn');
@@ -1259,6 +1491,7 @@ async function socketFor(client, t) {
   return socket;
 }
 const join = (socket, pid) => socket.timeout(5000).emitWithAck('project:join', pid);
+locSprint3({ fixture: permissionFixture, db, Client, seed: () => seed, socketFor, join });
 
 describe('Rà soát 25/10: thu hồi quyền và bảo toàn tài liệu', () => {
   test('My Tasks trả quyền từng dự án và đếm hợp nhất việc cần xử lý', async () => {
@@ -2393,6 +2626,68 @@ describe('AI: hạn biên bản và giới hạn kế hoạch', () => {
 });
 
 describe('Lộc Sprint 1: SMTP, giờ còn lại và xóa mềm', () => {
+  test('Sprint 1: token xác minh hết hạn không xác minh tài khoản hoặc tạo phiên', async () => {
+    const client = new Client();
+    const email = 'loc.expired-verification@example.test';
+    assert.equal((await client.post('/auth/register', { name: 'Expired verification', email, password: DEMO_PASSWORD, acceptTerms: true })).status, 201);
+    const user = await db.prisma.user.findUnique({ where: { email } });
+    const mail = await db.prisma.outbox.findFirst({ where: { to: email }, orderBy: { createdAt: 'desc' } });
+    const token = new URL(mail.link).searchParams.get('token');
+    await db.prisma.token.updateMany({ where: { user: user.id, type: 'verify' }, data: { expiresAt: new Date(Date.now() - 1000) } });
+    assert.equal((await client.post('/auth/verify-email', { token })).status, 400);
+    assert.equal((await db.prisma.user.findUnique({ where: { id: user.id } })).emailVerified, false);
+    assert.equal(await db.prisma.session.count({ where: { user: user.id } }), 0);
+    assert.equal((await client.post('/auth/login', { email, password: DEMO_PASSWORD })).status, 403);
+    assert.equal((await client.post('/auth/resend-verification', { email })).status, 200);
+    const freshMail = await db.prisma.outbox.findFirst({ where: { to: email }, orderBy: { createdAt: 'desc' } });
+    assert.equal((await client.post('/auth/verify-email', { token: new URL(freshMail.link).searchParams.get('token') })).status, 200);
+  });
+
+  test('Sprint 1: AC lưu qua create/read/update; tên rỗng và AC sai không ghi dữ liệu hoặc audit', async (t) => {
+    const { owner, member, pid, create } = await permissionFixture();
+    const acceptanceCriteria = ['Người nhận thuộc dự án', 'Giữ lịch sử khi xóa'];
+    const task = await create({ title: 'AC contract', assignee: seed.users.nhu.id, acceptanceCriteria });
+    assert.deepEqual((await owner.get(`/tasks/${task._id}`)).data.task.acceptanceCriteria, acceptanceCriteria);
+    assert.equal((await member.patch(`/tasks/${task._id}`, { acceptanceCriteria: ['Tự sửa AC'], version: task.version })).status, 403);
+    const taskCount = await db.prisma.task.count({ where: { project: pid } });
+    const auditCount = await db.prisma.activity.count({ where: { project: pid } });
+    for (const fields of [{ title: '  ' }, { title: 'Invalid AC', acceptanceCriteria: [' '] }, { title: 'Invalid AC', acceptanceCriteria: 'plain text' }]) {
+      assert.equal((await owner.post(`/projects/${pid}/tasks`, fields)).status, 400);
+    }
+    assert.equal((await owner.patch(`/tasks/${task._id}`, { title: ' ', version: task.version })).status, 400);
+    assert.equal(await db.prisma.task.count({ where: { project: pid } }), taskCount);
+    assert.equal(await db.prisma.activity.count({ where: { project: pid } }), auditCount);
+    const updated = await owner.patch(`/tasks/${task._id}`, { acceptanceCriteria: ['Đã thống nhất tiêu chí mới'], version: task.version });
+    assert.equal(updated.status, 200);
+    assert.deepEqual((await member.get(`/tasks/${task._id}`)).data.task.acceptanceCriteria, ['Đã thống nhất tiêu chí mới']);
+    assert.equal(updated.data.task.version, task.version + 1);
+    assert.ok(await db.prisma.activity.findFirst({ where: { entityId: task._id, field: 'acceptanceCriteria' } }));
+    // Arrays with identical comma-joined text are still different requirements.
+    let current = updated.data.task;
+    for (const criteria of [['A,B'], ['A', 'B']]) {
+      const saved = await owner.patch(`/tasks/${task._id}`, { acceptanceCriteria: criteria, version: current.version });
+      assert.equal(saved.status, 200);
+      current = saved.data.task;
+    }
+    assert.equal(await db.prisma.activity.count({ where: { entityId: task._id, field: 'acceptanceCriteria' } }), 3);
+    const original = db.prisma.$transaction;
+    const transact = original.bind(db.prisma);
+    t.after(() => { db.prisma.$transaction = original; });
+    db.prisma.$transaction = (callback, options) => transact(async (tx) => {
+      const createMany = tx.activity.createMany.bind(tx.activity);
+      tx.activity.createMany = (args) => {
+        if (args.data.some((entry) => entry.field === 'acceptanceCriteria')) throw new Error('Simulated AC audit failure');
+        return createMany(args);
+      };
+      return callback(tx);
+    }, options);
+    assert.equal((await owner.patch(`/tasks/${task._id}`, { acceptanceCriteria: ['Must roll back'], version: current.version })).status, 500);
+    db.prisma.$transaction = original;
+    const unchanged = (await owner.get(`/tasks/${task._id}`)).data.task;
+    assert.deepEqual(unchanged.acceptanceCriteria, ['A', 'B']);
+    assert.equal(unchanged.version, current.version);
+  });
+
   test('SMTP thực nhận email register/resend/verify và invite/resend/revoke/accept', async (t) => {
     const { messages } = await smtpSandbox(t, config);
     const client = new Client();
@@ -2547,6 +2842,279 @@ describe('Lộc Sprint 1: SMTP, giờ còn lại và xóa mềm', () => {
     assert.equal(removed.status, 200);
     assert.ok([200, 404].includes(changed.status), JSON.stringify(changed.data));
     assert.equal((await owner.get(`/projects/${pid}/tasks`)).data.tasks.length, 0);
+  });
+});
+
+describe('Lộc Sprint 2', () => {
+  test('Sprint2 hardening: checklist stale ưu tiên 409 và 50 mục không ghi dở', async () => {
+    const { owner, create } = await permissionFixture();
+    const task = await create({ checklist: Array.from({ length: 50 }, (_, i) => ({ text: `Mục ${i}` })) });
+    assert.equal((await owner.patch(`/tasks/${task._id}`, { version: 1, title: 'Đã sửa' })).status, 200);
+    assert.equal((await owner.post(`/tasks/${task._id}/checklist`, { version: 1, text: 'Mục mới' })).status, 409);
+    assert.equal((await owner.post(`/tasks/${task._id}/checklist`, { version: 2, text: 'Mục 51' })).status, 400);
+    const current = (await owner.get(`/tasks/${task._id}/checklist`)).data;
+    assert.equal(current.version, 2);
+    assert.equal(current.items.length, 50);
+  });
+
+  test('Sprint2 hardening: GET checklist đọc items và version cùng snapshot khi có writer', async (t) => {
+    const { owner, create } = await permissionFixture();
+    const task = await create({ checklist: [{ text: 'Trước thay đổi' }] });
+    let changed = false;
+    const beforeRead = async () => {
+      if (changed) return;
+      changed = true;
+      await originalTransaction.call(db.prisma, async (tx) => {
+        await tx.task.update({ where: { id: task._id }, data: { version: { increment: 1 } } });
+        await tx.checklistItem.update({ where: { id: task.checklist[0]._id }, data: { title: 'Sau thay đổi' } });
+      });
+    };
+    const originalTransaction = db.prisma.$transaction;
+    const originalRead = db.prisma.checklistItem.findMany;
+    t.after(() => { db.prisma.$transaction = originalTransaction; db.prisma.checklistItem.findMany = originalRead; });
+    db.prisma.checklistItem.findMany = async (args) => { await beforeRead(); return originalRead.call(db.prisma.checklistItem, args); };
+    db.prisma.$transaction = (callback, options) => originalTransaction.call(db.prisma, async (tx) => {
+      const read = tx.checklistItem.findMany.bind(tx.checklistItem);
+      tx.checklistItem.findMany = async (args) => { await beforeRead(); return read(args); };
+      return callback(tx);
+    }, options);
+    const result = await owner.get(`/tasks/${task._id}/checklist`);
+    assert.equal(result.status, 200);
+    assert.equal(changed, true);
+    assert.equal(result.data.items[0].text, result.data.version === 1 ? 'Trước thay đổi' : 'Sau thay đổi', 'never pair old version with new checklist');
+    db.prisma.$transaction = originalTransaction;
+    db.prisma.checklistItem.findMany = originalRead;
+    assert.equal((await owner.get(`/tasks/${task._id}/checklist`)).data.version, 2);
+  });
+
+  test('U005-T1/T3: SMTP reset một lần, hết hạn, đúng mục đích, thu hồi mọi phiên; profile whitelist', async (t) => {
+    const { messages } = await smtpSandbox(t, config);
+    const client = new Client('/v1');
+    const email = 'loc.sprint2.reset@example.test';
+    assert.equal((await client.post('/auth/register', { name: 'Loc Sprint2', email, password: DEMO_PASSWORD, acceptTerms: true })).status, 201);
+    const verifyToken = messages.at(-1).raw.match(/verify-email\?token=([A-Za-z0-9_-]+)/)[1];
+    assert.equal((await client.post('/auth/reset-password', { token: verifyToken, password: 'Sprint2NewPass123' })).status, 400);
+    assert.equal((await client.post('/auth/verify-email', { token: verifyToken })).status, 200);
+    const other = await new Client('/v1').login(email);
+    const user = await db.prisma.user.findUnique({ where: { email } });
+    for (const patch of [{ role: 'owner' }, { email: 'changed@example.test' }, { isLocked: false }, { name: 'a'.repeat(81) }, { timezone: 'invalid/timezone' }]) {
+      assert.equal((await client.patch('/me', patch)).status, 400);
+    }
+    const saved = await client.patch('/me', { name: '  Lộc kiểm thử  ', title: 'Developer', timezone: 'Asia/Ho_Chi_Minh', language: 'vi' });
+    assert.equal(saved.status, 200);
+    assert.equal(saved.data.user.name, 'Lộc kiểm thử');
+    const unknown = await client.post('/auth/forgot-password', { email: 'no-sprint2-account@example.test' });
+    const known = await client.post('/auth/forgot-password', { email });
+    assert.deepEqual(known.data, unknown.data);
+    assert.equal(known.status, unknown.status);
+    const expired = messages.at(-1).raw.match(/reset-password\?token=([A-Za-z0-9_-]+)/)[1];
+    await db.prisma.token.updateMany({ where: { user: user.id, type: 'reset' }, data: { expiresAt: new Date(Date.now() - 1000) } });
+    assert.equal((await client.get(`/auth/reset-password/check?token=${expired}`)).data.valid, false);
+    assert.equal((await client.post('/auth/reset-password', { token: expired, password: 'Sprint2NewPass123' })).status, 400);
+    assert.equal((await other.get('/me')).status, 200, 'invalid reset does not revoke sessions');
+    await client.post('/auth/forgot-password', { email });
+    const token = messages.at(-1).raw.match(/reset-password\?token=([A-Za-z0-9_-]+)/)[1];
+    assert.equal((await client.get(`/auth/reset-password/check?token=${token}`)).data.valid, true);
+    const results = await Promise.all([new Client('/v1'), new Client('/v1')].map((c) => c.post('/auth/reset-password', { token, password: 'Sprint2NewPass123' })));
+    assert.deepEqual(results.map((r) => r.status).sort(), [200, 400]);
+    assert.equal(await db.prisma.session.count({ where: { user: user.id, revokedAt: null } }), 0);
+    for (const session of [client, other]) {
+      assert.equal((await session.get('/me')).status, 401);
+      assert.equal((await session.post('/auth/refresh')).status, 401);
+    }
+    assert.equal((await new Client('/v1').post('/auth/login', { email, password: DEMO_PASSWORD })).status, 401);
+    assert.equal((await new Client('/v1').post('/auth/login', { email, password: 'Sprint2NewPass123' })).status, 200);
+  });
+
+  test('U011-T1: tìm mô tả, kết hợp bộ lọc, API chuẩn/legacy, không lộ private hoặc task xóa', async () => {
+    const { owner, member, ws, pid, create } = await permissionFixture();
+    const task = await create({ title: 'Không có từ khóa trong tên', description: 'Mô tả có sprint2needle', assignee: seed.users.nhu.id, priority: 'high', status: 'in_progress' });
+    await create({ description: 'sprint2needle', assignee: seed.users.nhu.id, priority: 'low' });
+    const deleted = await create({ description: 'sprint2needle', assignee: seed.users.nhu.id, priority: 'high', status: 'in_progress' });
+    assert.equal((await owner.del(`/tasks/${deleted._id}`)).status, 200);
+    const secret = (await owner.post(`/workspaces/${ws}/projects`, { name: 'Secret Sprint2' })).data.project;
+    await owner.post(`/projects/${secret._id}/tasks`, { title: 'sprint2needle', description: 'sprint2needle', priority: 'high', status: 'in_progress' });
+    const filters = `assignee=me&status=in_progress&priority=high&due=none&search=SPRINT2NEEDLE&project=${pid}`;
+    for (const route of [`/workspaces/${ws}/my-tasks?${filters}`, `/v1/tasks?workspace=${ws}&${filters}`, `/v1/me/tasks?workspace=${ws}&${filters}`]) {
+      const result = await member.get(route);
+      assert.equal(result.status, 200, JSON.stringify(result.data));
+      assert.deepEqual(result.data.items.map((t) => t._id), [task._id]);
+      assert.equal(result.data.total, 1);
+    }
+    const board = await member.get(`/projects/${pid}/tasks?${filters}`);
+    assert.equal(board.status, 200);
+    assert.deepEqual(board.data.tasks.map((t) => t._id), [task._id]);
+    const all = await member.get(`/v1/tasks?workspace=${ws}&assignee=all&search=sprint2needle`);
+    assert.equal(all.data.total, 2);
+    for (const query of ['status=unknown', 'priority=high,wrong', 'assignee=invalid', 'due=tomorrow', 'search=a&search=b', 'status=todo&status=done']) {
+      assert.equal((await member.get(`/v1/tasks?workspace=${ws}&${query}`)).status, 400, query);
+    }
+    assert.equal((await member.get('/v1/tasks')).status, 400);
+    assert.equal((await new Client().get(`/v1/me/tasks?workspace=${ws}`)).status, 401);
+  });
+
+  test('U013-T1: checklist API, ID ổn định, version cạnh tranh, giới hạn và ACL', async () => {
+    const { owner, member, admin, pid, create } = await permissionFixture();
+    const task = await create({ checklist: [{ text: 'Bước ban đầu', done: false }], assignee: seed.users.nhu.id });
+    const first = task.checklist[0];
+    assert.ok(first._id);
+    assert.equal(await db.prisma.checklistItem.count({ where: { task: task._id } }), 1);
+    assert.equal((await member.get(`/v1/tasks/${task._id}/checklist`)).data.items[0]._id, first._id);
+    assert.equal((await member.post(`/v1/tasks/${task._id}/checklist`, { text: 'Không được', version: 1 })).status, 403);
+    assert.equal((await admin.get(`/v1/tasks/${task._id}/checklist`)).status, 404, 'workspace admin outside private project');
+    assert.equal((await owner.post(`/v1/tasks/${task._id}/checklist`, { text: 'Thiếu version' })).status, 400);
+    const writes = await Promise.all(['Bước A', 'Bước B'].map((text) => owner.post(`/v1/tasks/${task._id}/checklist`, { text, version: 1 })));
+    assert.deepEqual(writes.map((r) => r.status).sort(), [201, 409]);
+    const current = writes.find((r) => r.status === 201).data.task;
+    assert.equal(current.checklist.length, 2);
+    assert.equal(current.checklist[0]._id, first._id);
+    const updated = await owner.patch(`/v1/checklist/${first._id}`, { text: 'Đã kiểm tra', done: true, version: current.version });
+    assert.equal(updated.status, 200);
+    assert.equal(updated.data.task.status, 'todo', 'checklist completion never approves parent');
+    assert.equal(updated.data.task.checklist[0].done, true);
+    assert.equal((await owner.del(`/v1/checklist/${first._id}?version=1`)).status, 409);
+    assert.equal((await owner.del(`/v1/checklist/${first._id}?version=${updated.data.task.version}`)).status, 200);
+    assert.equal((await owner.patch(`/v1/checklist/${first._id}`, { done: false, version: 4 })).status, 404);
+    assert.equal((await owner.post(`/projects/${pid}/tasks`, { title: 'Too many', checklist: Array.from({ length: 51 }, () => ({ text: 'x' })) })).status, 400);
+    assert.ok(await db.prisma.activity.count({ where: { entityId: task._id, field: 'checklist' } }) >= 3);
+    await owner.del(`/tasks/${task._id}`);
+    assert.equal((await owner.get(`/v1/tasks/${task._id}/checklist`)).status, 404);
+    assert.equal(await db.prisma.checklistItem.count({ where: { task: task._id } }), 1, 'soft-delete retains checklist history');
+  });
+
+  test('U013-T1: không lấy checklist task khác, rollback nếu audit lỗi, subtask một cấp/cùng project', async (t) => {
+    const { owner, pid, create } = await permissionFixture();
+    const a = await create({ checklist: [{ text: 'A' }] });
+    const b = await create({ checklist: [{ text: 'B' }] });
+    assert.equal((await owner.patch(`/tasks/${a._id}`, { version: 1, checklist: b.checklist })).status, 400);
+    assert.equal((await owner.get(`/tasks/${a._id}`)).data.task.version, 1);
+    assert.equal((await owner.get(`/tasks/${b._id}`)).data.task.checklist[0].text, 'B');
+    const original = db.prisma.$transaction;
+    t.after(() => { db.prisma.$transaction = original; });
+    db.prisma.$transaction = (callback, options) => original.call(db.prisma, async (tx) => {
+      const insert = tx.activity.createMany.bind(tx.activity);
+      tx.activity.createMany = (args) => {
+        if (args.data.some((entry) => entry.field === 'checklist')) throw new Error('Sprint2 simulated checklist audit failure');
+        return insert(args);
+      };
+      return callback(tx);
+    }, options);
+    assert.equal((await owner.patch(`/checklist/${a.checklist[0]._id}`, { done: true, version: 1 })).status, 500);
+    db.prisma.$transaction = original;
+    const unchanged = (await owner.get(`/tasks/${a._id}`)).data.task;
+    assert.equal(unchanged.version, 1);
+    assert.equal(unchanged.checklist[0].done, false);
+    const child = await create({ parent: a._id });
+    assert.equal((await owner.post(`/projects/${pid}/tasks`, { title: 'Grandchild', parent: child._id })).status, 400);
+    const { pid: otherProject } = await permissionFixture();
+    assert.equal((await owner.post(`/projects/${otherProject}/tasks`, { title: 'Wrong project', parent: a._id })).status, 400);
+    assert.equal((await owner.patch(`/tasks/${a._id}`, { parent: child._id, version: 1 })).status, 400, 'immutable parent prevents cycles');
+  });
+
+  test('U014-T3/T1: XSS, sửa/xóa người khác, mention ngoài project và PM ẩn có audit', async () => {
+    const { owner, member, other, admin, ws, pid, create } = await permissionFixture();
+    const task = await create();
+    const response = await member.post(`/tasks/${task._id}/comments`, { body: '<script>alert(1)</script><img src=x onerror=alert(2)>Xin chào @Thuận', mentions: [seed.users.thuan.id, seed.users.dat.id] });
+    assert.equal(response.status, 201);
+    const comment = response.data.comment;
+    assert.ok(!/[<>]/.test(comment.body));
+    assert.deepEqual(comment.mentions.map((u) => u._id), [seed.users.dat.id]);
+    assert.equal(await db.prisma.notification.count({ where: { project: pid, user: seed.users.thuan.id, type: 'mentioned' } }), 0);
+    for (const [client, denied] of [[other, 403], [admin, 404]]) {
+      assert.equal((await client.patch(`/comments/${comment._id}`, { body: 'Chiếm quyền' })).status, denied);
+      assert.equal((await client.del(`/comments/${comment._id}`)).status, denied);
+    }
+    assert.equal((await owner.patch(`/comments/${comment._id}`, { body: 'PM cannot rewrite author' })).status, 403);
+    const edited = await member.patch(`/comments/${comment._id}`, { body: 'Đã chỉnh sửa <b>nội dung</b>' });
+    assert.equal(edited.status, 200);
+    assert.ok(edited.data.comment.editedAt);
+    assert.equal((await owner.del(`/comments/${comment._id}`)).status, 200);
+    assert.deepEqual((await member.get(`/tasks/${task._id}/comments`)).data.comments, []);
+    assert.equal((await member.get(`/projects/${pid}/tasks`)).data.tasks[0].commentCount, 0);
+    assert.ok((await db.prisma.comment.findUnique({ where: { id: comment._id } })).deletedAt);
+    const { collectSources } = await import('../src/services/ai/qa.js');
+    assert.ok(!(await collectSources(pid)).some((source) => source.sourceId === comment._id), 'hidden comments cannot remain a live AI source');
+    const audit = await db.prisma.activity.findFirst({ where: { workspace: ws, action: 'Ẩn bình luận vi phạm' } });
+    assert.equal(audit.after.commentId, comment._id);
+    assert.equal(audit.actor, seed.users.maianh.id);
+    assert.equal((await member.patch(`/comments/${comment._id}`, { body: 'Restore hidden' })).status, 404);
+  });
+
+  test('U016-T3 review: đổi hạn, chạy lại, offset múi giờ, Done và thành viên bị gỡ', async () => {
+    const { owner, ws, pid, create } = await permissionFixture();
+    const { runDueReminders } = await import('../src/services/jobs.js');
+    const now = new Date('2026-10-30T00:00:00Z');
+    const task = await create({ assignee: seed.users.nhu.id, dueDate: '2026-10-30T08:00:00+07:00' });
+    const where = { task: task._id, type: { in: ['due_soon', 'overdue'] } };
+    await runDueReminders(now);
+    await runDueReminders(now);
+    assert.equal(await db.prisma.notification.count({ where }), 1);
+    assert.equal((await owner.patch(`/tasks/${task._id}`, { dueDate: '2026-10-30T02:00:00Z', version: 1 })).status, 200);
+    await runDueReminders(now);
+    await runDueReminders(now);
+    assert.equal(await db.prisma.notification.count({ where }), 2, 'new deadline has a new dedupe key');
+    await db.prisma.task.update({ where: { id: task._id }, data: { status: 'done', dueDate: new Date('2026-10-29T00:00:00Z') } });
+    await runDueReminders(now);
+    assert.equal(await db.prisma.notification.count({ where }), 2);
+    const removed = await create({ assignee: seed.users.nhu.id, dueDate: '2026-10-30T03:00:00Z' });
+    assert.equal((await owner.del(`/workspaces/${ws}/members/${seed.users.nhu.id}`)).status, 200);
+    await runDueReminders(now);
+    assert.equal(await db.prisma.notification.count({ where: { task: removed._id, type: { in: ['due_soon', 'overdue'] } } }), 0);
+    assert.equal(await db.prisma.projectMember.count({ where: { project: pid, user: seed.users.nhu.id } }), 0);
+  });
+
+  test('U014-T3: tài khoản khóa không được mention; lỗi audit không ẩn dở bình luận', async (t) => {
+    const { owner, member, create } = await permissionFixture();
+    const task = await create();
+    const user = seed.users.dat.id;
+    t.after(() => db.prisma.user.update({ where: { id: user }, data: { isLocked: false } }));
+    await db.prisma.user.update({ where: { id: user }, data: { isLocked: true } });
+    const comment = (await member.post(`/tasks/${task._id}/comments`, { body: '@Đạt nội dung cần kiểm tra', mentions: [user] })).data.comment;
+    assert.deepEqual(comment.mentions, []);
+    const original = db.prisma.$transaction;
+    t.after(() => { db.prisma.$transaction = original; });
+    db.prisma.$transaction = (callback, options) => original.call(db.prisma, async (tx) => {
+      const insert = tx.activity.createMany.bind(tx.activity);
+      tx.activity.createMany = (args) => {
+        if (args.data.some((entry) => entry.action === 'Ẩn bình luận vi phạm')) throw new Error('Sprint2 simulated moderation audit failure');
+        return insert(args);
+      };
+      return callback(tx);
+    }, options);
+    assert.equal((await owner.del(`/comments/${comment._id}`)).status, 500);
+    db.prisma.$transaction = original;
+    assert.equal((await db.prisma.comment.findUnique({ where: { id: comment._id } })).deletedAt, null);
+    assert.equal((await member.get(`/tasks/${task._id}/comments`)).data.comments.length, 1);
+  });
+
+  test('U019-T3: dataset độc lập cho capacity 0, null/0, overdue, leaf/parent, Done và task xóa', async () => {
+    const { owner, member, ws, pid, create } = await permissionFixture();
+    const user = seed.users.nhu.id;
+    const dueDate = '2026-10-30T12:00:00Z';
+    const make = (fields) => create({ assignee: user, dueDate, ...fields });
+    const parent = await make({ estimateHours: 100, checklist: [{ text: 'Not workload', done: false }] });
+    const child = await make({ parent: parent._id, estimateHours: 8, remainingHours: 3 });
+    const overdue = await make({ dueDate: '2026-10-01T12:00:00Z', estimateHours: 5, remainingHours: 2 });
+    const missingEstimate = await make({ estimateHours: null, remainingHours: null });
+    const zero = await make({ estimateHours: 9, remainingHours: 0 });
+    await make({ dueDate: null, estimateHours: 50 });
+    await make({ dueDate: '2026-11-01T17:00:00Z', estimateHours: 70 }); // next Monday in Vietnam
+    const done = await make({ estimateHours: 80, status: 'review' });
+    assert.equal((await owner.patch(`/tasks/${done._id}`, { status: 'done', version: 1 })).status, 200);
+    const removed = await make({ estimateHours: 60 });
+    assert.equal((await owner.del(`/tasks/${removed._id}`)).status, 200);
+    assert.equal((await owner.patch(`/workspaces/${ws}/members/${user}/capacity/2026-10-26`, { hours: 0, version: 0 })).status, 200);
+    const now = new Date('2026-10-30T00:00:00Z');
+    const row = (await workload(pid, undefined, now)).find((w) => w.user.id === user);
+    assert.equal(row.hours, 5, '3 hours on child + 2 hours overdue; parent excluded');
+    assert.equal(row.available, 0);
+    assert.equal(row.pct, null);
+    assert.equal(row.overloaded, true);
+    assert.equal(row.missingEstimates, 1);
+    assert.equal(row.missingDeadlines, 1);
+    assert.deepEqual(row.taskIds.sort(), [child._id, overdue._id, missingEstimate._id, zero._id].sort());
+    const privateProject = (await owner.post(`/workspaces/${ws}/projects`, { name: 'Private workload' })).data.project;
+    assert.equal((await member.get(`/projects/${privateProject._id}/workload`)).status, 404);
   });
 });
 
@@ -2937,5 +3505,280 @@ describe('Hiệp – U020: Nhật ký hoạt động & xuất CSV (bổ sung)', 
     await outsider.post('/auth/verify-email', { token: new URL(mail.link).searchParams.get('token') });
     assert.equal((await outsider.get(`/workspaces/${ws}/activity`)).status, 404);
     assert.equal((await outsider.get(`/workspaces/${ws}/activity.csv`)).status, 404);
+  });
+});
+
+describe('Sprint 1: hợp đồng API v1 và acceptance_criteria văn bản', () => {
+  test('v1 dùng cùng ACL/CSRF, refresh/logout cookie đúng path và tương thích API cũ', async () => {
+    const owner = new Client('/v1');
+    const login = await owner.post('/auth/login', { email: seed.users.maianh.email, password: DEMO_PASSWORD });
+    assert.equal(login.status, 200);
+    assert.ok(login.setCookies.some((c) => c.startsWith('tf_rt=') && c.includes('Path=/api/v1/auth;')));
+    assert.equal((await owner.post('/auth/refresh')).status, 200);
+    const old = new Client();
+    old.cookies = { ...owner.cookies };
+    assert.deepEqual((await owner.get('/me')).data, (await old.get('/me')).data);
+    assert.equal((await new Client('/v1').get(`/projects/${seed.projects.website.id}`)).status, 401);
+    const viewer = await new Client('/v1').login(seed.users.linh.email);
+    assert.equal((await viewer.post(`/projects/${seed.projects.website.id}/tasks`, { title: 'Forbidden' })).status, 403);
+    const csrf = await fetch(`${base}/v1/auth/logout`, { method: 'POST', headers: { cookie: Object.entries(owner.cookies).map(([k, v]) => `${k}=${v}`).join('; ') } });
+    assert.equal(csrf.status, 403);
+    const logout = await owner.post('/auth/logout');
+    assert.equal(logout.status, 200);
+    assert.ok(logout.setCookies.some((c) => c.startsWith('tf_rt=;') && c.includes('Path=/api/v1/auth;')));
+    assert.equal((await old.get('/me')).status, 401);
+  });
+
+  test('văn bản nhiều dòng được lưu nguyên vẹn; validation, alias và xóa nội dung đúng', async () => {
+    const owner = await new Client('/v1').login(seed.users.maianh.email);
+    const text = 'Đúng quyền người nhận\n\nGiữ dấu, dấu phẩy và khoảng trắng  ';
+    const created = await owner.post(`/projects/${seed.projects.website.id}/tasks`, { title: 'Text AC contract', acceptance_criteria: text });
+    assert.equal(created.status, 201, JSON.stringify(created.data));
+    const task = created.data.task;
+    assert.equal(task.acceptance_criteria, text);
+    assert.deepEqual(task.acceptanceCriteria, text.split('\n'));
+    assert.equal((await db.prisma.task.findUnique({ where: { id: task._id } })).acceptanceCriteria, text);
+    assert.equal((await owner.get(`/tasks/${task._id}`)).data.task.acceptance_criteria, text);
+    for (const input of [{ acceptance_criteria: 'x'.repeat(10001) }, { acceptance_criteria: ['wrong'] }, { acceptance_criteria: 'text', acceptanceCriteria: ['duplicate'] }]) {
+      assert.equal((await owner.patch(`/tasks/${task._id}`, { ...input, version: task.version })).status, 400);
+    }
+    assert.equal((await owner.get(`/tasks/${task._id}`)).data.task.version, task.version);
+    const cleared = await owner.patch(`/tasks/${task._id}`, { acceptance_criteria: '', version: task.version });
+    assert.equal(cleared.status, 200);
+    assert.equal(cleared.data.task.acceptance_criteria, '');
+    assert.deepEqual(cleared.data.task.acceptanceCriteria, []);
+  });
+});
+
+describe('OTP email và đăng nhập Google', () => {
+  const codeOf = async (to, subject) => {
+    const mail = await db.prisma.outbox.findFirst({ where: { to, ...(subject && { subject: { contains: subject } }) }, orderBy: { createdAt: 'desc' } });
+    return mail.text.match(/\b(\d{6})\b/)[1];
+  };
+
+  test('OTP xác minh đăng ký: sai bị đếm, đúng tạo phiên, dùng lại bị từ chối', async () => {
+    const c = new Client();
+    const email = `otp-verify-${++fixtureNumber}@test.vn`;
+    assert.equal((await c.post('/auth/register', { name: 'Otp', email, password: 'Abcdefg123', acceptTerms: true })).status, 201);
+    const code = await codeOf(email);
+    const wrong = code === '000000' ? '111111' : '000000';
+    assert.equal((await c.post('/auth/verify-otp', { email, code: wrong })).status, 400);
+    assert.equal((await c.post('/auth/verify-otp', { email, code: '12ab' })).status, 400);
+    assert.equal((await c.post('/auth/verify-otp', { email, code })).status, 200);
+    assert.equal((await c.get('/me')).status, 200, 'xác minh OTP đăng nhập luôn');
+    assert.equal((await new Client().post('/auth/verify-otp', { email, code })).status, 400, 'mã dùng một lần');
+  });
+
+  test('OTP bị khóa sau 5 lần sai kể cả khi sau đó nhập đúng; gửi lại cấp mã mới', async () => {
+    const c = new Client();
+    const email = `otp-lock-${++fixtureNumber}@test.vn`;
+    await c.post('/auth/register', { name: 'Khóa', email, password: 'Abcdefg123', acceptTerms: true });
+    const code = await codeOf(email);
+    const wrong = code === '000000' ? '111111' : '000000';
+    for (let i = 0; i < config.otp.maxAttempts; i++) assert.equal((await c.post('/auth/verify-otp', { email, code: wrong })).status, 400);
+    assert.equal((await c.post('/auth/verify-otp', { email, code })).status, 400, 'mã đã bị khóa');
+    await c.post('/auth/resend-verification', { email });
+    const fresh = await codeOf(email);
+    assert.equal((await c.post('/auth/verify-otp', { email, code: fresh })).status, 200);
+  });
+
+  test('OTP hết hạn bị từ chối', async () => {
+    const c = new Client();
+    const email = `otp-exp-${++fixtureNumber}@test.vn`;
+    await c.post('/auth/register', { name: 'Hết hạn', email, password: 'Abcdefg123', acceptTerms: true });
+    const code = await codeOf(email);
+    await db.prisma.otp.updateMany({ where: { userRef: { email } }, data: { expiresAt: new Date(Date.now() - 1000) } });
+    assert.equal((await c.post('/auth/verify-otp', { email, code })).status, 400);
+  });
+
+  test('quên mật khẩu bằng OTP: đổi mật khẩu, thu hồi phiên, mã dùng một lần', async () => {
+    const c = new Client();
+    const email = `otp-reset-${++fixtureNumber}@test.vn`;
+    await c.post('/auth/register', { name: 'Reset', email, password: 'Abcdefg123', acceptTerms: true });
+    await c.post('/auth/verify-otp', { email, code: await codeOf(email) });
+    assert.equal((await c.post('/auth/forgot-password', { email })).status, 200);
+    const code = await codeOf(email, 'Đặt lại');
+    assert.equal((await c.post('/auth/reset-password-otp', { email, code, password: 'yeu' })).status, 400, 'mật khẩu yếu');
+    assert.equal((await c.post('/auth/reset-password-otp', { email, code, password: 'MatKhauMoi1' })).status, 200);
+    assert.equal((await c.post('/auth/reset-password-otp', { email, code, password: 'MatKhauMoi2' })).status, 400);
+    assert.equal((await new Client().post('/auth/login', { email, password: 'Abcdefg123' })).status, 401);
+    assert.equal((await new Client().post('/auth/login', { email, password: 'MatKhauMoi1' })).status, 200);
+    const ghost = await new Client().post('/auth/reset-password-otp', { email: 'khong-co@test.vn', code: '123456', password: 'MatKhauMoi1' });
+    assert.equal(ghost.status, 400, 'email không tồn tại trả cùng lỗi');
+  });
+
+  test('email SMTP có OTP, liên kết và đánh dấu tự động không trả lời', async (t) => {
+    const { messages } = await smtpSandbox(t, config);
+    const email = `otp-smtp-${++fixtureNumber}@example.test`;
+    assert.equal((await new Client().post('/auth/register', { name: 'Smtp', email, password: 'Abcdefg123', acceptTerms: true })).status, 201);
+    assert.equal(messages.length, 1);
+    assert.match(messages[0].raw, /Auto-Submitted: auto-generated/i);
+    assert.match(messages[0].raw, /\b\d{6}\b/);
+    assert.match(messages[0].raw, /verify-email\?token/);
+  });
+
+  test('đăng nhập Google: tạo tài khoản mới, liên kết email có sẵn, từ chối email chưa xác minh', async () => {
+    const { setGoogleVerifier } = await import('../src/services/google.js');
+    const previous = config.google.clientId;
+    config.google.clientId = 'test-client.apps.googleusercontent.com';
+    const credential = 'x'.repeat(40);
+    try {
+      const fresh = `gg-new-${++fixtureNumber}@test.vn`;
+      setGoogleVerifier(async () => ({ sub: `sub-${fixtureNumber}`, email: fresh, email_verified: true, name: 'Người Google' }));
+      const c = new Client();
+      assert.equal((await c.post('/auth/google', { credential })).status, 200);
+      const me = await c.get('/me');
+      assert.equal(me.status, 200);
+      assert.equal(me.data.user.email, fresh);
+      assert.equal((await new Client().post('/auth/login', { email: fresh, password: 'bat-ky-1A' })).status, 401, 'tài khoản Google không có mật khẩu đoán được');
+
+      const local = `gg-link-${++fixtureNumber}@test.vn`;
+      await new Client().post('/auth/register', { name: 'Có sẵn', email: local, password: 'Abcdefg123', acceptTerms: true });
+      setGoogleVerifier(async () => ({ sub: `sub-link-${fixtureNumber}`, email: local, email_verified: true, name: 'Có sẵn' }));
+      assert.equal((await new Client().post('/auth/google', { credential })).status, 200);
+      const linked = await db.prisma.user.findUnique({ where: { email: local } });
+      assert.equal(linked.emailVerified, true);
+      assert.equal(linked.googleId, `sub-link-${fixtureNumber}`);
+      setGoogleVerifier(async () => ({ sub: 'sub-khac', email: local, email_verified: true }));
+      assert.equal((await new Client().post('/auth/google', { credential })).status, 401, 'email đã gắn Google khác');
+
+      setGoogleVerifier(async () => ({ sub: 's3', email: `gg-unv-${fixtureNumber}@test.vn`, email_verified: false }));
+      assert.equal((await new Client().post('/auth/google', { credential })).status, 401);
+      setGoogleVerifier(async () => { throw new Error('bad token'); });
+      assert.equal((await new Client().post('/auth/google', { credential })).status, 401);
+
+      await db.prisma.user.update({ where: { email: local }, data: { isLocked: true } });
+      setGoogleVerifier(async () => ({ sub: `sub-link-${fixtureNumber - 0}`, email: local, email_verified: true }));
+      assert.equal((await new Client().post('/auth/google', { credential })).status, 403, 'tài khoản bị khóa');
+
+      config.google.clientId = '';
+      assert.equal((await new Client().post('/auth/google', { credential })).status, 503);
+    } finally {
+      config.google.clientId = previous;
+    }
+  });
+});
+
+describe('Chạy trên hạ tầng miễn phí: Gmail API và Supabase Storage', () => {
+  const listen = async (t, handler) => {
+    const server = http.createServer(handler);
+    await new Promise((r) => server.listen(0, '127.0.0.1', r));
+    t.after(() => { server.closeAllConnections(); return new Promise((r) => server.close(r)); });
+    return `http://127.0.0.1:${server.address().port}`;
+  };
+  const readBody = async (req) => {
+    const chunks = [];
+    for await (const chunk of req) chunks.push(chunk);
+    return Buffer.concat(chunks);
+  };
+
+  test('MAIL_MODE=gmail gửi qua HTTPS, dùng lại access token và không lộ lỗi nhà cung cấp', async (t) => {
+    const { sendMail, validateMailConfig } = await import('../src/services/mailer.js');
+    const state = { tokenCalls: 0, sent: [], fail: false, auth: null, tokenForm: null };
+    const url = await listen(t, async (req, res) => {
+      const body = await readBody(req);
+      res.setHeader('content-type', 'application/json');
+      if (req.url === '/token') {
+        state.tokenCalls++;
+        state.tokenForm = new URLSearchParams(body.toString());
+        return res.end(JSON.stringify({ access_token: 'access-1', expires_in: 3600 }));
+      }
+      state.auth = req.headers.authorization;
+      if (state.fail) { res.statusCode = 403; return res.end(JSON.stringify({ error: 'secret-provider-detail' })); }
+      state.sent.push(Buffer.from(JSON.parse(body.toString()).raw, 'base64url').toString('utf8'));
+      res.end(JSON.stringify({ id: 'm1' }));
+    });
+    const previous = config.mail;
+    t.after(() => { config.mail = previous; });
+    config.mail = {
+      mode: 'gmail', from: 'TaskFlow No-Reply <noreply@example.test>',
+      gmail: { clientId: 'cid', clientSecret: 'csecret', refreshToken: 'rtoken', tokenUrl: `${url}/token`, sendUrl: `${url}/send` },
+    };
+    assert.doesNotThrow(() => validateMailConfig(config.mail, true), 'production nhận gmail');
+    assert.throws(() => validateMailConfig({ mode: 'gmail', from: 'x@example.test', gmail: {} }, true), /GMAIL_CLIENT_ID/);
+
+    await sendMail({ to: 'nhan@example.test', subject: 'Xác minh', text: 'Mã 123456', link: 'https://app.example.test/verify-email?token=abc' });
+    await sendMail({ to: 'nhan2@example.test', subject: 'Lần hai', text: 'Mã 654321' });
+    assert.equal(state.tokenCalls, 1, 'access token được dùng lại');
+    assert.equal(state.tokenForm.get('refresh_token'), 'rtoken');
+    assert.equal(state.tokenForm.get('grant_type'), 'refresh_token');
+    assert.equal(state.auth, 'Bearer access-1');
+    assert.match(state.sent[0], /To: nhan@example\.test/);
+    assert.match(state.sent[0], /From: "?TaskFlow No-Reply"? <noreply@example\.test>/);
+    assert.match(state.sent[0], /Auto-Submitted: auto-generated/i);
+    assert.match(state.sent[0], /123456/);
+
+    state.fail = true;
+    await assert.rejects(sendMail({ to: 'loi@example.test', subject: 'Lỗi', text: 'x' }), (error) => {
+      assert.equal(error.details.code, 'MAIL_UNAVAILABLE');
+      assert.ok(!JSON.stringify({ message: error.message, details: error.details }).includes('secret-provider-detail'));
+      return true;
+    });
+    state.fail = false;
+    await sendMail({ to: 'lai@example.test', subject: 'Thử lại', text: 'x' });
+    assert.equal(state.tokenCalls, 2, 'lỗi gửi làm mới lại token');
+  });
+
+  test('Supabase Storage: tải lên, tải xuống đúng byte, thiếu tệp trả 404, xóa dọn object; lỗi Storage không tạo tài liệu', async (t) => {
+    const objects = new Map();
+    const state = { apikeys: new Set(), authorization: new Set(), rejectUpload: false };
+    const prefix = '/storage/v1/object/taskflow-uploads/';
+    const url = await listen(t, async (req, res) => {
+      const body = await readBody(req);
+      state.apikeys.add(req.headers.apikey);
+      state.authorization.add(req.headers.authorization);
+      assert.ok(req.url.startsWith(prefix));
+      const key = decodeURIComponent(req.url.slice(prefix.length));
+      res.setHeader('content-type', 'application/json');
+      if (req.method === 'POST') {
+        if (state.rejectUpload) { res.statusCode = 500; return res.end('{}'); }
+        objects.set(key, body);
+        return res.end(JSON.stringify({ Key: key }));
+      }
+      if (!objects.has(key)) { res.statusCode = 400; return res.end(JSON.stringify({ statusCode: '404', error: 'not_found', message: 'Object not found' })); }
+      if (req.method === 'DELETE') { objects.delete(key); return res.end('[]'); }
+      res.end(objects.get(key));
+    });
+    const previous = config.storage;
+    t.after(() => { config.storage = previous; });
+    config.storage = { url, serviceKey: 'sb_secret_test', bucket: 'taskflow-uploads' };
+
+    const { owner, pid } = await permissionFixture();
+    const png = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10, 1, 2, 3, 250]);
+    const upload = () => {
+      const form = new FormData();
+      form.append('files', new Blob([png], { type: 'image/png' }), 'anh.png');
+      return fetch(`${base}/projects/${pid}/documents/upload`, {
+        method: 'POST', headers: { 'x-taskflow': '1', cookie: Object.entries(owner.cookies).map(([k, v]) => `${k}=${v}`).join('; ') }, body: form,
+      });
+    };
+    const download = (id) => fetch(`${base}/documents/${id}/download`, { headers: { 'x-taskflow': '1', cookie: Object.entries(owner.cookies).map(([k, v]) => `${k}=${v}`).join('; ') } });
+
+    const filesBefore = (await fs.readdir(testUploads)).sort();
+    const created = await upload();
+    assert.equal(created.status, 201);
+    const id = (await created.json()).documents[0]._id;
+    assert.equal(objects.size, 1);
+    assert.deepEqual((await fs.readdir(testUploads)).sort(), filesBefore, 'không ghi xuống ổ đĩa');
+    assert.deepEqual(state.apikeys, new Set(['sb_secret_test']));
+    assert.deepEqual(state.authorization, new Set([undefined]), 'khóa sb_secret không gửi qua Authorization');
+
+    const ok = await download(id);
+    assert.equal(ok.status, 200);
+    assert.deepEqual(Buffer.from(await ok.arrayBuffer()), png);
+
+    const [key] = objects.keys();
+    const saved = objects.get(key);
+    objects.delete(key);
+    assert.equal((await download(id)).status, 404);
+    objects.set(key, saved);
+
+    assert.equal((await owner.del(`/documents/${id}`)).status, 200);
+    assert.equal(objects.size, 0);
+
+    const docsBefore = await db.prisma.document.count({ where: { project: pid } });
+    state.rejectUpload = true;
+    assert.equal((await upload()).status, 500);
+    assert.equal(await db.prisma.document.count({ where: { project: pid } }), docsBefore);
   });
 });

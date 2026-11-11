@@ -1,8 +1,8 @@
 import { t as tr, useI18n } from '../../lib/i18n.js';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import AuthLayout from './AuthLayout.jsx';
-import { PasswordInput, PasswordStrength } from './Login.jsx';
+import { OtpInput, PasswordInput, PasswordStrength } from './Login.jsx';
 import { Field, Icon, Notice, Spinner } from '../../components/ui.jsx';
 import { api } from '../../lib/api.js';
 
@@ -39,9 +39,11 @@ export default function ForgotPassword() {
   const [pw2, setPw2] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const pending = useRef(false);
   const [done, setDone] = useState(false);
   const [expired, setExpired] = useState(false);
   const [cool, setCool] = useState(0);
+  const [code, setCode] = useState('');
 
   useEffect(() => {
     if (token) api.get(`/auth/reset-password/check?token=${encodeURIComponent(token)}`).then((d) => setExpired(!d.valid)).catch(() => {});
@@ -54,7 +56,9 @@ export default function ForgotPassword() {
 
   const request = async (e) => {
     e?.preventDefault();
+    if (pending.current || cool > 0) return;
     if (!/^\S+@\S+\.\S+$/.test(email)) return setError(tr("Vui lòng nhập email hợp lệ"));
+    pending.current = true;
     setBusy(true);
     setError('');
     try {
@@ -64,13 +68,33 @@ export default function ForgotPassword() {
     } catch (err) {
       setError(err.message);
     } finally {
+      pending.current = false;
+      setBusy(false);
+    }
+  };
+
+  const resetWithCode = async (e) => {
+    e.preventDefault();
+    if (code.length !== 6) return setError(tr("Nhập đủ 6 chữ số"));
+    if (pw !== pw2) return setError(tr("Mật khẩu xác nhận không khớp"));
+    setBusy(true);
+    setError('');
+    try {
+      await api.post('/auth/reset-password-otp', { email, code, password: pw });
+      setDone(true);
+      setStep(3);
+    } catch (err) {
+      setError(err.message);
+    } finally {
       setBusy(false);
     }
   };
 
   const reset = async (e) => {
     e.preventDefault();
+    if (pending.current) return;
     if (pw !== pw2) return setError(tr("Mật khẩu xác nhận không khớp"));
+    pending.current = true;
     setBusy(true);
     setError('');
     try {
@@ -80,6 +104,7 @@ export default function ForgotPassword() {
       if (err.details?.code === 'TOKEN_INVALID') setExpired(true);
       setError(err.message);
     } finally {
+      pending.current = false;
       setBusy(false);
     }
   };
@@ -88,23 +113,23 @@ export default function ForgotPassword() {
     <AuthLayout>
       <div className="card p-6 shadow-card">
         <Steps step={done ? 4 : step} />
+        {error && <div role="alert" className="mb-4"><Notice tone="danger">{error}</Notice></div>}
         {step === 1 && (
           <form onSubmit={request} className="space-y-4">
             <Link to="/login" className="inline-flex items-center gap-1 text-body-sm text-slate-500 hover:text-slate-800">
               <Icon name="arrow_back" size={16} />{tr(" Quay lại đăng nhập")}</Link>
             <div>
               <h2 className="text-headline-md text-slate-900">{tr("Quên mật khẩu?")}</h2>
-              <p className="text-body-sm text-slate-500">{tr("Nhập email, chúng tôi sẽ gửi liên kết đặt lại mật khẩu.")}</p>
+              <p className="text-body-sm text-slate-500">{tr("Nhập email, chúng tôi sẽ gửi mã OTP và liên kết đặt lại mật khẩu.")}</p>
             </div>
-            {error && <Notice tone="danger">{error}</Notice>}
             <Field label={tr("Email công việc")} required>
               <div className="relative">
                 <Icon name="mail" size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input type="email" className="input pl-9" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="ban@congty.com" />
+                <input type="email" disabled={busy} className="input pl-9" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="ban@congty.com" />
               </div>
             </Field>
             <button className="btn-primary h-10 w-full" disabled={busy}>
-              {busy && <Spinner />}{tr("Gửi liên kết đặt lại")}<Icon name="send" size={16} />
+              {busy && <Spinner />}{tr("Gửi mã đặt lại")}<Icon name="send" size={16} />
             </button>
             <div className="flex justify-between text-body-sm">
               <span className="text-slate-400">{tr("Đã nhớ mật khẩu?")}</span>
@@ -119,20 +144,33 @@ export default function ForgotPassword() {
             </span>
             <div>
               <h2 className="text-headline-md text-slate-900">{tr("Kiểm tra hộp thư của bạn")}</h2>
-              <p className="mt-1 text-body-sm text-slate-500">{tr("Nếu email tồn tại trong hệ thống, liên kết đặt lại đã được gửi tới ")}<b>{mask(email)}</b>{tr(". Liên kết chỉ dùng được một lần và hết hạn sau 30 phút.")}</p>
+              <p className="mt-1 text-body-sm text-slate-500">{tr("Nếu email tồn tại trong hệ thống, mã OTP 6 số (hiệu lực 10 phút) và liên kết đặt lại đã được gửi tới ")}<b>{mask(email)}</b>{tr(". Nhập mã bên dưới hoặc bấm liên kết trong email.")}</p>
             </div>
-            <a className="btn-outline w-full" href="mailto:">
-              <Icon name="open_in_new" size={16} />{tr(" Mở ứng dụng email")}</a>
+            <form onSubmit={resetWithCode} className="space-y-3 text-left">
+              {error && <Notice tone="danger">{error}</Notice>}
+              <Field label={tr("Mã OTP 6 số")} required>
+                <OtpInput value={code} onChange={setCode} autoFocus />
+              </Field>
+              <Field label={tr("Mật khẩu mới")} required>
+                <PasswordInput value={pw} onChange={(e) => setPw(e.target.value)} autoComplete="new-password" />
+                <PasswordStrength value={pw} />
+              </Field>
+              <Field label={tr("Xác nhận mật khẩu")} required error={pw2 && pw !== pw2 ? tr("Mật khẩu xác nhận không khớp") : ''}>
+                <PasswordInput value={pw2} onChange={(e) => setPw2(e.target.value)} autoComplete="new-password" />
+              </Field>
+              <button className="btn-primary h-10 w-full" disabled={busy || code.length !== 6}>
+                {busy && <Spinner />}{tr("Đặt lại mật khẩu")}</button>
+            </form>
             <p className="text-body-sm text-slate-500">{tr("Chưa nhận được?")}{' '}
               {cool > 0 ? (
                 <span>{tr("Gửi lại sau 00:")}{String(cool).padStart(2, '0')}</span>
               ) : (
-                <button className="font-semibold text-blue-600" onClick={request}>{tr("Gửi lại")}</button>
+                <button className="inline-flex items-center gap-1 font-semibold text-blue-600" disabled={busy} onClick={request}>{busy && <Spinner />}{tr("Gửi lại")}</button>
               )}
             </p>
             <p className="text-label-md font-normal text-slate-400">{tr("Bản phát triển: mở liên kết trong ")}<Link className="text-blue-600 underline" to="/dev/outbox">{tr("hộp thư dev")}</Link>
             </p>
-            <button className="text-body-sm text-slate-500 hover:text-slate-800" onClick={() => setStep(1)}>{tr("← Quay lại")}</button>
+            <button className="text-body-sm text-slate-500 hover:text-slate-800" disabled={busy} onClick={() => setStep(1)}>{tr("← Quay lại")}</button>
           </div>
         )}
         {step === 3 &&
@@ -156,7 +194,6 @@ export default function ForgotPassword() {
                 <h2 className="text-headline-md text-slate-900">{tr("Đặt mật khẩu mới")}</h2>
                 <p className="text-body-sm text-slate-500">{tr("Bạn sẽ được đăng xuất khỏi tất cả thiết bị sau khi đặt lại.")}</p>
               </div>
-              {error && <Notice tone="danger">{error}</Notice>}
               <Field label={tr("Mật khẩu mới")} required>
                 <PasswordInput value={pw} onChange={(e) => setPw(e.target.value)} autoComplete="new-password" />
                 <PasswordStrength value={pw} />

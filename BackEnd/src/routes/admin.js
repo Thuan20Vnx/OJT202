@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { USER, countBy, ilike, isId, populate, populateAll, prisma } from '../db.js';
-import { requireAuth, requireSystemAdmin } from '../middleware/auth.js';
+import { assertActiveSession, requireAuth, requireSystemAdmin } from '../middleware/auth.js';
 import { disconnectUser } from '../services/realtime.js';
 import { badRequest, forbidden, notFound, parse } from '../utils/http.js';
 import { pagination } from '../utils/http.js';
@@ -27,6 +27,7 @@ const adminMutation = (req, userId, action) =>
     async (tx) => {
       // Khóa theo cùng thứ tự: hai System Admin không thể khóa lẫn nhau rồi mất toàn bộ quyền quản trị.
       await tx.$queryRaw`SELECT id FROM users WHERE "isSystemAdmin" = true OR id = ${userId}::uuid ORDER BY id FOR UPDATE`;
+      await assertActiveSession(req, tx);
       const actor = await tx.user.findUnique({ where: { id: req.user.id } });
       if (!actor?.isSystemAdmin || actor.isLocked) throw forbidden('Quyền quản trị không còn hiệu lực');
       return action(tx);
@@ -67,14 +68,15 @@ router.get('/users', async (req, res) => {
 });
 
 router.post('/users/:id/lock', async (req, res) => {
-  const body = parse(z.object({ reason: z.enum(REASONS, { error: 'Vui lòng chọn lý do khóa' }), note: z.string().max(500).default('') }), req.body);
+  const body = parse(z.object({ reason: z.enum(REASONS, { error: 'Vui lòng chọn lý do khóa' }), note: z.string().trim().max(500).default('') }).strict(), req.body);
   if (req.params.id === req.user.id) throw badRequest('Không thể tự khóa tài khoản của mình');
   const user = await findUser(req.params.id);
   await adminMutation(req, user.id, async (tx) => {
-    await tx.user.update({
-      where: { id: user.id },
+    const changed = await tx.user.updateMany({
+      where: { id: user.id, isLocked: false },
       data: { isLocked: true, lockReason: body.reason, lockNote: body.note, lockedAt: new Date(), lockedBy: req.user.id },
     });
+    if (!changed.count) return;
     // Chặn mọi phiên đăng nhập ngay lập tức
     await revokeAll(tx, user.id);
     await tx.adminAudit.create({ data: { admin: req.user.id, action: 'lock', targetUser: user.id, reason: body.reason, note: body.note } });
@@ -86,7 +88,8 @@ router.post('/users/:id/lock', async (req, res) => {
 router.post('/users/:id/unlock', async (req, res) => {
   const user = await findUser(req.params.id);
   await adminMutation(req, user.id, async (tx) => {
-    await tx.user.update({ where: { id: user.id }, data: { isLocked: false, lockReason: null, lockNote: null, lockedAt: null, lockedBy: null } });
+    const changed = await tx.user.updateMany({ where: { id: user.id, isLocked: true }, data: { isLocked: false, lockReason: null, lockNote: null, lockedAt: null, lockedBy: null } });
+    if (!changed.count) return;
     await tx.adminAudit.create({ data: { admin: req.user.id, action: 'unlock', targetUser: user.id } });
   });
   res.json({ ok: true });

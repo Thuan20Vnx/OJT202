@@ -1,0 +1,3 @@
+
+> typecheck
+> tsc -p BackEnd/tsconfig.json && tsc -p FrontEnd/tsconfig.json

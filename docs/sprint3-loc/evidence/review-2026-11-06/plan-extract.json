@@ -1,0 +1,159 @@
+{
+  "Detail Plan": {
+    "103": {
+      "B103": "U022: AI soạn báo cáo tiến độ",
+      "C103": "Nguyễn Bảo Lộc",
+      "D103": "U022-T3: Đối chiếu số liệu, click nguồn, dữ liệu trống, task đổi quyền và không bịa hoàn thành.\nReview: Nguyễn Hữu Tấn Đạt\nTiền nhiệm: U022-T1, U022-T2\nƯớc lượng: 5 giờ thực hiện + 0.5 giờ review. Trạng thái: Open. Phạm vi: Must.",
+      "E103": "2026-11-18 00:00:00",
+      "F103": "AI soạn báo cáo tiến độ: test case có expected/actual, quyền và biên; report theo build, issue và retest sau sửa."
+    },
+    "106": {
+      "B106": "U023: Giới hạn và theo dõi AI",
+      "C106": "Nguyễn Khoa Hiệp",
+      "D106": "U023-T3: Test hết quota, lỗi 429/5xx, không lộ API key và key chỉ ở backend.\nReview: Nguyễn Bảo Lộc\nTiền nhiệm: U023-T1, U023-T2\nƯớc lượng: 5 giờ thực hiện + 0.5 giờ review. Trạng thái: Open. Phạm vi: Must.",
+      "E106": "2026-11-17 00:00:00",
+      "F106": "Giới hạn và theo dõi AI: test case có expected/actual, quyền và biên; report theo build, issue và retest sau sửa."
+    },
+    "108": {
+      "B108": "U024: Tích hợp và demo AI cuối Sprint 3",
+      "C108": "Hoàng Thị Hải Như",
+      "D108": "U024-T2: Rà soát trải nghiệm từ Kanban sang AI và sửa lỗi phản hồi.\nReview: Nguyễn Bảo Lộc\nTiền nhiệm: U021, U022, U025, U026\nƯớc lượng: 4 giờ thực hiện + 0.5 giờ review. Trạng thái: Open. Phạm vi: Must.",
+      "E108": "2026-11-26 00:00:00",
+      "F108": "Tích hợp và demo AI cuối Sprint 3: màn hình tích hợp API thật, xử lý loading/empty/error/quyền; ảnh hoặc demo gắn build."
+    },
+    "113": {
+      "B113": "U025: AI hỏi đáp theo dữ liệu dự án",
+      "C113": "Nguyễn Khoa Hiệp",
+      "D113": "U025-T0: Tuần 5: tạo bộ phát triển riêng và bộ nghiệm thu 70 ca; khóa đáp án nghiệm thu trước chỉnh prompt; rubric và ACL fixtures; chỉ giao ca nghiệm thu cho người chấm.\nReview: Nguyễn Bảo Lộc\nTiền nhiệm: U015, U023-T1\nƯớc lượng: 4 giờ thực hiện + 0.5 giờ review. Trạng thái: Open. Phạm vi: Must.",
+      "E113": "2026-11-18 00:00:00",
+      "F113": "Hai bộ đề có version/hash, rubric và đáp án chuẩn có phân quyền; không dùng đề nghiệm thu để tinh chỉnh."
+    },
+    "114": {
+      "B114": "U026: Cảnh báo rủi ro có giải thích",
+      "C114": "Trần Hoàng Anh",
+      "D114": "U026-T1: Rule overdue/blocked/overload; threshold phiên bản; snapshot đầu vào; risk là cờ có giải thích, không phải ML; không yêu cầu AI report chạy trước.\nReview: Nguyễn Bảo Lộc\nTiền nhiệm: U019\nƯớc lượng: 6 giờ thực hiện + 0.5 giờ review. Trạng thái: Open. Phạm vi: Must.",
+      "E114": "2026-11-23 00:00:00",
+      "F114": "Cảnh báo rủi ro có giải thích: API/schema hoặc tài liệu đúng công việc ở cột D; contract cập nhật, PR và test tự động theo AC."
+    },
+    "115": {
+      "B115": "U026: Cảnh báo rủi ro có giải thích",
+      "C115": "Trần Xuân Thuận",
+      "D115": "U026-T2: Risk panel, lý do và link task; dismiss lưu actor/reason/source_version; cảnh báo xuất hiện lại khi dữ kiện thay đổi.\nReview: Nguyễn Bảo Lộc\nTiền nhiệm: U019\nƯớc lượng: 4 giờ thực hiện + 0.5 giờ review. Trạng thái: Open. Phạm vi: Must.",
+      "E115": "2026-11-18 00:00:00",
+      "F115": "Cảnh báo rủi ro có giải thích: màn hình tích hợp API thật, xử lý loading/empty/error/quyền; ảnh hoặc demo gắn build."
+    },
+    "116": {
+      "B116": "U026: Cảnh báo rủi ro có giải thích",
+      "C116": "Nguyễn Bảo Lộc",
+      "D116": "U026-T3: Test biên deadline, capacity thiếu/0, task Done và nguyên nhân đúng với dữ liệu.\nReview: Hoàng Thị Hải Như\nTiền nhiệm: U026-T1, U026-T2\nƯớc lượng: 4 giờ thực hiện + 0.5 giờ review. Trạng thái: Open. Phạm vi: Must.",
+      "E116": "2026-11-23 00:00:00",
+      "F116": "Cảnh báo rủi ro có giải thích: test case có expected/actual, quyền và biên; report theo build, issue và retest sau sửa."
+    },
+    "117": {
+      "B117": "U027: Ghi chú họp thành action items",
+      "C117": "Nguyễn Bảo Lộc",
+      "D117": "U027-T1: Tái dùng AI schema/apply, thêm meeting_notes và source span.\nReview: Nguyễn Hữu Tấn Đạt\nTiền nhiệm: U021, U023\nƯớc lượng: 6 giờ thực hiện + 0.5 giờ review. Trạng thái: Open. Phạm vi: Should.",
+      "E117": "2026-11-24 00:00:00",
+      "F117": "Ghi chú họp thành action items: API/schema hoặc tài liệu đúng công việc ở cột D; contract cập nhật, PR và test tự động theo AC.\nShould: chưa nhận vào baseline."
+    },
+    "119": {
+      "B119": "U027: Ghi chú họp thành action items",
+      "C119": "Nguyễn Khoa Hiệp",
+      "D119": "U027-T3: Test tên mơ hồ, nhiều deadline, nhắc phủ định, lặp apply và trích đoạn sai.\nReview: Nguyễn Bảo Lộc\nTiền nhiệm: U027-T1, U027-T2\nƯớc lượng: 4 giờ thực hiện + 0.5 giờ review. Trạng thái: Open. Phạm vi: Should.",
+      "E119": "2026-11-23 00:00:00",
+      "F119": "Ghi chú họp thành action items: test case có expected/actual, quyền và biên; report theo build, issue và retest sau sửa.\nShould: chưa nhận vào baseline."
+    },
+    "120": {
+      "B120": "U028: Quản trị và chính sách truy cập",
+      "C120": "Nguyễn Bảo Lộc",
+      "D120": "U028-T1: Admin API trạng thái user và server-side deny policy, event revoke.\nReview: Nguyễn Khoa Hiệp\nTiền nhiệm: U007, U020\nƯớc lượng: 6 giờ thực hiện + 0.5 giờ review. Trạng thái: Open. Phạm vi: Should.",
+      "E120": "2026-11-17 00:00:00",
+      "F120": "Quản trị và chính sách truy cập: API/schema hoặc tài liệu đúng công việc ở cột D; contract cập nhật, PR và test tự động theo AC.\nShould: chưa nhận vào baseline."
+    },
+    "122": {
+      "B122": "U028: Quản trị và chính sách truy cập",
+      "C122": "Hoàng Thị Hải Như",
+      "D122": "U028-T3: Test tự cấp admin, khóa Owner, phiên đang mở và không đọc dữ liệu riêng.\nReview: Nguyễn Bảo Lộc\nTiền nhiệm: U028-T1, U028-T2\nƯớc lượng: 4 giờ thực hiện + 0.5 giờ review. Trạng thái: Open. Phạm vi: Should.",
+      "E122": "2026-11-16 00:00:00",
+      "F122": "Quản trị và chính sách truy cập: test case có expected/actual, quyền và biên; report theo build, issue và retest sau sửa.\nShould: chưa nhận vào baseline."
+    }
+  },
+  "Process": {
+    "245": {
+      "B245": "UI | Tài khoản / onboarding | Login/register/verify/resend/forgot/reset/profile; workspace switcher/create/member/invite. | Loading/error/empty, hướng dẫn email gửi thất bại; field keyboard/label; route auth không thay ACL server. | U003–U007"
+    },
+    "246": {
+      "B246": "UI | Project / task | Project list/overview/settings/members; Kanban/list/calendar; task drawer AC/checklist/comment/file; My Tasks. | Một nguồn task, filter URL; drop lỗi rollback; có nút đổi trạng thái bằng keyboard; archive hiển thị chỉ đọc. | U008–U018"
+    },
+    "247": {
+      "B247": "UI | Cộng tác / AI | Documents, notification center, activity, workload/capacity, report draft/publish, planner preview, Q&A citation, AI usage. | Chưa apply thì hiển thị nháp; không đủ nguồn thì báo; Should ẩn khi chưa chọn; kết quả đo không điền giả. | U014–U029"
+    },
+    "248": {
+      "B248": "Quyền | Workspace Owner / Admin | Owner quản Owner/workspace; Admin quản Member/Viewer, không nâng thành Owner. Workspace Member có thể làm Project Member/PM khi được cấp; Workspace Viewer chỉ làm Project Viewer. | Owner/Admin không mặc định đọc project private nếu không có project membership. Tạo project là hành động quản trị, creator được cấp PM trong transaction. | U007,U008"
+    },
+    "249": {
+      "B249": "Quyền | Project PM / Member / Viewer | PM quản task/assignee/estimate/member/AI apply/report publish. Member đọc project, bình luận, cập nhật remaining và trạng thái task mình nhận. Viewer chỉ đọc nội dung đã được cấp, không gọi AI tạo chi phí. | Member không tự đổi assignee/estimate/role hoặc đặt Done. Không tự nâng project role vượt quyền workspace. Backend kiểm user active +workspace +project. | U007–U010,U021,U025"
+    },
+    "250": {
+      "B250": "Quyền | System Admin / thu hồi | System Admin quản trạng thái tài khoản, không mặc định đọc nội dung project. Session revoked/user locked kiểm ở mọi API, socket handshake/event và trước gửi AI kết quả. | Thu hồi workspace/project: API/file/RAG chặn ngay; socket bị loại room; cache scope tenant/project/user/permission_version; không hứa thu hồi byte đã tải về. | U004,U007,U028,U030"
+    },
+    "251": {
+      "B251": "Nghiệp vụ | Luồng task | To do→In progress→Review→Done; Member được chuyển task mình nhận tới Review. PM có thể trả Review về In progress và mở lại Done; reopen xóa completed_at, tăng version và audit. | Done lần cuối có completed_at. Risk Blocked là cờ suy ra dependency chưa Done; không thêm status Blocked vào 4 trạng thái sản phẩm. | U010,U018,U026"
+    },
+    "252": {
+      "B252": "Nghiệp vụ | Xóa / archive / rời nhóm | Xóa cha preview và xác nhận soft-delete cha+con; gỡ cạnh dependency liên quan có audit, invalidation index/cache. Project archive chặn ghi. Remove member phải unassign/chuyển task và chuyển PM nếu cần. | Transaction giữ FK/history. Checklist không là task; metric/search/RAG loại task/doc đã xóa. Không tự Done cha khi con/checklist xong. | U007–U015"
+    },
+    "253": {
+      "B253": "Nghiệp vụ | Remaining / workload | PM đặt estimate ban đầu; assignee cập nhật remaining >=0, PM có thể điều chỉnh có audit. Done đặt remaining=0; reopen yêu cầu remaining mới hoặc đánh thiếu estimate. | Chỉ task lá chưa Done/xóa có due trước cuối tuần được cộng. Chưa gán, thiếu hạn/estimate hoặc capacity hiển thị riêng; không tự coi thiếu là 0. | U009,U019"
+    },
+    "254": {
+      "B254": "Nghiệp vụ | Capacity / quyền tổng hợp | Capacity tuần là toàn workspace; workload trong dashboard PM chỉ cộng task thuộc project được đọc. Hiển thị “tải trong phạm vi được phép”, không suy diễn tổng tải toàn cá nhân. | Không tiết lộ số giờ/count project riêng. Người có đủ quyền mới xem tổng workspace; không dùng workload để xếp hạng con người. | U019"
+    },
+    "255": {
+      "B255": "Nghiệp vụ | Báo cáo theo kỳ | period_start/end là khoảng [start,end) theo project timezone đổi UTC. completed_in_period dùng completed_at; current_overdue đo tại generated_at. Snapshot lưu số liệu/nguồn/thời điểm để xem lại. | Không tuyên bố tái dựng backlog lịch sử chỉ từ dữ liệu hiện tại. Task reopen làm thay đổi trạng thái hiện tại; snapshot đã lưu không bị viết lại. ACL vẫn kiểm khi xem nguồn/report. | U019,U020,U022"
+    },
+    "256": {
+      "B256": "Nghiệp vụ | Thông báo / realtime | Nhắc hạn trước 24h theo due_at UTC; không gửi task Done/xóa hoặc user rời project; thay hạn hủy nhắc cũ. Socket chỉ phát sau commit, version tránh stale overwrite. | Reconnect đọc lại DB; worker dedup UNIQUE(user_id,event_key); socket lỗi không làm mất task đã commit. | U016,U017"
+    },
+    "257": {
+      "B257": "Bảo mật | Cookie / upload / dữ liệu | HttpOnly/Secure/SameSite, CORS allowlist, CSRF token cho cookie-auth write, rate limit, validation; secret ở backend; log có redaction. | MIME/magic bytes/size; object storage private +proxy kiểm quyền mỗi lần. Dữ liệu gửi LLM tối thiểu, cấu hình provider được xác nhận trước dữ liệu thật. | U004,U015,U023,U030"
+    },
+    "258": {
+      "B258": "AI | RAG / truy vấn cấu trúc | Chỉ task +text người dùng nhập trong một project, không OCR/crawl/kho ngoài. Câu hỏi đếm/lọc có intent cho SQL qua service quyền; câu hỏi nội dung dùng retrieval có ACL. | Không cho model chạy SQL tự do. Nguồn thiếu/cũ/không quyền thì từ chối; edit/delete/revoke vô hiệu cache/chunks; citation chỉ nguồn đã recheck. | U025"
+    },
+    "259": {
+      "B259": "AI | Quota / latency / ngân sách | Quota request/token theo workspace/ngày; usage ghi token/model/prompt version/queue/latency/status. Timeout 30s/lần, retry tối đa 1, toàn luồng có deadline hữu hạn và trạng thái lỗi. | p95 toàn luồng gồm queue/retry/retrieval; mục tiêu <=20s chỉ xác nhận sau benchmark. Ngân sách 500.000 VND là đề xuất chưa duyệt; giá nhập lúc chốt provider. | U023,U029,U031"
+    },
+    "260": {
+      "B260": "Vận hành | Backup / release | Backup DB +object storage, manifest/checksum; restore rehearsal, rollback code/schema có kế hoạch. HTTPS/health/env trên RC; test report gắn build hash. | 50 user ảo/10.000 task là tải thử đề xuất; ghi query mix/warm-up/10 phút đo, p95/error rate; test không thay kết quả hệ thống thật. | U031,U033,U036"
+    },
+    "261": {},
+    "262": {
+      "B262": "AI và phương pháp đánh giá"
+    },
+    "263": {
+      "B263": "Hạng mục | Story | Cách thực hiện | Bộ kiểm thử / mẫu số | Ngưỡng mục tiêu | Rubric / giới hạn"
+    },
+    "264": {
+      "B264": "Planner | U021 | Mục tiêu/phạm vi/thời gian→schema JSON→preview sửa/chọn→PM duyệt→transaction apply. Không tự đoán người/hạn. | 20 đề nghiệm thu khác đề phát triển; có đầu vào thiếu điều kiện. 2 người chấm độc lập. | Schema >=18/20 sau tối đa 1 retry. Task dùng được >=80% trên tổng task sinh ra; rubric từng task. | Rubric task: đúng phạm vi, title rõ, description đủ, AC kiểm được, estimate có lý do; không sửa lớn khi đủ 5/5 và không gán sai người/hạn."
+    },
+    "265": {
+      "B265": "Báo cáo | U022 | SQL tính số, LLM diễn giải và trích task nguồn; snapshot theo generated_at; người dùng chỉnh trước publish. | 20 snapshot chuẩn, rỗng/overdue/reopen/đổi kỳ/thu hồi quyền; expected metrics cố định. | 100% chỉ tiêu số đúng; >=90% nhận định có nguồn hỗ trợ trên tổng nhận định kiểm được. | Chỉ tiêu số sai là fail dù văn phong hay. completed_in_period khác current_overdue tại generated_at."
+    },
+    "266": {
+      "B266": "Q&A có nguồn | U025 | Task/text một project→ACL→retrieve hoặc SQL intent→LLM/citation→recheck. Retrieval lỗi thì báo lỗi, không trả từ model memory. | 40 câu có đáp án +10 ngoài dữ liệu +20 quyền/injection giữ kín; bộ phát triển riêng. | Đúng >=32/40; từ chối đúng >=9/10; 0 rò rỉ trong 20 ca. Citation đúng >=90% trên tổng citation được trả. | Câu đúng phải đủ ý đáp án, không thêm chi tiết sai; citation phải hỗ trợ nhận định và mở được theo quyền. Không citation cho câu cần nguồn là fail câu đó."
+    },
+    "267": {
+      "B267": "Risk rules | U026 | Luật overdue/dependency/workload +snapshot; AI chỉ diễn giải lý do. | 20 ca biên có expected: due null, Done, capacity null/0, task cha/con, dependency cycle. | 20/20 kết quả luật đúng; mọi cảnh báo có rule và nguồn. | Không gọi đây là mô hình dự báo ML; dismiss theo source_version, dữ kiện đổi cảnh báo trở lại."
+    },
+    "268": {
+      "B268": "Meeting actions (Should) | U027 | Văn bản họp→action +trích đoạn→chỉnh→duyệt; không ghi âm/bot. | Chỉ chạy nếu chọn U027: 15 ghi chú, tên trùng/hạn mơ hồ/phủ định. | Precision >=85%: action đúng /tổng action AI đề xuất; không tự gán người/hạn thiếu căn cứ. | Không thuộc gate Must; nếu không chọn thì ghi Không áp dụng, không ghi 0 điểm."
+    },
+    "269": {
+      "B269": "Hai người chấm | U025,U029 | Người 1 và 2 chấm độc lập theo đáp án/rubric trước thảo luận; lưu cả điểm gốc. | Mỗi ca lưu id, input/output, điểm tiêu chí, nguồn và lý do. Bất đồng được đối soát bởi PIC không trực tiếp tạo output. | Bảng tử/mẫu, tỷ lệ đồng thuận và quyết định cuối có lý do. | Không lấy feedback like/dislike làm ground truth; không loại ca thất bại khỏi mẫu số."
+    },
+    "270": {
+      "B270": "Đóng băng bộ đề | U025-T0,U029 | Tách bộ phát triển được xem với bộ nghiệm thu giữ kín; khóa version/hash trước chỉnh prompt. | Bộ nghiệm thu chạy trên build/model/prompt/data version ghi rõ. Mọi thay đổi đề phải lưu lý do, giữ kết quả cũ. | Không dùng lại đáp án nghiệm thu để tinh chỉnh rồi báo là kết quả độc lập. | Nguồn quyền/injection giữ an toàn; dữ liệu demo không phải dữ liệu khách hàng thật."
+    }
+  }
+}

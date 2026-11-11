@@ -1,6 +1,6 @@
 # Cài đặt và bàn giao TaskFlow
 
-Version 2026-10-29; chạy lệnh tại thư mục chứa package.json gốc (ví dụ `D:\OJT\Project\OJT202`), không cần thư mục con tên taskflow. Node 24 là phiên bản CI đang dùng. Giữ cả `shared/`, migrations và lockfile khi sao chép.
+Version 2026-10-29; chạy lệnh tại thư mục chứa package.json gốc (ví dụ `D:\OJT\Project\OJT202`), không cần thư mục con tên taskflow. Yêu cầu Node >=24.15.0 để chạy backend TypeScript; CI dùng Node 24. Giữ cả `shared/`, migrations và lockfile khi sao chép.
 
 ## Máy mới — PowerShell
 
@@ -27,7 +27,7 @@ Demo dev: `mai.anh@nhom24.edu.vn` (Owner/PM), `nhu@nhom24.edu.vn` (Member), `kha
 
 ```powershell
 npm --prefix FrontEnd run lint
-npm --prefix FrontEnd run typecheck
+npm run typecheck
 npm test
 npm run test:e2e
 node scripts/generate-contract-docs.mjs

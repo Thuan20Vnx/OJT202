@@ -34,19 +34,19 @@ export async function startSession(res, req, user, { remember = false } = {}) {
       },
     });
   });
-  setAuthCookies(res, signAccess(user.id, session.id), refresh, session);
+  setAuthCookies(res, signAccess(user.id, session.id), refresh, session, req.baseUrl);
   return session;
 }
 
-export function setAuthCookies(res, access, refresh, session) {
+export function setAuthCookies(res, access, refresh, session, authPath = '/api/auth') {
   const remaining = Math.max(0, new Date(session.expiresAt).getTime() - Date.now());
   res.cookie(ACCESS_COOKIE, access, { ...cookieBase(), path: '/', ...(session.remember ? { maxAge: Math.min(config.accessTtlSec * 1000, remaining) } : {}) });
-  res.cookie(REFRESH_COOKIE, refresh, { ...cookieBase(), path: '/api/auth', ...(session.remember ? { maxAge: remaining } : {}) });
+  res.cookie(REFRESH_COOKIE, refresh, { ...cookieBase(), path: authPath, ...(session.remember ? { maxAge: remaining } : {}) });
 }
 
-export function clearAuthCookies(res) {
+export function clearAuthCookies(res, authPath = '/api/auth') {
   res.clearCookie(ACCESS_COOKIE, { ...cookieBase(), path: '/' });
-  res.clearCookie(REFRESH_COOKIE, { ...cookieBase(), path: '/api/auth' });
+  res.clearCookie(REFRESH_COOKIE, { ...cookieBase(), path: authPath });
 }
 
 /** Xác thực access token và kiểm tra phiên còn hiệu lực, tài khoản chưa bị khóa. */
@@ -80,6 +80,15 @@ export async function requireAuth(req, _res, next) {
 export function requireSystemAdmin(req, _res, next) {
   if (!req.user?.isSystemAdmin) throw forbidden('Chỉ System Admin mới truy cập được');
   next();
+}
+
+/** Recheck a long-running request inside its commit transaction. The user lock
+ * orders it against admin lock/logout and password/session revocation. */
+export async function assertActiveSession(req, db = prisma, lock = false) {
+  if (lock) await db.$queryRaw`SELECT id FROM users WHERE id = ${req.user.id}::uuid FOR UPDATE`;
+  const session = await db.session.findUnique({ where: { id: req.session.id }, include: { userRef: true } });
+  if (!session || session.user !== req.user.id || session.revokedAt || session.expiresAt <= new Date() || session.userRef.isLocked)
+    throw unauthorized('Phiên đăng nhập đã bị thu hồi. Vui lòng đăng nhập lại.');
 }
 
 /** Chống CSRF: mọi request ghi phải kèm header tùy biến mà form chéo trang không gửi được. */

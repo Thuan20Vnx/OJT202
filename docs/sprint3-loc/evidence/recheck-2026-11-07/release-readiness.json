@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "kind": "release-readiness",
+  "build": {
+    "revision": "5ac8b1810d5158406392cbe85013f3810836a535",
+    "sourceHash": "4b3c73b50d8b8b26f50a84df3bbe8e0482ca974ef97714e305ffd6a596fccf8b",
+    "sourceHashAlgorithm": "sha256-lf-v1",
+    "promptHash": "8cfd6b9adb4d3f9eb1a3c37e2c8eea77dc8ac74430c6d2fcec69dae23317804b",
+    "dirty": false,
+    "node": "v24.15.0"
+  },
+  "gates": {
+    "U029": {
+      "status": "pending",
+      "reason": "Missing evidence"
+    },
+    "U030": {
+      "status": "pending",
+      "reason": "Missing evidence"
+    },
+    "U031": {
+      "status": "pending",
+      "reason": "Missing evidence"
+    },
+    "U032": {
+      "status": "pending",
+      "reason": "Missing evidence"
+    },
+    "U033": {
+      "status": "pending",
+      "reason": "Missing evidence"
+    },
+    "U034": {
+      "status": "pending",
+      "reason": "Missing evidence"
+    },
+    "U035": {
+      "status": "pending",
+      "reason": "Missing evidence"
+    }
+  },
+  "blockers": [],
+  "readyForFinal": false,
+  "status": "pending",
+  "tagAllowed": false,
+  "pending": [
+    "U029",
+    "U030",
+    "U031",
+    "U032",
+    "U033",
+    "U034",
+    "U035"
+  ]
+}

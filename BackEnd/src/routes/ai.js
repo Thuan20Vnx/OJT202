@@ -1,18 +1,19 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { USER, isId, nextSeq, populate, populateAll, prisma } from '../db.js';
-import { requireAuth } from '../middleware/auth.js';
+import { USER, isId, nextSeq, populate, prisma } from '../db.js';
+import { assertActiveSession, requireAuth } from '../middleware/auth.js';
 import { assertManage, assertWrite, middlewareProject, projectAccess } from '../middleware/access.js';
 import { logActivityIn } from '../services/activity.js';
 import { withWorkspaceLock } from '../services/membership.js';
 import { runAi, usageToday } from '../services/ai/gateway.js';
 import { annotateConversation, collectSources, reportSourceRevision, sourceFingerprint } from '../services/ai/qa.js';
 import { buildReportData } from '../services/ai/report.js';
+import { reportPeriod } from '../services/ai/report-period.js';
 import { notify } from '../services/notify.js';
 import { emitProject } from '../services/realtime.js';
 import { badRequest, conflict, notFound, parse } from '../utils/http.js';
-import { randomToken } from '../utils/security.js';
-import { BUSINESS_TIMEZONE, isDateInput, parseDate } from '../utils/dates.js';
+import { randomToken, sha256 } from '../utils/security.js';
+import { isDateInput, parseDate } from '../utils/dates.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -21,9 +22,10 @@ router.use(requireAuth);
 const plainJson = (v) => JSON.parse(JSON.stringify(v));
 
 async function projectMembers(project) {
-  const users = await prisma.user.findMany({ where: { id: { in: project.members } }, select: USER });
+  const users = await prisma.user.findMany({ where: { id: { in: project.members }, isLocked: false }, select: USER });
   const ms = await prisma.membership.findMany({ where: { workspace: project.workspace, user: { in: project.members } } });
-  return users.filter((u) => ms.some((m) => m.user === u.id && m.role !== 'viewer')).map((u) => ({ ...u, jobTitle: ms.find((m) => m.user === u.id)?.title || u.title }));
+  const pms = await prisma.projectMember.findMany({ where: { project: project.id, role: { not: 'viewer' } } });
+  return users.filter((u) => pms.some((m) => m.user === u.id) && ms.some((m) => m.user === u.id && m.role !== 'viewer')).map((u) => ({ ...u, jobTitle: ms.find((m) => m.user === u.id)?.title || u.title }));
 }
 
 router.get('/projects/:projectId/ai/usage', middlewareProject(), async (req, res) => {
@@ -55,6 +57,7 @@ router.get('/ai/drafts/:id', async (req, res) => {
 
 async function createDraft(req, type, title, input, items) {
   const draft = await withWorkspaceLock(req.pa.project.workspace, async (tx) => {
+    await assertActiveSession(req, tx, true);
     assertManage(await projectAccess(req.user.id, req.pa.project.id, tx));
     return tx.aiDraft.create({
       data: {
@@ -63,7 +66,7 @@ async function createDraft(req, type, title, input, items) {
         user: req.user.id,
         type,
         title,
-        input,
+        input: type === 'meeting' ? { ...input, sourceHash: sha256(input.text), spanEncoding: 'utf-16' } : input,
         items: plainJson(
           items.map((it) => ({
             ...it,
@@ -129,6 +132,7 @@ const checkDraftVersion = (draft, version) => {
 router.patch('/ai/drafts/:id', async (req, res) => {
   const initial = await ownDraft(req);
   await withWorkspaceLock(initial.workspace, async (tx) => {
+    await assertActiveSession(req, tx, true);
     const draft = await ownDraft(req, tx);
     const access = await projectAccess(req.user.id, draft.project, tx);
     assertManage(access);
@@ -162,6 +166,7 @@ router.patch('/ai/drafts/:id', async (req, res) => {
 router.post('/ai/drafts/:id/discard', async (req, res) => {
   const initial = await ownDraft(req);
   await withWorkspaceLock(initial.workspace, async (tx) => {
+    await assertActiveSession(req, tx, true);
     const draft = await ownDraft(req, tx);
     assertManage(await projectAccess(req.user.id, draft.project, tx));
     const { version } = parse(z.object({ version: draftVersion }).strict(), req.body);
@@ -181,6 +186,7 @@ router.post('/ai/drafts/:id/discard', async (req, res) => {
 router.post('/ai/drafts/:id/approve', async (req, res) => {
   const initial = await ownDraft(req);
   const { project, created, newTasks } = await withWorkspaceLock(initial.workspace, async (tx) => {
+    await assertActiveSession(req, tx, true);
     const draft = await ownDraft(req, tx);
     const access = await projectAccess(req.user.id, draft.project, tx);
     assertManage(access);
@@ -191,6 +197,14 @@ router.post('/ai/drafts/:id/approve', async (req, res) => {
       const selected = draft.items.filter((x) => x.selected);
       if (!selected.length) throw badRequest('Chọn ít nhất một công việc để duyệt');
       for (const item of selected) parse(itemPatch.omit({ key: true }).extend({ title: z.string().trim().min(1).max(200) }).passthrough(), item);
+      if (draft.type === 'meeting') {
+        if (draft.input.sourceHash && sha256(draft.input.text) !== draft.input.sourceHash) throw conflict('Biên bản gốc đã thay đổi');
+        for (const item of selected) {
+          const { start, end } = item.sourceSpan || {};
+          const valid = item.sourceSpan ? draft.input.text.slice(start, end) === item.excerpt : draft.input.text.includes(item.excerpt);
+          if (!item.excerpt || !valid) throw badRequest('Trích đoạn không khớp biên bản gốc');
+        }
+      }
       if (draft.type === 'plan') {
         const total = selected.reduce((sum, it) => sum + (it.estimateHours ?? 0), 0);
         if (draft.input?.maxHours != null && total > draft.input.maxHours + 1e-9) throw badRequest(`Tổng giờ đã chọn vượt giới hạn ${draft.input.maxHours} giờ của kế hoạch`);
@@ -204,7 +218,8 @@ router.post('/ai/drafts/:id/approve', async (req, res) => {
     const newTasks = [];
     const members = await tx.membership.findMany({ where: { workspace: project.workspace, user: { in: project.members }, role: { not: 'viewer' } }, select: { user: true } });
     const projectMembers = await tx.projectMember.findMany({ where: { project: project.id, role: { not: 'viewer' } }, select: { user: true } });
-    const eligible = new Set(projectMembers.map((m) => m.user).filter((id) => members.some((m) => m.user === id)));
+    const activeUsers = await tx.user.findMany({ where: { id: { in: project.members }, isLocked: false }, select: { id: true } });
+    const eligible = new Set(projectMembers.map((m) => m.user).filter((id) => members.some((m) => m.user === id) && activeUsers.some((u) => u.id === id)));
     if (draft.status === 'draft' && draft.type === 'plan' && draft.input?.people != null) {
       const recipients = new Set(draft.items.filter((it) => it.selected && eligible.has(it.assignee)).map((it) => it.assignee));
       if (recipients.size > draft.input.people) throw badRequest(`Số người nhận đã chọn vượt giới hạn ${draft.input.people} người của kế hoạch`);
@@ -231,7 +246,7 @@ router.post('/ai/drafts/:id/approve', async (req, res) => {
           key: `${project.keyPrefix}-${number}`,
           title: it.title,
           description: [it.description, it.excerpt ? `Trích biên bản: “${it.excerpt}”` : ''].filter(Boolean).join('\n\n'),
-          acceptanceCriteria: it.acceptanceCriteria || [],
+          acceptanceCriteria: (it.acceptanceCriteria || []).join('\n'),
           estimateHours: it.estimateHours ?? null,
           remainingHours: it.estimateHours ?? null,
           priority: it.priority || 'medium',
@@ -302,16 +317,19 @@ router.post('/projects/:projectId/ai/meeting', middlewareProject(), async (req, 
 });
 
 // ===================== BÁO CÁO TIẾN ĐỘ =====================
-async function loadReport(id) {
-  const report = await prisma.aiReport.findUnique({ where: { id } });
-  if (!report) return null;
+async function loadReport(report) {
+  if (report.periodConvention === 'exclusive-end') {
+    report.period_start = report.from;
+    report.period_end = report.to;
+  }
   const revision = await reportSourceRevision(report.project);
   report.sourceState = !report.sourceRevision ? 'unknown' : report.sourceRevision === revision ? 'current' : 'changed';
   const expectedSources = report.sourceTasks.length;
-  await populateAll(report, [
-    ['sections.refs', 'task', { key: true, title: true, status: true }],
-    ['sourceTasks', 'task', { key: true, title: true, status: true }],
-    ['user', 'user', USER],
+  const select = { key: true, title: true, status: true };
+  await Promise.all([
+    populate(report, 'sections.refs', 'task', select),
+    populate(report, 'sourceTasks', 'task', select),
+    populate(report, 'user', 'user', USER),
   ]);
   report.missingSources = expectedSources - report.sourceTasks.length;
   return report;
@@ -324,26 +342,32 @@ router.get('/projects/:projectId/ai/reports', middlewareProject(), async (req, r
     orderBy: { createdAt: 'desc' },
     take: 20,
   });
-  await populate(reports, 'user', 'user', USER);
+  await Promise.all([
+    populate(reports, 'user', 'user', USER),
+    populate(reports, 'sourceTasks', 'task', { id: true }),
+  ]);
+  for (const report of reports) report.sourceTasks = report.sourceTasks.map((task) => task.id);
   res.json({ reports });
 });
 
 router.get('/ai/reports/:id', async (req, res) => {
-  const report = isId(req.params.id) ? await loadReport(req.params.id) : null;
+  const report = isId(req.params.id) ? await prisma.aiReport.findUnique({ where: { id: req.params.id } }) : null;
   if (!report) throw notFound('Không tìm thấy báo cáo');
   await projectAccess(req.user.id, report.project);
-  if (report.status !== 'shared' && report.user?.id !== req.user.id) throw notFound('Không tìm thấy báo cáo');
-  res.json({ report });
+  if (report.status !== 'shared' && report.user !== req.user.id) throw notFound('Không tìm thấy báo cáo');
+  res.json({ report: await loadReport(report) });
 });
 
 router.post('/projects/:projectId/ai/reports', middlewareProject(), async (req, res) => {
   assertManage(req.pa);
-  const body = parse(z.object({ from: z.string(), to: z.string(), template: z.enum(['week', 'sprint', 'lecturer']).default('week') }), req.body);
-  if (!isDateInput(body.from) || !isDateInput(body.to)) throw badRequest('Khoảng ngày không hợp lệ');
-  const from = parseDate(body.from);
-  const to = parseDate(body.to, BUSINESS_TIMEZONE, true);
-  if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime()) || to < from) throw badRequest('Khoảng ngày không hợp lệ');
+  const template = z.enum(['week', 'sprint', 'lecturer']).default('week');
+  const body = parse(z.union([
+    z.object({ period_start: z.string(), period_end: z.string(), template }).strict(),
+    z.object({ from: z.string(), to: z.string(), template }).strict(),
+  ]), req.body);
   const project = req.pa.project;
+  const period = reportPeriod(body, project.timezone);
+  const { from, to, timezone } = period;
   const revision = await reportSourceRevision(project.id);
   const data = await buildReportData(project.id, from, to, project);
   // AIService chỉ viết tóm tắt & đề xuất từ số liệu đã tính sẵn bằng truy vấn DB
@@ -359,24 +383,26 @@ router.post('/projects/:projectId/ai/reports', middlewareProject(), async (req, 
     },
   });
   const tpl = { week: 'Báo cáo tiến độ tuần', sprint: 'Báo cáo Sprint', lecturer: 'Báo cáo cho giảng viên' }[body.template];
-  const fmt = (d) => d.toLocaleDateString('vi-VN', { timeZone: BUSINESS_TIMEZONE, day: '2-digit', month: '2-digit' });
+  const fmt = (d) => d.toLocaleDateString('vi-VN', { timeZone: timezone, day: '2-digit', month: '2-digit' });
   const report = await withWorkspaceLock(project.workspace, async (tx) => {
-    assertManage(await projectAccess(req.user.id, project.id, tx));
+    await assertActiveSession(req, tx, true);
+    const currentAccess = await projectAccess(req.user.id, project.id, tx);
+    assertManage(currentAccess);
+    if (currentAccess.project.timezone !== timezone) throw conflict('Múi giờ dự án đã thay đổi. Vui lòng tạo lại báo cáo.', { code: 'AI_SOURCES_CHANGED' });
     if ((await reportSourceRevision(project.id)) !== revision) throw conflict('Nguồn dự án đã thay đổi trong lúc tạo báo cáo. Vui lòng tạo lại.', { code: 'AI_SOURCES_CHANGED' });
     return tx.aiReport.create({
       data: {
         workspace: project.workspace,
         project: project.id,
         user: req.user.id,
-        title: `${tpl} ${fmt(from)}–${fmt(to)} – ${project.name}`,
+        title: `${tpl} ${fmt(from)}–${fmt(new Date(to.getTime() - 1))} – ${project.name}`,
         template: body.template,
-        from,
-        to,
+        ...period,
         sourceRevision: revision,
         generatedAt: data.generatedAt,
         stats: data.stats,
         sections: [
-          { key: 'summary', title: 'Tóm tắt', body: narrative.summary, refs: [], aiSuggested: true },
+          { key: 'summary', title: 'Tóm tắt', body: data.summary, refs: data.sourceTasks, aiSuggested: false },
           ...data.sections,
           { key: 'suggestions', title: 'Đề xuất', body: narrative.suggestions, refs: data.risks.flatMap((r) => r.tasks.map((t) => t.id)).slice(0, 10), aiSuggested: true },
         ],
@@ -384,13 +410,14 @@ router.post('/projects/:projectId/ai/reports', middlewareProject(), async (req, 
       },
     });
   });
-  res.status(201).json({ report: await loadReport(report.id), meta: narrative._meta });
+  res.status(201).json({ report: await loadReport(report), meta: narrative._meta });
 });
 
 router.patch('/ai/reports/:id', async (req, res) => {
   const found = isId(req.params.id) ? await prisma.aiReport.findUnique({ where: { id: req.params.id } }) : null;
   if (!found || found.user !== req.user.id) throw notFound('Không tìm thấy báo cáo');
-  await withWorkspaceLock(found.workspace, async (tx) => {
+  const updated = await withWorkspaceLock(found.workspace, async (tx) => {
+    await assertActiveSession(req, tx, true);
     assertManage(await projectAccess(req.user.id, found.project, tx));
     const report = await tx.aiReport.findUniqueOrThrow({ where: { id: found.id } });
     const body = parse(
@@ -423,15 +450,16 @@ router.patch('/ai/reports/:id', async (req, res) => {
         entityLabel: data.title || report.title,
       });
     }
-    await tx.aiReport.update({ where: { id: report.id }, data });
+    return tx.aiReport.update({ where: { id: report.id }, data });
   });
-  res.json({ report: await loadReport(found.id) });
+  res.json({ report: await loadReport(updated) });
 });
 
 router.delete('/ai/reports/:id', async (req, res) => {
   const report = isId(req.params.id) ? await prisma.aiReport.findFirst({ where: { id: req.params.id, user: req.user.id } }) : null;
   if (report)
     await withWorkspaceLock(report.workspace, async (tx) => {
+      await assertActiveSession(req, tx, true);
       assertManage(await projectAccess(req.user.id, report.project, tx));
       await tx.aiReport.deleteMany({ where: { id: report.id, user: req.user.id, status: 'draft' } });
     });
@@ -498,6 +526,7 @@ router.post('/projects/:projectId/ai/ask', middlewareProject(), async (req, res)
   const out = await runAi({ workspaceId: project.workspace, userId: req.user.id, feature: 'qa', payload: { question: body.question, projectName: project.name, sources } });
   // Kiểm lại quyền trước khi trả kết quả (phòng quyền bị thu hồi trong lúc AI chạy)
   const conversation = await withWorkspaceLock(project.workspace, async (tx) => {
+    await assertActiveSession(req, tx, true);
     assertWrite(await projectAccess(req.user.id, project.id, tx));
     if (sourceFingerprint(sources) !== sourceFingerprint(await collectSources(project.id))) {
       throw conflict('Nguồn dự án đã thay đổi trong lúc AI trả lời. Vui lòng hỏi lại để dùng dữ liệu mới nhất.', { code: 'AI_SOURCES_CHANGED' });
