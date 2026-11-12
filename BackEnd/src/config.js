@@ -69,11 +69,24 @@ export const config = {
     serviceKey: env.SUPABASE_SERVICE_KEY || '',
     bucket: env.SUPABASE_BUCKET || 'taskflow-uploads',
   },
+  repo: {
+    // Chỉ bật khi GitLab tự host nằm trong mạng nội bộ; mặc định chặn địa chỉ riêng để tránh SSRF.
+    allowPrivateHosts: env.REPO_ALLOW_PRIVATE_HOST === 'true',
+    githubApi: (env.GITHUB_API_URL || 'https://api.github.com').replace(/\/+$/, ''),
+  },
+  agent: {
+    // Nguồn tra cứu công cụ cho gợi ý hằng ngày (công khai, miễn phí); đổi được để test bằng server giả.
+    mcpRegistryUrl: (env.MCP_REGISTRY_URL || 'https://registry.modelcontextprotocol.io').replace(/\/+$/, ''),
+    npmSearchUrl: env.NPM_SEARCH_URL || 'https://registry.npmjs.org/-/v1/search',
+  },
   ai: {
     // AIService (thư mục AIService) – BackEnd gọi qua HTTP, khóa dùng chung đặt giống bên AIService
     serviceUrl: (env.AI_SERVICE_URL || 'http://localhost:5000').replace(/\/+$/, ''),
     serviceKey: env.AI_SERVICE_KEY || '',
     timeoutMs: Number(env.AI_TIMEOUT_MS || 30000),
+    // Thời gian chờ tối thiểu theo tính năng, thắng cả AI_TIMEOUT_MS lẫn cài đặt workspace: model miễn phí
+    // (Gemini Flash có bước suy luận) thường mất 20–40 giây cho kế hoạch và hỏi đáp, chờ 30 giây là hay báo "AI đang bận".
+    featureMinTimeoutMs: { planner: 90000, qa: 60000, meeting: 60000, report: 60000 },
   },
 };
 

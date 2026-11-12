@@ -9,9 +9,9 @@ import { hash, requireValue } from './core.mjs';
 /** Database isolation is mandatory; a paid AI provider needs explicit caller opt-in. */
 export async function startFixture({ production = false, build = null, provider = 'local', requestLimit = 2000 } = {}) {
   requireValue(['local', 'configured'].includes(provider), 'Provider must be local or configured');
-  const apiKey = provider === 'configured' ? process.env.ANTHROPIC_API_KEY : '';
-  requireValue(provider === 'local' || apiKey, 'Configured provider needs an explicit ANTHROPIC_API_KEY');
-  Object.assign(process.env, { NODE_ENV: 'test', DATABASE_URL: '', MAIL_MODE: 'outbox', ANTHROPIC_API_KEY: apiKey ?? '', AI_SERVICE_KEY: randomBytes(24).toString('hex') });
+  const apiKey = provider === 'configured' ? process.env.GEMINI_API_KEY : '';
+  requireValue(provider === 'local' || apiKey, 'Configured provider needs an explicit GEMINI_API_KEY');
+  Object.assign(process.env, { NODE_ENV: 'test', DATABASE_URL: '', MAIL_MODE: 'outbox', GEMINI_API_KEY: apiKey ?? '', AI_SERVICE_KEY: randomBytes(24).toString('hex') });
   const uploads = await fs.mkdtemp(path.join(os.tmpdir(), 'taskflow-sprint4-'));
   process.env.UPLOAD_DIR = uploads;
   let ai, server, io, db;

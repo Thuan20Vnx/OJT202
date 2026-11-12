@@ -5,7 +5,7 @@
   "type": "module",
   "main": "src/index.ts",
   "scripts": {
-    "dev": "node --watch src/index.ts",
+    "dev": "node --watch-path=src --watch-path=../shared src/index.ts",
     "start": "node src/index.ts",
     "seed": "node src/seed-cli.js",
     "test": "node --test --test-concurrency=1 \"test/**/*.test.js\"",

@@ -22,7 +22,7 @@ export async function cleanInstall() {
     for (const args of [['ci'], ['--prefix', 'BackEnd', 'ci'], ['--prefix', 'AIService', 'ci'], ['--prefix', 'FrontEnd', 'ci'], ['run', 'build'], ['run', 'test:validation']]) {
       const started = performance.now();
       try {
-        const result = await promisify(execFile)(process.execPath, [npmCli, ...args], { cwd: directory, windowsHide: true, timeout: 180000, maxBuffer: 5 * 1024 * 1024, env: { ...process.env, DATABASE_URL: '', ANTHROPIC_API_KEY: '', NODE_ENV: 'test' } });
+        const result = await promisify(execFile)(process.execPath, [npmCli, ...args], { cwd: directory, windowsHide: true, timeout: 180000, maxBuffer: 5 * 1024 * 1024, env: { ...process.env, DATABASE_URL: '', GEMINI_API_KEY: '', NODE_ENV: 'test' } });
         steps.push({ command: `npm ${args.join(' ')}`, status: 'passed', elapsedMs: performance.now() - started, log: result.stdout + result.stderr });
       } catch (error) {
         steps.push({ command: `npm ${args.join(' ')}`, status: 'failed', elapsedMs: performance.now() - started, log: `${error.stdout ?? ''}${error.stderr ?? ''}`, code: error.code });

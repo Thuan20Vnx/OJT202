@@ -472,7 +472,7 @@ router.patch('/:wsId/ai', middlewareWorkspace('wsId', 'admin'), async (req, res)
       enabled: z.boolean().optional(),
       dailyLimit: z.number().int().min(0, 'Hạn mức không âm').max(10000).optional(),
       timeoutSec: z.number().int().min(5).max(120).optional(),
-      features: z.object({ planner: z.boolean(), report: z.boolean(), qa: z.boolean(), risk: z.boolean(), meeting: z.boolean() }).partial().optional(),
+      features: z.object({ planner: z.boolean(), report: z.boolean(), qa: z.boolean(), risk: z.boolean(), meeting: z.boolean(), suggest: z.boolean() }).partial().optional(),
     }),
     req.body,
   );

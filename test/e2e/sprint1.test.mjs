@@ -13,7 +13,7 @@ process.env.MAIL_MODE = 'outbox';
 process.env.DATABASE_URL = '';
 const uploads = await fs.mkdtemp(path.join(os.tmpdir(), 'taskflow-sprint1-'));
 process.env.UPLOAD_DIR = uploads;
-process.env.ANTHROPIC_API_KEY = '';
+process.env.GEMINI_API_KEY = '';
 const { createApp: createAiApp } = await import('../../AIService/src/app.js');
 const aiServer = http.createServer(createAiApp());
 await new Promise((resolve) => aiServer.listen(0, '127.0.0.1', resolve));
@@ -282,10 +282,14 @@ test('Như Sprint 2–4: My Tasks, comment retry/mention, nguồn tài liệu AI
     const docRes = await ctx.request.post(`/api/projects/${project._id}/documents`, { headers, data: { name: 'Quy trình Sao Bắc', content: 'Mã nghiệm thu Sao Bắc là ORION742. Nhóm Sao Bắc chốt nghiệm thu vào thứ Sáu.' } });
     assert.equal(docRes.status(), 201);
     const doc = (await docRes.json()).document;
+    // Hỏi đáp trên web chỉ giao cho agent trên máy (CI không có agent): tạo câu trả lời qua API rồi mở từ Lịch sử
+    // để vẫn kiểm trích dẫn bấm được và mở đúng nguồn.
+    const askRes = await ctx.request.post(`/api/projects/${project._id}/ai/ask`, { headers, data: { question: 'Mã nghiệm thu Sao Bắc là gì?' } });
+    assert.equal(askRes.status(), 200);
     await page.goto('/ai/qa');
     await expect(page.getByText('Nguồn được đọc trực tiếp khi hỏi; chưa có chỉ mục tìm kiếm nền.')).toBeVisible();
-    await page.getByRole('textbox', { name: 'Câu hỏi về dự án' }).fill('Mã nghiệm thu Sao Bắc là gì?');
-    await page.getByRole('button', { name: 'Gửi', exact: true }).click();
+    await expect(page.getByRole('textbox', { name: 'Câu hỏi về dự án' })).toBeVisible();
+    await page.getByRole('button').filter({ hasText: 'Mã nghiệm thu Sao Bắc là gì?' }).first().click();
     await expect(page.getByRole('button').filter({ hasText: `${doc.name} · đoạn 1` })).toBeVisible();
     await page.screenshot({ path: path.join(artifacts, 'nhu-qa-citation.png'), fullPage: true });
     await page.getByRole('button').filter({ hasText: `${doc.name} · đoạn 1` }).click();

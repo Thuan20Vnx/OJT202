@@ -64,5 +64,6 @@ export function errorHandler(err, req, res, _next) {
   if (err?.code === 'P2002') return res.status(409).json({ error: 'Dữ liệu bị trùng', details: { fields: err.meta?.target } });
   const status = err.status || 500;
   if (status >= 500) console.error('[error]', err);
-  res.status(status).json({ error: status >= 500 ? 'Đã có lỗi xảy ra, vui lòng thử lại' : err.message, details: err.details });
+  // HttpError là câu báo do code chủ động viết (ví dụ AI đang bận); lỗi bất ngờ thì không lộ chi tiết.
+  res.status(status).json({ error: status >= 500 && !(err instanceof HttpError) ? 'Đã có lỗi xảy ra, vui lòng thử lại' : err.message, details: err.details });
 }

@@ -18,10 +18,12 @@ jobs:
             BackEnd/package-lock.json
             FrontEnd/package-lock.json
             AIService/package-lock.json
+            mcp/package-lock.json
       - run: npm ci
       - run: npm --prefix BackEnd ci
       - run: npm --prefix FrontEnd ci
       - run: npm --prefix AIService ci
+      - run: npm --prefix mcp ci
       - run: npm --prefix FrontEnd run lint
       - run: npm run typecheck
       - run: npm test
