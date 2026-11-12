@@ -69,7 +69,7 @@ export default function Qa({ project, disabled }) {
       setQ(pending);
       setPending(null);
     }
-  }, [agentRun.job?.status]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [agentRun.job?.status]);
   const messages = pending ? [...(conv?.messages || []), { role: 'user', content: pending, createdAt: agentRun.job?.createdAt || new Date(), pending: true }] : conv?.messages;
 
   const taskCount = scope.data?.tasks;
