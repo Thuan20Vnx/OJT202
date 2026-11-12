@@ -27,6 +27,7 @@ export default function Qa({ project, disabled }) {
   const list = useLoad(() => api.get(`/projects/${project._id}/ai/conversations`), [project._id, conv?._id, conv?.messages?.length]);
   const scope = useLoad(() => api.get(`/projects/${project._id}/ai/sources`), [project._id]);
   useSocketEvent('documents:changed', () => { scope.reload(); list.reload(); }, [scope.reload, list.reload]);
+  useSocketEvent('board:refresh', scope.reload, [scope.reload]);
 
   useEffect(() => {
     end.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -234,7 +235,7 @@ export default function Qa({ project, disabled }) {
           {info && !info.access?.canWrite && <Notice tone="warn" className="mb-2">{tr("Dự án chỉ đọc: bạn có thể xem lịch sử nhưng không gửi câu hỏi AI.")}</Notice>}
           <div className="mb-2 flex flex-wrap gap-1.5">
             <span className="text-label-md font-normal text-slate-400">{tr("Gợi ý:")}</span>
-            {getSuggestions().map((s) => (
+            {(scope.data?.suggestions || []).map((s) => (
               <button
                 key={s}
                 onClick={() => ask(s)}

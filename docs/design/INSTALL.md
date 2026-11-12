@@ -11,10 +11,13 @@ npm --prefix AIService ci
 npm --prefix FrontEnd ci
 Copy-Item BackEnd/.env.example BackEnd/.env
 Copy-Item AIService/.env.example AIService/.env
+Copy-Item FrontEnd/.env.example FrontEnd/.env
 npm run dev
 ```
 
 Chỉ Copy-Item khi .env chưa tồn tại để tránh ghi đè cấu hình máy. Sửa JWT_SECRET và cấu hình riêng trước chạy. Web :5173, backend :4000, AIService :5000. DATABASE_URL trống dùng PostgreSQL nhúng dev, không cần Docker; lần đầu cần binary/package đúng OS. DATABASE_URL có giá trị dùng PostgreSQL được cấu hình; không đưa URL/password vào Git hoặc báo cáo.
+
+Để bật đăng nhập Google, tạo OAuth Client ID loại Web trong Google Cloud Console, thêm `http://localhost:5173` vào Authorized JavaScript origins, rồi đặt cùng Client ID vào `VITE_GOOGLE_CLIENT_ID` trong `FrontEnd/.env` và `GOOGLE_CLIENT_ID` trong `BackEnd/.env`. Sau khi sửa `FrontEnd/.env`, khởi động lại Vite. Tài khoản Google mới được tạo TaskFlow sau khi đồng ý điều khoản; email Google phải được xác minh.
 
 Backend tự chạy `prisma migrate deploy` khi connectDb; DB dev trống + SEED_DEMO=true có dữ liệu demo. DB đã có dữ liệu không reset tự động. Có thể dùng `npm --prefix BackEnd run db:migrate`; không dùng migrate reset với dữ liệu người dùng. Prisma generate chạy theo package install; nếu cần chạy lại trên Windows, dừng backend trước.
 
