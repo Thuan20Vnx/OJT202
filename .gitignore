@@ -3,3 +3,6 @@ dist/
 .data/
 .env
 *.log
+
+# Cấu hình MCP trên máy (chứa token agent)
+mcp.json

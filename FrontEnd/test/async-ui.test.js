@@ -167,21 +167,27 @@ test('mở báo cáo khác đóng editor cũ để không lưu nhầm nội dung
   assert.equal(tree.root.findByType(History).props.activeId, 'b');
 });
 
-test('hỏi đáp chặn Enter gửi lặp khi đang chờ và bỏ phản hồi sau Cuộc hỏi mới', async (t) => {
-  stubReads(t);
-  const pending = deferred();
-  const post = t.mock.method(api, 'post', () => pending.promise);
-  const tree = await mount(t, app(React.createElement(Qa, { project: { _id: 'p', name: 'P' }, onUsage() {} })));
+test('hỏi đáp chỉ giao cho agent trên máy, chặn gửi lặp khi đang chờ', async (t) => {
+  t.mock.method(api, 'get', async (url) => {
+    if (url === '/agent/runner') return { runner: { online: true, agents: ['antigravity'] } };
+    if (url.endsWith('/repo')) return { connection: null };
+    if (url.endsWith('/ai/conversations')) return { conversations: [] };
+    return { project: { members: [] }, access: { canManage: true, canWrite: true } };
+  });
+  const post = t.mock.method(api, 'post', async () => ({ job: { _id: 'j', status: 'queued', agent: 'antigravity', createdAt: new Date().toISOString() } }));
+  const tree = await mount(t, app(React.createElement(Qa, { project: { _id: 'p', name: 'P' } })));
   await act(async () => tree.root.findByType('textarea').props.onChange({ target: { value: 'Tiến độ hiện tại?' } }));
-  let request;
-  act(() => { request = button(tree, 'Gửi').props.onClick(); });
-  await act(async () => tree.root.findByType('textarea').props.onChange({ target: { value: 'Câu thứ hai' } }));
   await act(async () => tree.root.findByType('textarea').props.onKeyDown({ key: 'Enter', preventDefault() {} }));
   assert.equal(post.mock.callCount(), 1);
-  await act(async () => button(tree, 'Cuộc hỏi mới').props.onClick());
-  await act(async () => { pending.resolve({ conversation: { _id: 'old', messages: [{ role: 'assistant', content: 'Phản hồi cũ', citations: [] }] } }); await request; });
-  assert.doesNotMatch(JSON.stringify(tree.toJSON()), /Phản hồi cũ/);
+  const [url, body] = post.mock.calls[0].arguments;
+  assert.equal(url, '/projects/p/agent/jobs');
+  assert.deepEqual(body, { kind: 'qa', agent: 'antigravity', input: { question: 'Tiến độ hiện tại?', conversation: null, source: 'auto' } });
+  assert.match(JSON.stringify(tree.toJSON()), /Tiến độ hiện tại\?/, 'câu hỏi hiện ngay trong khung chat');
   assert.equal(tree.root.findByType('textarea').props.value, '');
+  await act(async () => tree.root.findByType('textarea').props.onChange({ target: { value: 'Câu thứ hai' } }));
+  await act(async () => tree.root.findByType('textarea').props.onKeyDown({ key: 'Enter', preventDefault() {} }));
+  assert.equal(post.mock.callCount(), 1, 'đang chờ agent thì không gửi thêm');
+  assert.ok(!tree.root.findAllByType('button').some((node) => /ai\/ask/.test(String(node.props.onClick))), 'không còn nút gọi API');
 });
 
 test('duyệt nháp phải chờ lưu checkbox và không duyệt khi còn sửa chưa lưu', async (t) => {

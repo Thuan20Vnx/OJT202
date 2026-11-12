@@ -17,7 +17,7 @@ const testUploads = await fs.mkdtemp(path.join(os.tmpdir(), 'taskflow-test-uploa
 process.env.UPLOAD_DIR = testUploads;
 
 // AIService thật (bộ AI nội bộ) trên cổng ngẫu nhiên – BackEnd gọi qua HTTP như khi chạy thật
-process.env.ANTHROPIC_API_KEY = '';
+process.env.GEMINI_API_KEY = '';
 const { createApp: createAiApp } = await import('../../AIService/src/app.js');
 const aiServer = http.createServer(createAiApp());
 await new Promise((r) => aiServer.listen(0, r));
@@ -1100,6 +1100,10 @@ describe('Hoàng Anh Sprint 4 — telemetry AI gồm queue và retry', () => {
     const workspace = await db.prisma.workspace.findUnique({ where: { id: ws } });
     await db.prisma.workspace.update({ where: { id: ws }, data: { ai: { ...workspace.ai, timeoutSec: 0.08 } } });
     const originalUrl = config.ai.serviceUrl;
+    // Bỏ mức chờ tối thiểu của tính năng để thử đúng timeout ngắn của workspace.
+    const originalMin = config.ai.featureMinTimeoutMs;
+    config.ai.featureMinTimeoutMs = {};
+    t.after(() => { config.ai.featureMinTimeoutMs = originalMin; });
     let requests = 0;
     const fake = http.createServer((req, res) => {
       req.resume();
@@ -3780,5 +3784,46 @@ describe('Chạy trên hạ tầng miễn phí: Gmail API và Supabase Storage',
     state.rejectUpload = true;
     assert.equal((await upload()).status, 500);
     assert.equal(await db.prisma.document.count({ where: { project: pid } }), docsBefore);
+  });
+});
+
+describe('Job nhắc hạn không gây lỗi 23505 trên Postgres', () => {
+  test('chạy lại không INSERT thông báo đã có; chỉ gửi lại đúng người còn thiếu', async (t) => {
+    const { create, ws } = await permissionFixture();
+    const { runDueReminders } = await import('../src/services/jobs.js');
+    const now = new Date();
+    const task = await create({ assignee: seed.users.nhu.id, dueDate: new Date(now.getTime() - 3600000).toISOString() });
+    // Trigger BEFORE INSERT chạy trước kiểm tra UNIQUE, nên đếm được cả lần INSERT sẽ bị từ chối.
+    await db.prisma.$executeRawUnsafe('CREATE SEQUENCE notification_insert_attempts');
+    await db.prisma.$executeRawUnsafe(`CREATE FUNCTION count_notification_insert() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN PERFORM nextval('notification_insert_attempts'); RETURN NEW; END $$`);
+    await db.prisma.$executeRawUnsafe('CREATE TRIGGER count_notification_insert BEFORE INSERT ON notifications FOR EACH ROW EXECUTE FUNCTION count_notification_insert()');
+    t.after(async () => {
+      await db.prisma.$executeRawUnsafe('DROP TRIGGER count_notification_insert ON notifications');
+      await db.prisma.$executeRawUnsafe('DROP FUNCTION count_notification_insert()');
+      await db.prisma.$executeRawUnsafe('DROP SEQUENCE notification_insert_attempts');
+    });
+    const attempts = async () => {
+      const [{ last_value: value, is_called: called }] = await db.prisma.$queryRawUnsafe('SELECT last_value::int, is_called FROM notification_insert_attempts');
+      return called ? value : 0;
+    };
+    const where = { workspace: ws, task: task._id, type: 'overdue' };
+
+    await runDueReminders(now);
+    assert.equal(await db.prisma.notification.count({ where }), 1);
+    const afterFirst = await attempts();
+    assert.ok(afterFirst > 0);
+    await runDueReminders(now);
+    await runDueReminders(now);
+    assert.equal(await attempts(), afterFirst, 'lần chạy sau không INSERT lại');
+    assert.equal(await db.prisma.notification.count({ where }), 1);
+
+    // Cùng dedupeKey nhưng của người khác thì không được coi là đã nhắc người được giao.
+    const original = await db.prisma.notification.findFirst({ where });
+    await db.prisma.notification.delete({ where: { id: original.id } });
+    await db.prisma.notification.create({ data: { user: seed.users.hiep.id, workspace: ws, task: task._id, type: 'overdue', text: 'Người khác', dedupeKey: original.dedupeKey } });
+    const before = await attempts();
+    await runDueReminders(now);
+    assert.equal(await attempts(), before + 1, 'chỉ INSERT phần còn thiếu');
+    assert.equal((await db.prisma.notification.findFirst({ where: { user: original.user, dedupeKey: original.dedupeKey } }))?.type, 'overdue');
   });
 });

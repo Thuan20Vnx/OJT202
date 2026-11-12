@@ -1,12 +1,13 @@
 import express from 'express';
 import { z } from 'zod';
 import { LOCAL_MODEL, config } from './config.js';
-import { getLlm } from './llm.js';
+import { getLlm, providerChain } from './llm.js';
 import { extractActions } from './features/meeting.js';
 import { generatePlan } from './features/planner.js';
 import { answer } from './features/qa.js';
 import { writeNarrative } from './features/report.js';
 import { explainRisk } from './features/risk.js';
+import { suggestTools } from './features/agent.js';
 import { BUSINESS_TIMEZONE, isDateInput, isTimeZone, parseDate } from './dates.js';
 
 const member = z.object({ id: z.string(), name: z.string(), jobTitle: z.string().nullish(), title: z.string().nullish() }).passthrough();
@@ -76,9 +77,24 @@ const FEATURES = {
       return { result: { explanation: r.explanation }, inputTokens: r.inputTokens, outputTokens: r.outputTokens };
     },
   },
+  suggest: {
+    schema: z.object({
+      stage: z.enum(['queries', 'pick']),
+      context: z.object({
+        projectName: z.string().max(200), description: z.string().max(2000), languages: z.array(z.string().max(80)).max(20), topics: z.array(z.string().max(80)).max(20),
+        openTasks: z.array(z.string().max(300)).max(60), labels: z.array(z.string().max(80)).max(40), avoid: z.array(z.string().max(300)).max(200),
+      }).passthrough(),
+      candidates: z.array(z.object({ name: z.string().max(300), description: z.string().max(2000), url: z.string().max(500), source: z.enum(['mcp', 'npm']) })).max(60).optional(),
+    }).refine((b) => b.stage === 'queries' || b.candidates?.length, 'Thiếu danh sách ứng viên'),
+    run: (llm, b, signal) => suggestTools(llm, b, signal),
+  },
 };
 
-export const providerInfo = () => (config.apiKey ? { type: 'anthropic', model: config.model } : { type: 'local', model: LOCAL_MODEL });
+/** Nhà cung cấp chính và chuỗi dự phòng (không kèm khóa). */
+export function providerInfo() {
+  const chain = providerChain().map(({ id, model }) => ({ type: id, model }));
+  return chain.length ? { ...chain[0], chain } : { type: 'local', model: LOCAL_MODEL };
+}
 
 export function createApp() {
   const app = express();
@@ -106,7 +122,9 @@ export function createApp() {
       res.on('close', () => !res.writableEnded && ctrl.abort());
       const llm = await getLlm();
       const out = await feature.run(llm, parsed.data, ctrl.signal);
-      res.json({ ...out, model: llm ? llm.model : LOCAL_MODEL, provider: llm ? 'anthropic' : 'local' });
+      // Tính năng có thể tự dùng luật nội bộ mà không gọi LLM (ví dụ hỏi đáp không tìm thấy nguồn): khi đó used rỗng.
+      const used = llm?.used ?? (llm ? { provider: llm.provider, model: llm.model } : { provider: 'local', model: LOCAL_MODEL });
+      res.json({ ...out, model: used.model, provider: used.provider });
     });
   }
 
@@ -114,7 +132,7 @@ export function createApp() {
   // Lỗi khi gọi LLM / AI trả định dạng sai: BackEnd ghi nhật ký và báo "AI đang bận" cho người dùng
   app.use((err, _req, res, _next) => {
     // SDK errors may include credentials, request headers or source text.
-    console.error('[ai-service]', err.name === 'AbortError' ? 'AI_ABORTED' : 'AI_PROCESSING_FAILED');
+    console.error('[ai-service]', err.name === 'AbortError' ? 'AI_ABORTED' : err.diagnostic || (err.name === 'SyntaxError' ? 'AI_INVALID_JSON' : 'AI_PROCESSING_FAILED'));
     res.status(502).json({ error: 'AI xử lý thất bại' });
   });
   return app;
