@@ -210,7 +210,6 @@ export const english = {
   "Không tải được dữ liệu workspace. Đang thử kết nối lại…": "Cannot load the workspace. Reconnecting…",
   "Google Client ID chưa được cấu hình": "Google Client ID is not configured",
   "Không tải được đăng nhập Google. Hãy thử tải lại trang.": "Could not load Google Sign-In. Please reload the page.",
-  "Đăng nhập Google chưa được cấu hình": "Google sign-in is not configured",
   "Thông tin đăng nhập Google không hợp lệ hoặc đã hết hạn": "Google credentials are invalid or have expired",
   "Google chưa xác minh địa chỉ email của tài khoản này": "Google has not verified this account's email address",
   "Bạn cần đồng ý điều khoản để tạo tài khoản mới": "You must accept the terms to create a new account",
