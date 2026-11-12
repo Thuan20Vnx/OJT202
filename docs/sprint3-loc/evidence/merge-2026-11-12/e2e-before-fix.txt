@@ -1,0 +1,166 @@
+=== E2E
+[seed] Tạo dữ liệu demo Nhóm 24…
+[seed] Xong. Đăng nhập: mai.anh@nhom24.edu.vn / TaskFlow@2026  (System Admin: admin@taskflow.local)
+✖ Lộc Sprint 3: báo cáo mở nguồn thật; quản trị lỗi/thử lại, khóa và mở tài khoản (76490.124ms)
+✖ Nhóm phát triển: nhật ký, phân bổ, issue, timeline, tải thành viên và lịch họp (30204.0621ms)
+✖ Bốn ngày task: tạo, sửa, reload giữ đúng kế hoạch và thực tế (30164.1889ms)
+✖ Như Sprint 2–4: My Tasks, comment retry/mention, nguồn tài liệu AI, capacity và responsive (30164.6632ms)
+✖ Lộc Sprint 2: tìm mô tả, checklist, PM ẩn bình luận và phụ thuộc thử lại khi lỗi (30162.2449ms)
+✖ Như U031: My Tasks phân trang trên dataset 10.000 task (30160.1761ms)
+✖ U003/U007/U009: SMTP register/invite → task → remaining hours → Review/Done → realtime draft (30359.1958ms)
+✖ Như U009/U010: keyboard, API rollback, hai tab xung đột giữ draft và logout (30160.4758ms)
+✖ Hoàng Anh Sprint 2: thông báo hai tab, mất mạng, capacity tuần, preview xóa và CSV (30351.5133ms)
+✖ Hoàng Anh Sprint 3: planner hai tab, duyệt một lần, lý do xử lý rủi ro và biên bản có nguồn (30206.7843ms)
+✖ SMTP bị từ chối: màn hình cho gửi lại, không báo thư đã gửi thành công (30006.8286ms)
+✖ Hoàng Anh Sprint 4: telemetry AI rõ token chưa biết, CSV và mobile (30199.6222ms)
+✖ API v1: browser giữ refresh cookie đúng path, tự refresh và logout thu hồi phiên (30009.1304ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 0
+ℹ fail 11
+ℹ cancelled 2
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 440867.1416
+
+✖ failing tests:
+
+test at test\e2e\sprint1.test.mjs:75:1
+✖ Lộc Sprint 3: báo cáo mở nguồn thật; quản trị lỗi/thử lại, khóa và mở tài khoản (76490.124ms)
+  locator.fill: Timeout 30000ms exceeded.
+  Call log:
+  [2m  - waiting for getByLabel('Email công việc')[22m
+  
+      at login (D:\Desktop\Nhom24\OJT202\.claude\worktrees\du-an-chi-tiet-eb8fd9\test\e2e\sprint1.test.mjs:63:44)
+      at async TestContext.<anonymous> (D:\Desktop\Nhom24\OJT202\.claude\worktrees\du-an-chi-tiet-eb8fd9\test\e2e\sprint1.test.mjs:82:5) {
+    name: 'TimeoutError',
+    log: [ "  - waiting for getByLabel('Email công việc')" ]
+  }
+
+test at test\e2e\sprint1.test.mjs:135:1
+✖ Nhóm phát triển: nhật ký, phân bổ, issue, timeline, tải thành viên và lịch họp (30204.0621ms)
+  locator.fill: Timeout 30000ms exceeded.
+  Call log:
+  [2m  - waiting for getByLabel('Email công việc')[22m
+  
+      at login (D:\Desktop\Nhom24\OJT202\.claude\worktrees\du-an-chi-tiet-eb8fd9\test\e2e\sprint1.test.mjs:63:44)
+      at async TestContext.<anonymous> (D:\Desktop\Nhom24\OJT202\.claude\worktrees\du-an-chi-tiet-eb8fd9\test\e2e\sprint1.test.mjs:139:5) {
+    name: 'TimeoutError',
+    log: [ "  - waiting for getByLabel('Email công việc')" ]
+  }
+
+test at test\e2e\sprint1.test.mjs:211:1
+✖ Bốn ngày task: tạo, sửa, reload giữ đúng kế hoạch và thực tế (30164.1889ms)
+  locator.fill: Timeout 30000ms exceeded.
+  Call log:
+  [2m  - waiting for getByLabel('Email công việc')[22m
+  
+      at login (D:\Desktop\Nhom24\OJT202\.claude\worktrees\du-an-chi-tiet-eb8fd9\test\e2e\sprint1.test.mjs:63:44)
+      at async TestContext.<anonymous> (D:\Desktop\Nhom24\OJT202\.claude\worktrees\du-an-chi-tiet-eb8fd9\test\e2e\sprint1.test.mjs:214:5) {
+    name: 'TimeoutError',
+    log: [ "  - waiting for getByLabel('Email công việc')" ]
+  }
+
+test at test\e2e\sprint1.test.mjs:249:1
+✖ Như Sprint 2–4: My Tasks, comment retry/mention, nguồn tài liệu AI, capacity và responsive (30164.6632ms)
+  locator.fill: Timeout 30000ms exceeded.
+  Call log:
+  [2m  - waiting for getByLabel('Email công việc')[22m
+  
+      at login (D:\Desktop\Nhom24\OJT202\.claude\worktrees\du-an-chi-tiet-eb8fd9\test\e2e\sprint1.test.mjs:63:44)
+      at async TestContext.<anonymous> (D:\Desktop\Nhom24\OJT202\.claude\worktrees\du-an-chi-tiet-eb8fd9\test\e2e\sprint1.test.mjs:253:5) {
+    name: 'TimeoutError',
+    log: [ "  - waiting for getByLabel('Email công việc')" ]
+  }
+
+test at test\e2e\sprint1.test.mjs:317:1
+✖ Lộc Sprint 2: tìm mô tả, checklist, PM ẩn bình luận và phụ thuộc thử lại khi lỗi (30162.2449ms)
+  locator.fill: Timeout 30000ms exceeded.
+  Call log:
+  [2m  - waiting for getByLabel('Email công việc')[22m
+  
+      at login (D:\Desktop\Nhom24\OJT202\.claude\worktrees\du-an-chi-tiet-eb8fd9\test\e2e\sprint1.test.mjs:63:44)
+      at async TestContext.<anonymous> (D:\Desktop\Nhom24\OJT202\.claude\worktrees\du-an-chi-tiet-eb8fd9\test\e2e\sprint1.test.mjs:320:5) {
+    name: 'TimeoutError',
+    log: [ "  - waiting for getByLabel('Email công việc')" ]
+  }
+
+test at test\e2e\sprint1.test.mjs:405:1
+✖ Như U031: My Tasks phân trang trên dataset 10.000 task (30160.1761ms)
+  locator.fill: Timeout 30000ms exceeded.
+  Call log:
+  [2m  - waiting for getByLabel('Email công việc')[22m
+  
+      at login (D:\Desktop\Nhom24\OJT202\.claude\worktrees\du-an-chi-tiet-eb8fd9\test\e2e\sprint1.test.mjs:63:44)
+      at async TestContext.<anonymous> (D:\Desktop\Nhom24\OJT202\.claude\worktrees\du-an-chi-tiet-eb8fd9\test\e2e\sprint1.test.mjs:408:5) {
+    name: 'TimeoutError',
+    log: [ "  - waiting for getByLabel('Email công việc')" ]
+  }
+
+test at test\e2e\sprint1.test.mjs:430:1
+✖ U003/U007/U009: SMTP register/invite → task → remaining hours → Review/Done → realtime draft (30359.1958ms)
+  locator.fill: Timeout 30000ms exceeded.
+  Call log:
+  [2m  - waiting for getByLabel('Họ và tên')[22m
+  
+      at TestContext.<anonymous> (D:\Desktop\Nhom24\OJT202\.claude\worktrees\du-an-chi-tiet-eb8fd9\test\e2e\sprint1.test.mjs:437:40) {
+    name: 'TimeoutError',
+    log: [ "  - waiting for getByLabel('Họ và tên')" ]
+  }
+
+test at test\e2e\sprint1.test.mjs:559:1
+✖ Như U009/U010: keyboard, API rollback, hai tab xung đột giữ draft và logout (30160.4758ms)
+  locator.fill: Timeout 30000ms exceeded.
+  Call log:
+  [2m  - waiting for getByLabel('Email công việc')[22m
+  
+      at login (D:\Desktop\Nhom24\OJT202\.claude\worktrees\du-an-chi-tiet-eb8fd9\test\e2e\sprint1.test.mjs:63:44)
+      at async TestContext.<anonymous> (D:\Desktop\Nhom24\OJT202\.claude\worktrees\du-an-chi-tiet-eb8fd9\test\e2e\sprint1.test.mjs:563:5) {
+    name: 'TimeoutError',
+    log: [ "  - waiting for getByLabel('Email công việc')" ]
+  }
+
+test at test\e2e\sprint1.test.mjs:625:1
+✖ Hoàng Anh Sprint 2: thông báo hai tab, mất mạng, capacity tuần, preview xóa và CSV (30351.5133ms)
+  locator.fill: Timeout 30000ms exceeded.
+  Call log:
+  [2m  - waiting for getByLabel('Email công việc')[22m
+  
+      at login (D:\Desktop\Nhom24\OJT202\.claude\worktrees\du-an-chi-tiet-eb8fd9\test\e2e\sprint1.test.mjs:63:44)
+      at async TestContext.<anonymous> (D:\Desktop\Nhom24\OJT202\.claude\worktrees\du-an-chi-tiet-eb8fd9\test\e2e\sprint1.test.mjs:630:5) {
+    name: 'TimeoutError',
+    log: [ "  - waiting for getByLabel('Email công việc')" ]
+  }
+
+test at test\e2e\sprint1.test.mjs:716:1
+✖ Hoàng Anh Sprint 3: planner hai tab, duyệt một lần, lý do xử lý rủi ro và biên bản có nguồn (30206.7843ms)
+  locator.fill: Timeout 30000ms exceeded.
+  Call log:
+  [2m  - waiting for getByLabel('Email công việc')[22m
+  
+      at login (D:\Desktop\Nhom24\OJT202\.claude\worktrees\du-an-chi-tiet-eb8fd9\test\e2e\sprint1.test.mjs:63:44)
+      at async TestContext.<anonymous> (D:\Desktop\Nhom24\OJT202\.claude\worktrees\du-an-chi-tiet-eb8fd9\test\e2e\sprint1.test.mjs:719:5) {
+    name: 'TimeoutError',
+    log: [ "  - waiting for getByLabel('Email công việc')" ]
+  }
+
+test at test\e2e\sprint1.test.mjs:819:1
+✖ SMTP bị từ chối: màn hình cho gửi lại, không báo thư đã gửi thành công (30006.8286ms)
+  'test timed out after 30000ms'
+
+test at test\e2e\sprint1.test.mjs:843:1
+✖ Hoàng Anh Sprint 4: telemetry AI rõ token chưa biết, CSV và mobile (30199.6222ms)
+  locator.fill: Timeout 30000ms exceeded.
+  Call log:
+  [2m  - waiting for getByLabel('Email công việc')[22m
+  
+      at login (D:\Desktop\Nhom24\OJT202\.claude\worktrees\du-an-chi-tiet-eb8fd9\test\e2e\sprint1.test.mjs:63:44)
+      at async TestContext.<anonymous> (D:\Desktop\Nhom24\OJT202\.claude\worktrees\du-an-chi-tiet-eb8fd9\test\e2e\sprint1.test.mjs:847:5) {
+    name: 'TimeoutError',
+    log: [ "  - waiting for getByLabel('Email công việc')" ]
+  }
+
+test at test\e2e\sprint1.test.mjs:873:1
+✖ API v1: browser giữ refresh cookie đúng path, tự refresh và logout thu hồi phiên (30009.1304ms)
+  'test timed out after 30000ms'
+e2e exit=1
