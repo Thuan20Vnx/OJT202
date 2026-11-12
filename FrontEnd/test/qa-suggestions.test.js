@@ -18,11 +18,13 @@ test('AI Q&A hiển thị và gửi gợi ý câu hỏi động từ nguồn c�
   const question = 'Vì sao TF-24 đang bị chặn và cần xử lý việc nào trước?';
   t.mock.method(api, 'get', async (url) => {
     if (url === '/projects/project-1') return { access: { canWrite: true } };
+    if (url === '/agent/runner') return { runner: { online: true, agents: ['antigravity'] } };
     if (url.endsWith('/ai/conversations')) return { conversations: [] };
     if (url.endsWith('/ai/sources')) return { tasks: 2, documents: 1, suggestions: [question, 'Tóm tắt nội dung chính của tài liệu Kiến trúc'] };
+    if (url.endsWith('/repo')) return { connection: null };
     throw new Error(`Unexpected GET ${url}`);
   });
-  const post = t.mock.method(api, 'post', async () => ({ conversation: { _id: 'conversation-1', messages: [] } }));
+  const post = t.mock.method(api, 'post', async () => ({ job: { _id: 'job-1', kind: 'qa', status: 'queued' } }));
   let tree;
   await act(async () => {
     tree = create(
@@ -36,5 +38,10 @@ test('AI Q&A hiển thị và gửi gợi ý câu hỏi động từ nguồn c�
   assert.ok(button(tree, question));
   assert.ok(button(tree, 'Kiến trúc'));
   await act(async () => button(tree, question).props.onClick());
-  assert.equal(post.mock.calls[0].arguments[1].question, question);
+  assert.equal(post.mock.calls[0].arguments[0], '/projects/project-1/agent/jobs');
+  assert.deepEqual(post.mock.calls[0].arguments[1], {
+    kind: 'qa',
+    agent: 'antigravity',
+    input: { question, conversation: null, source: 'auto' },
+  });
 });
