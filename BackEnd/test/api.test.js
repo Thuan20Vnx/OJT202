@@ -477,6 +477,11 @@ describe('Hoàng Anh Sprint 2 — tài liệu, phụ thuộc, thông báo và re
 
 describe('Xác thực & phiên (U003, U004, U005)', () => {
   test('đăng nhập Google xác minh token, yêu cầu điều khoản khi tạo tài khoản và cấp session', async (t) => {
+    const previousClientId = config.google.clientId;
+    config.google.clientId = 'test-client.apps.googleusercontent.com';
+    t.after(() => {
+      config.google.clientId = previousClientId;
+    });
     const payload = {
       sub: 'google-sub-new-user',
       email: 'google.user@example.com',
@@ -484,15 +489,16 @@ describe('Xác thực & phiên (U003, U004, U005)', () => {
       name: 'Google User',
     };
     t.mock.method(OAuth2Client.prototype, 'verifyIdToken', async ({ idToken, audience }) => {
-      assert.equal(audience, config.googleClientId);
-      if (idToken === 'invalid') throw new Error('test token rejected');
+      assert.equal(audience, config.google.clientId);
+      if (idToken === 'i'.repeat(40)) throw new Error('test token rejected');
       return { getPayload: () => payload };
     });
 
     const client = new Client();
-    const missingConsent = await client.post('/auth/google', { credential: 'valid' });
+    const credential = 'v'.repeat(40);
+    const missingConsent = await client.post('/auth/google', { credential });
     assert.equal(missingConsent.status, 400);
-    const login = await client.post('/auth/google', { credential: 'valid', acceptTerms: true });
+    const login = await client.post('/auth/google', { credential, acceptTerms: true });
     assert.equal(login.status, 200, JSON.stringify(login.data));
     assert.ok(client.cookies.tf_at);
     const me = await client.get('/me');
@@ -501,7 +507,7 @@ describe('Xác thực & phiên (U003, U004, U005)', () => {
     const user = await db.prisma.user.findUnique({ where: { email: payload.email } });
     assert.equal(user.emailVerified, true);
 
-    const invalid = await new Client().post('/auth/google', { credential: 'invalid' });
+    const invalid = await new Client().post('/auth/google', { credential: 'i'.repeat(40) });
     assert.equal(invalid.status, 401);
   });
 
@@ -3630,7 +3636,8 @@ describe('OTP email và đăng nhập Google', () => {
       const fresh = `gg-new-${++fixtureNumber}@test.vn`;
       setGoogleVerifier(async () => ({ sub: `sub-${fixtureNumber}`, email: fresh, email_verified: true, name: 'Người Google' }));
       const c = new Client();
-      assert.equal((await c.post('/auth/google', { credential })).status, 200);
+      assert.equal((await c.post('/auth/google', { credential })).status, 400, 'tài khoản mới cần đồng ý điều khoản');
+      assert.equal((await c.post('/auth/google', { credential, acceptTerms: true })).status, 200);
       const me = await c.get('/me');
       assert.equal(me.status, 200);
       assert.equal(me.data.user.email, fresh);

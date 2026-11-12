@@ -35,10 +35,10 @@ test('migration nâng dữ liệu project cũ, giữ member/Viewer, PM và giờ
   await db.prisma.$executeRaw`UPDATE tasks SET "acceptanceCriteria" = ARRAY['Dòng một, có dấu', 'Dòng hai', '']::TEXT[] WHERE id = ${sample.id}::uuid`;
   originalCriteria.set(sample.id, 'Dòng một, có dấu\nDòng hai\n');
   await db.prisma.$executeRaw`DELETE FROM _prisma_migrations WHERE migration_name = '20261101090000_acceptance_criteria_text'`;
+  await db.prisma.$executeRaw`DELETE FROM _prisma_migrations WHERE migration_name = '20261113090000_acceptance_criteria_text_final'`;
   const checklistData = await db.prisma.checklistItem.findMany({ orderBy: [{ task: 'asc' }, { position: 'asc' }] });
   const parents = new Map((await db.prisma.$queryRaw`SELECT id, parent_task_id FROM tasks`).map((row) => [row.id, row.parent_task_id]));
   assert.ok(checklistData.length > 0, 'upgrade fixture includes populated checklists');
-  await db.prisma.$executeRawUnsafe(`ALTER TABLE tasks ADD COLUMN checklist JSONB NOT NULL DEFAULT '[]'::jsonb`);
   await db.prisma.$executeRawUnsafe(`UPDATE tasks t SET checklist = (SELECT jsonb_agg(jsonb_build_object('text', c.title, 'done', c.is_done) ORDER BY c.position) FROM checklist_items c WHERE c.task_id = t.id) WHERE EXISTS (SELECT 1 FROM checklist_items c WHERE c.task_id = t.id)`);
   await db.prisma.$executeRawUnsafe('DROP TABLE checklist_items');
   await db.prisma.$executeRawUnsafe('ALTER TABLE tasks RENAME COLUMN parent_task_id TO parent_id');
@@ -74,7 +74,6 @@ test('migration nâng dữ liệu project cũ, giữ member/Viewer, PM và giờ
   assert.equal(website.memberships.find((m) => m.user === seed.users.maianh.id).role, 'pm');
   assert.equal(website.memberships.find((m) => m.user === seed.users.linh.id).role, 'viewer');
   assert.deepEqual(website.members.sort(), website.memberships.map((m) => m.user).sort());
-  assert.deepEqual((await db.prisma.task.findUnique({ where: { id: criteriaTask.id }, select: { acceptanceCriteria: true } })).acceptanceCriteria, criteriaTask.acceptanceCriteria);
   for (const task of await db.prisma.task.findMany()) {
     assert.equal(task.acceptanceCriteria, originalCriteria.get(task.id), 'migration giữ nguyên nội dung AC khi đổi array sang TEXT');
     assert.equal(task.deletedAt, null, 'migration preserves all existing tasks as active');
@@ -82,7 +81,7 @@ test('migration nâng dữ liệu project cũ, giữ member/Viewer, PM và giờ
     assert.equal(task.actualStartDate, null, 'không suy diễn ngày bắt đầu thực tế');
     assert.equal(task.actualEndDate?.toISOString() ?? null, task.status === 'done' ? task.completedAt?.toISOString() ?? null : null);
     assert.equal(task.remainingHours, task.status === 'done' ? 0 : task.estimateHours == null ? null : Math.max(0, task.estimateHours - task.spentHours));
-    assert.ok(Array.isArray(task.acceptanceCriteria));
+    assert.equal(typeof task.acceptanceCriteria, 'string');
   }
   const [column] = await db.prisma.$queryRaw`SELECT data_type FROM information_schema.columns WHERE table_name = 'tasks' AND column_name = 'acceptance_criteria'`;
   assert.equal(column.data_type, 'text');

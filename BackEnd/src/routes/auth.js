@@ -2,7 +2,6 @@ import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
-import { OAuth2Client } from 'google-auth-library';
 import { config } from '../config.js';
 import { prisma } from '../db.js';
 import { REFRESH_COOKIE, clearAuthCookies, setAuthCookies, signAccess, startSession } from '../middleware/auth.js';
@@ -16,7 +15,6 @@ import { HttpError, badRequest, forbidden, parse, unauthorized } from '../utils/
 import { passwordIssues, randomToken, sha256 } from '../utils/security.js';
 
 const router = Router();
-const googleClient = new OAuth2Client();
 
 const limiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: config.isProd ? 30 : 1000, standardHeaders: true, legacyHeaders: false });
 router.use(limiter);
@@ -127,62 +125,6 @@ router.post('/login', async (req, res) => {
   await clearLoginFailures(body.email);
   await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
   await startSession(res, req, user, { remember: body.remember === true });
-  res.json({ ok: true });
-});
-
-router.post('/google', async (req, res) => {
-  if (!config.googleClientId) throw new HttpError(503, 'Đăng nhập Google chưa được cấu hình');
-  const body = parse(z.object({
-    credential: z.string().min(1).max(8192),
-    acceptTerms: z.boolean().optional(),
-  }), req.body);
-  let payload;
-  try {
-    const ticket = await googleClient.verifyIdToken({ idToken: body.credential, audience: config.googleClientId });
-    payload = ticket.getPayload();
-  } catch {
-    throw unauthorized('Thông tin đăng nhập Google không hợp lệ hoặc đã hết hạn');
-  }
-  if (!payload?.sub || !payload.email || payload.email_verified !== true) {
-    throw unauthorized('Google chưa xác minh địa chỉ email của tài khoản này');
-  }
-
-  const userEmail = payload.email.trim().toLowerCase();
-  let user = await prisma.user.findUnique({ where: { email: userEmail }, omit: { passwordHash: false } });
-  if (!user) {
-    if (body.acceptTerms !== true) throw badRequest('Bạn cần đồng ý điều khoản để tạo tài khoản mới');
-    const passwordHash = await bcrypt.hash(randomToken(32), 12);
-    try {
-      user = await prisma.user.create({
-        data: {
-          email: userEmail,
-          name: String(payload.name || userEmail.split('@')[0]).trim().slice(0, 80) || userEmail,
-          passwordHash,
-          emailVerified: true,
-        },
-        omit: { passwordHash: false },
-      });
-    } catch (e) {
-      if (e?.code !== 'P2002') throw e;
-      user = await prisma.user.findUnique({ where: { email: userEmail }, omit: { passwordHash: false } });
-      if (!user) throw e;
-    }
-  }
-  if (user.isLocked) throw forbidden('Tài khoản đã bị khóa. Vui lòng liên hệ quản trị viên.');
-  if (!user.emailVerified) {
-    user = await prisma.user.update({
-      where: { id: user.id },
-      data: { emailVerified: true, lastLoginAt: new Date() },
-      omit: { passwordHash: false },
-    });
-  } else {
-    user = await prisma.user.update({
-      where: { id: user.id },
-      data: { lastLoginAt: new Date() },
-      omit: { passwordHash: false },
-    });
-  }
-  await startSession(res, req, user);
   res.json({ ok: true });
 });
 
@@ -313,7 +255,11 @@ router.post('/reset-password-otp', async (req, res) => {
 /** Đăng nhập bằng Google: nhận ID token từ Google Identity Services ở FrontEnd. */
 router.post('/google', async (req, res) => {
   if (!config.google.clientId) throw new HttpError(503, 'Đăng nhập Google chưa được cấu hình', { code: 'GOOGLE_NOT_CONFIGURED' });
-  const body = parse(z.object({ credential: z.string().min(20).max(4096), remember: z.boolean().optional() }), req.body);
+  const body = parse(z.object({
+    credential: z.string().min(20).max(4096),
+    remember: z.boolean().optional(),
+    acceptTerms: z.boolean().optional(),
+  }), req.body);
   const g = await verifyGoogleCredential(body.credential);
   let account = await prisma.user.findUnique({ where: { googleId: g.sub }, omit: { passwordHash: false } });
   if (!account) {
@@ -323,6 +269,7 @@ router.post('/google', async (req, res) => {
       if (byEmail.isLocked) throw forbidden('Tài khoản đã bị khóa. Vui lòng liên hệ quản trị viên.');
       account = await prisma.user.update({ where: { id: byEmail.id }, data: { googleId: g.sub, emailVerified: true }, omit: { passwordHash: false } });
     } else {
+      if (body.acceptTerms !== true) throw badRequest('Bạn cần đồng ý điều khoản để tạo tài khoản mới');
       // Tài khoản Google không có mật khẩu: lưu hash của chuỗi ngẫu nhiên không ai biết.
       account = await prisma.user.create({
         data: { name: (g.name || g.email.split('@')[0]).slice(0, 80), email: g.email, googleId: g.sub, emailVerified: true, passwordHash: await bcrypt.hash(randomToken(32), 12) },
