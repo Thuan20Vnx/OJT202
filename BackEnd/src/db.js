@@ -40,7 +40,7 @@ async function canConnect(pg) {
 
 /**
  * PostgreSQL nhúng (gói embedded-postgres – binary PostgreSQL thật) cho môi trường phát triển/test.
- * Dữ liệu dev lưu ở server/.data/pg; bản ephemeral dùng thư mục tạm và bị xóa khi dừng.
+ * Dữ liệu dev lưu ở BackEnd/.data/pg; bản ephemeral dùng thư mục tạm và bị xóa khi dừng.
  */
 async function startEmbedded(ephemeral) {
   const { default: EmbeddedPostgres } = await import('embedded-postgres');

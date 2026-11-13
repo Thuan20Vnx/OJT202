@@ -258,7 +258,7 @@ taskflow/
 
 ## Giới hạn hiện tại
 
-- Nút "Tiếp tục với Google" cần cấu hình OAuth Client ID khi triển khai (bản này dùng email + mật khẩu).
+- Đăng nhập/đăng ký Google đã hỗ trợ; cần cấu hình cùng Web OAuth Client ID trong `FrontEnd/.env` (`VITE_GOOGLE_CLIENT_ID`) và `BackEnd/.env` (`GOOGLE_CLIENT_ID`). Xem hướng dẫn [cài đặt](docs/design/INSTALL.md).
 - SMTP adapter đã có; cần cấu hình tài khoản Gmail/App Password và kiểm chứng nhận thư thật khi triển khai.
 - Chuyển ngôn ngữ EN mới áp dụng cho menu điều hướng; nội dung còn lại tiếng Việt.
 - Chế độ tối là lớp ghi đè màu cơ bản, chưa tinh chỉnh từng màn hình.
