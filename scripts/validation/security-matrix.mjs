@@ -77,6 +77,13 @@ export async function securityMatrix(fixture, kit, out) {
   const message = injected.data?.conversation?.messages?.at(-1);
   check('injection-refusal', 'rag', 'member', true, injected.status === 200 && message?.refused === true);
   check('cross-tenant-no-secret', 'rag', 'member', false, JSON.stringify(injected.data).includes('S4_OTHER_TENANT_SECRET'));
+  // Gợi ý câu hỏi (PR #18) dựng từ mã việc và tên tài liệu: chỉ được nêu dữ liệu của đúng dự án.
+  const docPrefix = 'Tóm tắt nội dung chính của tài liệu ';
+  const projectKeys = new Set((await fixture.db.prisma.task.findMany({ where: { project: project.id }, select: { key: true } })).map((row) => row.key));
+  const projectDocs = new Set((await fixture.db.prisma.document.findMany({ where: { project: project.id }, select: { name: true } })).map((row) => row.name));
+  const suggestions = (await clients.member.request('GET', routes.rag)).data?.suggestions || [];
+  const scoped = suggestions.every((text) => text.startsWith(docPrefix) ? projectDocs.has(text.slice(docPrefix.length)) : (text.match(/[A-Z][A-Z0-9]*-\d+/g) || []).every((key) => projectKeys.has(key)));
+  check('rag-suggestions-scope', 'rag', 'member', true, suggestions.length > 0 && scoped);
 
   // ===== Agent MCP: token mang đúng quyền người tạo, chỉ dùng ở /api/mcp, bị thu hồi cùng phiên =====
   const bearer = async (token, method, route, body, extra = {}) => {

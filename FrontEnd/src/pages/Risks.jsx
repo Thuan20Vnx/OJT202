@@ -124,6 +124,7 @@ export default function Risks() {
     ['blockedByOverdue', tr("Bị chặn bởi việc quá hạn")],
     ['overload', tr("Tải tuần > {0}% giờ khả dụng", [r.overloadPct]), 'overloadPct', '%'],
     ['dueSoon', tr("Đến hạn trong 24 giờ và tiến độ < {0}%", [r.dueSoonProgressPct]), 'dueSoonProgressPct', '%'],
+    ['reviewStale', tr("Chờ kiểm duyệt ≥ {0} ngày", [r.reviewStaleDays ?? 3]), 'reviewStaleDays', tr("ngày")],
   ];
 
   return (

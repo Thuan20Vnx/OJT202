@@ -39,6 +39,9 @@ test('migration nâng dữ liệu project cũ, giữ member/Viewer, PM và giờ
   const checklistData = await db.prisma.checklistItem.findMany({ orderBy: [{ task: 'asc' }, { position: 'asc' }] });
   const parents = new Map((await db.prisma.$queryRaw`SELECT id, parent_task_id FROM tasks`).map((row) => [row.id, row.parent_task_id]));
   assert.ok(checklistData.length > 0, 'upgrade fixture includes populated checklists');
+  const [{ legacyColumn }] = await db.prisma.$queryRaw`SELECT count(*)::int AS "legacyColumn" FROM information_schema.columns WHERE table_name = 'tasks' AND column_name = 'checklist'`;
+  assert.equal(legacyColumn, 0, 'DB mới khớp schema: không còn cột tasks.checklist');
+  await db.prisma.$executeRawUnsafe(`ALTER TABLE tasks ADD COLUMN checklist JSONB NOT NULL DEFAULT '[]'::jsonb`);
   await db.prisma.$executeRawUnsafe(`UPDATE tasks t SET checklist = (SELECT jsonb_agg(jsonb_build_object('text', c.title, 'done', c.is_done) ORDER BY c.position) FROM checklist_items c WHERE c.task_id = t.id) WHERE EXISTS (SELECT 1 FROM checklist_items c WHERE c.task_id = t.id)`);
   await db.prisma.$executeRawUnsafe('DROP TABLE checklist_items');
   await db.prisma.$executeRawUnsafe('ALTER TABLE tasks RENAME COLUMN parent_task_id TO parent_id');
@@ -93,4 +96,25 @@ test('migration nâng dữ liệu project cũ, giữ member/Viewer, PM và giờ
   const indexes = await db.prisma.$queryRaw`SELECT indexname FROM pg_indexes WHERE tablename = 'tasks'`;
   for (const name of ['tasks_project_status_due_idx', 'tasks_workspace_assignee_due_idx', 'tasks_parent_task_id_idx']) assert.ok(indexes.some((i) => i.indexname === name));
   assert.equal(await db.prisma.projectMember.count({ where: { project: seed.projects.mobile.id, user: seed.users.hoanganh.id } }), 0, 'không tự thêm Admin vào project private');
+
+  // DB đã chạy 20261110100000_task_checklist_json: cột JSONB bị thêm lại. Task chưa có checklist_items mang dữ liệu
+  // cũ phải được chuyển; task đã có checklist_items không bị nhân bản; sau đó cột bị xóa.
+  const [withItems, withoutItems] = await Promise.all([
+    db.prisma.task.findFirstOrThrow({ where: { checklistItems: { some: {} } }, include: { checklistItems: true } }),
+    db.prisma.task.findFirstOrThrow({ where: { checklistItems: { none: {} } } }),
+  ]);
+  await db.prisma.$executeRawUnsafe(`ALTER TABLE tasks ADD COLUMN checklist JSONB NOT NULL DEFAULT '[]'::jsonb`);
+  await db.prisma.$executeRaw`UPDATE tasks SET checklist = '[{"text":"Không được nhân bản","done":true}]'::jsonb WHERE id = ${withItems.id}::uuid`;
+  await db.prisma.$executeRaw`UPDATE tasks SET checklist = '[{"text":"Mục cũ một","done":true},{"text":"  ","done":false},{"text":"Mục cũ hai"}]'::jsonb WHERE id = ${withoutItems.id}::uuid`;
+  await db.prisma.$executeRaw`DELETE FROM _prisma_migrations WHERE migration_name = '20261113100000_drop_legacy_task_checklist'`;
+  await promisify(execFile)(process.execPath, [cli, 'migrate', 'deploy'], {
+    cwd: config.root,
+    env: { ...process.env, DATABASE_URL: `postgresql://taskflow:taskflow@localhost:${port}/taskflow` },
+  });
+  const [{ dropped }] = await db.prisma.$queryRaw`SELECT count(*)::int AS dropped FROM information_schema.columns WHERE table_name = 'tasks' AND column_name = 'checklist'`;
+  assert.equal(dropped, 0, 'cột checklist thừa đã bị xóa');
+  const kept = await db.prisma.checklistItem.findMany({ where: { task: withItems.id }, orderBy: { position: 'asc' } });
+  assert.deepEqual(values(kept), values(withItems.checklistItems.sort((a, b) => a.position - b.position)), 'không nhân bản checklist đã có');
+  const moved = await db.prisma.checklistItem.findMany({ where: { task: withoutItems.id }, orderBy: { position: 'asc' } });
+  assert.deepEqual(moved.map(({ title, isDone }) => ({ title, isDone })), [{ title: 'Mục cũ một', isDone: true }, { title: 'Mục cũ hai', isDone: false }], 'chuyển dữ liệu cũ, bỏ mục rỗng');
 });

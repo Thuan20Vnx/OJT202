@@ -1,0 +1,39 @@
+[seed] Tạo dữ liệu demo Nhóm 24…
+[seed] Xong. Đăng nhập: mai.anh@nhom24.edu.vn / TaskFlow@2026  (System Admin: admin@taskflow.local)
+▶ Lộc Sprint 2
+  ✖ U014-T3: mention lấy tên dài nhất và dừng ở ranh giới từ, không nhắc nhầm người trùng tiền tố (661.1951ms)
+✖ Lộc Sprint 2 (45295.4251ms)
+ℹ tests 1
+ℹ suites 1
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 47165.1244
+
+✖ failing tests:
+
+test at test\api.test.js:3091:3
+✖ U014-T3: mention lấy tên dài nhất và dừng ở ranh giới từ, không nhắc nhầm người trùng tiền tố (661.1951ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+  
+    [
+      'a1ced1b2-dcc2-4b1b-bfc6-d5c8463e68cb',
+  +   'ff324de0-7965-420b-834c-b1467a8526a5'
+    ]
+  
+      at TestContext.<anonymous> (file:///D:/Desktop/Nhom24/OJT202/BackEnd/test/api.test.js:3098:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Promise.all (index 8)
+      at async Suite.run (node:internal/test_runner/test:1619:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 'a1ced1b2-dcc2-4b1b-bfc6-d5c8463e68cb', 'ff324de0-7965-420b-834c-b1467a8526a5' ],
+    expected: [ 'a1ced1b2-dcc2-4b1b-bfc6-d5c8463e68cb' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

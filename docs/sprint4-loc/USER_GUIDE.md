@@ -18,7 +18,7 @@ Mở **Bảng công việc**, chọn dự án, bấm **Tạo công việc**. Nh�
 
 Luồng trạng thái: Cần làm → Đang làm → Chờ duyệt → Hoàn thành. PM duyệt Hoàn thành từ Chờ duyệt; khi mở lại, cập nhật remaining phù hợp. Nếu có lỗi version/xung đột, tải dữ liệu mới rồi kiểm tra lại thay đổi, không ghi đè mù.
 
-Vào **Trợ lý AI** để lập kế hoạch: nhập mục tiêu, người và ngân sách giờ; xem nháp, sửa AC/estimate/người nhận, chọn mục rồi duyệt. Chỉ khi duyệt mới tạo task. Báo cáo theo kỳ lấy số liệu từ dữ liệu dự án; bấm mã task/nguồn để đối chiếu. Diễn giải AI là đề xuất cần kiểm tra.
+Vào **Trợ lý AI** để lập kế hoạch: nhập mục tiêu, người và ngân sách giờ; xem nháp, sửa AC/estimate/người nhận, chọn mục rồi duyệt. Chỉ khi duyệt mới tạo task. Báo cáo theo kỳ lấy số liệu từ dữ liệu dự án; bấm mã task/nguồn để đối chiếu. Sửa tiêu đề/nội dung khi báo cáo còn nháp; sau **Lưu & chia sẻ nội bộ** báo cáo được chốt, muốn cập nhật thì tạo báo cáo mới. Diễn giải AI là đề xuất cần kiểm tra.
 
 ## Member — cập nhật công việc được giao
 

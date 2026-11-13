@@ -1,0 +1,32 @@
+[seed] Tạo dữ liệu demo Nhóm 24…
+[seed] Xong. Đăng nhập: mai.anh@nhom24.edu.vn / TaskFlow@2026  (System Admin: admin@taskflow.local)
+▶ Xác thực & phiên (U003, U004, U005)
+  ✖ U004-T3: đăng xuất qua alias khác (không có cookie refresh) vẫn thu hồi phiên và chặn refresh cũ (120.1056ms)
+✖ Xác thực & phiên (U003, U004, U005) (44314.5099ms)
+ℹ tests 1
+ℹ suites 1
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 46006.1844
+
+✖ failing tests:
+
+test at test\api.test.js:515:3
+✖ U004-T3: đăng xuất qua alias khác (không có cookie refresh) vẫn thu hồi phiên và chặn refresh cũ (120.1056ms)
+  AssertionError [ERR_ASSERTION]: xóa cookie refresh của alias đã đăng nhập
+      at TestContext.<anonymous> (file:///D:/Desktop/Nhom24/OJT202/BackEnd/test/api.test.js:522:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Promise.all (index 1)
+      at async Suite.run (node:internal/test_runner/test:1619:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

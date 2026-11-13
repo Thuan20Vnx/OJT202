@@ -27,6 +27,8 @@ Sprint 3 của Lộc cập nhật 09/11: [bàn giao kỹ thuật và bằng ch�
 
 Sprint 4 của Lộc: [phạm vi và bằng chứng](docs/sprint4-loc/README.md), [hướng dẫn bốn vai trò có ảnh](docs/sprint4-loc/USER_GUIDE.md), [điều phối UAT](docs/sprint4-loc/UAT.md), [diễn tập và Q&A](docs/sprint4-loc/REHEARSAL.md). Chạy `npm run validate:security` để kiểm ma trận quyền; `npm run uat:sprint4 -- --minutes 120` để mở phiên UAT local tạm.
 
+Rà soát toàn bộ phần việc của Lộc (Sprint 1–4) sau khi hợp nhất PR #18 (13/11/2026): [tám lỗi đã sửa](docs/sprint4-loc/RECHECK_2026-11-13.md) — báo cáo đã chia sẻ vẫn sửa được, tệp xuất báo cáo mất nguồn, OpenAPI thiếu 48 endpoint, cột checklist thừa, công tắc rủi ro tắt nhầm cảnh báo chờ duyệt, mention nhắc nhầm người, liên kết đặt lại mật khẩu khi bị khóa, đăng xuất qua alias khác không thu hồi phiên; 577/577 test, 13/13 E2E, 142/142 ma trận quyền.
+
 Sprint 4 của Lộc trên bản hợp nhất Agent MCP ngày 13/11/2026: [kết quả, lỗ hổng token agent đã sửa và việc còn cần người thật](docs/sprint4-loc/REVIEW_2026-11-13.md), 566/566 test, 141/141 ma trận quyền.
 
 Kiểm tra lại Sprint 3 của Lộc trên bản hợp nhất main ngày 12/11/2026: [kết quả và lỗi SPA đã sửa](docs/sprint3-loc/COMPLETION_2026-11-12.md), 559/559 test, 13/13 E2E, 92/92 ma trận quyền, 70/70 ca U025 kỹ thuật.
