@@ -1,0 +1,24 @@
+[seed] Tạo dữ liệu demo Nhóm 24…
+[seed] Xong. Đăng nhập: mai.anh@nhom24.edu.vn / TaskFlow@2026  (System Admin: admin@taskflow.local)
+▶ Xác thực & phiên (U003, U004, U005)
+  ✔ đăng nhập Google xác minh token, yêu cầu điều khoản khi tạo tài khoản và cấp session (407.3117ms)
+  ✔ sai mật khẩu và email không tồn tại trả cùng một lỗi chung (386.3274ms)
+  ✔ đăng ký: email duy nhất không phân biệt hoa thường, phải xác minh mới đăng nhập (700.2259ms)
+  ✔ mật khẩu yếu bị từ chối (3.5813ms)
+  ✔ refresh token xoay vòng; dùng lại token cũ thu hồi cả chuỗi phiên (113.7553ms)
+  ✔ logout thu hồi phiên (96.6307ms)
+  ✔ đặt lại mật khẩu: token một lần, thu hồi phiên cũ (1118.7822ms)
+  ✔ cập nhật hồ sơ không đổi được vai trò (98.5278ms)
+  ✔ CSRF: request ghi thiếu header bảo vệ bị chặn (2.2332ms)
+✔ Xác thực & phiên (U003, U004, U005) (47542.4479ms)
+▶ Lộc Sprint 2
+  ✔ U005-T1/T3: SMTP reset một lần, hết hạn, đúng mục đích, thu hồi mọi phiên; profile whitelist (3436.1899ms)
+✔ Lộc Sprint 2 (3436.6445ms)
+ℹ tests 10
+ℹ suites 2
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 52696.8426

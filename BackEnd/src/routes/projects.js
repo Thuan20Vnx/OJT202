@@ -213,6 +213,7 @@ router.put('/projects/:projectId/risk-rules', middlewareProject(), async (req, r
         overloadPct: z.number().int().min(50).max(300),
         dueSoon: z.boolean(),
         dueSoonProgressPct: z.number().int().min(0).max(100),
+        reviewStale: z.boolean(),
         reviewStaleDays: z.number().int().min(1).max(30),
       })
       .partial(),

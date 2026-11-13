@@ -1,0 +1,73 @@
+[seed] Tạo dữ liệu demo Nhóm 24…
+[seed] Xong. Đăng nhập: mai.anh@nhom24.edu.vn / TaskFlow@2026  (System Admin: admin@taskflow.local)
+▶ Nghiệp vụ nhóm phát triển: phân bổ, nhật ký, issue, workload và lịch họp
+  ✔ phân bổ nhiều người: kiểm quyền, trùng người, trách nhiệm, phiên bản và task con (748.4352ms)
+  ✔ issue yêu cầu nguyên nhân/hướng xử lý; đóng có kết quả và kiểm phiên bản (427.0694ms)
+✔ Nghiệp vụ nhóm phát triển: phân bổ, nhật ký, issue, workload và lịch họp (47025.334ms)
+▶ Xác thực & phiên (U003, U004, U005)
+  ✔ đăng nhập Google xác minh token, yêu cầu điều khoản khi tạo tài khoản và cấp session (275.3265ms)
+  ✔ U004-T3: đăng xuất qua alias khác (không có cookie refresh) vẫn thu hồi phiên và chặn refresh cũ (83.0262ms)
+  ✔ sai mật khẩu và email không tồn tại trả cùng một lỗi chung (329.8023ms)
+  ✔ đăng ký: email duy nhất không phân biệt hoa thường, phải xác minh mới đăng nhập (548.9201ms)
+  ✔ mật khẩu yếu bị từ chối (2.8465ms)
+  ✔ refresh token xoay vòng; dùng lại token cũ thu hồi cả chuỗi phiên (87.4915ms)
+  ✔ logout thu hồi phiên (81.7706ms)
+  ✔ đặt lại mật khẩu: token một lần, thu hồi phiên cũ (860.5275ms)
+  ✔ cập nhật hồ sơ không đổi được vai trò (76.1209ms)
+  ✔ CSRF: request ghi thiếu header bảo vệ bị chặn (1.3618ms)
+✔ Xác thực & phiên (U003, U004, U005) (2347.994ms)
+▶ Hoàng Anh Sprint 3 — planner và nguồn cảnh báo
+  ✔ U026: threshold có phiên bản, refresh không tạo hash giả; dismiss cũ thiếu nguồn không che cảnh báo (390.3645ms)
+✔ Hoàng Anh Sprint 3 — planner và nguồn cảnh báo (390.6644ms)
+▶ Quản trị hệ thống (U028)
+  ✔ khóa tài khoản chặn phiên ngay và bắt buộc lý do; admin không đọc nội dung dự án (169.6587ms)
+✔ Quản trị hệ thống (U028) (169.8253ms)
+▶ Rà soát 26/10 vòng 2: phạm vi thông báo và thời gian phiên
+  ✔ workspace sai không được biến read-all thành đánh dấu toàn bộ tài khoản (343.4676ms)
+  ✔ phiên trả lastUsedAt thực thay vì thời điểm sửa bản ghi (76.5851ms)
+✔ Rà soát 26/10 vòng 2: phạm vi thông báo và thời gian phiên (420.2395ms)
+▶ Lộc Sprint 3: meeting, report, admin security
+  ✔ U028: logout khi meeting đang chạy chặn kết quả và ghi dữ liệu (476.8002ms)
+  ✔ U028: logout khi reports đang chạy chặn kết quả và ghi dữ liệu (483.1531ms)
+  ✔ U028: logout khi ask đang chạy chặn kết quả và ghi dữ liệu (455.6145ms)
+  ✔ U028: logout khi risk đang chạy chặn kết quả và ghi dữ liệu (442.2978ms)
+[error] Error: Loc Sprint3 simulated audit failure
+    at tx.adminAudit.create (file:///D:/Desktop/Nhom24/OJT202/BackEnd/test/helpers/loc-sprint3.js:386:52)
+    at file:///D:/Desktop/Nhom24/OJT202/BackEnd/src/routes/admin.js:87:25
+    at async Proxy._transactionWithCallback (D:\Desktop\Nhom24\OJT202\BackEnd\node_modules\@prisma\client\runtime\library.js:130:8120)
+    at async file:///D:/Desktop/Nhom24/OJT202/BackEnd/src/routes/admin.js:79:3
+  ✔ U028: khóa Owner giữ membership; unlock không hồi sinh phiên; không mass assign role; audit atomic (514.9898ms)
+✔ Lộc Sprint 3: meeting, report, admin security (2373.4151ms)
+✔ U030 Sprint 4: upload rechecks logout after storage wait (421.985ms)
+✔ U030 Sprint 4: download rechecks logout after storage wait (400.7095ms)
+✔ U030 Sprint 4: content rechecks logout after storage wait (396.3724ms)
+▶ Lộc: phân quyền và nghiệp vụ bổ sung
+  ✔ logout chấm dứt socket đang mở (330.3186ms)
+  ✔ tải lô tệp sai rollback toàn bộ; TXT sau sửa tải đúng phiên bản; restore sai trả 404 (373.3091ms)
+  ✔ thu hồi phiên đồng thời refresh không để lại phiên con còn sống (155.0151ms)
+✔ Lộc: phân quyền và nghiệp vụ bổ sung (859.2425ms)
+▶ Phiên đăng nhập và dữ liệu biên
+  ✔ Ghi nhớ đăng nhập quyết định cookie persistent; refresh không kéo dài quá hạn phiên (167.1003ms)
+  ✔ hai link xác minh khác nhau chạy đồng thời chỉ tạo một phiên (299.5168ms)
+✔ Phiên đăng nhập và dữ liệu biên (466.861ms)
+▶ Lộc Sprint 1: SMTP, giờ còn lại và xóa mềm
+  ✔ Sprint 1: token xác minh hết hạn không xác minh tài khoản hoặc tạo phiên (546.3959ms)
+✔ Lộc Sprint 1: SMTP, giờ còn lại và xóa mềm (546.6105ms)
+▶ Lộc Sprint 2
+  ✔ U005-T1/T3: SMTP reset một lần, hết hạn, đúng mục đích, thu hồi mọi phiên; profile whitelist (2780.3333ms)
+✔ Lộc Sprint 2 (2780.6055ms)
+▶ Sprint 1: hợp đồng API v1 và acceptance_criteria văn bản
+  ✔ v1 dùng cùng ACL/CSRF, refresh/logout cookie đúng path và tương thích API cũ (170.5976ms)
+✔ Sprint 1: hợp đồng API v1 và acceptance_criteria văn bản (170.7313ms)
+▶ OTP email và đăng nhập Google
+  ✔ OTP xác minh đăng ký: sai bị đếm, đúng tạo phiên, dùng lại bị từ chối (295.5307ms)
+  ✔ quên mật khẩu bằng OTP: đổi mật khẩu, thu hồi phiên, mã dùng một lần (1567.486ms)
+✔ OTP email và đăng nhập Google (1863.2741ms)
+ℹ tests 34
+ℹ suites 12
+ℹ pass 34
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 62705.541

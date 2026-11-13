@@ -5,10 +5,10 @@ import path from 'node:path';
 // Chạy từ repository root; chỉ đọc source và ghi tài liệu, không kết nối DB.
 const out = path.resolve('docs/design');
 await fs.mkdir(out, { recursive: true });
-const files = { auth: '/auth', me: '/me', workspaces: '/workspaces', capacity: '/workspaces', notifications: '/notifications', admin: '/admin', dev: '/dev', projects: '', tasks: '', documents: '', dashboard: '', ai: '', delivery: '' };
+const files = { auth: '/auth', me: '/me', workspaces: '/workspaces', capacity: '/workspaces', notifications: '/notifications', admin: '/admin', dev: '/dev', projects: '', tasks: '', documents: '', dashboard: '', ai: '', delivery: '', planning: '', agent: '', mcp: '/mcp' };
 const paths = {};
 const manifest = {};
-for (const dir of ['FrontEnd/src', 'BackEnd/src', 'AIService/src', 'shared', 'BackEnd/prisma']) {
+for (const dir of ['FrontEnd/src', 'BackEnd/src', 'AIService/src', 'mcp/src', 'shared', 'BackEnd/prisma']) {
   const entries = await fs.readdir(dir, { recursive: true, withFileTypes: true });
   for (const entry of entries) {
     if (!entry.isFile()) continue;
@@ -32,7 +32,7 @@ for (const [file, prefix] of Object.entries(files)) {
     const parameters = [...url.matchAll(/\{(\w+)\}/g)].map((m) => ({ in: 'path', name: m[1], required: true, schema: { type: 'string' } }));
     if (['post', 'patch', 'put', 'delete'].includes(method)) parameters.push({ in: 'header', name: 'x-taskflow', required: true, schema: { type: 'string', enum: ['1'] } });
     paths[url] ||= {};
-    paths[url][method] = { operationId: `${file}_${method}_${route.replace(/\W+/g, '_')}`, tags: [file], summary: `${method.toUpperCase()} ${url}`, description: `Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.${file === 'dev' ? ' Chỉ đăng ký ngoài production.' : ''}`, 'x-source': `${source}:${text.slice(0, routes[i].index).split('\n').length}`, parameters, responses, ...(file === 'auth' ? { security: [] } : {}) };
+    paths[url][method] = { operationId: `${file}_${method}_${route.replace(/\W+/g, '_')}`, tags: [file], summary: `${method.toUpperCase()} ${url}`, description: `Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.${file === 'dev' ? ' Chỉ đăng ký ngoài production.' : ''}`, 'x-source': `${source}:${text.slice(0, routes[i].index).split('\n').length}`, parameters, responses, ...(file === 'auth' ? { security: [] } : file === 'mcp' ? { security: [{ agentToken: [] }] } : {}) };
   }
 }
 const object = (properties, required = []) => ({ type: 'object', properties, required });
@@ -55,6 +55,8 @@ const bodies = {
   '/me:patch': { ...object({ name: { type: 'string', minLength: 1, maxLength: 80 }, title: { type: 'string', maxLength: 60 }, timezone: { type: 'string', description: 'Valid IANA timezone' }, language: { enum: ['vi', 'en'] } }), additionalProperties: false },
   '/tasks/{id}/checklist:post': { ...object({ version, text: checklistItem.properties.text, done: { type: 'boolean', default: false } }, ['version', 'text']), additionalProperties: false },
   '/checklist/{id}:patch': { ...object({ version, text: checklistItem.properties.text, done: { type: 'boolean' } }, ['version']), additionalProperties: false, description: 'At least text or done is required.' },
+  '/auth/google:post': object({ credential: { type: 'string', minLength: 20, maxLength: 4096 }, remember: { type: 'boolean' }, acceptTerms: { type: 'boolean', description: 'Bắt buộc true khi Google tạo tài khoản mới; tài khoản đã có không cần.' } }, ['credential']),
+  '/ai/reports/{id}:patch': { ...object({ title: { type: 'string', minLength: 1, maxLength: 200 }, sections: { type: 'array', items: object({ key: str, title: { type: 'string', maxLength: 200 }, body: { type: 'string', maxLength: 20000 } }, ['key']) }, removeKeys: { type: 'array', items: str }, share: { type: 'boolean' } }), description: 'Chỉ người tạo là PM. Sửa được khi còn nháp; share=true là publish. Báo cáo đã chia sẻ là snapshot bất biến: sửa title/sections/removeKeys trả 409 REPORT_SHARED, share lặp là no-op.' },
   '/auth/login:post': object({ email: { type: 'string', format: 'email' }, password: str, remember: { type: 'boolean' } }, ['email', 'password']),
   '/projects/{projectId}/tasks:post': object(taskFields, ['title']),
   '/tasks/{id}:patch': object({ ...taskFields, version: { type: 'integer', minimum: 1 }, status: { enum: ['todo', 'in_progress', 'review', 'done'] } }, ['version']),
@@ -94,7 +96,7 @@ for (const [key, schema] of Object.entries(bodies)) {
   if (!paths[route]?.[method]) throw new Error(`Contract thiếu route ${key}`);
   paths[route][method].requestBody = { required: true, content: { 'application/json': { schema } } };
 }
-paths['/projects/{projectId}/ai/sources'].get.responses['200'] = { description: 'Thống kê nguồn được đọc trực tiếp, không trả nội dung.', content: { 'application/json': { schema: object({ tasks: { type: 'integer' }, documents: { type: 'integer' }, retrieval: { const: 'live' }, latestTaskAt: { type: ['string', 'null'], format: 'date-time' }, latestDocumentAt: { type: ['string', 'null'], format: 'date-time' } }, ['tasks', 'documents', 'retrieval']) } } };
+paths['/projects/{projectId}/ai/sources'].get.responses['200'] = { description: 'Thống kê nguồn được đọc trực tiếp, không trả nội dung.', content: { 'application/json': { schema: object({ tasks: { type: 'integer' }, documents: { type: 'integer' }, retrieval: { const: 'live' }, latestTaskAt: { type: ['string', 'null'], format: 'date-time' }, latestDocumentAt: { type: ['string', 'null'], format: 'date-time' }, suggestions: { type: 'array', maxItems: 3, items: str, description: 'Câu hỏi gợi ý dựng từ việc bị chặn, việc đang mở và tài liệu mới nhất của chính dự án.' } }, ['tasks', 'documents', 'retrieval', 'suggestions']) } } };
 paths['/health'] = { get: { operationId: 'health', security: [], responses: { 200: { description: 'Liveness HTTP, không phải readiness DB/AI. Cache-Control: no-store. build.revision/sourceHash lấy từ RELEASE_SHA/RELEASE_SOURCE_HASH hợp lệ, null nếu chưa cấu hình; smoke production kiểm trùng với build được đo.' } } } };
 const schemaSource = await fs.readFile('BackEnd/prisma/schema.prisma', 'utf8');
 paths['/tasks/{id}'].delete.parameters.push({ in: 'query', name: 'impact', required: false, schema: { type: 'string', pattern: '^[a-f0-9]{64}$' }, description: 'Token từ deletion-preview; 409 DELETE_CHANGED nếu phạm vi đã đổi trước khi xác nhận.' });
@@ -156,10 +158,10 @@ manifest['BackEnd/prisma/schema.prisma'] = crypto.createHash('sha256').update(sc
 paths['/workspaces/{wsId}/ai'].get.description = 'Thống kê AI theo workspace/ngày. p50LatencyMs/p95LatencyMs/latencySamples gồm các call đã kết thúc, kể cả lỗi và retry; legacy thiếu timestamp không giả làm mẫu mới. tokens là token đã biết, unknownUsageCalls biểu thị usage chưa đầy đủ.';
 paths['/workspaces/{wsId}/ai/calls'].get.description = 'Chỉ Owner/Admin. Log có queuedAt/finishedAt/provider/attempts/usageComplete. latencyMs tính cả chờ workspace lock và retry; mỗi attempt giữ token null khi chưa biết, không được suy ra chi phí bằng 0. Dùng API phân trang cho export lớn.';
 paths['/workspaces/{wsId}/ai/calls.csv'].get.description = 'Chỉ Owner/Admin; private,no-store; xuất token đã biết, provider, queue/finish, số attempt và usageComplete. Trên 10.000 bản ghi trả 400, không cắt âm thầm. CSV chống formula injection.';
-const spec = { openapi: '3.1.0', info: { title: 'TaskFlow API — inventory và contract luồng chính', version: '2026-11-03', description: 'Base /api/v1; /api là alias tương thích. Cookie HttpOnly tf_at; refresh tf_rt. UUID nội bộ id được serialize thành _id. Inventory bao phủ tuyến REST được khai báo trực tiếp; request/response chi tiết mới đặc tả các luồng chính, xem x-source cho phần còn lại. Các response lỗi chung là khả năng, không phải mọi endpoint đều trả mọi mã.' }, servers: [{ url: '/api/v1' }, { url: '/api', description: 'Legacy alias' }], security: [{ cookieAuth: [] }], paths, components: { securitySchemes: { cookieAuth: { type: 'apiKey', in: 'cookie', name: 'tf_at' } }, schemas: { Error: object({ error: str, details: { type: 'object', additionalProperties: true } }, ['error']) } } };
+const spec = { openapi: '3.1.0', info: { title: 'TaskFlow API — inventory và contract luồng chính', version: '2026-11-13', description: 'Base /api/v1; /api là alias tương thích. Cookie HttpOnly tf_at; refresh tf_rt. Riêng /mcp dùng Bearer token agent (agentToken). UUID nội bộ id được serialize thành _id. Inventory bao phủ tuyến REST được khai báo trực tiếp; request/response chi tiết mới đặc tả các luồng chính, xem x-source cho phần còn lại. Các response lỗi chung là khả năng, không phải mọi endpoint đều trả mọi mã.' }, servers: [{ url: '/api/v1' }, { url: '/api', description: 'Legacy alias' }], security: [{ cookieAuth: [] }], paths, components: { securitySchemes: { cookieAuth: { type: 'apiKey', in: 'cookie', name: 'tf_at' }, agentToken: { type: 'http', scheme: 'bearer', description: 'Token agent tfp_… tạo ở Trợ lý AI › Agent dự án; chỉ dùng cho /mcp, mang quyền project của người tạo, bị thu hồi khi đổi/đặt lại mật khẩu, khóa hoặc buộc đăng xuất. Không thay được cookie và ngược lại.' } }, schemas: { Error: object({ error: str, details: { type: 'object', additionalProperties: true } }, ['error']) } } };
 await fs.writeFile(path.join(out, 'openapi.json'), JSON.stringify(spec, null, 2) + '\n');
 const models = [...schemaSource.replaceAll('\r\n', '\n').matchAll(/model (\w+) \{([\s\S]*?)\n\}/g)];
-let erd = '# ERD và từ điển dữ liệu\n\nVersion 2026-11-03. Sinh từ `BackEnd/prisma/schema.prisma`; SQL migration là nguồn triển khai. Mảng UUID và JSONB không tự tạo FK; quan hệ bên dưới chỉ lấy từ `@relation(fields:...)` thật.\n\n```mermaid\nerDiagram\n';
+let erd = '# ERD và từ điển dữ liệu\n\nVersion 2026-11-13. Sinh từ `BackEnd/prisma/schema.prisma`; SQL migration là nguồn triển khai. Mảng UUID và JSONB không tự tạo FK; quan hệ bên dưới chỉ lấy từ `@relation(fields:...)` thật.\n\n```mermaid\nerDiagram\n';
 for (const [, name, body] of models) {
   erd += `  ${name} {\n`;
   for (const line of body.split('\n')) {

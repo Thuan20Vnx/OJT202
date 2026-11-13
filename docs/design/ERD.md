@@ -1,6 +1,6 @@
 # ERD và từ điển dữ liệu
 
-Version 2026-11-03. Sinh từ `BackEnd/prisma/schema.prisma`; SQL migration là nguồn triển khai. Mảng UUID và JSONB không tự tạo FK; quan hệ bên dưới chỉ lấy từ `@relation(fields:...)` thật.
+Version 2026-11-13. Sinh từ `BackEnd/prisma/schema.prisma`; SQL migration là nguồn triển khai. Mảng UUID và JSONB không tự tạo FK; quan hệ bên dưới chỉ lấy từ `@relation(fields:...)` thật.
 
 ```mermaid
 erDiagram
@@ -93,6 +93,8 @@ erDiagram
     Json sprint
     Json riskRules
     Int riskRulesVersion
+    Boolean agentDaily
+    String agentDailyTime
     String createdBy
     DateTime createdAt
     DateTime updatedAt
@@ -327,6 +329,62 @@ erDiagram
     String name PK
     Int seq
   }
+  RepoConnection {
+    String id PK
+    String workspace
+    String project
+    String baseUrl
+    String repoPath
+    String defaultBranch
+    String tokenEnc
+    String createdBy
+    DateTime createdAt
+    DateTime updatedAt
+  }
+  AgentRun {
+    String id PK
+    String workspace
+    String project
+    String user
+    String title
+    String target
+    String summary
+    Json focus
+    Json items
+    String source
+    String agentName
+    String claimKey
+    DateTime createdAt
+    DateTime updatedAt
+  }
+  AgentToken {
+    String id PK
+    String user
+    String name
+    String tokenHash
+    String prefix
+    DateTime expiresAt
+    DateTime lastUsedAt
+    DateTime revokedAt
+    DateTime createdAt
+    DateTime runnerSeenAt
+    String runnerAgents
+    String runnerSession
+    String runnerStop
+  }
+  AgentJob {
+    String id PK
+    String workspace
+    String project
+    String user
+    String agent
+    String resultType
+    String resultId
+    String error
+    DateTime createdAt
+    DateTime startedAt
+    DateTime finishedAt
+  }
   User |o--o{ User : "lockedBy"
   User ||--o{ Session : "user"
   User ||--o{ Token : "user"
@@ -396,6 +454,16 @@ erDiagram
   User |o--o{ RiskResolution : "resolvedBy"
   User ||--o{ AdminAudit : "admin"
   User |o--o{ AdminAudit : "targetUser"
+  Workspace ||--o{ RepoConnection : "workspace"
+  Project ||--o{ RepoConnection : "project"
+  User |o--o{ RepoConnection : "createdBy"
+  Workspace ||--o{ AgentRun : "workspace"
+  Project ||--o{ AgentRun : "project"
+  User |o--o{ AgentRun : "user"
+  User ||--o{ AgentToken : "user"
+  Workspace ||--o{ AgentJob : "workspace"
+  Project ||--o{ AgentJob : "project"
+  User ||--o{ AgentJob : "user"
 ```
 
 ## Bảng và ràng buộc
@@ -447,6 +515,10 @@ model User {
   aiCalls            AiCall[]
   aiDrafts           AiDraft[]
   aiReports          AiReport[]
+  repoConnections    RepoConnection[]
+  agentTokens        AgentToken[]
+  agentRuns          AgentRun[]
+  agentJobs          AgentJob[]
   aiConversations    AiConversation[]
   riskResolutions    RiskResolution[]
   auditsDone         AdminAudit[]       @relation("AuditAdmin")
@@ -558,6 +630,9 @@ model Workspace {
   aiCalls         AiCall[]
   aiDrafts        AiDraft[]
   aiReports       AiReport[]
+  repoConnections RepoConnection[]
+  agentRuns       AgentRun[]
+  agentJobs       AgentJob[]
   aiConversations AiConversation[]
 
   @@map("workspaces")
@@ -657,6 +732,9 @@ model Project {
   /// Ngưỡng của các quy tắc cảnh báo rủi ro
   riskRules   Json          @default("{\"overdueDays\":1,\"overdue\":true,\"blockedByOverdue\":true,\"overload\":true,\"overloadPct\":100,\"dueSoon\":true,\"dueSoonProgressPct\":80,\"reviewStaleDays\":3}")
   riskRulesVersion Int @default(1)
+  /// Gợi ý skill/plugin/công cụ hằng ngày bằng Gemini; giờ theo múi giờ dự án (HH:MM)
+  agentDaily     Boolean @default(false) @map("agent_daily")
+  agentDailyTime String  @default("08:00") @map("agent_daily_time") @db.VarChar(5)
   createdBy   String?       @map("created_by_id") @db.Uuid
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
@@ -671,6 +749,9 @@ model Project {
   activities      Activity[]
   aiDrafts        AiDraft[]
   aiReports       AiReport[]
+  repoConnection  RepoConnection?
+  agentRuns       AgentRun[]
+  agentJobs       AgentJob[]
   aiConversations AiConversation[]
   riskResolutions RiskResolution[]
   memberships     ProjectMember[]
@@ -1287,6 +1368,121 @@ model Counter {
   seq  Int    @default(0)
 
   @@map("counters")
+}
+```
+
+### RepoConnection
+
+```prisma
+model RepoConnection {
+  id           String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspace    String       @map("workspace_id") @db.Uuid
+  project      String       @unique @map("project_id") @db.Uuid
+  provider     RepoProvider
+  baseUrl      String       @map("base_url") @db.VarChar(300)
+  repoPath     String       @map("repo_path") @db.VarChar(300)
+  defaultBranch String      @default("main") @map("default_branch") @db.VarChar(200)
+  tokenEnc     String?      @map("token_enc")
+  createdBy    String?      @map("created_by_id") @db.Uuid
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  workspaceRef Workspace @relation(fields: [workspace], references: [id], onDelete: Cascade)
+  projectRef   Project   @relation(fields: [project], references: [id], onDelete: Cascade)
+  createdByRef User?     @relation(fields: [createdBy], references: [id], onDelete: SetNull)
+
+  @@map("repo_connections")
+}
+```
+
+### AgentRun
+
+```prisma
+model AgentRun {
+  id         String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspace  String         @map("workspace_id") @db.Uuid
+  project    String         @map("project_id") @db.Uuid
+  user       String?        @map("user_id") @db.Uuid
+  kind       AgentRunKind
+  status     AgentRunStatus @default(done)
+  title      String         @db.VarChar(300)
+  target     String?        @db.VarChar(200)
+  summary    String         @default("")
+  focus      Json           @default("[]")
+  items      Json           @default("[]")
+  /// server: Gemini phía server; mcp: agent trên máy người dùng gửi qua MCP
+  source     String         @default("server") @db.VarChar(20)
+  agentName  String?        @map("agent_name") @db.VarChar(80)
+  model      String?
+  error      String?
+  /// Khóa chạy một lần mỗi ngày cho job gợi ý, kể cả khi nhiều server dùng chung database.
+  claimKey   String?        @unique @map("claim_key")
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  workspaceRef Workspace @relation(fields: [workspace], references: [id], onDelete: Cascade)
+  projectRef   Project   @relation(fields: [project], references: [id], onDelete: Cascade)
+  userRef      User?     @relation(fields: [user], references: [id], onDelete: SetNull)
+
+  @@index([project, createdAt])
+  @@map("agent_runs")
+}
+```
+
+### AgentToken
+
+```prisma
+model AgentToken {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  user       String    @map("user_id") @db.Uuid
+  name       String    @db.VarChar(80)
+  tokenHash  String    @unique @map("token_hash")
+  prefix     String    @db.VarChar(16)
+  expiresAt  DateTime  @map("expires_at")
+  lastUsedAt DateTime? @map("last_used_at")
+  revokedAt  DateTime? @map("revoked_at")
+  createdAt  DateTime  @default(now())
+  /// Lần gần nhất runner trên máy (taskflow-runner) dùng token này hỏi việc, và các agent CLI máy đó có.
+  runnerSeenAt DateTime? @map("runner_seen_at")
+  runnerAgents String[]  @default([]) @map("runner_agents")
+  /// Mã phiên của tiến trình runner gần nhất; runnerStop = mã phiên người dùng đã bấm "Ngắt kết nối" trên web.
+  runnerSession String? @map("runner_session") @db.VarChar(64)
+  runnerStop    String? @map("runner_stop") @db.VarChar(64)
+
+  userRef User @relation(fields: [user], references: [id], onDelete: Cascade)
+
+  @@index([user])
+  @@map("agent_tokens")
+}
+```
+
+### AgentJob
+
+```prisma
+model AgentJob {
+  id         String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspace  String         @map("workspace_id") @db.Uuid
+  project    String         @map("project_id") @db.Uuid
+  user       String         @map("user_id") @db.Uuid
+  kind       AgentJobKind
+  /// antigravity | claude | codex
+  agent      String         @db.VarChar(20)
+  status     AgentJobStatus @default(queued)
+  input      Json
+  /// draft | conversation
+  resultType String?        @map("result_type") @db.VarChar(20)
+  resultId   String?        @map("result_id") @db.Uuid
+  error      String?        @db.VarChar(1000)
+  createdAt  DateTime       @default(now())
+  startedAt  DateTime?      @map("started_at")
+  finishedAt DateTime?      @map("finished_at")
+
+  workspaceRef Workspace @relation(fields: [workspace], references: [id], onDelete: Cascade)
+  projectRef   Project   @relation(fields: [project], references: [id], onDelete: Cascade)
+  userRef      User      @relation(fields: [user], references: [id], onDelete: Cascade)
+
+  @@index([user, status])
+  @@map("agent_jobs")
 }
 ```
 

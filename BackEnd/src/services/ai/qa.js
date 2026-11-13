@@ -60,7 +60,10 @@ export async function collectSources(projectId) {
     ]
       .filter(Boolean)
       .join(' ');
-    sources.push({ kind: 'task', refId: t.id, label: `${t.key} · Mô tả công việc`, text: facts, key: t.key, version: t.version, updatedAt: t.updatedAt });
+    sources.push({ kind: 'task', refId: t.id, label: `${t.key} · Mô tả công việc`, text: facts, key: t.key, version: t.version, updatedAt: t.updatedAt,
+      task: { title: t.title, status: t.status, assignee: t.assignee?.name || null, dueDate: t.dueDate,
+        description: t.description, acceptanceCriteria: t.acceptanceCriteria,
+        blockedBy: (t.blockedBy || []).map(b => ({ key: b.key, title: b.title, status: b.status })) } });
   }
   for (const c of comments) {
     if (!c.task) continue;

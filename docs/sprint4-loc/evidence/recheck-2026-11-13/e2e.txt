@@ -1,0 +1,88 @@
+
+> test:e2e
+> npm run build && node --test --test-concurrency=1 test/e2e/sprint1.test.mjs
+
+
+> build
+> npm run typecheck && npm --prefix FrontEnd run build
+
+
+> typecheck
+> tsc -p BackEnd/tsconfig.json && tsc -p FrontEnd/tsconfig.json
+
+
+> taskflow-client@1.0.0 build
+> vite build
+
+[36mvite v6.4.5 [32mbuilding for production...[36m[39m
+transforming...
+[32m✓[39m 147 modules transformed.
+rendering chunks...
+computing gzip size...
+[2mdist/[22m[32mindex.html                                                        [39m[1m[2m  1.12 kB[22m[1m[22m[2m │ gzip:   0.66 kB[22m
+[2mdist/[22m[32massets/inter-vietnamese-wght-normal-CBcvBZtf.woff2                [39m[1m[2m 10.25 kB[22m[1m[22m
+[2mdist/[22m[32massets/inter-greek-ext-wght-normal-DlzME5K_.woff2                 [39m[1m[2m 11.23 kB[22m[1m[22m
+[2mdist/[22m[32massets/inter-cyrillic-wght-normal-DqGufNeO.woff2                  [39m[1m[2m 18.75 kB[22m[1m[22m
+[2mdist/[22m[32massets/inter-greek-wght-normal-CkhJZR-_.woff2                     [39m[1m[2m 19.00 kB[22m[1m[22m
+[2mdist/[22m[32massets/inter-cyrillic-ext-wght-normal-BOeWTOD4.woff2              [39m[1m[2m 25.96 kB[22m[1m[22m
+[2mdist/[22m[32massets/inter-latin-wght-normal-Dx4kXJAl.woff2                     [39m[1m[2m 48.26 kB[22m[1m[22m
+[2mdist/[22m[32massets/inter-latin-ext-wght-normal-DO1Apj_S.woff2                 [39m[1m[2m 85.07 kB[22m[1m[22m
+[2mdist/[22m[32massets/material-symbols-outlined-latin-400-normal-BhEvR8fk.woff2  [39m[1m[2m323.33 kB[22m[1m[22m
+[2mdist/[22m[32massets/material-symbols-outlined-latin-400-normal-QdgSk6Ss.woff   [39m[1m[2m379.56 kB[22m[1m[22m
+[2mdist/[22m[35massets/index-C2AeA4-G.css                                         [39m[1m[2m 77.37 kB[22m[1m[22m[2m │ gzip:  13.86 kB[22m
+[2mdist/[22m[36massets/Timeline-CIF8VPKz.js                                       [39m[1m[2m  2.37 kB[22m[1m[22m[2m │ gzip:   1.30 kB[22m
+[2mdist/[22m[36massets/Mentoring-BQ_Sfvsk.js                                      [39m[1m[2m  2.97 kB[22m[1m[22m[2m │ gzip:   1.24 kB[22m
+[2mdist/[22m[36massets/Contributions-B7nFCPNT.js                                  [39m[1m[2m  3.46 kB[22m[1m[22m[2m │ gzip:   1.68 kB[22m
+[2mdist/[22m[36massets/TeamWorkload-CDPGDW9D.js                                   [39m[1m[2m  3.90 kB[22m[1m[22m[2m │ gzip:   1.84 kB[22m
+[2mdist/[22m[36massets/Meetings-DMxWg7OF.js                                       [39m[1m[2m  5.50 kB[22m[1m[22m[2m │ gzip:   2.33 kB[22m
+[2mdist/[22m[36massets/Sprints-BSMdxGGP.js                                        [39m[1m[2m  8.34 kB[22m[1m[22m[2m │ gzip:   3.12 kB[22m
+[2mdist/[22m[36massets/Issues-BKxO0e5P.js                                         [39m[1m[2m  8.51 kB[22m[1m[22m[2m │ gzip:   2.94 kB[22m
+[2mdist/[22m[36massets/Notifications-CmgLBX6p.js                                  [39m[1m[2m  9.87 kB[22m[1m[22m[2m │ gzip:   3.73 kB[22m
+[2mdist/[22m[36massets/Admin-CSySTvjQ.js                                          [39m[1m[2m 10.73 kB[22m[1m[22m[2m │ gzip:   3.62 kB[22m
+[2mdist/[22m[36massets/Projects-CkdeGSes.js                                       [39m[1m[2m 11.42 kB[22m[1m[22m[2m │ gzip:   4.25 kB[22m
+[2mdist/[22m[36massets/Calendar--5Mqk5xR.js                                       [39m[1m[2m 11.71 kB[22m[1m[22m[2m │ gzip:   4.10 kB[22m
+[2mdist/[22m[36massets/Documents-DCiJq4xP.js                                      [39m[1m[2m 14.38 kB[22m[1m[22m[2m │ gzip:   5.00 kB[22m
+[2mdist/[22m[36massets/Settings-D27ZP7Uj.js                                       [39m[1m[2m 42.65 kB[22m[1m[22m[2m │ gzip:  11.87 kB[22m
+[2mdist/[22m[36massets/Ai-b1UfprCc.js                                             [39m[1m[2m 73.89 kB[22m[1m[22m[2m │ gzip:  20.76 kB[22m
+[2mdist/[22m[36massets/index-D9tlWmye.js                                          [39m[1m[33m541.25 kB[39m[22m[2m │ gzip: 165.57 kB[22m
+[33m
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.[39m
+[32m✓ built in 2.48s[39m
+[seed] Tạo dữ liệu demo Nhóm 24…
+[seed] Xong. Đăng nhập: mai.anh@nhom24.edu.vn / TaskFlow@2026  (System Admin: admin@taskflow.local)
+✔ Lộc Sprint 3: báo cáo mở nguồn thật; quản trị lỗi/thử lại, khóa và mở tài khoản (55490.3411ms)
+✔ Nhóm phát triển: nhật ký, phân bổ, issue, timeline, tải thành viên và lịch họp (6745.0266ms)
+✔ Bốn ngày task: tạo, sửa, reload giữ đúng kế hoạch và thực tế (4411.1189ms)
+✔ Như Sprint 2–4: My Tasks, comment retry/mention, nguồn tài liệu AI, capacity và responsive (5818.6567ms)
+✔ Lộc Sprint 2: tìm mô tả, checklist, PM ẩn bình luận và phụ thuộc thử lại khi lỗi (4177.1831ms)
+ℹ LSP2 -> HTTP 400: Mã dự án gồm 2–5 chữ cái
+ℹ LSP -> HTTP 201 with the same seeded owner and member
+✔ Như U031: My Tasks phân trang trên dataset 10.000 task (5630.2664ms)
+✔ U003/U007/U009: SMTP register/invite → task → remaining hours → Review/Done → realtime draft (14648.6272ms)
+✔ Như U009/U010: keyboard, API rollback, hai tab xung đột giữ draft và logout (9489.2326ms)
+✔ Hoàng Anh Sprint 2: thông báo hai tab, mất mạng, capacity tuần, preview xóa và CSV (14183.5728ms)
+✔ Hoàng Anh Sprint 3: planner hai tab, duyệt một lần, lý do xử lý rủi ro và biên bản có nguồn (27024.4937ms)
+[error] HttpError: Chưa gửi được email. Vui lòng thử gửi lại sau.
+    at mailUnavailable (file:///D:/Desktop/Nhom24/OJT202/BackEnd/src/services/mailer.js:27:31)
+    at sendMail (file:///D:/Desktop/Nhom24/OJT202/BackEnd/src/services/mailer.js:95:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async sendVerification (file:///D:/Desktop/Nhom24/OJT202/BackEnd/src/routes/auth.js:40:3)
+    at async file:///D:/Desktop/Nhom24/OJT202/BackEnd/src/routes/auth.js:63:3 {
+  status: 503,
+  details: { code: 'MAIL_UNAVAILABLE' }
+}
+✔ SMTP bị từ chối: màn hình cho gửi lại, không báo thư đã gửi thành công (3617.7242ms)
+✔ Hoàng Anh Sprint 4: telemetry AI rõ token chưa biết, CSV và mobile (3188.9263ms)
+✔ API v1: browser giữ refresh cookie đúng path, tự refresh và logout thu hồi phiên (2596.093ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 13
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 188487.5631
+e2e exit=0

@@ -1,5 +1,9 @@
 # Demo local Sprint 3 của Lộc
 
+## U025 — kiểm thử hỏi đáp và trích dẫn
+
+Chạy `npm run validate:u025` từ root để mở fixture HTTP/DB riêng, thực thi đủ 70 ca và xuất bằng chứng trong `.data/validation/u025-<timestamp>`. Không cần nhập tài khoản hay kết nối Supabase. Bộ ca kiểm thông tin task/doc/comment, tổng hợp/lọc, từ chối ngoài nguồn, quyền/thu hồi quyền/khóa tài khoản, sửa/xóa nguồn và injection. Output và citation được lưu để người review mở lại; đọc [bàn giao 09/11](COMPLETION_2026-11-09.md) để tạo biểu mẫu chấm gắn đúng run. Đây là kiểm chứng tự động development, không phải một phiên UAT người thật đã diễn ra.
+
 Dùng môi trường demo riêng với dữ liệu seed; không dùng tài khoản người thật để thử khóa. Mật khẩu demo lấy từ README/seed hiện có. `npm run dev` mở frontend, API và AIService; không đặt khóa provider thật nếu chỉ kiểm quy tắc local.
 
 ## U022 — báo cáo và nguồn

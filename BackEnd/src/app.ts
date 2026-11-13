@@ -82,7 +82,8 @@ export function createApp(options: { staticDir?: string } = {}): express.Express
       if (path.extname(req.path)) return res.status(404).type('text').send('Không tìm thấy tệp');
       if (!req.accepts('html')) return next();
       res.setHeader('Cache-Control', 'no-store');
-      return res.sendFile(path.join(dist, 'index.html'));
+      // Dùng root để thư mục cha có dấu chấm (vd worktree trong .claude/) không bị send coi là dotfile.
+      return res.sendFile('index.html', { root: dist });
     });
   }
 

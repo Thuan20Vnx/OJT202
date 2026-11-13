@@ -1,0 +1,19 @@
+[seed] Tạo dữ liệu demo Nhóm 24…
+[seed] Xong. Đăng nhập: mai.anh@nhom24.edu.vn / TaskFlow@2026  (System Admin: admin@taskflow.local)
+▶ Lộc Sprint 4: thu hồi token agent cùng phiên đăng nhập
+  ✔ đặt lại mật khẩu bằng liên kết thu hồi token và hủy việc agent đang chờ (399.6739ms)
+  ✔ đặt lại mật khẩu bằng OTP thu hồi token (370.1818ms)
+  ✔ đổi mật khẩu khi đang đăng nhập thu hồi token; phiên hiện tại vẫn dùng được (443.5936ms)
+  ✔ System Admin khóa tài khoản: token bị thu hồi, mở khóa cũng không sống lại (119.1596ms)
+  ✔ System Admin buộc đăng xuất: token bị thu hồi (105.7717ms)
+  ✔ đăng xuất thường trên một trình duyệt không thu hồi token agent (99.4427ms)
+  ✔ thu hồi không đụng token của người khác (201.6871ms)
+✔ Lộc Sprint 4: thu hồi token agent cùng phiên đăng nhập (45688.9887ms)
+ℹ tests 7
+ℹ suites 1
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 47076.4674

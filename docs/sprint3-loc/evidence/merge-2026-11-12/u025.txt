@@ -1,0 +1,86 @@
+=== U025
+
+> validate:u025
+> node scripts/validation/u025-run.mjs --out .data/validation/u025-final-2026-11-12
+
+[seed] Tạo dữ liệu demo Nhóm 24…
+[seed] Xong. Đăng nhập: mai.anh@nhom24.edu.vn / TaskFlow@2026  (System Admin: admin@taskflow.local)
+PASS DEV-A01
+PASS DEV-A02
+PASS DEV-A03
+PASS DEV-A04
+PASS DEV-A05
+PASS DEV-A06
+PASS DEV-A07
+PASS DEV-A08
+PASS DEV-A09
+PASS DEV-A10
+PASS DEV-A11
+PASS DEV-A12
+PASS DEV-A13
+PASS DEV-A14
+PASS DEV-A15
+PASS DEV-A16
+PASS DEV-A17
+PASS DEV-A18
+PASS DEV-A19
+PASS DEV-A20
+PASS DEV-A21
+PASS DEV-A22
+PASS DEV-A23
+PASS DEV-A24
+PASS DEV-A25
+PASS DEV-A26
+PASS DEV-A27
+PASS DEV-A28
+PASS DEV-A29
+PASS DEV-A30
+PASS DEV-A31
+PASS DEV-A32
+PASS DEV-A33
+PASS DEV-A34
+PASS DEV-A35
+PASS DEV-A36
+PASS DEV-A37
+PASS DEV-A38
+PASS DEV-A39
+PASS DEV-A40
+PASS DEV-O01
+PASS DEV-O02
+PASS DEV-O03
+PASS DEV-O04
+PASS DEV-O05
+PASS DEV-O06
+PASS DEV-O07
+PASS DEV-O08
+PASS DEV-O09
+PASS DEV-O10
+PASS DEV-S01
+PASS DEV-S02
+PASS DEV-S03
+PASS DEV-S04
+PASS DEV-S05
+PASS DEV-S06
+PASS DEV-S07
+PASS DEV-S08
+PASS DEV-S09
+PASS DEV-S10
+PASS DEV-S11
+PASS DEV-S12
+PASS DEV-S13
+PASS DEV-S14
+PASS DEV-S15
+PASS DEV-S16
+PASS DEV-S17
+PASS DEV-S18
+PASS DEV-S19
+[error] Error: U025 simulated retrieval failure
+    at db.task.findMany (file:///D:/Desktop/Nhom24/OJT202/.claude/worktrees/du-an-chi-tiet-eb8fd9/scripts/validation/u025-run.mjs:160:126)
+    at collectSources (file:///D:/Desktop/Nhom24/OJT202/.claude/worktrees/du-an-chi-tiet-eb8fd9/BackEnd/src/services/ai/qa.js:39:17)
+    at file:///D:/Desktop/Nhom24/OJT202/.claude/worktrees/du-an-chi-tiet-eb8fd9/BackEnd/src/routes/ai.js:462:25
+    at Layer.handleRequest (D:\Desktop\Nhom24\OJT202\.claude\worktrees\du-an-chi-tiet-eb8fd9\BackEnd\node_modules\router\lib\layer.js:152:17)
+    at next (D:\Desktop\Nhom24\OJT202\.claude\worktrees\du-an-chi-tiet-eb8fd9\BackEnd\node_modules\router\lib\route.js:157:13)
+    at file:///D:/Desktop/Nhom24/OJT202/.claude/worktrees/du-an-chi-tiet-eb8fd9/BackEnd/src/middleware/access.js:108:5
+PASS DEV-S20
+{"executed":70,"passed":70,"failed":0,"humanQuality":"pending-independent-grading","acceptance":"pending-private-custodian-pack"}
+u025 exit=0

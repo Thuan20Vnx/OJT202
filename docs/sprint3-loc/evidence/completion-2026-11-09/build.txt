@@ -1,0 +1,49 @@
+
+> build
+> npm run typecheck && npm --prefix FrontEnd run build
+
+
+> typecheck
+> tsc -p BackEnd/tsconfig.json && tsc -p FrontEnd/tsconfig.json
+
+
+> taskflow-client@1.0.0 build
+> vite build
+
+vite v6.4.5 building for production...
+transforming...
+✓ 144 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                                          1.12 kB │ gzip:   0.66 kB
+dist/assets/inter-vietnamese-wght-normal-CBcvBZtf.woff2                 10.25 kB
+dist/assets/inter-greek-ext-wght-normal-DlzME5K_.woff2                  11.23 kB
+dist/assets/inter-cyrillic-wght-normal-DqGufNeO.woff2                   18.75 kB
+dist/assets/inter-greek-wght-normal-CkhJZR-_.woff2                      19.00 kB
+dist/assets/inter-cyrillic-ext-wght-normal-BOeWTOD4.woff2               25.96 kB
+dist/assets/inter-latin-wght-normal-Dx4kXJAl.woff2                      48.26 kB
+dist/assets/inter-latin-ext-wght-normal-DO1Apj_S.woff2                  85.07 kB
+dist/assets/material-symbols-outlined-latin-400-normal-BhEvR8fk.woff2  323.33 kB
+dist/assets/material-symbols-outlined-latin-400-normal-QdgSk6Ss.woff   379.56 kB
+dist/assets/index-DKYPFMdW.css                                          76.55 kB │ gzip:  13.68 kB
+dist/assets/Timeline-C2C-NG0G.js                                         2.37 kB │ gzip:   1.30 kB
+dist/assets/Mentoring-Dw7r5Mdd.js                                        2.97 kB │ gzip:   1.24 kB
+dist/assets/Contributions-CBI7Bl0S.js                                    3.46 kB │ gzip:   1.68 kB
+dist/assets/TeamWorkload-CdubhVg-.js                                     3.90 kB │ gzip:   1.84 kB
+dist/assets/Meetings-B9YrSggp.js                                         5.50 kB │ gzip:   2.33 kB
+dist/assets/Sprints-4XpU4ScY.js                                          8.34 kB │ gzip:   3.12 kB
+dist/assets/Issues-DJ-aNHMk.js                                           8.51 kB │ gzip:   2.94 kB
+dist/assets/Notifications-BuYajQM-.js                                    9.81 kB │ gzip:   3.72 kB
+dist/assets/Admin-BLl89GV6.js                                           10.74 kB │ gzip:   3.62 kB
+dist/assets/Projects-drFzLE90.js                                        11.42 kB │ gzip:   4.25 kB
+dist/assets/Calendar-nGS7rta0.js                                        11.71 kB │ gzip:   4.10 kB
+dist/assets/Documents-C0edS9Kz.js                                       14.38 kB │ gzip:   5.00 kB
+dist/assets/Ai-BBUo4G2C.js                                              41.70 kB │ gzip:  11.31 kB
+dist/assets/Settings-BgZBjEHU.js                                        42.12 kB │ gzip:  11.63 kB
+dist/assets/index-CkeJ0P1s.js                                          532.65 kB │ gzip: 162.64 kB
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 1.94s

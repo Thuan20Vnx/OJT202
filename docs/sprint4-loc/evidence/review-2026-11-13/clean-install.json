@@ -1,0 +1,68 @@
+{
+  "schemaVersion": 1,
+  "kind": "automated-clean-install",
+  "build": {
+    "revision": "09321b48ba7d7abce325e82cff8e608b89a52a33",
+    "sourceHash": "4b82d96f20b46683ab48f67e5beb192c4e28fba8a10ecf0ffd8bb7e2f741f5bc",
+    "sourceHashAlgorithm": "sha256-lf-v1",
+    "promptHash": "533c2c256becc980797bb51826a44b4399e82a829895af6c7a668f2bc6ed05ac",
+    "dirty": true,
+    "node": "v24.15.0"
+  },
+  "status": "passed",
+  "fileCount": 632,
+  "steps": [
+    {
+      "command": "npm ci",
+      "status": "passed",
+      "elapsedMs": 2002.4959,
+      "log": "\nadded 22 packages, and audited 23 packages in 2s\n\nfound 0 vulnerabilities\n"
+    },
+    {
+      "command": "npm --prefix BackEnd ci",
+      "status": "passed",
+      "elapsedMs": 66200.617,
+      "log": "\n> taskflow-server@1.0.0 postinstall\n> prisma generate\n\nPrisma schema loaded from prisma\\schema.prisma\n\n✔ Generated Prisma Client (v6.19.3) to .\\node_modules\\@prisma\\client in 290ms\n\nStart by importing your Prisma Client (See: https://pris.ly/d/importing-client)\n\nTip: Interested in query caching in just a few lines of code? Try Accelerate today! https://pris.ly/tip-3-accelerate\n\n\nadded 196 packages, and audited 197 packages in 1m\n\n46 packages are looking for funding\n  run `npm fund` for details\n\nfound 0 vulnerabilities\nnpm warn deprecated node-domexception@1.0.0: Use your platform's native DOMException instead\n"
+    },
+    {
+      "command": "npm --prefix AIService ci",
+      "status": "passed",
+      "elapsedMs": 2212.7358999999997,
+      "log": "\nadded 68 packages, and audited 69 packages in 2s\n\n30 packages are looking for funding\n  run `npm fund` for details\n\nfound 0 vulnerabilities\n"
+    },
+    {
+      "command": "npm --prefix FrontEnd ci",
+      "status": "passed",
+      "elapsedMs": 4197.544599999994,
+      "log": "\nadded 190 packages, and audited 191 packages in 4s\n\n36 packages are looking for funding\n  run `npm fund` for details\n\nfound 0 vulnerabilities\n"
+    },
+    {
+      "command": "npm --prefix mcp ci",
+      "status": "passed",
+      "elapsedMs": 2727.9578000000038,
+      "log": "\nadded 95 packages, and audited 96 packages in 3s\n\n36 packages are looking for funding\n  run `npm fund` for details\n\nfound 0 vulnerabilities\n"
+    },
+    {
+      "command": "npm run build",
+      "status": "passed",
+      "elapsedMs": 4931.705499999996,
+      "log": "\n> build\n> npm run typecheck && npm --prefix FrontEnd run build\n\n\n> typecheck\n> tsc -p BackEnd/tsconfig.json && tsc -p FrontEnd/tsconfig.json\n\n\n> taskflow-client@1.0.0 build\n> vite build\n\n\u001b[36mvite v6.4.5 \u001b[32mbuilding for production...\u001b[36m\u001b[39m\ntransforming...\n\u001b[32m✓\u001b[39m 151 modules transformed.\nrendering chunks...\ncomputing gzip size...\n\u001b[2mdist/\u001b[22m\u001b[32mindex.html                                                        \u001b[39m\u001b[1m\u001b[2m  1.12 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m │ gzip:   0.66 kB\u001b[22m\n\u001b[2mdist/\u001b[22m\u001b[32massets/inter-vietnamese-wght-normal-CBcvBZtf.woff2                \u001b[39m\u001b[1m\u001b[2m 10.25 kB\u001b[22m\u001b[1m\u001b[22m\n\u001b[2mdist/\u001b[22m\u001b[32massets/inter-greek-ext-wght-normal-DlzME5K_.woff2                 \u001b[39m\u001b[1m\u001b[2m 11.23 kB\u001b[22m\u001b[1m\u001b[22m\n\u001b[2mdist/\u001b[22m\u001b[32massets/inter-cyrillic-wght-normal-DqGufNeO.woff2                  \u001b[39m\u001b[1m\u001b[2m 18.75 kB\u001b[22m\u001b[1m\u001b[22m\n\u001b[2mdist/\u001b[22m\u001b[32massets/inter-greek-wght-normal-CkhJZR-_.woff2                     \u001b[39m\u001b[1m\u001b[2m 19.00 kB\u001b[22m\u001b[1m\u001b[22m\n\u001b[2mdist/\u001b[22m\u001b[32massets/inter-cyrillic-ext-wght-normal-BOeWTOD4.woff2              \u001b[39m\u001b[1m\u001b[2m 25.96 kB\u001b[22m\u001b[1m\u001b[22m\n\u001b[2mdist/\u001b[22m\u001b[32massets/inter-latin-wght-normal-Dx4kXJAl.woff2                     \u001b[39m\u001b[1m\u001b[2m 48.26 kB\u001b[22m\u001b[1m\u001b[22m\n\u001b[2mdist/\u001b[22m\u001b[32massets/inter-latin-ext-wght-normal-DO1Apj_S.woff2                 \u001b[39m\u001b[1m\u001b[2m 85.07 kB\u001b[22m\u001b[1m\u001b[22m\n\u001b[2mdist/\u001b[22m\u001b[32massets/material-symbols-outlined-latin-400-normal-BhEvR8fk.woff2  \u001b[39m\u001b[1m\u001b[2m323.33 kB\u001b[22m\u001b[1m\u001b[22m\n\u001b[2mdist/\u001b[22m\u001b[32massets/material-symbols-outlined-latin-400-normal-QdgSk6Ss.woff   \u001b[39m\u001b[1m\u001b[2m379.56 kB\u001b[22m\u001b[1m\u001b[22m\n\u001b[2mdist/\u001b[22m\u001b[35massets/index-Bw4qgGre.css                                         \u001b[39m\u001b[1m\u001b[2m 79.92 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m │ gzip:  14.21 kB\u001b[22m\n\u001b[2mdist/\u001b[22m\u001b[36massets/Timeline-FR-pZB6L.js                                       \u001b[39m\u001b[1m\u001b[2m  5.82 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m │ gzip:   1.56 kB\u001b[22m\n\u001b[2mdist/\u001b[22m\u001b[36massets/Mentoring-DIgBqVve.js                                      \u001b[39m\u001b[1m\u001b[2m  8.04 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m │ gzip:   1.58 kB\u001b[22m\n\u001b[2mdist/\u001b[22m\u001b[36massets/Contributions-A5HbrGQ1.js                                  \u001b[39m\u001b[1m\u001b[2m  8.30 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m │ gzip:   2.01 kB\u001b[22m\n\u001b[2mdist/\u001b[22m\u001b[36massets/TeamWorkload-BSvJL_9s.js                                   \u001b[39m\u001b[1m\u001b[2m  8.88 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m │ gzip:   2.19 kB\u001b[22m\n\u001b[2mdist/\u001b[22m\u001b[36massets/Meetings-CkElcJxw.js                                       \u001b[39m\u001b[1m\u001b[2m 11.79 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m │ gzip:   2.74 kB\u001b[22m\n\u001b[2mdist/\u001b[22m\u001b[36massets/Sprints-C0kyiEAl.js                                        \u001b[39m\u001b[1m\u001b[2m 18.69 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m │ gzip:   3.72 kB\u001b[22m\n\u001b[2mdist/\u001b[22m\u001b[36massets/Issues-DwDKeoMH.js                                         \u001b[39m\u001b[1m\u001b[2m 19.56 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m │ gzip:   3.56 kB\u001b[22m\n\u001b[2mdist/\u001b[22m\u001b[36massets/Notifications-CK1bM6Ko.js                                  \u001b[39m\u001b[1m\u001b[2m 21.10 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m │ gzip:   4.38 kB\u001b[22m\n\u001b[2mdist/\u001b[22m\u001b[36massets/Calendar-B6DNpaeH.js                                       \u001b[39m\u001b[1m\u001b[2m 25.91 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m │ gzip:   4.88 kB\u001b[22m\n\u001b[2mdist/\u001b[22m\u001b[36massets/Projects-Dwc2FWVF.js                                       \u001b[39m\u001b[1m\u001b[2m 25.94 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m │ gzip:   5.07 kB\u001b[22m\n\u001b[2mdist/\u001b[22m\u001b[36massets/Admin-DI9JW2Eu.js                                          \u001b[39m\u001b[1m\u001b[2m 27.29 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m │ gzip:   4.49 kB\u001b[22m\n\u001b[2mdist/\u001b[22m\u001b[36massets/Documents-BiPFe1Fp.js                                      \u001b[39m\u001b[1m\u001b[2m 33.92 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m │ gzip:   6.01 kB\u001b[22m\n\u001b[2mdist/\u001b[22m\u001b[36massets/Settings-cE9ZULux.js                                       \u001b[39m\u001b[1m\u001b[2m102.09 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m │ gzip:  15.51 kB\u001b[22m\n\u001b[2mdist/\u001b[22m\u001b[36massets/Ai-BCbp1Wj3.js                                             \u001b[39m\u001b[1m\u001b[2m159.04 kB\u001b[22m\u001b[1m\u001b[22m\u001b[2m │ gzip:  26.07 kB\u001b[22m\n\u001b[2mdist/\u001b[22m\u001b[36massets/index-wWHc1-UI.js                                          \u001b[39m\u001b[1m\u001b[33m986.76 kB\u001b[39m\u001b[22m\u001b[2m │ gzip: 237.93 kB\u001b[22m\n\u001b[32m✓ built in 2.70s\u001b[39m\n\u001b[33m\n(!) Some chunks are larger than 500 kB after minification. Consider:\n- Using dynamic import() to code-split the application\n- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks\n- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.\u001b[39m\n"
+    },
+    {
+      "command": "npm run test:validation",
+      "status": "passed",
+      "elapsedMs": 504.4021999999968,
+      "log": "\n> test:validation\n> node --test scripts/validation/test/*.test.mjs\n\n✔ statistics: p95 keeps slow failures; even-sample median and missing values are explicit (2.6776ms)\n✔ packs: duplicate cases, prototype paths, missing assertions and external routes fail closed (2.9397ms)\n✔ CLI rejects duplicate/missing options instead of overwriting run inputs (0.2134ms)\n✔ build identity survives Windows/Linux line endings without normalizing binary fixtures (0.5686ms)\n✔ UAT: absent humans stay pending with denominator 30 and no invented completion rate (0.5049ms)\n✔ UAT: assisted success does not count; duplicate trials and mixed builds are rejected (0.9578ms)\n✔ UAT: 26/30 fails; baseline needs balanced crossover and preserved quality (0.4756ms)\n✔ UAT: latest independent retest controls blocking issue, older pass cannot hide a new failure (0.4256ms)\n✔ AI scores: missing judges have unknown quality; developer pack cannot become acceptance (9.8822ms)\n✔ AI scores: both independent grades persist; disagreement needs a third adjudicator (21.0907ms)\n✔ AI scores: one wrong report metric or any leakage fails even if prose/refusal averages pass (8.6064ms)\n✔ AI scores reject altered outputs even when run ID, pack and revision remain unchanged (1.234ms)\n✔ release: missing gates, wrong build, empty AI rubric and localhost smoke cannot permit final tag (0.7671ms)\n✔ release permits final only when every required gate passes on the same clean build (4.4686ms)\n✔ production smoke refuses plaintext remote URL and credentials embedded in URL (0.6231ms)\n✔ U025 grading includes security/refusal citations, never promotes development to acceptance (8.6949ms)\n✔ U025 grading separates double-grade coverage from agreement; blank scores remain null (2.1176ms)\n✔ U025 grading refuses tampered evidence and self-grading (4.0255ms)\n✔ U025 grading leaves disagreements pending without bound third-person adjudication (5.9091ms)\n✔ U025 grading rejects omitted/duplicate citations, not merely plausible totals (5.7085ms)\n✔ UAT preparation cannot pass human acceptance without observations (2.8911ms)\nℹ tests 21\nℹ suites 0\nℹ pass 21\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 162.5746\n"
+    },
+    {
+      "command": "npm --prefix mcp test",
+      "status": "passed",
+      "elapsedMs": 54397.99889999999,
+      "log": "\n> taskflow-mcp@1.0.0 test\n> node --test --test-concurrency=1 \"test/**/*.test.js\"\n\n[seed] Tạo dữ liệu demo Nhóm 24…\n[seed] Xong. Đăng nhập: mai.anh@nhom24.edu.vn / TaskFlow@2026  (System Admin: admin@taskflow.local)\n✔ agent thấy đủ công cụ và lệnh soạn sẵn (45444.8242ms)\n✔ đọc dự án, công việc rồi gửi báo cáo về TaskFlow (443.3084ms)\n✔ hỏi đáp, lập kế hoạch và biên bản họp qua MCP: chỉ tạo bản nháp chờ duyệt (563.9786ms)\n✔ runner nhận việc bấm trên web, agent lấy đề bài qua get_job và trả bản nháp (660.7984ms)\n✔ runner phân biệt máy chủ bản cũ (chờ và thử lại) với token hỏng (dừng hẳn) (309.509ms)\n✔ ngắt kết nối trên web thì runner tự dừng; việc đọc code nhận đúng thư mục (598.2777ms)\n✔ không có TASKFLOW_TOKEN thì MCP server dùng token của runner đã cài (424.7613ms)\n✔ thiếu hoặc sai token thì báo lỗi dễ hiểu, không làm hỏng phiên (741.4744ms)\n✔ đọc tham số dòng lệnh, kể cả đường dẫn có dấu cách (1.6035ms)\n✔ cài: từ chối khi thiếu token hoặc thư mục không tồn tại (0.9529ms)\n✔ cài: lưu cấu hình và tệp khởi chạy ẩn đọc được đường dẫn có dấu (2.5871ms)\n✔ cài: mục taskflow của Antigravity trỏ về server này, bỏ token cũ, giữ server khác (3.5085ms)\n✔ tệp khởi chạy và registry không nhận tham số từ đường dẫn taskflow:// (0.3378ms)\n✔ chỉ một runner nền; gỡ cài đặt xóa sạch cấu hình (3.5606ms)\nℹ tests 14\nℹ suites 0\nℹ pass 14\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 54052.9075\n"
+    }
+  ],
+  "logHash": "6b7b5550867a45eb87e96c9fd53f30819805ec103b2dc2dee65c6016247bcc94",
+  "independentInstaller": null,
+  "acceptanceStatus": "pending",
+  "reason": "Automated clean install does not replace installation by another team member"
+}

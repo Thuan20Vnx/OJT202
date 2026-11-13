@@ -1,0 +1,33 @@
+Command: npm run test:validation
+CWD: D:/Desktop/Nhom24/OJT202
+Date: 2026-11-08 (Asia/Saigon)
+Exit code: 0
+Captured command output:
+
+> test:validation
+> node --test scripts/validation/test/*.test.mjs
+
+✔ statistics: p95 keeps slow failures; even-sample median and missing values are explicit (1.909ms)
+✔ packs: duplicate cases, prototype paths, missing assertions and external routes fail closed (3.2963ms)
+✔ CLI rejects duplicate/missing options instead of overwriting run inputs (0.2036ms)
+✔ build identity survives Windows/Linux line endings without normalizing binary fixtures (0.5073ms)
+✔ UAT: absent humans stay pending with denominator 30 and no invented completion rate (0.4773ms)
+✔ UAT: assisted success does not count; duplicate trials and mixed builds are rejected (0.8616ms)
+✔ UAT: 26/30 fails; baseline needs balanced crossover and preserved quality (0.5006ms)
+✔ UAT: latest independent retest controls blocking issue, older pass cannot hide a new failure (0.4135ms)
+✔ AI scores: missing judges have unknown quality; developer pack cannot become acceptance (7.8381ms)
+✔ AI scores: both independent grades persist; disagreement needs a third adjudicator (11.8805ms)
+✔ AI scores: one wrong report metric or any leakage fails even if prose/refusal averages pass (8.1897ms)
+✔ AI scores reject altered outputs even when run ID, pack and revision remain unchanged (0.927ms)
+✔ release: missing gates, wrong build, empty AI rubric and localhost smoke cannot permit final tag (0.8426ms)
+✔ release permits final only when every required gate passes on the same clean build (3.8063ms)
+✔ production smoke refuses plaintext remote URL and credentials embedded in URL (0.5746ms)
+✔ UAT preparation cannot pass human acceptance without observations (1.5891ms)
+ℹ tests 16
+ℹ suites 0
+ℹ pass 16
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 140.7541

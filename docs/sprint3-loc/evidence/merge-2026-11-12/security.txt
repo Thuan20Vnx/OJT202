@@ -1,0 +1,6 @@
+=== SECURITY
+[seed] Tạo dữ liệu demo Nhóm 24…
+[seed] Xong. Đăng nhập: mai.anh@nhom24.edu.vn / TaskFlow@2026  (System Admin: admin@taskflow.local)
+{"command":"security","out":"D:\\Desktop\\Nhom24\\OJT202\\.claude\\worktrees\\du-an-chi-tiet-eb8fd9\\.data\\sprint4-loc\\security-merge-2026-11-12b","sourceHash":"ea0a92d48788b5eb44ca052f636d93060b9bbca4abc940bd8b634c1503713b88","slots":6,"tasks":120,"humanAcceptance":"pending"}
+{"checks":92,"failed":[]}
+security exit=0

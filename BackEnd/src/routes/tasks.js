@@ -618,7 +618,14 @@ router.get('/tasks/:id/comments', async (req, res) => {
 async function resolveMentions(project, body, explicit = [], db = prisma) {
   const members = await db.user.findMany({ where: { id: { in: project.members }, isLocked: false }, select: { id: true, name: true } });
   const ids = new Set(explicit.filter((id) => members.some((m) => m.id === id)));
-  for (const m of members) if (body.includes(`@${m.name}`)) ids.add(m.id); // chỉ người trong dự án
+  // Chỉ người trong dự án. Tại mỗi "@" chọn tên DÀI NHẤT khớp và phải kết thúc ở ranh giới từ:
+  // "@Như Hoàng" không được nhắc thêm "Như", "@Anh" không được nhắc người tên "An".
+  const byLength = [...members].sort((a, b) => b.name.length - a.name.length);
+  for (let at = body.indexOf('@'); at !== -1; at = body.indexOf('@', at + 1)) {
+    const rest = body.slice(at + 1);
+    const hit = byLength.find((m) => m.name && rest.startsWith(m.name) && !/^[\p{L}\p{M}\p{N}_]/u.test(rest.slice(m.name.length)));
+    if (hit) ids.add(hit.id);
+  }
   return [...ids];
 }
 

@@ -45,7 +45,10 @@ const FEATURES = {
     schema: z.object({
       question: z.string().min(1).max(1000),
       projectName: z.string().max(200),
-      sources: z.array(z.object({ kind: z.string(), refId: z.string(), label: z.string(), text: z.string(), key: z.string().optional() })).max(20000),
+      sources: z.array(z.object({ kind: z.string(), refId: z.string(), label: z.string(), text: z.string(), key: z.string().optional(),
+        task: z.object({ title: z.string(), status: z.enum(['todo', 'in_progress', 'review', 'done']), assignee: z.string().nullable(), dueDate: z.string().nullable(),
+          description: z.string(), acceptanceCriteria: z.string(), blockedBy: z.array(z.object({ key: z.string(), title: z.string(), status: z.string() })) }).optional(),
+      })).max(20000),
     }),
     run: async (llm, b, signal) => {
       const { inputTokens, outputTokens, ...result } = await answer(llm, b, signal);

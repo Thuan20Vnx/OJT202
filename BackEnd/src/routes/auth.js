@@ -4,19 +4,21 @@ import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 import { config } from '../config.js';
 import { prisma } from '../db.js';
-import { REFRESH_COOKIE, clearAuthCookies, setAuthCookies, signAccess, startSession } from '../middleware/auth.js';
+import { ACCESS_COOKIE, REFRESH_COOKIE, authenticate, clearAuthCookies, setAuthCookies, signAccess, startSession } from '../middleware/auth.js';
 import { verifyGoogleCredential } from '../services/google.js';
 import { sendMail, privateMailAttempt } from '../services/mailer.js';
 import { consumeOtp, issueOtp } from '../services/otp.js';
 import { assertLoginAllowed, clearLoginFailures, enforce, lockedMessage, mailAllowed, recordLoginFailure } from '../services/throttle.js';
 import { disconnectUser } from '../services/realtime.js';
 import { withUserLock } from '../services/sessions.js';
+import { revokeAllAgentTokens } from '../services/agent-tokens.js';
 import { HttpError, badRequest, forbidden, parse, unauthorized } from '../utils/http.js';
 import { passwordIssues, randomToken, sha256 } from '../utils/security.js';
 
 const router = Router();
 
-const limiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: config.isProd ? 30 : 1000, standardHeaders: true, legacyHeaders: false });
+// Bộ test API đăng nhập hơn 1000 lần từ một IP trong một cửa sổ; ngưỡng production vẫn kiểm ở test/auth-limit.test.js.
+const limiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: config.isProd ? 30 : config.isTest ? 100000 : 1000, standardHeaders: true, legacyHeaders: false });
 router.use(limiter);
 
 const email = z.string({ error: 'Vui lòng nhập email' }).trim().toLowerCase().email('Email không hợp lệ');
@@ -174,17 +176,18 @@ router.post('/refresh', async (req, res) => {
 
 router.post('/logout', async (req, res) => {
   const raw = req.cookies?.[REFRESH_COOKIE];
-  if (raw) {
-    const s = await prisma.session.findFirst({ where: { refreshHash: sha256(raw) } });
-    if (s) {
-      await prisma.$transaction(async (tx) => {
-        await tx.$queryRaw`SELECT id FROM users WHERE id = ${s.user}::uuid FOR UPDATE`;
-        await tx.session.updateMany({ where: { family: s.family, revokedAt: null }, data: { revokedAt: new Date() } });
-      });
-      await disconnectUser(s.user);
-    }
+  // Cookie refresh chỉ được gửi tới đúng alias đã đăng nhập (/api/auth hoặc /api/v1/auth). Đăng xuất qua alias kia
+  // vẫn phải thu hồi phiên: lấy phiên từ access token khi không có cookie refresh.
+  const s = (raw && (await prisma.session.findFirst({ where: { refreshHash: sha256(raw) } })))
+    || (await authenticate(req.cookies?.[ACCESS_COOKIE]))?.session;
+  if (s) {
+    await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM users WHERE id = ${s.user}::uuid FOR UPDATE`;
+      await tx.session.updateMany({ where: { family: s.family, revokedAt: null }, data: { revokedAt: new Date() } });
+    });
+    await disconnectUser(s.user);
   }
-  clearAuthCookies(res, req.baseUrl);
+  for (const authPath of new Set([req.baseUrl, '/api/auth', '/api/v1/auth'])) clearAuthCookies(res, authPath);
   res.json({ ok: true });
 });
 
@@ -206,7 +209,7 @@ router.post('/forgot-password', async (req, res) => {
 });
 
 router.get('/reset-password/check', async (req, res) => {
-  const t = await prisma.token.findFirst({ where: { hash: sha256(String(req.query.token || '')), type: 'reset', usedAt: null, expiresAt: { gt: new Date() } } });
+  const t = await prisma.token.findFirst({ where: { hash: sha256(String(req.query.token || '')), type: 'reset', usedAt: null, expiresAt: { gt: new Date() }, userRef: { isLocked: false } } });
   res.json({ valid: !!t });
 });
 
@@ -216,11 +219,15 @@ router.post('/reset-password', async (req, res) => {
   if (!token) throw badRequest('Liên kết đã hết hạn hoặc đã được sử dụng', { code: 'TOKEN_INVALID' });
   const passwordHash = await bcrypt.hash(body.password, 12);
   await withUserLock(token.user, async (tx) => {
+    // Như nhánh OTP: tài khoản đang bị khóa không đổi được mật khẩu bằng liên kết đã gửi trước lúc khóa.
+    const current = await tx.user.findUnique({ where: { id: token.user }, select: { isLocked: true } });
+    if (!current || current.isLocked) throw badRequest('Liên kết đã hết hạn hoặc đã được sử dụng', { code: 'TOKEN_INVALID' });
     const { count } = await tx.token.updateMany({ where: { id: token.id, type: 'reset', usedAt: null, expiresAt: { gt: new Date() } }, data: { usedAt: new Date() } });
     if (!count) throw badRequest('Liên kết đã hết hạn hoặc đã được sử dụng', { code: 'TOKEN_INVALID' });
     await tx.user.update({ where: { id: token.user }, data: { passwordHash, emailVerified: true } });
     await tx.token.updateMany({ where: { user: token.user, type: { in: ['reset', 'verify'] }, usedAt: null }, data: { usedAt: new Date() } });
     await tx.session.updateMany({ where: { user: token.user, revokedAt: null }, data: { revokedAt: new Date() } });
+    await revokeAllAgentTokens(tx, token.user);
   });
   const owner = await prisma.user.findUnique({ where: { id: token.user }, select: { email: true } });
   if (owner) await clearLoginFailures(owner.email);
@@ -242,6 +249,7 @@ router.post('/reset-password-otp', async (req, res) => {
         await tx.user.update({ where: { id: user.id }, data: { passwordHash, emailVerified: true } });
         await tx.token.updateMany({ where: { user: user.id, type: { in: ['reset', 'verify'] }, usedAt: null }, data: { usedAt: new Date() } });
         await tx.session.updateMany({ where: { user: user.id, revokedAt: null }, data: { revokedAt: new Date() } });
+        await revokeAllAgentTokens(tx, user.id);
         return true;
       })
     : false;

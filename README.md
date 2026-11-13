@@ -23,6 +23,16 @@ AIService chỉ nhận dữ liệu đã lọc và trả kết quả AI (kế ho�
 
 ## Chạy nhanh
 
+Sprint 3 của Lộc cập nhật 09/11: [bàn giao kỹ thuật và bằng chứng](docs/sprint3-loc/COMPLETION_2026-11-09.md). `npm run validate:u025` chạy 70 ca development trên DB/API tạm; `npm run grade:u025 -- --run <run.json> --out <folder-moi>` tạo biểu mẫu chấm gắn đúng output. Nghiệm thu bộ kín và chữ ký reviewer vẫn là bước của nhóm.
+
+Sprint 4 của Lộc: [phạm vi và bằng chứng](docs/sprint4-loc/README.md), [hướng dẫn bốn vai trò có ảnh](docs/sprint4-loc/USER_GUIDE.md), [điều phối UAT](docs/sprint4-loc/UAT.md), [diễn tập và Q&A](docs/sprint4-loc/REHEARSAL.md). Chạy `npm run validate:security` để kiểm ma trận quyền; `npm run uat:sprint4 -- --minutes 120` để mở phiên UAT local tạm.
+
+Rà soát toàn bộ phần việc của Lộc (Sprint 1–4) sau khi hợp nhất PR #18 (13/11/2026): [tám lỗi đã sửa](docs/sprint4-loc/RECHECK_2026-11-13.md) — báo cáo đã chia sẻ vẫn sửa được, tệp xuất báo cáo mất nguồn, OpenAPI thiếu 48 endpoint, cột checklist thừa, công tắc rủi ro tắt nhầm cảnh báo chờ duyệt, mention nhắc nhầm người, liên kết đặt lại mật khẩu khi bị khóa, đăng xuất qua alias khác không thu hồi phiên; 577/577 test, 13/13 E2E, 142/142 ma trận quyền.
+
+Sprint 4 của Lộc trên bản hợp nhất Agent MCP ngày 13/11/2026: [kết quả, lỗ hổng token agent đã sửa và việc còn cần người thật](docs/sprint4-loc/REVIEW_2026-11-13.md), 566/566 test, 141/141 ma trận quyền.
+
+Kiểm tra lại Sprint 3 của Lộc trên bản hợp nhất main ngày 12/11/2026: [kết quả và lỗi SPA đã sửa](docs/sprint3-loc/COMPLETION_2026-11-12.md), 559/559 test, 13/13 E2E, 92/92 ma trận quyền, 70/70 ca U025 kỹ thuật.
+
 Bàn giao Sprint 3 của Nguyễn Bảo Lộc, rà soát lại đủ 11 nhiệm vụ ngày 07/11/2026: [kết quả mới nhất và hai lỗi risk đã sửa](docs/sprint3-loc/RECHECK_2026-11-07.md), [chi tiết tích hợp trước đó](docs/sprint3-loc/COMPLETION_2026-11-07.md), [kịch bản demo](docs/sprint3-loc/DEMO.md). Mã đã kiểm thử tại `5ac8b18`: 475/475 test, 13/13 E2E; nghiệm thu độc lập và CI/deploy remote cần bằng chứng riêng.
 
 Hướng dẫn cài mới trên PowerShell: [cài đặt và bàn giao](docs/design/INSTALL.md). Đối chiếu toàn bộ nhiệm vụ Hoàng Thị Hải Như: [phân công, thay đổi và giới hạn nghiệm thu](docs/NHU_ALL_SPRINTS_2026-10-29.md). Bộ thiết kế hiện tại: [SRS/quyền/workflow](docs/design/SRS.md), [ERD](docs/design/ERD.md), [OpenAPI](docs/design/openapi.json).
@@ -129,7 +139,7 @@ Bảng, khóa ngoại, enum và chỉ mục được tạo bằng migration tron
 
 ### Lược đồ dữ liệu
 
-`BackEnd/prisma/schema.prisma` gồm 23 bảng: `users`, `sessions`, `tokens`, `workspaces`, `memberships`, `invites`, `projects`, `project_members`, `tasks`, `comments`, `documents`, `document_revisions`, `notifications`, `notification_prefs`, `activities`, `ai_calls`, `ai_drafts`, `ai_reports`, `ai_conversations`, `risk_resolutions`, `admin_audits`, `outbox`, `counters` (đánh số công việc).
+`BackEnd/prisma/schema.prisma` gồm 38 bảng: `users`, `sessions`, `tokens`, `otps`, `workspaces`, `memberships`, `weekly_capacities`, `invites`, `projects`, `project_members`, `tasks`, `checklist_items`, `task_contributors`, `task_daily_updates`, `project_labels`, `sprints`, `rate_counters`, `task_issues`, `project_meetings`, `meeting_participants`, `comments`, `documents`, `document_revisions`, `notifications`, `notification_prefs`, `activities`, `ai_calls`, `ai_drafts`, `ai_reports`, `ai_conversations`, `risk_resolutions`, `admin_audits`, `outbox`, `counters` (đánh số công việc), `repo_connections`, `agent_runs`, `agent_tokens`, `agent_jobs`. Chi tiết cột và khóa ngoại trong [ERD](docs/design/ERD.md).
 
 - Khóa chính `uuid` (`gen_random_uuid()`), khóa ngoại có `ON DELETE CASCADE / SET NULL` phù hợp. API xóa công việc dùng xóa mềm (`deleted_at`): giữ task và bình luận để truy vết, gỡ phụ thuộc, chuyển tệp đính kèm về thư viện dự án và ghi audit trong cùng transaction.
 - Ràng buộc UNIQUE thay cho kiểm tra trong code: email, `(workspace, user)`, `(project, number)`, `(user, dedupeKey)` chống gửi trùng thông báo, `(project, aiDraftItem)` chống tạo trùng việc khi duyệt AI nhiều lần, `(document, version)`.
@@ -200,14 +210,17 @@ Frontend hỗ trợ chuyển dần sang TypeScript: entry ở `FrontEnd/src/main
 - **AI gateway**: hạn mức theo workspace/ngày, bật/tắt từng tính năng, timeout + thử lại tối đa 1 lần, ghi token/độ trễ/model/trạng thái; lỗi AI không ảnh hưởng CRUD. Kế hoạch & action items luôn là **nháp**, chỉ tạo công việc khi duyệt, **duyệt nhiều lần không tạo trùng**. Báo cáo: số liệu tính bằng truy vấn DB, AI chỉ viết tóm tắt/đề xuất. Hỏi đáp: lọc quyền trước khi tìm, chỉ một dự án, có trích dẫn bấm được, **thiếu chứng cứ thì từ chối**, kiểm lại quyền trước khi trả kết quả, nguồn được bọc như dữ liệu để chống prompt injection. Cảnh báo rủi ro theo **quy tắc**, AI chỉ diễn giải.
 - **Quản trị**: System Admin khóa tài khoản phải có lý do, phiên bị chặn ngay, mọi hành động ghi audit; không có API đọc nội dung dự án.
 
-## Dùng Claude thật cho Trợ lý AI
+## Dùng nhà cung cấp AI thật
 
-Đặt trong `AIService/.env` (khóa Gemini chỉ nằm ở AIService, BackEnd không cần biết):
+Đặt trong `AIService/.env` (khóa chỉ nằm ở AIService, BackEnd không cần biết). Có thể đặt một hoặc nhiều nhà cung cấp; AIService thử theo `AI_PROVIDER_ORDER` và chuyển sang cái kế khi lỗi hoặc hết hạn mức. Nội dung dự án đã lọc quyền sẽ được gửi tới mọi nhà cung cấp có khóa. Danh sách biến đầy đủ trong `AIService/.env.example`.
 
 ```env
 GEMINI_API_KEY=...
-AI_MODEL=claude-opus-5-5
+GEMINI_MODEL=gemini-3.6-flash
+# Dự phòng, tùy chọn: GROQ_API_KEY, OPENROUTER_API_KEY, OLLAMA_MODEL
 ```
+
+Hỏi đáp trên web giao cho agent chạy trên máy người dùng (Claude Code, Codex hoặc Antigravity qua gói `mcp/`), không dùng lượt AI của nhóm. Tạo token ở **Trợ lý AI › Agent dự án** rồi chạy `npm run agent` trên máy đó.
 
 Khi triển khai, đặt cùng một `AI_SERVICE_KEY` ở `AIService/.env` và `BackEnd/.env` (BackEnd gửi kèm header `x-ai-service-key`), và `AI_SERVICE_URL` ở BackEnd trỏ tới AIService.
 AIService tắt hoặc lỗi ⇒ tính năng AI báo "AI đang bận" (503), mọi chức năng khác vẫn chạy.

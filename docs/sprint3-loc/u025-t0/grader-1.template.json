@@ -1,0 +1,579 @@
+{
+  "schemaVersion": 1,
+  "kind": "u025-independent-grade-template",
+  "split": "development",
+  "runId": null,
+  "runHash": null,
+  "packHash": "b1120954e430c97632e1186c33743bd99e0b19979b155612bd913d38a7da2502",
+  "datasetHash": "e33a7e834b7bd18f3c3fc0bcfc9ae1c7fae786a4cc50927e934b31243e582c86",
+  "build": null,
+  "provider": null,
+  "model": null,
+  "promptHash": null,
+  "sourceIdMap": null,
+  "rubricVersion": "u025-rubric-v1",
+  "reviewer": null,
+  "independentSubmittedAt": null,
+  "ratings": [
+    {
+      "caseId": "DEV-A01",
+      "group": "qa-answer",
+      "criteria": null,
+      "citations": [],
+      "reason": null,
+      "gradedAt": null
+    },
+    {
+      "caseId": "DEV-A02",
+      "group": "qa-answer",
+      "criteria": null,
+      "citations": [],
+      "reason": null,
+      "gradedAt": null
+    },
+    {
+      "caseId": "DEV-A03",
+      "group": "qa-answer",
+      "criteria": null,
+      "citations": [],
+      "reason": null,
+      "gradedAt": null
+    },
+    {
+      "caseId": "DEV-A04",
+      "group": "qa-answer",
+      "criteria": null,
+      "citations": [],
+      "reason": null,
+      "gradedAt": null
+    },
+    {
+      "caseId": "DEV-A05",
+      "group": "qa-answer",
+      "criteria": null,
+      "citations": [],
+      "reason": null,
+      "gradedAt": null
+    },
+    {
+      "caseId": "DEV-A06",
+      "group": "qa-answer",
+      "criteria": null,
+      "citations": [],
+      "reason": null,
+      "gradedAt": null
+    },
+    {
+      "caseId": "DEV-A07",
+      "group": "qa-answer",
+      "criteria": null,
+      "citations": [],
+      "reason": null,
+      "gradedAt": null
+    },
+    {
+      "caseId": "DEV-A08",
+      "group": "qa-answer",
+      "criteria": null,
+      "citations": [],
+      "reason": null,
+      "gradedAt": null
+    },
+    {
+      "caseId": "DEV-A09",
+      "group": "qa-answer",
+      "criteria": null,
+      "citations": [],
+      "reason": null,
+      "gradedAt": null
+    },
+    {
+      "caseId": "DEV-A10",
+      "group": "qa-answer",
+      "criteria": null,
+      "citations": [],
+      "reason": null,
+      "gradedAt": null
+    },
+    {
+      "caseId": "DEV-A11",
+      "group": "qa-answer",
+      "criteria": null,
+      "citations": [],
+      "reason": null,
+      "gradedAt": null
+    },
+    {
+      "caseId": "DEV-A12",
+      "group": "qa-answer",
+      "criteria": null,
+      "citations": [],
+      "reason": null,
+      "gradedAt": null
+    },
+    {
+      "caseId": "DEV-A13",
+      "group": "qa-answer",
+      "criteria": null,
+      "citations": [],
+      "reason": null,
+      "gradedAt": null
+    },
+    {
+      "caseId": "DEV-A14",
+      "group": "qa-answer",
+      "criteria": null,
+      "citations": [],
+      "reason": null,
+      "gradedAt": null
+    },
+    {
+      "caseId": "DEV-A15",
+      "group": "qa-answer",
+      "criteria": null,
+      "citations": [],
+      "reason": null,
+      "gradedAt": null
+    },
+    {
+      "caseId": "DEV-A16",
+      "group": "qa-answer",
+      "criteria": null,
+      "citations": [],
+      "reason": null,
+      "gradedAt": null
+    },
+    {
+      "caseId": "DEV-A17",
+      "group": "qa-answer",
+      "criteria": null,
+      "citations": [],
+      "reason": null,
+      "gradedAt": null
+    },
+    {
+      "caseId": "DEV-A18",
+      "group": "qa-answer",
+      "criteria": null,
+      "citations": [],
+      "reason": null,
+      "gradedAt": null
+    },
+    {
+      "caseId": "DEV-A19",
+      "group": "qa-answer",
+      "criteria": null,
+      "citations": [],
+      "reason": null,
+      "gradedAt": null
+    },
+    {
+      "caseId": "DEV-A20",
+      "group": "qa-answer",
+      "criteria": null,
+      "citations": [],
+      "reason": null,
+      "gradedAt": null
+    },
+    {
+      "caseId": "DEV-A21",
+      "group": "qa-answer",
+      "criteria": null,
+      "citations": [],
+      "reason": null,
+      "gradedAt": null
+    },
+    {
+      "caseId": "DEV-A22",
+      "group": "qa-answer",
+      "criteria": null,
+      "citations": [],
+      "reason": null,
+      "gradedAt": null
+    },
+    {
+      "caseId": "DEV-A23",
+      "group": "qa-answer",
+      "criteria": null,
+      "citations": [],
+      "reason": null,
+      "gradedAt": null
+    },
+    {
+      "caseId": "DEV-A24",
+      "group": "qa-answer",
+      "criteria": null,
+      "citations": [],
+      "reason": null,
+      "gradedAt": null
+    },
+    {
+      "caseId": "DEV-A25",
+      "group": "qa-answer",
+      "criteria": null,
+      "citations": [],
+      "reason": null,
+      "gradedAt": null
+    },
+    {
+      "caseId": "DEV-A26",
+      "group": "qa-answer",
+      "criteria": null,
+      "citations": [],
+      "reason": null,
+      "gradedAt": null
+    },
+    {
+      "caseId": "DEV-A27",
+      "group": "qa-answer",
+      "criteria": null,
+      "citations": [],
+      "reason": null,
+      "gradedAt": null
+    },
+    {
+      "caseId": "DEV-A28",
+      "group": "qa-answer",
+      "criteria": null,
+      "citations": [],
+      "reason": null,
+      "gradedAt": null
+    },
+    {
+      "caseId": "DEV-A29",
+      "group": "qa-answer",
+      "criteria": null,
+      "citations": [],
+      "reason": null,
+      "gradedAt": null
+    },
+    {
+      "caseId": "DEV-A30",
+      "group": "qa-answer",
+      "criteria": null,
+      "citations": [],
+      "reason": null,
+      "gradedAt": null
+    },
+    {
+      "caseId": "DEV-A31",
+      "group": "qa-answer",
+      "criteria": null,
+      "citations": [],
+      "reason": null,
+      "gradedAt": null
+    },
+    {
+      "caseId": "DEV-A32",
+      "group": "qa-answer",
+      "criteria": null,
+      "citations": [],
+      "reason": null,
+      "gradedAt": null
+    },
+    {
+      "caseId": "DEV-A33",
+      "group": "qa-answer",
+      "criteria": null,
+      "citations": [],
+      "reason": null,
+      "gradedAt": null
+    },
+    {
+      "caseId": "DEV-A34",
+      "group": "qa-answer",
+      "criteria": null,
+      "citations": [],
+      "reason": null,
+      "gradedAt": null
+    },
+    {
+      "caseId": "DEV-A35",
+      "group": "qa-answer",
+      "criteria": null,
+      "citations": [],
+      "reason": null,
+      "gradedAt": null
+    },
+    {
+      "caseId": "DEV-A36",
+      "group": "qa-answer",
+      "criteria": null,
+      "citations": [],
+      "reason": null,
+      "gradedAt": null
+    },
+    {
+      "caseId": "DEV-A37",
+      "group": "qa-answer",
+      "criteria": null,
+      "citations": [],
+      "reason": null,
+      "gradedAt": null
+    },
+    {
+      "caseId": "DEV-A38",
+      "group": "qa-answer",
+      "criteria": null,
+      "citations": [],
+      "reason": null,
+      "gradedAt": null
+    },
+    {
+      "caseId": "DEV-A39",
+      "group": "qa-answer",
+      "criteria": null,
+      "citations": [],
+      "reason": null,
+      "gradedAt": null
+    },
+    {
+      "caseId": "DEV-A40",
+      "group": "qa-answer",
+      "criteria": null,
+      "citations": [],
+      "reason": null,
+      "gradedAt": null
+    },
+    {
+      "caseId": "DEV-O01",
+      "group": "qa-refusal",
+      "criteria": null,
+      "citations": [],
+      "reason": null,
+      "gradedAt": null
+    },
+    {
+      "caseId": "DEV-O02",
+      "group": "qa-refusal",
+      "criteria": null,
+      "citations": [],
+      "reason": null,
+      "gradedAt": null
+    },
+    {
+      "caseId": "DEV-O03",
+      "group": "qa-refusal",
+      "criteria": null,
+      "citations": [],
+      "reason": null,
+      "gradedAt": null
+    },
+    {
+      "caseId": "DEV-O04",
+      "group": "qa-refusal",
+      "criteria": null,
+      "citations": [],
+      "reason": null,
+      "gradedAt": null
+    },
+    {
+      "caseId": "DEV-O05",
+      "group": "qa-refusal",
+      "criteria": null,
+      "citations": [],
+      "reason": null,
+      "gradedAt": null
+    },
+    {
+      "caseId": "DEV-O06",
+      "group": "qa-refusal",
+      "criteria": null,
+      "citations": [],
+      "reason": null,
+      "gradedAt": null
+    },
+    {
+      "caseId": "DEV-O07",
+      "group": "qa-refusal",
+      "criteria": null,
+      "citations": [],
+      "reason": null,
+      "gradedAt": null
+    },
+    {
+      "caseId": "DEV-O08",
+      "group": "qa-refusal",
+      "criteria": null,
+      "citations": [],
+      "reason": null,
+      "gradedAt": null
+    },
+    {
+      "caseId": "DEV-O09",
+      "group": "qa-refusal",
+      "criteria": null,
+      "citations": [],
+      "reason": null,
+      "gradedAt": null
+    },
+    {
+      "caseId": "DEV-O10",
+      "group": "qa-refusal",
+      "criteria": null,
+      "citations": [],
+      "reason": null,
+      "gradedAt": null
+    },
+    {
+      "caseId": "DEV-S01",
+      "group": "qa-security",
+      "criteria": null,
+      "citations": [],
+      "reason": null,
+      "gradedAt": null
+    },
+    {
+      "caseId": "DEV-S02",
+      "group": "qa-security",
+      "criteria": null,
+      "citations": [],
+      "reason": null,
+      "gradedAt": null
+    },
+    {
+      "caseId": "DEV-S03",
+      "group": "qa-security",
+      "criteria": null,
+      "citations": [],
+      "reason": null,
+      "gradedAt": null
+    },
+    {
+      "caseId": "DEV-S04",
+      "group": "qa-security",
+      "criteria": null,
+      "citations": [],
+      "reason": null,
+      "gradedAt": null
+    },
+    {
+      "caseId": "DEV-S05",
+      "group": "qa-security",
+      "criteria": null,
+      "citations": [],
+      "reason": null,
+      "gradedAt": null
+    },
+    {
+      "caseId": "DEV-S06",
+      "group": "qa-security",
+      "criteria": null,
+      "citations": [],
+      "reason": null,
+      "gradedAt": null
+    },
+    {
+      "caseId": "DEV-S07",
+      "group": "qa-security",
+      "criteria": null,
+      "citations": [],
+      "reason": null,
+      "gradedAt": null
+    },
+    {
+      "caseId": "DEV-S08",
+      "group": "qa-security",
+      "criteria": null,
+      "citations": [],
+      "reason": null,
+      "gradedAt": null
+    },
+    {
+      "caseId": "DEV-S09",
+      "group": "qa-security",
+      "criteria": null,
+      "citations": [],
+      "reason": null,
+      "gradedAt": null
+    },
+    {
+      "caseId": "DEV-S10",
+      "group": "qa-security",
+      "criteria": null,
+      "citations": [],
+      "reason": null,
+      "gradedAt": null
+    },
+    {
+      "caseId": "DEV-S11",
+      "group": "qa-security",
+      "criteria": null,
+      "citations": [],
+      "reason": null,
+      "gradedAt": null
+    },
+    {
+      "caseId": "DEV-S12",
+      "group": "qa-security",
+      "criteria": null,
+      "citations": [],
+      "reason": null,
+      "gradedAt": null
+    },
+    {
+      "caseId": "DEV-S13",
+      "group": "qa-security",
+      "criteria": null,
+      "citations": [],
+      "reason": null,
+      "gradedAt": null
+    },
+    {
+      "caseId": "DEV-S14",
+      "group": "qa-security",
+      "criteria": null,
+      "citations": [],
+      "reason": null,
+      "gradedAt": null
+    },
+    {
+      "caseId": "DEV-S15",
+      "group": "qa-security",
+      "criteria": null,
+      "citations": [],
+      "reason": null,
+      "gradedAt": null
+    },
+    {
+      "caseId": "DEV-S16",
+      "group": "qa-security",
+      "criteria": null,
+      "citations": [],
+      "reason": null,
+      "gradedAt": null
+    },
+    {
+      "caseId": "DEV-S17",
+      "group": "qa-security",
+      "criteria": null,
+      "citations": [],
+      "reason": null,
+      "gradedAt": null
+    },
+    {
+      "caseId": "DEV-S18",
+      "group": "qa-security",
+      "criteria": null,
+      "citations": [],
+      "reason": null,
+      "gradedAt": null
+    },
+    {
+      "caseId": "DEV-S19",
+      "group": "qa-security",
+      "criteria": null,
+      "citations": [],
+      "reason": null,
+      "gradedAt": null
+    },
+    {
+      "caseId": "DEV-S20",
+      "group": "qa-security",
+      "criteria": null,
+      "citations": [],
+      "reason": null,
+      "gradedAt": null
+    }
+  ]
+}
