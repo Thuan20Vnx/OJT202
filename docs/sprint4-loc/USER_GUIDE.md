@@ -1,6 +1,6 @@
 # Hướng dẫn TaskFlow theo vai trò
 
-Ảnh dưới đây chụp từ ứng dụng đang chạy trên bộ UAT local ngày 07/11/2026, không phải mockup. Tài khoản/việc trong ảnh là dữ liệu thử. Đăng nhập, chọn workspace ở góc trái rồi chọn dự án trước khi thao tác. Một người có thể có quyền khác nhau giữa các dự án.
+Ảnh dưới đây chụp từ ứng dụng đang chạy trên bộ UAT local ngày 13/11/2026, bản đã hợp nhất Agent MCP từ main, không phải mockup. Tài khoản/việc trong ảnh là dữ liệu thử. Đăng nhập, chọn workspace ở góc trái rồi chọn dự án trước khi thao tác. Một người có thể có quyền khác nhau giữa các dự án.
 
 ## Owner — quản workspace
 
@@ -28,7 +28,15 @@ Mở **Việc của tôi**, lọc đúng dự án và tìm task được giao. B
 
 Member không đổi người nhận, estimate hoặc tự duyệt Hoàn thành. Dùng bình luận để trao đổi và @mention đúng thành viên. Tệp được tải ở **Tải tệp** hoặc trang **Tài liệu**; lỗi sai định dạng/dung lượng phải xử lý trước khi thử lại. Tài liệu văn bản có lịch sử phiên bản; chỉnh sửa/khôi phục cần quyền ghi và version hiện tại.
 
-Trong Q&A, hỏi dữ kiện của dự án đang chọn, mở citation để kiểm chứng. Nếu thiếu nguồn, bổ sung tài liệu đúng dự án hoặc sửa câu hỏi; không dùng câu trả lời để suy ra dữ kiện ngoài nguồn. Đổi nguồn trong lúc AI chạy có thể yêu cầu hỏi lại.
+Hỏi đáp dự án chạy bằng agent trên máy của chính bạn (xem mục Agent bên dưới). Khi runner đang bật, mở **Trợ lý AI › Hỏi đáp dự án**, chọn agent và nơi đọc code nếu cần, rồi gửi câu hỏi; câu hỏi hiện ngay trong khung chat trong lúc chờ. Câu trả lời lưu vào **Lịch sử hỏi đáp** kèm citation; mở citation để kiểm chứng. Nguồn không thuộc dự án bị bỏ khỏi citation. Nếu thiếu nguồn, bổ sung tài liệu đúng dự án hoặc sửa câu hỏi; không dùng câu trả lời để suy ra dữ kiện ngoài nguồn.
+
+## Agent trên máy — Member và PM
+
+Agent là Claude Code, Codex hoặc Antigravity cài trên máy của bạn, nói chuyện với TaskFlow qua gói `mcp/`. Mở **Trợ lý AI › Agent dự án**, tạo token (7, 30 hoặc 90 ngày) và làm theo lệnh cài hiển thị một lần; sau đó chạy `npm run agent` trong thư mục dự án. Token chỉ hiện một lần, hãy cất như mật khẩu.
+
+Agent có đúng quyền của bạn trong từng dự án. Member nhờ agent hỏi đáp và đánh dấu việc mình được giao, nhưng chỉ đi tới **Chờ duyệt**; PM mới tới **Hoàn thành**. Kế hoạch, biên bản họp và báo cáo từ agent chỉ là bản nháp, PM duyệt trên web mới tạo việc. Viewer không giao việc cho agent được.
+
+Token mất hiệu lực khi hết hạn, khi bạn thu hồi trong tab Agent, khi bạn đặt lại hoặc đổi mật khẩu, hoặc khi System Admin khóa hay buộc đăng xuất tài khoản. Sau các trường hợp đó, tạo token mới và cài lại runner. Đăng xuất trên một trình duyệt không ảnh hưởng token.
 
 ## Viewer — theo dõi và đọc
 
@@ -41,6 +49,7 @@ Không thấy một dự án không có nghĩa dự án bị xóa: kiểm tra wo
 ## Khi có lỗi
 
 - AI bận/quota hết: giữ nội dung đang nhập, xem thông báo rồi thử lại khi phù hợp; CRUD vẫn là luồng độc lập.
+- Agent chưa bật hoặc báo token cũ: chạy lại `npm run agent`; nếu vẫn lỗi, tạo token mới ở tab Agent dự án rồi chạy lại lệnh cài. Việc giao cho agent tự báo lỗi sau 3 phút nếu runner không nhận.
 - File bị từ chối: kiểm tra định dạng thực và dung lượng, không chỉ đổi đuôi tên. Tệp đi qua API kiểm quyền, không chia sẻ URL bucket công khai.
 - Không tải được danh sách: dùng **Thử lại** nếu có; ghi thời điểm, thao tác và ảnh thông báo để người phụ trách tái hiện.
 - Đăng xuất/khóa tài khoản: phiên cũ không còn hiệu lực; chỉ đăng nhập lại khi tài khoản đã được phép.

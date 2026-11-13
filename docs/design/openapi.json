@@ -28,7 +28,7 @@
         ],
         "summary": "POST /auth/register",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/auth.js:44",
+        "x-source": "BackEnd/src/routes/auth.js:45",
         "parameters": [
           {
             "in": "header",
@@ -128,7 +128,7 @@
         ],
         "summary": "POST /auth/verify-email",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/auth.js:65",
+        "x-source": "BackEnd/src/routes/auth.js:66",
         "parameters": [
           {
             "in": "header",
@@ -228,7 +228,7 @@
         ],
         "summary": "POST /auth/verify-otp",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/auth.js:83",
+        "x-source": "BackEnd/src/routes/auth.js:84",
         "parameters": [
           {
             "in": "header",
@@ -328,7 +328,7 @@
         ],
         "summary": "POST /auth/resend-verification",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/auth.js:100",
+        "x-source": "BackEnd/src/routes/auth.js:101",
         "parameters": [
           {
             "in": "header",
@@ -428,7 +428,7 @@
         ],
         "summary": "POST /auth/login",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/auth.js:111",
+        "x-source": "BackEnd/src/routes/auth.js:112",
         "parameters": [
           {
             "in": "header",
@@ -554,7 +554,7 @@
         ],
         "summary": "POST /auth/refresh",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/auth.js:132",
+        "x-source": "BackEnd/src/routes/auth.js:133",
         "parameters": [
           {
             "in": "header",
@@ -654,7 +654,7 @@
         ],
         "summary": "POST /auth/logout",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/auth.js:175",
+        "x-source": "BackEnd/src/routes/auth.js:176",
         "parameters": [
           {
             "in": "header",
@@ -754,7 +754,7 @@
         ],
         "summary": "POST /auth/forgot-password",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/auth.js:191",
+        "x-source": "BackEnd/src/routes/auth.js:192",
         "parameters": [
           {
             "in": "header",
@@ -873,7 +873,7 @@
         ],
         "summary": "GET /auth/reset-password/check",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/auth.js:208",
+        "x-source": "BackEnd/src/routes/auth.js:209",
         "parameters": [],
         "responses": {
           "200": {
@@ -961,7 +961,7 @@
         ],
         "summary": "POST /auth/reset-password",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/auth.js:213",
+        "x-source": "BackEnd/src/routes/auth.js:214",
         "parameters": [
           {
             "in": "header",
@@ -1083,7 +1083,7 @@
         ],
         "summary": "POST /auth/reset-password-otp",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/auth.js:233",
+        "x-source": "BackEnd/src/routes/auth.js:235",
         "parameters": [
           {
             "in": "header",
@@ -1183,7 +1183,7 @@
         ],
         "summary": "POST /auth/google",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/auth.js:256",
+        "x-source": "BackEnd/src/routes/auth.js:259",
         "parameters": [
           {
             "in": "header",
@@ -1283,7 +1283,7 @@
         ],
         "summary": "GET /auth/invite/{token}",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/auth.js:282",
+        "x-source": "BackEnd/src/routes/auth.js:285",
         "parameters": [
           {
             "in": "path",
@@ -1380,7 +1380,7 @@
         ],
         "summary": "GET /me",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/me.js:19",
+        "x-source": "BackEnd/src/routes/me.js:20",
         "parameters": [],
         "responses": {
           "200": {
@@ -1465,7 +1465,7 @@
         ],
         "summary": "PATCH /me",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/me.js:63",
+        "x-source": "BackEnd/src/routes/me.js:64",
         "parameters": [
           {
             "in": "header",
@@ -1597,7 +1597,7 @@
         ],
         "summary": "GET /me/mentoring",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/me.js:32",
+        "x-source": "BackEnd/src/routes/me.js:33",
         "parameters": [],
         "responses": {
           "200": {
@@ -1684,7 +1684,7 @@
         ],
         "summary": "POST /me/password",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/me.js:82",
+        "x-source": "BackEnd/src/routes/me.js:83",
         "parameters": [
           {
             "in": "header",
@@ -1783,7 +1783,7 @@
         ],
         "summary": "GET /me/sessions",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/me.js:104",
+        "x-source": "BackEnd/src/routes/me.js:107",
         "parameters": [],
         "responses": {
           "200": {
@@ -1870,7 +1870,7 @@
         ],
         "summary": "DELETE /me/sessions/{id}",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/me.js:121",
+        "x-source": "BackEnd/src/routes/me.js:124",
         "parameters": [
           {
             "in": "path",
@@ -1977,7 +1977,7 @@
         ],
         "summary": "POST /me/sessions/revoke-others",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/me.js:129",
+        "x-source": "BackEnd/src/routes/me.js:132",
         "parameters": [
           {
             "in": "header",
@@ -2076,7 +2076,7 @@
         ],
         "summary": "GET /me/notification-prefs",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/me.js:135",
+        "x-source": "BackEnd/src/routes/me.js:138",
         "parameters": [],
         "responses": {
           "200": {
@@ -2161,7 +2161,7 @@
         ],
         "summary": "PATCH /me/notification-prefs",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/me.js:141",
+        "x-source": "BackEnd/src/routes/me.js:144",
         "parameters": [
           {
             "in": "header",
@@ -2260,7 +2260,7 @@
         ],
         "summary": "POST /me/invites/{token}/accept",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/me.js:151",
+        "x-source": "BackEnd/src/routes/me.js:154",
         "parameters": [
           {
             "in": "path",
@@ -5239,7 +5239,7 @@
         ],
         "summary": "GET /admin/stats",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/admin.js:38",
+        "x-source": "BackEnd/src/routes/admin.js:43",
         "parameters": [],
         "responses": {
           "200": {
@@ -5326,7 +5326,7 @@
         ],
         "summary": "GET /admin/users",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/admin.js:43",
+        "x-source": "BackEnd/src/routes/admin.js:48",
         "parameters": [],
         "responses": {
           "200": {
@@ -5413,7 +5413,7 @@
         ],
         "summary": "POST /admin/users/{id}/lock",
         "description": "System Admin còn phiên hoạt động. Khóa user theo thứ tự nhất quán, kiểm lại actor và phiên; thay đổi user/session + admin audit trong cùng transaction. Lock/logout thu hồi mọi phiên và ngắt socket sau commit. Unlock không khôi phục phiên cũ hoặc đổi membership. System Admin không mặc định có quyền đọc project. Lock cần reason hợp lệ, không tự khóa, không nhận trường cấp quyền.",
-        "x-source": "BackEnd/src/routes/admin.js:70",
+        "x-source": "BackEnd/src/routes/admin.js:75",
         "parameters": [
           {
             "in": "path",
@@ -5549,7 +5549,7 @@
         ],
         "summary": "POST /admin/users/{id}/unlock",
         "description": "System Admin còn phiên hoạt động. Khóa user theo thứ tự nhất quán, kiểm lại actor và phiên; thay đổi user/session + admin audit trong cùng transaction. Lock/logout thu hồi mọi phiên và ngắt socket sau commit. Unlock không khôi phục phiên cũ hoặc đổi membership. System Admin không mặc định có quyền đọc project. Lock cần reason hợp lệ, không tự khóa, không nhận trường cấp quyền.",
-        "x-source": "BackEnd/src/routes/admin.js:88",
+        "x-source": "BackEnd/src/routes/admin.js:93",
         "parameters": [
           {
             "in": "path",
@@ -5656,7 +5656,7 @@
         ],
         "summary": "POST /admin/users/{id}/logout",
         "description": "System Admin còn phiên hoạt động. Khóa user theo thứ tự nhất quán, kiểm lại actor và phiên; thay đổi user/session + admin audit trong cùng transaction. Lock/logout thu hồi mọi phiên và ngắt socket sau commit. Unlock không khôi phục phiên cũ hoặc đổi membership. System Admin không mặc định có quyền đọc project. Lock cần reason hợp lệ, không tự khóa, không nhận trường cấp quyền.",
-        "x-source": "BackEnd/src/routes/admin.js:98",
+        "x-source": "BackEnd/src/routes/admin.js:103",
         "parameters": [
           {
             "in": "path",
@@ -5763,7 +5763,7 @@
         ],
         "summary": "GET /admin/workspaces",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/admin.js:108",
+        "x-source": "BackEnd/src/routes/admin.js:113",
         "parameters": [],
         "responses": {
           "200": {
@@ -5850,7 +5850,7 @@
         ],
         "summary": "GET /admin/audit",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/admin.js:118",
+        "x-source": "BackEnd/src/routes/admin.js:123",
         "parameters": [],
         "responses": {
           "200": {

@@ -2,7 +2,7 @@
 
 Phạm vi theo `DN26_CPL_Mock_Project_Nhom24.xlsx`, sheet **Detail Plan**, dòng 140, 144, 150–152, 155. SHA-256 workbook: `d07999bf8a1cd30adfbe13487ff35b2ad56cfdba798d4473aa4fef601169532b`. Ngày thực hiện kỹ thuật: 07/11/2026; không đổi lịch Sprint trong Excel và không ghi nhận người thử chưa tham gia.
 
-Kết quả hiện tại: [biên bản kỹ thuật và giới hạn nghiệm thu](REVIEW_2026-11-07.md) — 490/490 test, 92/92 ma trận quyền, 13/13 E2E, 24/24 AI local và 17/17 smoke local.
+Kết quả hiện tại: [làm lại trên bản hợp nhất Agent MCP ngày 13/11](REVIEW_2026-11-13.md) — 566/566 test, 141/141 ma trận quyền (45 ca agent), 13/13 E2E, cài sạch 8/8; đã sửa lỗ hổng token agent không bị thu hồi. Bản trước: [07/11](REVIEW_2026-11-07.md), 490/490 test, 92/92 ma trận quyền.
 
 | Mục | Sản phẩm bàn giao | Điều còn cần người thật |
 |---|---|---|

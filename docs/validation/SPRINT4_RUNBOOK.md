@@ -11,6 +11,7 @@ npm ci
 npm --prefix BackEnd ci
 npm --prefix AIService ci
 npm --prefix FrontEnd ci
+npm --prefix mcp ci
 npm run build
 npm test
 npm run test:e2e

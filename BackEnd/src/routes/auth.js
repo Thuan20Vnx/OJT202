@@ -11,6 +11,7 @@ import { consumeOtp, issueOtp } from '../services/otp.js';
 import { assertLoginAllowed, clearLoginFailures, enforce, lockedMessage, mailAllowed, recordLoginFailure } from '../services/throttle.js';
 import { disconnectUser } from '../services/realtime.js';
 import { withUserLock } from '../services/sessions.js';
+import { revokeAllAgentTokens } from '../services/agent-tokens.js';
 import { HttpError, badRequest, forbidden, parse, unauthorized } from '../utils/http.js';
 import { passwordIssues, randomToken, sha256 } from '../utils/security.js';
 
@@ -221,6 +222,7 @@ router.post('/reset-password', async (req, res) => {
     await tx.user.update({ where: { id: token.user }, data: { passwordHash, emailVerified: true } });
     await tx.token.updateMany({ where: { user: token.user, type: { in: ['reset', 'verify'] }, usedAt: null }, data: { usedAt: new Date() } });
     await tx.session.updateMany({ where: { user: token.user, revokedAt: null }, data: { revokedAt: new Date() } });
+    await revokeAllAgentTokens(tx, token.user);
   });
   const owner = await prisma.user.findUnique({ where: { id: token.user }, select: { email: true } });
   if (owner) await clearLoginFailures(owner.email);
@@ -242,6 +244,7 @@ router.post('/reset-password-otp', async (req, res) => {
         await tx.user.update({ where: { id: user.id }, data: { passwordHash, emailVerified: true } });
         await tx.token.updateMany({ where: { user: user.id, type: { in: ['reset', 'verify'] }, usedAt: null }, data: { usedAt: new Date() } });
         await tx.session.updateMany({ where: { user: user.id, revokedAt: null }, data: { revokedAt: new Date() } });
+        await revokeAllAgentTokens(tx, user.id);
         return true;
       })
     : false;

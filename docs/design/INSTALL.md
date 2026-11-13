@@ -9,6 +9,7 @@ npm ci
 npm --prefix BackEnd ci
 npm --prefix AIService ci
 npm --prefix FrontEnd ci
+npm --prefix mcp ci
 Copy-Item BackEnd/.env.example BackEnd/.env
 Copy-Item AIService/.env.example AIService/.env
 npm run dev

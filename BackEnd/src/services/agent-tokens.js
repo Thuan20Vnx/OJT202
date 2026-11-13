@@ -48,3 +48,13 @@ export async function requireAgentToken(req, _res, next) {
 export const answerLimit = (tokenId) => enforce(`agent-answer:${tokenId}`, { limit: 120, windowMs: 3600000 }, 'Agent đã lưu quá 120 câu trả lời trong một giờ');
 export const reportLimit = (tokenId) => enforce(`agent-report:${tokenId}`, { limit: 30, windowMs: 3600000 }, 'Agent đã gửi quá 30 báo cáo trong một giờ');
 export { HttpError };
+
+/**
+ * Token agent là thông tin đăng nhập: bị thu hồi cùng phiên khi đặt lại/đổi mật khẩu, khi bị khóa hoặc buộc đăng xuất.
+ * Việc đang chờ agent cũng bị hủy để agent không trả kết quả bằng quyền cũ. Gọi trong transaction đang giữ khóa user.
+ */
+export async function revokeAllAgentTokens(db, userId, now = new Date()) {
+  const { count } = await db.agentToken.updateMany({ where: { user: userId, revokedAt: null }, data: { revokedAt: now } });
+  await db.agentJob.updateMany({ where: { user: userId, status: { in: ['queued', 'running'] } }, data: { status: 'cancelled', finishedAt: now } });
+  return count;
+}

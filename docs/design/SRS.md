@@ -70,11 +70,12 @@ PM có thể đưa task về todo/in_progress/review; chỉ thêm Done từ Revi
 ## Kiến trúc và quyết định kỹ thuật
 
 - FrontEnd React 18/Vite; TypeScript entry, component JS/JSX vẫn tồn tại, `checkJs=false`. Chưa coi là toàn bộ ứng dụng TypeScript.
-- Backend Express/Prisma/PostgreSQL; UUID nội bộ `id` serialize thành `_id` cho UI. Socket.io theo user/project room. Xem [ERD](ERD.md) cho 34 model và FK thật (tái sinh ngày 07/11/2026).
+- Backend Express/Prisma/PostgreSQL; UUID nội bộ `id` serialize thành `_id` cho UI. Socket.io theo user/project room. Xem [ERD](ERD.md) cho 38 model và FK thật (tái sinh ngày 12/11/2026, gồm 4 bảng Agent MCP).
 - Upload lưu filesystem private trong UPLOAD_DIR hoặc Supabase Storage private khi cấu hình SUPABASE_URL/SUPABASE_SERVICE_KEY. Tải qua API kiểm quyền; sau khi chờ storage phải kiểm lại phiên và quyền trước khi trả byte/nội dung. Upload kiểm lại phiên/quyền trong transaction, xóa object vừa ghi nếu transaction bị từ chối. Backup phải gồm DB và nơi lưu object đang dùng.
 - Hook useLoad cô lập state theo dependency scope, bỏ response cũ, resync khi quyền đổi/kết nối lại. Chưa dùng thư viện query cache tập trung; không tuyên bố đã có distributed cache.
 - Q&A thu nguồn trực tiếp từ task/comment/text document, so fingerprint trước/sau AI; chưa có embeddings/chunks/vector index hay SQL intent chuyên dụng. `/ai/sources` là thống kê nhỏ để UI không tải hết task chỉ để đếm.
-- Có Claude tùy cấu hình; không khóa API thì AI nội bộ theo quy tắc. Kết quả offline không chứng minh chất lượng hoặc chi phí Claude thật.
+- AIService dùng chuỗi nhà cung cấp theo `AI_PROVIDER_ORDER` (mặc định Gemini → Groq → OpenRouter → Ollama), chỉ những cái có khóa/model mới được bật; lỗi hoặc hết hạn mức thì chuyển sang cái kế. Không cấu hình gì thì dùng AI nội bộ theo quy tắc. Nội dung dự án đã lọc quyền được gửi tới mọi nhà cung cấp có khóa. Kết quả offline không chứng minh chất lượng, độ trễ hay chi phí của nhà cung cấp thật.
+- Agent MCP (gói `mcp/`): người dùng chạy runner trên máy, web giao ba loại việc cố định (lập kế hoạch, hỏi đáp, biên bản họp) cho Claude Code/Codex/Antigravity của chính họ. Hỏi đáp trên web hiện chỉ chạy qua agent này; API `/ai/ask` vẫn còn cho client cũ và kiểm thử. Agent đọc và ghi qua `/api/mcp` bằng token `tfp_…` chỉ lưu hash, mang đúng quyền project của người tạo, không thay được cookie và ngược lại. Agent chỉ gửi bản nháp, báo cáo, câu trả lời và chuyển trạng thái theo luật như trên web; tạo việc vẫn do PM duyệt. Token bị thu hồi khi hết hạn, khi người dùng thu hồi, khi đặt lại hoặc đổi mật khẩu, khi System Admin khóa hoặc buộc đăng xuất; mở khóa không làm token cũ có hiệu lực lại. Đăng xuất thường không thu hồi token.
 - Health `/api/health` xác nhận HTTP process; chưa phải health/live + health/ready như bản kế hoạch đề xuất.
 
 ## Yêu cầu phi chức năng và giới hạn

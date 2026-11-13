@@ -18,7 +18,28 @@ Mẫu lời mời để điều phối viên gửi sau khi thống nhất lịch
 | S2 | Member gửi Review; PM duyệt Done rồi mở lại | Member không tự Done; completedAt xuất hiện khi Done và xóa khi reopen; remaining nhập lại đúng |
 | S3 | Hai vai trò bình luận, @mention; Member tải/sửa TXT; Viewer đọc | Realtime đúng dự án; tải đúng byte; Viewer không sửa/tải lên; ngoài nhóm không đọc file |
 | S4 | PM tạo nháp AI với yêu cầu dưới đây, sửa/chọn rồi duyệt; tạo báo cáo và mở nguồn | Chưa duyệt chưa có task; duyệt lại không nhân bản; số liệu/nguồn đúng và AI có nhãn |
-| S5 | Member hỏi mã xác nhận trong tài liệu, mở citation; hỏi ngoài nguồn; Viewer thử AI | Có mã/citation đúng; thiếu nguồn từ chối; Viewer bị chặn AI; project khác bị chặn |
+| S5 | Member giao câu hỏi mã xác nhận cho agent trên máy, mở citation trong Lịch sử hỏi đáp; hỏi ngoài nguồn; Viewer thử giao câu hỏi | Có mã/citation đúng; thiếu nguồn thì agent nói chưa ghi nhận, không bịa; Viewer bị chặn; citation ngoài dự án bị bỏ |
+
+S5 cần agent thật (mục dưới). Nếu buổi UAT không có máy cài agent, ghi S5 là không thực hiện được kèm lý do, không thay bằng gọi API trực tiếp và không tính vào 30 lượt.
+
+## Chuẩn bị agent cho S5
+
+Hỏi đáp trên web chỉ chạy qua agent trên máy từ bản hợp nhất ngày 12/11. Máy điều phối cần Node và ít nhất một trong Claude Code, Codex hoặc Antigravity đã đăng nhập bằng tài khoản của nhóm. Agent gửi nội dung dự án UAT (dữ liệu giả) tới nhà cung cấp của agent đó; nói rõ điều này với người thử.
+
+1. Người thử đăng nhập tài khoản Member của slot, mở **Trợ lý AI › Agent dự án**, tạo token 7 ngày.
+2. Ở terminal riêng, dùng thư mục cấu hình tạm để không ghi đè cấu hình agent thật của máy:
+
+```powershell
+$env:TASKFLOW_HOME = "$PWD\.data\uat-agent-p01"
+$env:TASKFLOW_URL = "<URL phiên uat:sprint4>"
+$env:TASKFLOW_TOKEN = "<token vừa tạo>"
+npm run agent
+```
+
+3. Trên web, mục Hỏi đáp hiện runner đang bật và danh sách agent có sẵn. Người thử chọn agent và gửi câu hỏi.
+4. Sau lượt, thu hồi token ở tab Agent dự án và dừng runner (Ctrl+C). Xóa thư mục `.data\uat-agent-p0x`. Không đưa token vào ghi chú, ảnh hoặc báo cáo.
+
+Thời gian S5 gồm cả thời gian agent chạy; ghi tên agent và model vào `actual`. Kết quả S5 phụ thuộc agent của máy điều phối, không đại diện cho nhà cung cấp AI cấu hình ở AIService.
 
 Mỗi lượt ghi `participant`, `scenario`, `build`, `success`, `assisted`, `durationMs`, `errors`, `observer`, `actual`, `issueIds`. Thời gian từ nhận đề đến hoàn tất; ghi lỗi và thao tác trợ giúp ngay, không xóa lượt thất bại. Có trợ giúp thì không tính vào thành công không hỗ trợ. 30 lượt đủ mới tính tỷ lệ; cần ít nhất 27/30 và không còn lỗi critical/high chưa retest độc lập.
 

@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "kind": "demo-rehearsal",
+  "build": {
+    "revision": "09321b48ba7d7abce325e82cff8e608b89a52a33",
+    "sourceHash": "4b82d96f20b46683ab48f67e5beb192c4e28fba8a10ecf0ffd8bb7e2f741f5bc",
+    "sourceHashAlgorithm": "sha256-lf-v1",
+    "promptHash": "533c2c256becc980797bb51826a44b4399e82a829895af6c7a668f2bc6ed05ac",
+    "dirty": true,
+    "node": "v24.15.0"
+  },
+  "status": "pending",
+  "durationMinutes": null,
+  "collaborators": [],
+  "approvalVerified": null,
+  "citationsVerified": null,
+  "fallbackLabelled": null,
+  "qualityRunId": null,
+  "uatBuildHash": null,
+  "agenda": [
+    {
+      "minutes": "0–2",
+      "action": "Mục tiêu, vai trò, build/provider và giới hạn"
+    },
+    {
+      "minutes": "2–4",
+      "action": "Hai người phối hợp task, Review/Done và comment"
+    },
+    {
+      "minutes": "4–7",
+      "action": "AI preview, sửa/chọn, duyệt, lặp không nhân task"
+    },
+    {
+      "minutes": "7–9",
+      "action": "Risk nguồn thật, report snapshot"
+    },
+    {
+      "minutes": "9–11",
+      "action": "Q&A có citation và ngoài nguồn; chỉ đọc số đo có bằng chứng"
+    },
+    {
+      "minutes": "11–12",
+      "action": "Quota/mất mạng, CRUD độc lập, bản ghi có nhãn"
+    }
+  ],
+  "questions": [
+    "Owner khác PM ở quyền nào?",
+    "Thu hồi phiên/quyền trong lúc chờ AI hoặc storage xử lý thế nào?",
+    "Nguồn RAG nào được đọc và khi nào phải từ chối?",
+    "Token chưa biết có phải chi phí bằng 0 không?",
+    "Số đo nào là local, số nào có người chấm độc lập?"
+  ],
+  "observations": [],
+  "issues": [],
+  "limitation": "Đây là mẫu chuẩn bị. Chỉ người diễn tập/quan sát thật ghi thời lượng, cộng tác viên và kết quả."
+}

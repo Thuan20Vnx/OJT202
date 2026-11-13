@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { USER, countBy, ilike, isId, populate, populateAll, prisma } from '../db.js';
 import { assertActiveSession, requireAuth, requireSystemAdmin } from '../middleware/auth.js';
 import { disconnectUser } from '../services/realtime.js';
+import { revokeAllAgentTokens } from '../services/agent-tokens.js';
 import { badRequest, forbidden, notFound, parse } from '../utils/http.js';
 import { pagination } from '../utils/http.js';
 
@@ -20,7 +21,11 @@ const findUser = async (id) => {
   if (!user) throw notFound('Không tìm thấy người dùng');
   return user;
 };
-const revokeAll = (tx, user) => tx.session.updateMany({ where: { user, revokedAt: null }, data: { revokedAt: new Date() } });
+// Khóa và buộc đăng xuất chặn cả phiên web lẫn token agent; mở khóa không làm chúng có hiệu lực lại.
+const revokeAll = async (tx, user) => {
+  await tx.session.updateMany({ where: { user, revokedAt: null }, data: { revokedAt: new Date() } });
+  await revokeAllAgentTokens(tx, user);
+};
 
 const adminMutation = (req, userId, action) =>
   prisma.$transaction(

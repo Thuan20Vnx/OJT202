@@ -77,6 +77,60 @@ export async function securityMatrix(fixture, kit, out) {
   const message = injected.data?.conversation?.messages?.at(-1);
   check('injection-refusal', 'rag', 'member', true, injected.status === 200 && message?.refused === true);
   check('cross-tenant-no-secret', 'rag', 'member', false, JSON.stringify(injected.data).includes('S4_OTHER_TENANT_SECRET'));
+
+  // ===== Agent MCP: token mang đúng quyền người tạo, chỉ dùng ở /api/mcp, bị thu hồi cùng phiên =====
+  const bearer = async (token, method, route, body, extra = {}) => {
+    const response = await fetch(`${fixture.base}${route}`, { method, headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json', 'x-taskflow': '1', ...extra }, ...(body !== undefined && { body: JSON.stringify(body) }) });
+    return { status: response.status, data: await response.json().catch(() => null) };
+  };
+  const tokens = {};
+  for (const role of ['owner', 'pm', 'member', 'viewer', 'outsider']) {
+    const created = await clients[role].request('POST', '/api/agent-tokens', { name: `Matrix ${role}`, days: 7 });
+    check(`mcp-token-create-${role}`, 'mcp', role, 201, created.status);
+    tokens[role] = created.data?.token;
+  }
+  const mcp = `/api/mcp/projects/${project.id}`;
+  for (const [role, token] of Object.entries(tokens)) {
+    const canRead = ['pm', 'member', 'viewer'].includes(role);
+    check(`mcp-tasks-${role}`, 'mcp', role, canRead ? 200 : 404, (await bearer(token, 'GET', `${mcp}/tasks`)).status);
+    const search = await bearer(token, 'GET', `${mcp}/search?q=${encodeURIComponent('mã xác nhận')}`);
+    check(`mcp-search-${role}`, 'mcp', role, canRead ? 200 : 404, search.status);
+    if (canRead) {
+      // Mỗi nguồn trả về phải thuộc đúng dự án trong DB (kể cả task/tệp ma trận vừa tạo), không có dữ liệu dự án khác.
+      const owners = await Promise.all(search.data.results.map(async (row) => {
+        const [kind, id] = row.ref.split(':');
+        const found = kind === 'task' ? await fixture.db.prisma.task.findUnique({ where: { id }, select: { project: true } })
+          : kind === 'document' ? await fixture.db.prisma.document.findUnique({ where: { id }, select: { project: true } })
+          : await fixture.db.prisma.comment.findUnique({ where: { id }, select: { project: true } });
+        return found?.project;
+      }));
+      check(`mcp-search-scope-${role}`, 'mcp', role, { results: true, sameProject: true, foreignSecret: false }, { results: owners.length > 0, sameProject: owners.every((owner) => owner === project.id), foreignSecret: JSON.stringify(search.data).includes('S4_OTHER_TENANT_SECRET') });
+    }
+    const answer = await bearer(token, 'POST', `${mcp}/answers`, { question: 'Mã xác nhận là gì?', answer: 'Theo tài liệu dự án [1].', citations: [{ ref: `document:${other.documentId}:1` }] });
+    check(`mcp-answer-${role}`, 'mcp', role, ['pm', 'member'].includes(role) ? 201 : canRead ? 403 : 404, answer.status);
+    if (answer.status === 201) check(`mcp-answer-foreign-citation-dropped-${role}`, 'mcp', role, { citations: 0, dropped: 1 }, { citations: answer.data.citations, dropped: answer.data.dropped });
+    // assertManage chạy trước kiểm dữ liệu: PM nhận lỗi dữ liệu, người khác nhận lỗi quyền.
+    check(`mcp-plan-${role}`, 'mcp', role, role === 'pm' ? 400 : canRead ? 403 : 404, (await bearer(token, 'POST', `${mcp}/plans`, {})).status);
+    check(`mcp-complete-${role}`, 'mcp', role, ['pm', 'member'].includes(role) ? 200 : canRead ? 403 : 404, (await bearer(token, 'POST', `${mcp}/tasks/complete`, { tasks: [{ taskId: 'XX-999999', evidence: 'Không có việc này' }] })).status);
+  }
+  check('mcp-token-not-session', 'mcp', 'pm', 401, (await bearer(tokens.pm, 'GET', routes.project)).status);
+  check('mcp-session-not-token', 'mcp', 'pm', 401, (await clients.pm.request('GET', '/api/mcp/projects')).status);
+  check('mcp-csrf-header', 'mcp', 'pm', 403, (await fetch(`${fixture.base}${mcp}/answers`, { method: 'POST', headers: { authorization: `Bearer ${tokens.pm}`, 'content-type': 'application/json' }, body: '{}' })).status);
+  check('mcp-forged-token', 'mcp', 'anonymous', 401, (await bearer('tfp_forged-token-value', 'GET', '/api/mcp/projects')).status);
+  const foreignJob = await fixture.db.prisma.agentJob.create({ data: { workspace: slot.workspace, project: project.id, user: slot.accounts.pm.id, kind: 'qa', agent: 'claude', status: 'running', startedAt: new Date(), input: { question: 'S4_PRIVATE_JOB_INPUT' } } });
+  const stolen = await bearer(tokens.member, 'GET', `/api/mcp/runner/jobs/${foreignJob.id}`);
+  check('mcp-foreign-job', 'mcp', 'member', { status: 404, leaked: false }, { status: stolen.status, leaked: JSON.stringify(stolen.data).includes('S4_PRIVATE_JOB_INPUT') });
+  check('mcp-foreign-job-answer', 'mcp', 'member', 404, (await bearer(tokens.member, 'POST', `${mcp}/answers`, { jobId: foreignJob.id, answer: 'Ghi đè', citations: [] })).status);
+  // Khóa rồi mở khóa: phiên cũ không sống lại, token agent cũng vậy.
+  const lockedUser = slot.accounts.owner;
+  check('admin-lock-owner', 'session', 'admin', 200, (await clients.admin.request('POST', `/api/admin/users/${lockedUser.id}/lock`, { reason: 'Khác', note: 'Ma trận quyền agent' })).status);
+  check('mcp-token-locked', 'mcp', 'owner', 401, (await bearer(tokens.owner, 'GET', '/api/mcp/projects')).status);
+  check('admin-unlock-owner', 'session', 'admin', 200, (await clients.admin.request('POST', `/api/admin/users/${lockedUser.id}/unlock`)).status);
+  check('mcp-token-after-unlock', 'mcp', 'owner', 401, (await bearer(tokens.owner, 'GET', '/api/mcp/projects')).status);
+  check('session-after-unlock', 'session', 'owner', 401, (await clients.owner.request('GET', '/api/me')).status);
+  check('admin-force-logout-pm', 'session', 'admin', 200, (await clients.admin.request('POST', `/api/admin/users/${slot.accounts.pm.id}/logout`)).status);
+  check('mcp-token-force-logout', 'mcp', 'pm', 401, (await bearer(tokens.pm, 'GET', '/api/mcp/projects')).status);
+  check('mcp-token-other-user-kept', 'mcp', 'member', 200, (await bearer(tokens.member, 'GET', '/api/mcp/projects')).status);
   const refreshClient = new LocalClient(fixture.base);
   await refreshClient.request('POST', '/api/auth/login', { email: slot.accounts.member.email, password: DEMO_PASSWORD });
   const oldClient = new LocalClient(fixture.base); oldClient.cookies = new Map(refreshClient.cookies);
