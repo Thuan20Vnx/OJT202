@@ -1,0 +1,6 @@
+=== TYPECHECK
+
+> typecheck
+> tsc -p BackEnd/tsconfig.json && tsc -p FrontEnd/tsconfig.json
+
+tc exit=0

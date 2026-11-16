@@ -1,0 +1,58 @@
+✖ OpenAPI liệt kê đủ mọi tuyến của từng file route (6.6872ms)
+✖ API agent /mcp dùng Bearer token agent, không dùng cookie (6.1188ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 157.8836
+
+✖ failing tests:
+
+test at scripts\validation\test\contract-coverage.test.mjs:12:1
+✖ OpenAPI liệt kê đủ mọi tuyến của từng file route (6.6872ms)
+  AssertionError [ERR_ASSERTION]: Chạy node scripts/generate-contract-docs.mjs và thêm file route mới vào bảng files của script
+  + actual - expected
+  
+  + [
+  +   'agent.js: source 17, openapi 0',
+  +   'mcp.js: source 15, openapi 0',
+  +   'planning.js: source 16, openapi 0'
+  + ]
+  - []
+  
+      at TestContext.<anonymous> (file:///D:/Desktop/Nhom24/OJT202/scripts/validation/test/contract-coverage.test.mjs:26:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1201:25)
+      at Test.start (node:internal/test_runner/test:1096:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:385:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [ 'agent.js: source 17, openapi 0', 'mcp.js: source 15, openapi 0', 'planning.js: source 16, openapi 0' ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at scripts\validation\test\contract-coverage.test.mjs:29:1
+✖ API agent /mcp dùng Bearer token agent, không dùng cookie (6.1188ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(mcp.length > 0)
+  
+      at TestContext.<anonymous> (file:///D:/Desktop/Nhom24/OJT202/scripts/validation/test/contract-coverage.test.mjs:31:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1201:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:831:18)
+      at Test.postRun (node:internal/test_runner/test:1330:19)
+      at Test.run (node:internal/test_runner/test:1258:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

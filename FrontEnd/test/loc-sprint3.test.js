@@ -104,3 +104,46 @@ test('Lộc Sprint 3 U028: khóa gửi một lần; lỗi giữ lý do để th�
   assert.equal(tree.root.findAllByType(Select).at(-1).props.value, 'Khác');
   assert.equal(button(tree, 'Khóa tài khoản').props.disabled, false);
 });
+
+test('U022: báo cáo đã chia sẻ là bản chốt, ẩn sửa tiêu đề/mục và nút chia sẻ', async (t) => {
+  t.mock.method(api, 'get', async (url) => url.endsWith('/shared-project') ? { project: { timezone: 'Asia/Ho_Chi_Minh' }, access: { canManage: true } } : { reports: [] });
+  const draft = { _id: 'r1', user: 'owner', status: 'draft', title: 'Báo cáo tuần', sourceState: 'current', sourceTasks: [], stats: { done: 1, overdue: 0, blocked: 0, progressPct: 50 },
+    sections: [{ key: 'summary', title: 'Tóm tắt', body: 'Hoàn thành 1 công việc', refs: [] }] };
+  t.mock.method(api, 'post', async () => ({ report: draft }));
+  const patches = [];
+  t.mock.method(api, 'patch', async (_url, body) => { patches.push(body); return { report: { ...draft, status: 'shared' } }; });
+  let tree;
+  await act(async () => { tree = create(React.createElement(MemoryRouter, {}, React.createElement(AppCtx.Provider,
+    { value: { me: { _id: 'owner' } } }, React.createElement(Report, { project: { _id: 'shared-project', name: 'Shared test' }, onUsage: () => {} })))); });
+  t.after(() => act(() => tree.unmount()));
+  await act(async () => button(tree, 'Tạo báo cáo nháp').props.onClick());
+  const editButtons = () => tree.root.findAll((n) => n.type === 'button' && n.props.title === 'Sửa');
+  const titleInput = () => tree.root.find((n) => n.type === 'input' && n.props.defaultValue === 'Báo cáo tuần');
+  assert.equal(editButtons().length, 1);
+  assert.equal(titleInput().props.readOnly, false);
+  await act(async () => button(tree, 'Lưu & chia sẻ nội bộ').props.onClick());
+  assert.deepEqual(patches, [{ share: true }]);
+  assert.equal(editButtons().length, 0);
+  assert.equal(titleInput().props.readOnly, true);
+  assert.equal(button(tree, 'Lưu & chia sẻ nội bộ'), undefined);
+  assert.match(label(tree.root), /bản chốt/);
+});
+
+test('U022: tệp xuất báo cáo giữ trạng thái, kỳ, thời điểm chốt số liệu và mã nguồn từng mục', async () => {
+  const { reportText } = await import('../src/lib/report-text.js');
+  const report = {
+    title: 'Báo cáo tuần', status: 'draft', periodConvention: 'exclusive-end', timezone: 'Asia/Ho_Chi_Minh',
+    period_start: '2026-11-01T17:00:00.000Z', period_end: '2026-11-08T17:00:00.000Z', generatedAt: '2026-11-09T02:30:00.000Z',
+    sections: [
+      { key: 'summary', title: 'Tóm tắt', body: 'Hoàn thành 2 công việc', refs: [{ _id: 'a', key: 'TF-1' }, { _id: 'b', key: 'TF-2' }] },
+      { key: 'suggestions', title: 'Đề xuất', body: 'Ưu tiên TF-2', refs: [], aiSuggested: true },
+    ],
+  };
+  const text = reportText(report, 'UTC');
+  assert.match(text, /Trạng thái: Nháp – chưa chia sẻ/);
+  assert.match(text, /Kỳ báo cáo: 02\/11\/2026 – 08\/11\/2026 \(Asia\/Ho_Chi_Minh\)/);
+  assert.match(text, /Số liệu chốt lúc: .*09\/11\/2026/);
+  assert.match(text, /## Tóm tắt\nHoàn thành 2 công việc\nNguồn: TF-1, TF-2/);
+  assert.match(text, /## Đề xuất \(Gợi ý AI\)\nƯu tiên TF-2\n\n?$/);
+  assert.match(reportText({ ...report, status: 'shared' }, 'UTC'), /Trạng thái: Đã chia sẻ nội bộ/);
+});

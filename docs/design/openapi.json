@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "TaskFlow API — inventory và contract luồng chính",
-    "version": "2026-11-03",
-    "description": "Base /api/v1; /api là alias tương thích. Cookie HttpOnly tf_at; refresh tf_rt. UUID nội bộ id được serialize thành _id. Inventory bao phủ tuyến REST được khai báo trực tiếp; request/response chi tiết mới đặc tả các luồng chính, xem x-source cho phần còn lại. Các response lỗi chung là khả năng, không phải mọi endpoint đều trả mọi mã."
+    "version": "2026-11-13",
+    "description": "Base /api/v1; /api là alias tương thích. Cookie HttpOnly tf_at; refresh tf_rt. Riêng /mcp dùng Bearer token agent (agentToken). UUID nội bộ id được serialize thành _id. Inventory bao phủ tuyến REST được khai báo trực tiếp; request/response chi tiết mới đặc tả các luồng chính, xem x-source cho phần còn lại. Các response lỗi chung là khả năng, không phải mọi endpoint đều trả mọi mã."
   },
   "servers": [
     {
@@ -28,7 +28,7 @@
         ],
         "summary": "POST /auth/register",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/auth.js:44",
+        "x-source": "BackEnd/src/routes/auth.js:46",
         "parameters": [
           {
             "in": "header",
@@ -128,7 +128,7 @@
         ],
         "summary": "POST /auth/verify-email",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/auth.js:65",
+        "x-source": "BackEnd/src/routes/auth.js:67",
         "parameters": [
           {
             "in": "header",
@@ -228,7 +228,7 @@
         ],
         "summary": "POST /auth/verify-otp",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/auth.js:83",
+        "x-source": "BackEnd/src/routes/auth.js:85",
         "parameters": [
           {
             "in": "header",
@@ -328,7 +328,7 @@
         ],
         "summary": "POST /auth/resend-verification",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/auth.js:100",
+        "x-source": "BackEnd/src/routes/auth.js:102",
         "parameters": [
           {
             "in": "header",
@@ -428,7 +428,7 @@
         ],
         "summary": "POST /auth/login",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/auth.js:111",
+        "x-source": "BackEnd/src/routes/auth.js:113",
         "parameters": [
           {
             "in": "header",
@@ -554,7 +554,7 @@
         ],
         "summary": "POST /auth/refresh",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/auth.js:132",
+        "x-source": "BackEnd/src/routes/auth.js:134",
         "parameters": [
           {
             "in": "header",
@@ -654,7 +654,7 @@
         ],
         "summary": "POST /auth/logout",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/auth.js:175",
+        "x-source": "BackEnd/src/routes/auth.js:177",
         "parameters": [
           {
             "in": "header",
@@ -754,7 +754,7 @@
         ],
         "summary": "POST /auth/forgot-password",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/auth.js:191",
+        "x-source": "BackEnd/src/routes/auth.js:194",
         "parameters": [
           {
             "in": "header",
@@ -873,7 +873,7 @@
         ],
         "summary": "GET /auth/reset-password/check",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/auth.js:208",
+        "x-source": "BackEnd/src/routes/auth.js:211",
         "parameters": [],
         "responses": {
           "200": {
@@ -961,7 +961,7 @@
         ],
         "summary": "POST /auth/reset-password",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/auth.js:213",
+        "x-source": "BackEnd/src/routes/auth.js:216",
         "parameters": [
           {
             "in": "header",
@@ -1083,7 +1083,7 @@
         ],
         "summary": "POST /auth/reset-password-otp",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/auth.js:233",
+        "x-source": "BackEnd/src/routes/auth.js:240",
         "parameters": [
           {
             "in": "header",
@@ -1183,7 +1183,7 @@
         ],
         "summary": "POST /auth/google",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/auth.js:256",
+        "x-source": "BackEnd/src/routes/auth.js:264",
         "parameters": [
           {
             "in": "header",
@@ -1272,7 +1272,34 @@
             }
           }
         },
-        "security": []
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "credential": {
+                    "type": "string",
+                    "minLength": 20,
+                    "maxLength": 4096
+                  },
+                  "remember": {
+                    "type": "boolean"
+                  },
+                  "acceptTerms": {
+                    "type": "boolean",
+                    "description": "Bắt buộc true khi Google tạo tài khoản mới; tài khoản đã có không cần."
+                  }
+                },
+                "required": [
+                  "credential"
+                ]
+              }
+            }
+          }
+        }
       }
     },
     "/auth/invite/{token}": {
@@ -1283,7 +1310,7 @@
         ],
         "summary": "GET /auth/invite/{token}",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/auth.js:282",
+        "x-source": "BackEnd/src/routes/auth.js:295",
         "parameters": [
           {
             "in": "path",
@@ -1380,7 +1407,7 @@
         ],
         "summary": "GET /me",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/me.js:19",
+        "x-source": "BackEnd/src/routes/me.js:20",
         "parameters": [],
         "responses": {
           "200": {
@@ -1465,7 +1492,7 @@
         ],
         "summary": "PATCH /me",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/me.js:63",
+        "x-source": "BackEnd/src/routes/me.js:64",
         "parameters": [
           {
             "in": "header",
@@ -1597,7 +1624,7 @@
         ],
         "summary": "GET /me/mentoring",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/me.js:32",
+        "x-source": "BackEnd/src/routes/me.js:33",
         "parameters": [],
         "responses": {
           "200": {
@@ -1684,7 +1711,7 @@
         ],
         "summary": "POST /me/password",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/me.js:82",
+        "x-source": "BackEnd/src/routes/me.js:83",
         "parameters": [
           {
             "in": "header",
@@ -1783,7 +1810,7 @@
         ],
         "summary": "GET /me/sessions",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/me.js:104",
+        "x-source": "BackEnd/src/routes/me.js:107",
         "parameters": [],
         "responses": {
           "200": {
@@ -1870,7 +1897,7 @@
         ],
         "summary": "DELETE /me/sessions/{id}",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/me.js:121",
+        "x-source": "BackEnd/src/routes/me.js:124",
         "parameters": [
           {
             "in": "path",
@@ -1977,7 +2004,7 @@
         ],
         "summary": "POST /me/sessions/revoke-others",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/me.js:129",
+        "x-source": "BackEnd/src/routes/me.js:132",
         "parameters": [
           {
             "in": "header",
@@ -2076,7 +2103,7 @@
         ],
         "summary": "GET /me/notification-prefs",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/me.js:135",
+        "x-source": "BackEnd/src/routes/me.js:138",
         "parameters": [],
         "responses": {
           "200": {
@@ -2161,7 +2188,7 @@
         ],
         "summary": "PATCH /me/notification-prefs",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/me.js:141",
+        "x-source": "BackEnd/src/routes/me.js:144",
         "parameters": [
           {
             "in": "header",
@@ -2260,7 +2287,7 @@
         ],
         "summary": "POST /me/invites/{token}/accept",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/me.js:151",
+        "x-source": "BackEnd/src/routes/me.js:154",
         "parameters": [
           {
             "in": "path",
@@ -5239,7 +5266,7 @@
         ],
         "summary": "GET /admin/stats",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/admin.js:38",
+        "x-source": "BackEnd/src/routes/admin.js:43",
         "parameters": [],
         "responses": {
           "200": {
@@ -5326,7 +5353,7 @@
         ],
         "summary": "GET /admin/users",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/admin.js:43",
+        "x-source": "BackEnd/src/routes/admin.js:48",
         "parameters": [],
         "responses": {
           "200": {
@@ -5413,7 +5440,7 @@
         ],
         "summary": "POST /admin/users/{id}/lock",
         "description": "System Admin còn phiên hoạt động. Khóa user theo thứ tự nhất quán, kiểm lại actor và phiên; thay đổi user/session + admin audit trong cùng transaction. Lock/logout thu hồi mọi phiên và ngắt socket sau commit. Unlock không khôi phục phiên cũ hoặc đổi membership. System Admin không mặc định có quyền đọc project. Lock cần reason hợp lệ, không tự khóa, không nhận trường cấp quyền.",
-        "x-source": "BackEnd/src/routes/admin.js:70",
+        "x-source": "BackEnd/src/routes/admin.js:75",
         "parameters": [
           {
             "in": "path",
@@ -5549,7 +5576,7 @@
         ],
         "summary": "POST /admin/users/{id}/unlock",
         "description": "System Admin còn phiên hoạt động. Khóa user theo thứ tự nhất quán, kiểm lại actor và phiên; thay đổi user/session + admin audit trong cùng transaction. Lock/logout thu hồi mọi phiên và ngắt socket sau commit. Unlock không khôi phục phiên cũ hoặc đổi membership. System Admin không mặc định có quyền đọc project. Lock cần reason hợp lệ, không tự khóa, không nhận trường cấp quyền.",
-        "x-source": "BackEnd/src/routes/admin.js:88",
+        "x-source": "BackEnd/src/routes/admin.js:93",
         "parameters": [
           {
             "in": "path",
@@ -5656,7 +5683,7 @@
         ],
         "summary": "POST /admin/users/{id}/logout",
         "description": "System Admin còn phiên hoạt động. Khóa user theo thứ tự nhất quán, kiểm lại actor và phiên; thay đổi user/session + admin audit trong cùng transaction. Lock/logout thu hồi mọi phiên và ngắt socket sau commit. Unlock không khôi phục phiên cũ hoặc đổi membership. System Admin không mặc định có quyền đọc project. Lock cần reason hợp lệ, không tự khóa, không nhận trường cấp quyền.",
-        "x-source": "BackEnd/src/routes/admin.js:98",
+        "x-source": "BackEnd/src/routes/admin.js:103",
         "parameters": [
           {
             "in": "path",
@@ -5763,7 +5790,7 @@
         ],
         "summary": "GET /admin/workspaces",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/admin.js:108",
+        "x-source": "BackEnd/src/routes/admin.js:113",
         "parameters": [],
         "responses": {
           "200": {
@@ -5850,7 +5877,7 @@
         ],
         "summary": "GET /admin/audit",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/admin.js:118",
+        "x-source": "BackEnd/src/routes/admin.js:123",
         "parameters": [],
         "responses": {
           "200": {
@@ -6533,7 +6560,7 @@
         ],
         "summary": "POST /projects/{projectId}/archive",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/projects.js:244",
+        "x-source": "BackEnd/src/routes/projects.js:245",
         "parameters": [
           {
             "in": "path",
@@ -6640,7 +6667,7 @@
         ],
         "summary": "POST /projects/{projectId}/restore",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/projects.js:245",
+        "x-source": "BackEnd/src/routes/projects.js:246",
         "parameters": [
           {
             "in": "path",
@@ -6747,7 +6774,7 @@
         ],
         "summary": "GET /projects/{projectId}/members",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/projects.js:247",
+        "x-source": "BackEnd/src/routes/projects.js:248",
         "parameters": [
           {
             "in": "path",
@@ -6841,7 +6868,7 @@
         ],
         "summary": "POST /projects/{projectId}/members",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/projects.js:268",
+        "x-source": "BackEnd/src/routes/projects.js:269",
         "parameters": [
           {
             "in": "path",
@@ -6948,7 +6975,7 @@
         ],
         "summary": "PATCH /projects/{projectId}/members/{userId}",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/projects.js:273",
+        "x-source": "BackEnd/src/routes/projects.js:274",
         "parameters": [
           {
             "in": "path",
@@ -7061,7 +7088,7 @@
         ],
         "summary": "DELETE /projects/{projectId}/members/{userId}",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/projects.js:281",
+        "x-source": "BackEnd/src/routes/projects.js:282",
         "parameters": [
           {
             "in": "path",
@@ -7176,7 +7203,7 @@
         ],
         "summary": "POST /projects/{projectId}/transfer-manager",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/projects.js:285",
+        "x-source": "BackEnd/src/routes/projects.js:286",
         "parameters": [
           {
             "in": "path",
@@ -9252,7 +9279,7 @@
         ],
         "summary": "POST /tasks/{id}/comments",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/tasks.js:631",
+        "x-source": "BackEnd/src/routes/tasks.js:638",
         "parameters": [
           {
             "in": "path",
@@ -9377,7 +9404,7 @@
         ],
         "summary": "PATCH /comments/{id}",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/tasks.js:659",
+        "x-source": "BackEnd/src/routes/tasks.js:666",
         "parameters": [
           {
             "in": "path",
@@ -9482,7 +9509,7 @@
         ],
         "summary": "DELETE /comments/{id}",
         "description": "Author may delete own comment; project PM may hide others. Active writable project required. Soft-delete and audit in the same transaction; hidden comments excluded from reads/counts.",
-        "x-source": "BackEnd/src/routes/tasks.js:679",
+        "x-source": "BackEnd/src/routes/tasks.js:686",
         "parameters": [
           {
             "in": "path",
@@ -9589,7 +9616,7 @@
         ],
         "summary": "GET /projects/{projectId}/documents",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/documents.js:164",
+        "x-source": "BackEnd/src/routes/documents.js:165",
         "parameters": [
           {
             "in": "path",
@@ -9683,7 +9710,7 @@
         ],
         "summary": "POST /projects/{projectId}/documents",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/documents.js:201",
+        "x-source": "BackEnd/src/routes/documents.js:202",
         "parameters": [
           {
             "in": "path",
@@ -9817,7 +9844,7 @@
         ],
         "summary": "POST /projects/{projectId}/documents/upload",
         "description": "Project PM/Member, active. Tối đa 5 tệp PDF/TXT/PNG/JPG, mỗi tệp <=10MB; MIME/đuôi/chữ ký và UTF-8 cho TXT. Kiểm cả lô trước ghi; rollback DB và dọn tệp khi lỗi. Không OCR cho nguồn scan.",
-        "x-source": "BackEnd/src/routes/documents.js:188",
+        "x-source": "BackEnd/src/routes/documents.js:189",
         "parameters": [
           {
             "in": "path",
@@ -9952,7 +9979,7 @@
         ],
         "summary": "GET /documents/{id}",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/documents.js:252",
+        "x-source": "BackEnd/src/routes/documents.js:254",
         "parameters": [
           {
             "in": "path",
@@ -10046,7 +10073,7 @@
         ],
         "summary": "PATCH /documents/{id}",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/documents.js:284",
+        "x-source": "BackEnd/src/routes/documents.js:289",
         "parameters": [
           {
             "in": "path",
@@ -10183,7 +10210,7 @@
         ],
         "summary": "DELETE /documents/{id}",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/documents.js:370",
+        "x-source": "BackEnd/src/routes/documents.js:380",
         "parameters": [
           {
             "in": "path",
@@ -10290,7 +10317,7 @@
         ],
         "summary": "GET /documents/{id}/revisions/{version}",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/documents.js:268",
+        "x-source": "BackEnd/src/routes/documents.js:270",
         "parameters": [
           {
             "in": "path",
@@ -10394,7 +10421,7 @@
         ],
         "summary": "GET /documents/{id}/content",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/documents.js:278",
+        "x-source": "BackEnd/src/routes/documents.js:280",
         "parameters": [
           {
             "in": "path",
@@ -10490,7 +10517,7 @@
         ],
         "summary": "GET /documents/{id}/download",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/documents.js:343",
+        "x-source": "BackEnd/src/routes/documents.js:349",
         "parameters": [
           {
             "in": "path",
@@ -11266,7 +11293,7 @@
         ],
         "summary": "GET /projects/{projectId}/ai/usage",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/ai.js:31",
+        "x-source": "BackEnd/src/routes/ai.js:22",
         "parameters": [
           {
             "in": "path",
@@ -11362,7 +11389,7 @@
         ],
         "summary": "GET /projects/{projectId}/ai/drafts",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/ai.js:46",
+        "x-source": "BackEnd/src/routes/ai.js:35",
         "parameters": [
           {
             "in": "path",
@@ -11458,7 +11485,7 @@
         ],
         "summary": "GET /ai/drafts/{id}",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/ai.js:52",
+        "x-source": "BackEnd/src/routes/ai.js:41",
         "parameters": [
           {
             "in": "path",
@@ -11552,7 +11579,7 @@
         ],
         "summary": "PATCH /ai/drafts/{id}",
         "description": "Chỉ chủ nháp đang là PM active. version bắt buộc; khóa workspace và trả 409 AI_DRAFT_CHANGED nếu tab cũ. Không chấp nhận key thiếu/trùng hoặc sửa excerpt; người nhận phải có ProjectRole/WorkspaceRole làm việc. Thành công tăng version và trả draft mới.",
-        "x-source": "BackEnd/src/routes/ai.js:132",
+        "x-source": "BackEnd/src/routes/ai.js:96",
         "parameters": [
           {
             "in": "path",
@@ -11755,7 +11782,7 @@
         ],
         "summary": "POST /projects/{projectId}/ai/plan",
         "description": "Chỉ PM active. AI trả 5–15 mục đủ title/description/AC/estimate; server kiểm schema và giới hạn trước lưu nháp. Không có deadline thì không tự đặt. Người nhận mặc định trống để PM chọn. Chưa tạo task/notification trước approve.",
-        "x-source": "BackEnd/src/routes/ai.js:86",
+        "x-source": "BackEnd/src/routes/ai.js:50",
         "parameters": [
           {
             "in": "path",
@@ -11904,7 +11931,7 @@
         ],
         "summary": "POST /ai/drafts/{id}/discard",
         "description": "Chỉ chủ nháp đang là PM active. version bắt buộc cho nháp còn mở; stale 409; không được hủy bản đã duyệt; hủy lặp là idempotent.",
-        "x-source": "BackEnd/src/routes/ai.js:166",
+        "x-source": "BackEnd/src/routes/ai.js:130",
         "parameters": [
           {
             "in": "path",
@@ -12031,7 +12058,7 @@
         ],
         "summary": "POST /ai/drafts/{id}/approve",
         "description": "Chỉ chủ nháp đang là PM active. version bắt buộc; nháp còn mở phải khớp. Kiểm tổng giờ, hạn và số người đã chọn; transaction tạo task/AC/remainingHours, audit, tăng version. UNIQUE(project,aiDraftItem) + lock bảo đảm duyệt lặp không tạo trùng; nháp approved trả lại kết quả đã duyệt, kể cả retry version cũ. Response có draft/created. Meeting kiểm hash nguồn và trích đoạn trước apply; người đã khóa/rời dự án/Viewer không nhận task. Kiểm lại phiên dưới user lock để sắp thứ tự với admin revoke.",
-        "x-source": "BackEnd/src/routes/ai.js:186",
+        "x-source": "BackEnd/src/routes/ai.js:150",
         "parameters": [
           {
             "in": "path",
@@ -12158,7 +12185,7 @@
         ],
         "summary": "POST /projects/{projectId}/ai/meeting",
         "description": "Chỉ PM active. title 1–200 ký tự, text 10–30.000 ký tự trim. Nguồn lưu tại draft.input.text cùng SHA-256 sourceHash và spanEncoding=utf-16; mỗi item có excerpt và sourceSpan {start,end} zero-based [start,end). Không suy đoán người khi trùng tên hoặc hạn khi nhiều ngày. Kiểm phiên/ACL sau AI, chỉ lưu nháp. Duyệt dùng chung CAS/transaction của planner; sourceSpan/excerpt không được sửa qua PATCH. Bản nháp cũ thiếu span được kiểm bằng excerpt nguyên văn.",
-        "x-source": "BackEnd/src/routes/ai.js:310",
+        "x-source": "BackEnd/src/routes/ai.js:274",
         "parameters": [
           {
             "in": "path",
@@ -12291,7 +12318,7 @@
         ],
         "summary": "GET /projects/{projectId}/ai/reports",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/ai.js:338",
+        "x-source": "BackEnd/src/routes/ai.js:302",
         "parameters": [
           {
             "in": "path",
@@ -12385,7 +12412,7 @@
         ],
         "summary": "POST /projects/{projectId}/ai/reports",
         "description": "Chỉ PM active. Canonical period_start/period_end là khoảng [start,end), date-only hiểu là 00:00 theo project.timezone, timestamp có offset giữ nguyên instant. Alias from/to: ngày cuối date-only bao gồm hết ngày bằng cách chuyển sang 00:00 ngày tiếp theo; to timestamp là exclusive. Không trộn hai bộ trường. Response mới có from/to, period_start/period_end, timezone snapshot và periodConvention=exclusive-end. Báo cáo cũ giữ legacy-inclusive, không viết lại số liệu. Số liệu/tóm tắt định lượng từ DB tại generatedAt; AI chỉ cung cấp đề xuất có nhãn. Kiểm lại nguồn, quyền, phiên sau AI; stats/generatedAt/period/timezone bất biến khi sửa nội dung.",
-        "x-source": "BackEnd/src/routes/ai.js:361",
+        "x-source": "BackEnd/src/routes/ai.js:325",
         "parameters": [
           {
             "in": "path",
@@ -12551,7 +12578,7 @@
         ],
         "summary": "GET /ai/reports/{id}",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/ai.js:353",
+        "x-source": "BackEnd/src/routes/ai.js:317",
         "parameters": [
           {
             "in": "path",
@@ -12645,7 +12672,7 @@
         ],
         "summary": "PATCH /ai/reports/{id}",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/ai.js:416",
+        "x-source": "BackEnd/src/routes/ai.js:380",
         "parameters": [
           {
             "in": "path",
@@ -12741,6 +12768,56 @@
               }
             }
           }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "sections": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "key": {
+                          "type": "string"
+                        },
+                        "title": {
+                          "type": "string",
+                          "maxLength": 200
+                        },
+                        "body": {
+                          "type": "string",
+                          "maxLength": 20000
+                        }
+                      },
+                      "required": [
+                        "key"
+                      ]
+                    }
+                  },
+                  "removeKeys": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "share": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [],
+                "description": "Chỉ người tạo là PM. Sửa được khi còn nháp; share=true là publish. Báo cáo đã chia sẻ là snapshot bất biến: sửa title/sections/removeKeys trả 409 REPORT_SHARED, share lặp là no-op."
+              }
+            }
+          }
         }
       },
       "delete": {
@@ -12750,7 +12827,7 @@
         ],
         "summary": "DELETE /ai/reports/{id}",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/ai.js:458",
+        "x-source": "BackEnd/src/routes/ai.js:428",
         "parameters": [
           {
             "in": "path",
@@ -12857,7 +12934,7 @@
         ],
         "summary": "GET /projects/{projectId}/ai/sources",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/ai.js:470",
+        "x-source": "BackEnd/src/routes/ai.js:440",
         "parameters": [
           {
             "in": "path",
@@ -12898,12 +12975,21 @@
                         "null"
                       ],
                       "format": "date-time"
+                    },
+                    "suggestions": {
+                      "type": "array",
+                      "maxItems": 3,
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "Câu hỏi gợi ý dựng từ việc bị chặn, việc đang mở và tài liệu mới nhất của chính dự án."
                     }
                   },
                   "required": [
                     "tasks",
                     "documents",
-                    "retrieval"
+                    "retrieval",
+                    "suggestions"
                   ]
                 }
               }
@@ -12990,7 +13076,7 @@
         ],
         "summary": "GET /projects/{projectId}/ai/conversations",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/ai.js:480",
+        "x-source": "BackEnd/src/routes/ai.js:477",
         "parameters": [
           {
             "in": "path",
@@ -13086,7 +13172,7 @@
         ],
         "summary": "GET /ai/conversations/{id}",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/ai.js:485",
+        "x-source": "BackEnd/src/routes/ai.js:482",
         "parameters": [
           {
             "in": "path",
@@ -13180,7 +13266,7 @@
         ],
         "summary": "DELETE /ai/conversations/{id}",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/ai.js:522",
+        "x-source": "BackEnd/src/routes/ai.js:519",
         "parameters": [
           {
             "in": "path",
@@ -13287,7 +13373,7 @@
         ],
         "summary": "POST /projects/{projectId}/ai/ask",
         "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
-        "x-source": "BackEnd/src/routes/ai.js:492",
+        "x-source": "BackEnd/src/routes/ai.js:489",
         "parameters": [
           {
             "in": "path",
@@ -14899,6 +14985,5009 @@
         }
       }
     },
+    "/projects/{projectId}/labels": {
+      "get": {
+        "operationId": "planning_get__projects_projectId_labels",
+        "tags": [
+          "planning"
+        ],
+        "summary": "GET /projects/{projectId}/labels",
+        "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
+        "x-source": "BackEnd/src/routes/planning.js:27",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công. Payload cụ thể theo handler được dẫn trong x-source; endpoint CSV/download trả tệp."
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập / phiên hết hạn",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền / tính năng tắt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc ngoài phạm vi quyền",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột phiên bản / nguồn thay đổi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit / quota",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dịch vụ tạm lỗi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "planning_post__projects_projectId_labels",
+        "tags": [
+          "planning"
+        ],
+        "summary": "POST /projects/{projectId}/labels",
+        "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
+        "x-source": "BackEnd/src/routes/planning.js:34",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-taskflow",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Thành công. Payload cụ thể theo handler được dẫn trong x-source; endpoint CSV/download trả tệp."
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập / phiên hết hạn",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền / tính năng tắt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc ngoài phạm vi quyền",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột phiên bản / nguồn thay đổi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit / quota",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dịch vụ tạm lỗi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{projectId}/labels/{name}": {
+      "patch": {
+        "operationId": "planning_patch__projects_projectId_labels_name",
+        "tags": [
+          "planning"
+        ],
+        "summary": "PATCH /projects/{projectId}/labels/{name}",
+        "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
+        "x-source": "BackEnd/src/routes/planning.js:60",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-taskflow",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công. Payload cụ thể theo handler được dẫn trong x-source; endpoint CSV/download trả tệp."
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập / phiên hết hạn",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền / tính năng tắt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc ngoài phạm vi quyền",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột phiên bản / nguồn thay đổi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit / quota",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dịch vụ tạm lỗi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "planning_delete__projects_projectId_labels_name",
+        "tags": [
+          "planning"
+        ],
+        "summary": "DELETE /projects/{projectId}/labels/{name}",
+        "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
+        "x-source": "BackEnd/src/routes/planning.js:67",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-taskflow",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công. Payload cụ thể theo handler được dẫn trong x-source; endpoint CSV/download trả tệp."
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập / phiên hết hạn",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền / tính năng tắt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc ngoài phạm vi quyền",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột phiên bản / nguồn thay đổi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit / quota",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dịch vụ tạm lỗi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{projectId}/sprints": {
+      "get": {
+        "operationId": "planning_get__projects_projectId_sprints",
+        "tags": [
+          "planning"
+        ],
+        "summary": "GET /projects/{projectId}/sprints",
+        "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
+        "x-source": "BackEnd/src/routes/planning.js:76",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công. Payload cụ thể theo handler được dẫn trong x-source; endpoint CSV/download trả tệp."
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập / phiên hết hạn",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền / tính năng tắt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc ngoài phạm vi quyền",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột phiên bản / nguồn thay đổi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit / quota",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dịch vụ tạm lỗi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "planning_post__projects_projectId_sprints",
+        "tags": [
+          "planning"
+        ],
+        "summary": "POST /projects/{projectId}/sprints",
+        "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
+        "x-source": "BackEnd/src/routes/planning.js:114",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-taskflow",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Thành công. Payload cụ thể theo handler được dẫn trong x-source; endpoint CSV/download trả tệp."
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập / phiên hết hạn",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền / tính năng tắt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc ngoài phạm vi quyền",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột phiên bản / nguồn thay đổi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit / quota",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dịch vụ tạm lỗi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{projectId}/sprints/{sprintId}": {
+      "patch": {
+        "operationId": "planning_patch__projects_projectId_sprints_sprintId",
+        "tags": [
+          "planning"
+        ],
+        "summary": "PATCH /projects/{projectId}/sprints/{sprintId}",
+        "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
+        "x-source": "BackEnd/src/routes/planning.js:130",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "sprintId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-taskflow",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công. Payload cụ thể theo handler được dẫn trong x-source; endpoint CSV/download trả tệp."
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập / phiên hết hạn",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền / tính năng tắt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc ngoài phạm vi quyền",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột phiên bản / nguồn thay đổi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit / quota",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dịch vụ tạm lỗi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "planning_delete__projects_projectId_sprints_sprintId",
+        "tags": [
+          "planning"
+        ],
+        "summary": "DELETE /projects/{projectId}/sprints/{sprintId}",
+        "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
+        "x-source": "BackEnd/src/routes/planning.js:204",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "sprintId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-taskflow",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công. Payload cụ thể theo handler được dẫn trong x-source; endpoint CSV/download trả tệp."
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập / phiên hết hạn",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền / tính năng tắt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc ngoài phạm vi quyền",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột phiên bản / nguồn thay đổi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit / quota",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dịch vụ tạm lỗi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{projectId}/sprints/{sprintId}/start": {
+      "post": {
+        "operationId": "planning_post__projects_projectId_sprints_sprintId_start",
+        "tags": [
+          "planning"
+        ],
+        "summary": "POST /projects/{projectId}/sprints/{sprintId}/start",
+        "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
+        "x-source": "BackEnd/src/routes/planning.js:155",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "sprintId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-taskflow",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công. Payload cụ thể theo handler được dẫn trong x-source; endpoint CSV/download trả tệp."
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập / phiên hết hạn",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền / tính năng tắt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc ngoài phạm vi quyền",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột phiên bản / nguồn thay đổi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit / quota",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dịch vụ tạm lỗi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{projectId}/sprints/{sprintId}/close": {
+      "post": {
+        "operationId": "planning_post__projects_projectId_sprints_sprintId_close",
+        "tags": [
+          "planning"
+        ],
+        "summary": "POST /projects/{projectId}/sprints/{sprintId}/close",
+        "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
+        "x-source": "BackEnd/src/routes/planning.js:178",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "sprintId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-taskflow",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công. Payload cụ thể theo handler được dẫn trong x-source; endpoint CSV/download trả tệp."
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập / phiên hết hạn",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền / tính năng tắt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc ngoài phạm vi quyền",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột phiên bản / nguồn thay đổi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit / quota",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dịch vụ tạm lỗi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{projectId}/sprints/assign": {
+      "post": {
+        "operationId": "planning_post__projects_projectId_sprints_assign",
+        "tags": [
+          "planning"
+        ],
+        "summary": "POST /projects/{projectId}/sprints/assign",
+        "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
+        "x-source": "BackEnd/src/routes/planning.js:220",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-taskflow",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công. Payload cụ thể theo handler được dẫn trong x-source; endpoint CSV/download trả tệp."
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập / phiên hết hạn",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền / tính năng tắt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc ngoài phạm vi quyền",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột phiên bản / nguồn thay đổi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit / quota",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dịch vụ tạm lỗi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{projectId}/issues": {
+      "get": {
+        "operationId": "planning_get__projects_projectId_issues",
+        "tags": [
+          "planning"
+        ],
+        "summary": "GET /projects/{projectId}/issues",
+        "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
+        "x-source": "BackEnd/src/routes/planning.js:250",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công. Payload cụ thể theo handler được dẫn trong x-source; endpoint CSV/download trả tệp."
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập / phiên hết hạn",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền / tính năng tắt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc ngoài phạm vi quyền",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột phiên bản / nguồn thay đổi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit / quota",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dịch vụ tạm lỗi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "planning_post__projects_projectId_issues",
+        "tags": [
+          "planning"
+        ],
+        "summary": "POST /projects/{projectId}/issues",
+        "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
+        "x-source": "BackEnd/src/routes/planning.js:258",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-taskflow",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Thành công. Payload cụ thể theo handler được dẫn trong x-source; endpoint CSV/download trả tệp."
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập / phiên hết hạn",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền / tính năng tắt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc ngoài phạm vi quyền",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột phiên bản / nguồn thay đổi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit / quota",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dịch vụ tạm lỗi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{projectId}/issues/{issueId}": {
+      "patch": {
+        "operationId": "planning_patch__projects_projectId_issues_issueId",
+        "tags": [
+          "planning"
+        ],
+        "summary": "PATCH /projects/{projectId}/issues/{issueId}",
+        "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
+        "x-source": "BackEnd/src/routes/planning.js:297",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "issueId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-taskflow",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công. Payload cụ thể theo handler được dẫn trong x-source; endpoint CSV/download trả tệp."
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập / phiên hết hạn",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền / tính năng tắt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc ngoài phạm vi quyền",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột phiên bản / nguồn thay đổi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit / quota",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dịch vụ tạm lỗi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{projectId}/contributions": {
+      "get": {
+        "operationId": "planning_get__projects_projectId_contributions",
+        "tags": [
+          "planning"
+        ],
+        "summary": "GET /projects/{projectId}/contributions",
+        "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
+        "x-source": "BackEnd/src/routes/planning.js:357",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công. Payload cụ thể theo handler được dẫn trong x-source; endpoint CSV/download trả tệp."
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập / phiên hết hạn",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền / tính năng tắt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc ngoài phạm vi quyền",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột phiên bản / nguồn thay đổi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit / quota",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dịch vụ tạm lỗi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{projectId}/contributions.csv": {
+      "get": {
+        "operationId": "planning_get__projects_projectId_contributions_csv",
+        "tags": [
+          "planning"
+        ],
+        "summary": "GET /projects/{projectId}/contributions.csv",
+        "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
+        "x-source": "BackEnd/src/routes/planning.js:361",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công. Payload cụ thể theo handler được dẫn trong x-source; endpoint CSV/download trả tệp."
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập / phiên hết hạn",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền / tính năng tắt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc ngoài phạm vi quyền",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột phiên bản / nguồn thay đổi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit / quota",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dịch vụ tạm lỗi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{projectId}/repo": {
+      "get": {
+        "operationId": "agent_get__projects_projectId_repo",
+        "tags": [
+          "agent"
+        ],
+        "summary": "GET /projects/{projectId}/repo",
+        "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
+        "x-source": "BackEnd/src/routes/agent.js:27",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công. Payload cụ thể theo handler được dẫn trong x-source; endpoint CSV/download trả tệp."
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập / phiên hết hạn",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền / tính năng tắt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc ngoài phạm vi quyền",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột phiên bản / nguồn thay đổi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit / quota",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dịch vụ tạm lỗi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "agent_put__projects_projectId_repo",
+        "tags": [
+          "agent"
+        ],
+        "summary": "PUT /projects/{projectId}/repo",
+        "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
+        "x-source": "BackEnd/src/routes/agent.js:32",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-taskflow",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công. Payload cụ thể theo handler được dẫn trong x-source; endpoint CSV/download trả tệp."
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập / phiên hết hạn",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền / tính năng tắt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc ngoài phạm vi quyền",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột phiên bản / nguồn thay đổi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit / quota",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dịch vụ tạm lỗi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "agent_delete__projects_projectId_repo",
+        "tags": [
+          "agent"
+        ],
+        "summary": "DELETE /projects/{projectId}/repo",
+        "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
+        "x-source": "BackEnd/src/routes/agent.js:57",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-taskflow",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công. Payload cụ thể theo handler được dẫn trong x-source; endpoint CSV/download trả tệp."
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập / phiên hết hạn",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền / tính năng tắt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc ngoài phạm vi quyền",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột phiên bản / nguồn thay đổi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit / quota",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dịch vụ tạm lỗi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{projectId}/repo/progress": {
+      "get": {
+        "operationId": "agent_get__projects_projectId_repo_progress",
+        "tags": [
+          "agent"
+        ],
+        "summary": "GET /projects/{projectId}/repo/progress",
+        "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
+        "x-source": "BackEnd/src/routes/agent.js:64",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công. Payload cụ thể theo handler được dẫn trong x-source; endpoint CSV/download trả tệp."
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập / phiên hết hạn",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền / tính năng tắt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc ngoài phạm vi quyền",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột phiên bản / nguồn thay đổi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit / quota",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dịch vụ tạm lỗi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{projectId}/agent/settings": {
+      "patch": {
+        "operationId": "agent_patch__projects_projectId_agent_settings",
+        "tags": [
+          "agent"
+        ],
+        "summary": "PATCH /projects/{projectId}/agent/settings",
+        "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
+        "x-source": "BackEnd/src/routes/agent.js:69",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-taskflow",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công. Payload cụ thể theo handler được dẫn trong x-source; endpoint CSV/download trả tệp."
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập / phiên hết hạn",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền / tính năng tắt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc ngoài phạm vi quyền",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột phiên bản / nguồn thay đổi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit / quota",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dịch vụ tạm lỗi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{projectId}/agent/suggest": {
+      "post": {
+        "operationId": "agent_post__projects_projectId_agent_suggest",
+        "tags": [
+          "agent"
+        ],
+        "summary": "POST /projects/{projectId}/agent/suggest",
+        "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
+        "x-source": "BackEnd/src/routes/agent.js:83",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-taskflow",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Thành công. Payload cụ thể theo handler được dẫn trong x-source; endpoint CSV/download trả tệp."
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập / phiên hết hạn",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền / tính năng tắt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc ngoài phạm vi quyền",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột phiên bản / nguồn thay đổi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit / quota",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dịch vụ tạm lỗi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{projectId}/agent/runs": {
+      "get": {
+        "operationId": "agent_get__projects_projectId_agent_runs",
+        "tags": [
+          "agent"
+        ],
+        "summary": "GET /projects/{projectId}/agent/runs",
+        "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
+        "x-source": "BackEnd/src/routes/agent.js:96",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công. Payload cụ thể theo handler được dẫn trong x-source; endpoint CSV/download trả tệp."
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập / phiên hết hạn",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền / tính năng tắt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc ngoài phạm vi quyền",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột phiên bản / nguồn thay đổi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit / quota",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dịch vụ tạm lỗi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/agent/runs/{id}/items/{key}/accept": {
+      "post": {
+        "operationId": "agent_post__agent_runs_id_items_key_accept",
+        "tags": [
+          "agent"
+        ],
+        "summary": "POST /agent/runs/{id}/items/{key}/accept",
+        "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
+        "x-source": "BackEnd/src/routes/agent.js:115",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-taskflow",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công. Payload cụ thể theo handler được dẫn trong x-source; endpoint CSV/download trả tệp."
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập / phiên hết hạn",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền / tính năng tắt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc ngoài phạm vi quyền",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột phiên bản / nguồn thay đổi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit / quota",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dịch vụ tạm lỗi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/agent/runs/{id}/items/{key}/dismiss": {
+      "post": {
+        "operationId": "agent_post__agent_runs_id_items_key_dismiss",
+        "tags": [
+          "agent"
+        ],
+        "summary": "POST /agent/runs/{id}/items/{key}/dismiss",
+        "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
+        "x-source": "BackEnd/src/routes/agent.js:141",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-taskflow",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công. Payload cụ thể theo handler được dẫn trong x-source; endpoint CSV/download trả tệp."
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập / phiên hết hạn",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền / tính năng tắt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc ngoài phạm vi quyền",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột phiên bản / nguồn thay đổi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit / quota",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dịch vụ tạm lỗi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/agent-tokens": {
+      "get": {
+        "operationId": "agent_get__agent_tokens",
+        "tags": [
+          "agent"
+        ],
+        "summary": "GET /agent-tokens",
+        "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
+        "x-source": "BackEnd/src/routes/agent.js:160",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Thành công. Payload cụ thể theo handler được dẫn trong x-source; endpoint CSV/download trả tệp."
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập / phiên hết hạn",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền / tính năng tắt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc ngoài phạm vi quyền",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột phiên bản / nguồn thay đổi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit / quota",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dịch vụ tạm lỗi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "agent_post__agent_tokens",
+        "tags": [
+          "agent"
+        ],
+        "summary": "POST /agent-tokens",
+        "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
+        "x-source": "BackEnd/src/routes/agent.js:164",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-taskflow",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Thành công. Payload cụ thể theo handler được dẫn trong x-source; endpoint CSV/download trả tệp."
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập / phiên hết hạn",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền / tính năng tắt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc ngoài phạm vi quyền",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột phiên bản / nguồn thay đổi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit / quota",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dịch vụ tạm lỗi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/agent-tokens/{id}": {
+      "delete": {
+        "operationId": "agent_delete__agent_tokens_id",
+        "tags": [
+          "agent"
+        ],
+        "summary": "DELETE /agent-tokens/{id}",
+        "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
+        "x-source": "BackEnd/src/routes/agent.js:170",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-taskflow",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công. Payload cụ thể theo handler được dẫn trong x-source; endpoint CSV/download trả tệp."
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập / phiên hết hạn",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền / tính năng tắt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc ngoài phạm vi quyền",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột phiên bản / nguồn thay đổi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit / quota",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dịch vụ tạm lỗi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/agent/runner": {
+      "get": {
+        "operationId": "agent_get__agent_runner",
+        "tags": [
+          "agent"
+        ],
+        "summary": "GET /agent/runner",
+        "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
+        "x-source": "BackEnd/src/routes/agent.js:176",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Thành công. Payload cụ thể theo handler được dẫn trong x-source; endpoint CSV/download trả tệp."
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập / phiên hết hạn",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền / tính năng tắt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc ngoài phạm vi quyền",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột phiên bản / nguồn thay đổi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit / quota",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dịch vụ tạm lỗi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/agent/runner/disconnect": {
+      "post": {
+        "operationId": "agent_post__agent_runner_disconnect",
+        "tags": [
+          "agent"
+        ],
+        "summary": "POST /agent/runner/disconnect",
+        "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
+        "x-source": "BackEnd/src/routes/agent.js:180",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-taskflow",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công. Payload cụ thể theo handler được dẫn trong x-source; endpoint CSV/download trả tệp."
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập / phiên hết hạn",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền / tính năng tắt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc ngoài phạm vi quyền",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột phiên bản / nguồn thay đổi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit / quota",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dịch vụ tạm lỗi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{projectId}/agent/jobs": {
+      "post": {
+        "operationId": "agent_post__projects_projectId_agent_jobs",
+        "tags": [
+          "agent"
+        ],
+        "summary": "POST /projects/{projectId}/agent/jobs",
+        "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
+        "x-source": "BackEnd/src/routes/agent.js:210",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-taskflow",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Thành công. Payload cụ thể theo handler được dẫn trong x-source; endpoint CSV/download trả tệp."
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập / phiên hết hạn",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền / tính năng tắt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc ngoài phạm vi quyền",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột phiên bản / nguồn thay đổi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit / quota",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dịch vụ tạm lỗi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/agent/jobs/{id}": {
+      "get": {
+        "operationId": "agent_get__agent_jobs_id",
+        "tags": [
+          "agent"
+        ],
+        "summary": "GET /agent/jobs/{id}",
+        "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
+        "x-source": "BackEnd/src/routes/agent.js:241",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công. Payload cụ thể theo handler được dẫn trong x-source; endpoint CSV/download trả tệp."
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập / phiên hết hạn",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền / tính năng tắt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc ngoài phạm vi quyền",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột phiên bản / nguồn thay đổi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit / quota",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dịch vụ tạm lỗi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/agent/jobs/{id}/cancel": {
+      "post": {
+        "operationId": "agent_post__agent_jobs_id_cancel",
+        "tags": [
+          "agent"
+        ],
+        "summary": "POST /agent/jobs/{id}/cancel",
+        "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
+        "x-source": "BackEnd/src/routes/agent.js:245",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-taskflow",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công. Payload cụ thể theo handler được dẫn trong x-source; endpoint CSV/download trả tệp."
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập / phiên hết hạn",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền / tính năng tắt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc ngoài phạm vi quyền",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột phiên bản / nguồn thay đổi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit / quota",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dịch vụ tạm lỗi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/mcp/me": {
+      "get": {
+        "operationId": "mcp_get__me",
+        "tags": [
+          "mcp"
+        ],
+        "summary": "GET /mcp/me",
+        "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
+        "x-source": "BackEnd/src/routes/mcp.js:37",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Thành công. Payload cụ thể theo handler được dẫn trong x-source; endpoint CSV/download trả tệp."
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập / phiên hết hạn",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền / tính năng tắt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc ngoài phạm vi quyền",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột phiên bản / nguồn thay đổi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit / quota",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dịch vụ tạm lỗi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "agentToken": []
+          }
+        ]
+      }
+    },
+    "/mcp/projects": {
+      "get": {
+        "operationId": "mcp_get__projects",
+        "tags": [
+          "mcp"
+        ],
+        "summary": "GET /mcp/projects",
+        "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
+        "x-source": "BackEnd/src/routes/mcp.js:41",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Thành công. Payload cụ thể theo handler được dẫn trong x-source; endpoint CSV/download trả tệp."
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập / phiên hết hạn",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền / tính năng tắt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc ngoài phạm vi quyền",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột phiên bản / nguồn thay đổi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit / quota",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dịch vụ tạm lỗi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "agentToken": []
+          }
+        ]
+      }
+    },
+    "/mcp/projects/{projectId}/tasks": {
+      "get": {
+        "operationId": "mcp_get__projects_projectId_tasks",
+        "tags": [
+          "mcp"
+        ],
+        "summary": "GET /mcp/projects/{projectId}/tasks",
+        "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
+        "x-source": "BackEnd/src/routes/mcp.js:52",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công. Payload cụ thể theo handler được dẫn trong x-source; endpoint CSV/download trả tệp."
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập / phiên hết hạn",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền / tính năng tắt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc ngoài phạm vi quyền",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột phiên bản / nguồn thay đổi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit / quota",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dịch vụ tạm lỗi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "agentToken": []
+          }
+        ]
+      }
+    },
+    "/mcp/projects/{projectId}/tasks/{key}": {
+      "get": {
+        "operationId": "mcp_get__projects_projectId_tasks_key",
+        "tags": [
+          "mcp"
+        ],
+        "summary": "GET /mcp/projects/{projectId}/tasks/{key}",
+        "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
+        "x-source": "BackEnd/src/routes/mcp.js:73",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "key",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công. Payload cụ thể theo handler được dẫn trong x-source; endpoint CSV/download trả tệp."
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập / phiên hết hạn",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền / tính năng tắt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc ngoài phạm vi quyền",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột phiên bản / nguồn thay đổi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit / quota",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dịch vụ tạm lỗi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "agentToken": []
+          }
+        ]
+      }
+    },
+    "/mcp/projects/{projectId}/repo-progress": {
+      "get": {
+        "operationId": "mcp_get__projects_projectId_repo_progress",
+        "tags": [
+          "mcp"
+        ],
+        "summary": "GET /mcp/projects/{projectId}/repo-progress",
+        "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
+        "x-source": "BackEnd/src/routes/mcp.js:84",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công. Payload cụ thể theo handler được dẫn trong x-source; endpoint CSV/download trả tệp."
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập / phiên hết hạn",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền / tính năng tắt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc ngoài phạm vi quyền",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột phiên bản / nguồn thay đổi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit / quota",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dịch vụ tạm lỗi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "agentToken": []
+          }
+        ]
+      }
+    },
+    "/mcp/projects/{projectId}/reports": {
+      "post": {
+        "operationId": "mcp_post__projects_projectId_reports",
+        "tags": [
+          "mcp"
+        ],
+        "summary": "POST /mcp/projects/{projectId}/reports",
+        "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
+        "x-source": "BackEnd/src/routes/mcp.js:89",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-taskflow",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Thành công. Payload cụ thể theo handler được dẫn trong x-source; endpoint CSV/download trả tệp."
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập / phiên hết hạn",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền / tính năng tắt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc ngoài phạm vi quyền",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột phiên bản / nguồn thay đổi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit / quota",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dịch vụ tạm lỗi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "agentToken": []
+          }
+        ]
+      }
+    },
+    "/mcp/projects/{projectId}/overview": {
+      "get": {
+        "operationId": "mcp_get__projects_projectId_overview",
+        "tags": [
+          "mcp"
+        ],
+        "summary": "GET /mcp/projects/{projectId}/overview",
+        "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
+        "x-source": "BackEnd/src/routes/mcp.js:110",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công. Payload cụ thể theo handler được dẫn trong x-source; endpoint CSV/download trả tệp."
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập / phiên hết hạn",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền / tính năng tắt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc ngoài phạm vi quyền",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột phiên bản / nguồn thay đổi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit / quota",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dịch vụ tạm lỗi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "agentToken": []
+          }
+        ]
+      }
+    },
+    "/mcp/projects/{projectId}/search": {
+      "get": {
+        "operationId": "mcp_get__projects_projectId_search",
+        "tags": [
+          "mcp"
+        ],
+        "summary": "GET /mcp/projects/{projectId}/search",
+        "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
+        "x-source": "BackEnd/src/routes/mcp.js:145",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công. Payload cụ thể theo handler được dẫn trong x-source; endpoint CSV/download trả tệp."
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập / phiên hết hạn",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền / tính năng tắt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc ngoài phạm vi quyền",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột phiên bản / nguồn thay đổi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit / quota",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dịch vụ tạm lỗi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "agentToken": []
+          }
+        ]
+      }
+    },
+    "/mcp/projects/{projectId}/answers": {
+      "post": {
+        "operationId": "mcp_post__projects_projectId_answers",
+        "tags": [
+          "mcp"
+        ],
+        "summary": "POST /mcp/projects/{projectId}/answers",
+        "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
+        "x-source": "BackEnd/src/routes/mcp.js:167",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-taskflow",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Thành công. Payload cụ thể theo handler được dẫn trong x-source; endpoint CSV/download trả tệp."
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập / phiên hết hạn",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền / tính năng tắt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc ngoài phạm vi quyền",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột phiên bản / nguồn thay đổi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit / quota",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dịch vụ tạm lỗi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "agentToken": []
+          }
+        ]
+      }
+    },
+    "/mcp/projects/{projectId}/tasks/complete": {
+      "post": {
+        "operationId": "mcp_post__projects_projectId_tasks_complete",
+        "tags": [
+          "mcp"
+        ],
+        "summary": "POST /mcp/projects/{projectId}/tasks/complete",
+        "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
+        "x-source": "BackEnd/src/routes/mcp.js:223",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-taskflow",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Thành công. Payload cụ thể theo handler được dẫn trong x-source; endpoint CSV/download trả tệp."
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập / phiên hết hạn",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền / tính năng tắt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc ngoài phạm vi quyền",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột phiên bản / nguồn thay đổi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit / quota",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dịch vụ tạm lỗi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "agentToken": []
+          }
+        ]
+      }
+    },
+    "/mcp/projects/{projectId}/plans": {
+      "post": {
+        "operationId": "mcp_post__projects_projectId_plans",
+        "tags": [
+          "mcp"
+        ],
+        "summary": "POST /mcp/projects/{projectId}/plans",
+        "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
+        "x-source": "BackEnd/src/routes/mcp.js:275",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-taskflow",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công. Payload cụ thể theo handler được dẫn trong x-source; endpoint CSV/download trả tệp."
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập / phiên hết hạn",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền / tính năng tắt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc ngoài phạm vi quyền",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột phiên bản / nguồn thay đổi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit / quota",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dịch vụ tạm lỗi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "agentToken": []
+          }
+        ]
+      }
+    },
+    "/mcp/projects/{projectId}/meetings": {
+      "post": {
+        "operationId": "mcp_post__projects_projectId_meetings",
+        "tags": [
+          "mcp"
+        ],
+        "summary": "POST /mcp/projects/{projectId}/meetings",
+        "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
+        "x-source": "BackEnd/src/routes/mcp.js:288",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "projectId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-taskflow",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công. Payload cụ thể theo handler được dẫn trong x-source; endpoint CSV/download trả tệp."
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập / phiên hết hạn",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền / tính năng tắt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc ngoài phạm vi quyền",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột phiên bản / nguồn thay đổi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit / quota",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dịch vụ tạm lỗi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "agentToken": []
+          }
+        ]
+      }
+    },
+    "/mcp/runner/poll": {
+      "post": {
+        "operationId": "mcp_post__runner_poll",
+        "tags": [
+          "mcp"
+        ],
+        "summary": "POST /mcp/runner/poll",
+        "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
+        "x-source": "BackEnd/src/routes/mcp.js:304",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-taskflow",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công. Payload cụ thể theo handler được dẫn trong x-source; endpoint CSV/download trả tệp."
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập / phiên hết hạn",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền / tính năng tắt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc ngoài phạm vi quyền",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột phiên bản / nguồn thay đổi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit / quota",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dịch vụ tạm lỗi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "agentToken": []
+          }
+        ]
+      }
+    },
+    "/mcp/runner/jobs/{id}": {
+      "get": {
+        "operationId": "mcp_get__runner_jobs_id",
+        "tags": [
+          "mcp"
+        ],
+        "summary": "GET /mcp/runner/jobs/{id}",
+        "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
+        "x-source": "BackEnd/src/routes/mcp.js:318",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Thành công. Payload cụ thể theo handler được dẫn trong x-source; endpoint CSV/download trả tệp."
+          },
+          "400": {
+            "description": "Dữ liệu không hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập / phiên hết hạn",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền / tính năng tắt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc ngoài phạm vi quyền",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột phiên bản / nguồn thay đổi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit / quota",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dịch vụ tạm lỗi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "agentToken": []
+          }
+        ]
+      }
+    },
+    "/mcp/runner/jobs/{id}/finish": {
+      "post": {
+        "operationId": "mcp_post__runner_jobs_id_finish",
+        "tags": [
+          "mcp"
+        ],
+        "summary": "POST /mcp/runner/jobs/{id}/finish",
+        "description": "Contract tuyến từ source. Xem schema validation tại handler; không suy diễn trường chưa mô tả.",
+        "x-source": "BackEnd/src/routes/mcp.js:324",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-taskflow",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Dữ liệu không hợp lệ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Chưa đăng nhập / phiên hết hạn",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Không đủ quyền / tính năng tắt",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Không tồn tại hoặc ngoài phạm vi quyền",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Xung đột phiên bản / nguồn thay đổi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limit / quota",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dịch vụ tạm lỗi",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "agentToken": []
+          }
+        ]
+      }
+    },
     "/health": {
       "get": {
         "operationId": "health",
@@ -15291,6 +20380,11 @@
         "type": "apiKey",
         "in": "cookie",
         "name": "tf_at"
+      },
+      "agentToken": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Token agent tfp_… tạo ở Trợ lý AI › Agent dự án; chỉ dùng cho /mcp, mang quyền project của người tạo, bị thu hồi khi đổi/đặt lại mật khẩu, khóa hoặc buộc đăng xuất. Không thay được cookie và ngược lại."
       }
     },
     "schemas": {

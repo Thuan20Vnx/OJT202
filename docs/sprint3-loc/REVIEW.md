@@ -1,6 +1,12 @@
 # Sprint 3 — Nguyễn Bảo Lộc
 
+> Mới nhất 13/11: [rà soát sau hợp nhất PR #18](../sprint4-loc/RECHECK_2026-11-13.md) — U022-T3: báo cáo đã chia sẻ nay là bản chốt, không sửa được.
+
+> Mới nhất 09/11: [bàn giao kỹ thuật, bộ chạy 70 ca U025 và công cụ chấm](COMPLETION_2026-11-09.md). Các mô tả “chưa chạy 70 ca” dưới đây là lịch sử ngày 08/11; nghiệm thu độc lập vẫn pending.
+
 > Hồ sơ dưới đây là lịch sử ngày 05/11. Bản hợp nhất và sửa lỗi, chốt ngày 07/11, được ghi tại [COMPLETION_2026-11-07.md](COMPLETION_2026-11-07.md). Contract báo cáo mới dùng end exclusive; các mô tả inclusive bên dưới chỉ áp dụng bản cũ.
+
+> Cập nhật U025-T0 ngày 08/11: [artifact phát triển 40+10+20, rubric/chấm đôi và dữ liệu cần người giữ đề cung cấp](U025_T0_2026-11-08.md). Đã kiểm cấu trúc/hash; chưa chạy bộ ca, chưa có bộ kín hoặc điểm người chấm, chưa đóng task.
 
 Bàn giao mã nguồn local ngày 05/11/2026 trên nhánh `Loc`, nền Git `516c38c`. Phạm vi theo yêu cầu người dùng: hoàn thiện mã nguồn và kiểm thử Sprint 3 của Lộc; Excel dùng làm tài liệu đối chiếu, không sửa trạng thái kế hoạch hay ký nghiệm thu thay thành viên.
 

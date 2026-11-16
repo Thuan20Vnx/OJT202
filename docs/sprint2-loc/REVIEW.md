@@ -1,5 +1,7 @@
 # Sprint 2 — Nguyễn Bảo Lộc
 
+> Rà lại 13/11/2026 sau hợp nhất PR #18: đã sửa U014 (mention nhắc nhầm người trùng tiền tố tên) và U005 (liên kết đặt lại mật khẩu dùng được khi tài khoản bị khóa). Xem [hồ sơ rà soát](../sprint4-loc/RECHECK_2026-11-13.md).
+
 **Cập nhật mới nhất 04/11/2026:** đã chạy lại toàn bộ kiểm tra trước khi đẩy nhánh `Loc`, sau đợt điều tra HTTP 400 ở E2E Lộc Sprint 2. Các đợt trước: [rà soát bình luận, bản nháp và giờ còn lại](REVIEW_2026-11-03.md), [phụ thuộc, subtask và phản hồi chậm](FOLLOWUP_2026-11-03.md). Các mốc cũ được giữ để truy vết.
 
 **Mốc lịch sử 03/11/2026:** 299/299 test, 9/9 E2E; lint, typecheck và build đạt. Kết quả chạy lại ngày 04/11 được ghi riêng bên dưới. Bàn giao local, chưa có nghiệm thu staging hoặc xác nhận độc lập của reviewer.

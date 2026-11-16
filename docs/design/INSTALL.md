@@ -9,6 +9,7 @@ npm ci
 npm --prefix BackEnd ci
 npm --prefix AIService ci
 npm --prefix FrontEnd ci
+npm --prefix mcp ci
 Copy-Item BackEnd/.env.example BackEnd/.env
 Copy-Item AIService/.env.example AIService/.env
 Copy-Item FrontEnd/.env.example FrontEnd/.env
@@ -39,7 +40,11 @@ Test API/E2E tạo PostgreSQL và uploads tạm, không dùng DB dev. Windows E2
 
 `NODE_ENV=production`, `SEED_DEMO=false`, PostgreSQL thật, JWT_SECRET đủ mạnh, AI_SERVICE_KEY giống nhau ở backend/AIService, SMTP TLS, CLIENT_URL đúng HTTPS origin. Build frontend rồi chạy backend và AIService theo tiến trình riêng. `npm start` không tự đặt NODE_ENV. TRUST_PROXY chỉ định proxy thực tế, không tin mọi forwarded header.
 
-Backup DB cùng UPLOAD_DIR và env/secret qua kênh bảo mật riêng; manifest/checksum và thử restore ở môi trường cách ly trước khi tuyên bố đạt. Upload hiện là filesystem, chưa có object storage cloud. Health `/api/health` không xác nhận DB/AI readiness. Chưa có URL staging/RC thật hoặc bằng chứng deploy trong lượt này.
+Backup DB cùng UPLOAD_DIR nếu lưu local, hoặc toàn bộ object của bucket Supabase private nếu dùng SUPABASE_URL/SUPABASE_SERVICE_KEY/SUPABASE_BUCKET. Service key chỉ nằm ở backend; client tải qua API có kiểm quyền. Env/secret bàn giao qua kênh bảo mật riêng. Lập manifest/checksum và thử restore cả DB lẫn object ở môi trường cách ly trước khi tuyên bố đạt. Health `/api/health` chỉ là liveness, không xác nhận DB/AI readiness. Triển khai Render/Vercel và mail Gmail API xem README cùng docs/DEPLOY_VERCEL.md; cần bằng chứng URL HTTPS thật riêng.
+
+## UAT và ma trận quyền Sprint 4
+
+`npm run prepare:uat` tạo bộ chuẩn bị 6 slot, không tạo kết quả người thử. `npm run uat:sprint4 -- --minutes 120` chạy phiên local tạm để thao tác; giữ terminal mở. `npm run validate:security` chạy ma trận API/socket/file/RAG và chụp bốn vai trò qua trình duyệt. Xem [bộ bàn giao của Lộc](../sprint4-loc/README.md). Các lệnh này không dùng database/upload cloud của máy phát triển và không gọi AI trả phí.
 
 ## Xác nhận cài sạch bởi người khác
 

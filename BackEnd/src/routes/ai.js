@@ -393,6 +393,12 @@ router.patch('/ai/reports/:id', async (req, res) => {
       }),
       req.body,
     );
+    // Chia sẻ là bước publish: snapshot đã chia sẻ bất biến, muốn cập nhật thì tạo báo cáo mới.
+    if (report.status === 'shared') {
+      if (body.title || body.sections?.length || body.removeKeys?.length)
+        throw conflict('Báo cáo đã chia sẻ là bản chốt, không sửa được. Hãy tạo báo cáo mới nếu cần cập nhật.', { code: 'REPORT_SHARED' });
+      return report;
+    }
     const data = {};
     if (body.title) data.title = body.title;
     let sections = report.sections;

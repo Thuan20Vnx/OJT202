@@ -301,6 +301,10 @@ export async function riskAlerts(projectId, { project: given, load: givenLoad, n
         });
       }
     }
+  }
+
+  // Luật riêng: tắt "Đến hạn trong 24 giờ" không được tắt ngầm cảnh báo chờ duyệt. Thiếu khóa (dự án cũ) = bật.
+  if (rules.reviewStale !== false) {
     for (const t of tasks) {
       if (t.status === 'review' && t.reviewSince) {
         const days = Math.floor((now - t.reviewSince) / 86400000);

@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "build": {
+    "revision": "09321b48ba7d7abce325e82cff8e608b89a52a33",
+    "sourceHash": "4b82d96f20b46683ab48f67e5beb192c4e28fba8a10ecf0ffd8bb7e2f741f5bc",
+    "sourceHashAlgorithm": "sha256-lf-v1",
+    "promptHash": "533c2c256becc980797bb51826a44b4399e82a829895af6c7a668f2bc6ed05ac",
+    "dirty": true,
+    "node": "v24.15.0"
+  },
+  "participants": [],
+  "trials": [],
+  "comparisons": [],
+  "issues": [],
+  "retests": []
+}

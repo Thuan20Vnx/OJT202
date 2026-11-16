@@ -6,6 +6,7 @@ import { api } from '../../lib/api.js';
 import { useApp, useLoad, useToast } from '../../lib/app.jsx';
 import { BUSINESS_TIMEZONE, dates, reportPeriodInput } from '../../lib/dates.js';
 import { fmtDateTime } from '../../lib/format.js';
+import { reportText } from '../../lib/report-text.js';
 import { History } from './Planner.jsx';
 import { useLatestRequest, useProjectInfo } from '../../lib/hooks.js';
 
@@ -79,7 +80,7 @@ export default function Report({ project, onUsage, disabled }) {
     if (await save({ sections: [{ key, body: text }] })) setEditing(null);
   };
   const exportTxt = () => {
-    const body = `${report.title}\n\n${report.sections.map((s) => `## ${s.title}\n${s.body}`).join('\n\n')}`;
+    const body = reportText(report, reportZone);
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([body], { type: 'text/plain;charset=utf-8' }));
     a.download = `${report.title}.txt`;
@@ -88,6 +89,9 @@ export default function Report({ project, onUsage, disabled }) {
   };
   const s = report?.stats;
   const mine = report && (report.user?._id || report.user) === me?._id;
+  // Báo cáo đã chia sẻ là bản chốt: chỉ sửa được khi còn nháp (server cũng chặn).
+  const shared = report?.status === 'shared';
+  const editable = canManage && mine && !shared;
 
   return (
     <div className="grid gap-5 lg:grid-cols-[360px_1fr]">
@@ -161,14 +165,15 @@ export default function Report({ project, onUsage, disabled }) {
                   ? tr("Bản cũ chưa có thông tin phiên bản nguồn.")
                   : tr("Số liệu quá hạn có thể thay đổi theo thời gian.")}{' '}
               {report.missingSources > 0 ? tr("{0} công việc nguồn hiện không truy cập được.", [report.missingSources]) : ''}
+              {shared ? ` ${tr("Báo cáo đã chia sẻ là bản chốt, không sửa được; tạo báo cáo mới nếu cần cập nhật.")}` : ''}
             </Notice>
             <div className="card mb-3 flex flex-wrap items-center gap-3 px-4 py-3">
               <input
                 key={report._id}
-                readOnly={!canManage || !mine || busy || saving}
+                readOnly={!editable || busy || saving}
                 className="min-w-0 flex-1 border-0 bg-transparent p-0 text-headline-sm text-slate-900 focus:ring-0"
                 defaultValue={report.title}
-                onBlur={(e) => canManage && mine && e.target.value !== report.title && save({ title: e.target.value })}
+                onBlur={(e) => editable && e.target.value !== report.title && save({ title: e.target.value })}
               />
               <span className={`chip ${report.status === 'shared' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-amber-200 bg-amber-50 text-amber-700'}`}>
                 {report.status === 'shared' ? tr("Đã chia sẻ nội bộ") : tr("● Nháp – chưa chia sẻ")}
@@ -186,13 +191,13 @@ export default function Report({ project, onUsage, disabled }) {
                       {sec.title}
                       {sec.aiSuggested && <span className="chip border-purple-200 bg-purple-50 text-purple-700">{tr("Gợi ý AI")}</span>}
                     </h3>
-                    {canManage && mine && editing !== sec.key && (
+                    {editable && editing !== sec.key && (
                       <button className="icon-btn h-7 w-7" disabled={busy || saving} onClick={() => (setEditing(sec.key), setText(sec.body))} title={tr("Sửa")}>
                         <Icon name="edit" size={16} />
                       </button>
                     )}
                   </div>
-                  {editing === sec.key ? (
+                  {editable && editing === sec.key ? (
                     <>
                       <textarea className="textarea min-h-[120px]" disabled={busy || saving} value={text} onChange={(e) => setText(e.target.value)} />
                       <div className="mt-2 flex justify-end gap-2">
@@ -229,7 +234,7 @@ export default function Report({ project, onUsage, disabled }) {
                 <Icon name="download" size={16} />{tr(" Xuất tệp")}</button>
               <button className="btn-outline" onClick={generate} disabled={busy || disabled || !canManage}>
                 <Icon name="refresh" size={16} />{tr(" Tạo lại")}</button>
-              {report.status !== 'shared' && mine && canManage && (
+              {editable && (
                 <button className="btn-primary" onClick={() => save({ share: true }, tr("Đã lưu & chia sẻ báo cáo trong dự án"))} disabled={saving || busy}>
                   {saving ? <Spinner /> : <Icon name="share" size={16} />}{tr(" Lưu & chia sẻ nội bộ")}</button>
               )}

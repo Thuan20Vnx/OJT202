@@ -1,5 +1,7 @@
 # Bàn giao local Sprint 1 — Nguyễn Bảo Lộc
 
+> Rà lại 13/11/2026 sau hợp nhất PR #18: U007-T1, U009-T1, U004-T3, U008-T3 đạt khi rà lại. Xem [hồ sơ rà soát](../sprint4-loc/RECHECK_2026-11-13.md).
+
 Cập nhật 02/11/2026: đã ghép các thay đổi mới của nhóm vào nhánh Loc; xem [báo cáo hợp nhất và kiểm chứng hiện hành](MERGE_2026-11-02.md). Các kết quả bên dưới ghi lại lượt hoàn thiện Sprint 1 trước hợp nhất.
 
 Ngày 01/11/2026. Người thực hiện rà soát kỹ thuật và soạn hồ sơ: Codex, theo yêu cầu của người dùng. Phạm vi được người dùng xác nhận: chưa có staging, hoàn thiện bản bàn giao local trước.

@@ -11,6 +11,7 @@ import { withWorkspaceLock } from '../services/membership.js';
 import { addMentorToProjects } from './workspaces.js';
 import { disconnectUser, refreshUserAccess } from '../services/realtime.js';
 import { withUserLock } from '../services/sessions.js';
+import { revokeAllAgentTokens } from '../services/agent-tokens.js';
 import { isTimeZone } from '../utils/dates.js';
 
 const router = Router();
@@ -95,6 +96,8 @@ router.post('/password', async (req, res) => {
     if (current.passwordHash !== user.passwordHash || !session || session.revokedAt || current.isLocked) throw forbidden('Thông tin đăng nhập đã thay đổi, vui lòng đăng nhập lại');
     await tx.user.update({ where: { id: user.id }, data: { passwordHash } });
     await tx.token.updateMany({ where: { user: user.id, type: { in: ['reset', 'verify'] }, usedAt: null }, data: { usedAt: new Date() } });
+    // Token agent có thể do người lấy được mật khẩu cũ tạo ra: đổi mật khẩu thì thu hồi, người dùng tạo lại token mới.
+    await revokeAllAgentTokens(tx, user.id);
     return revokeOthers(req, tx);
   });
   await disconnectUser(req.user.id);

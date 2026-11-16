@@ -5,7 +5,7 @@ import multer from 'multer';
 import { z } from 'zod';
 import { config } from '../config.js';
 import { USER, countBy, ilike, isId, populate, populateAll, prisma } from '../db.js';
-import { requireAuth } from '../middleware/auth.js';
+import { assertActiveSession, requireAuth } from '../middleware/auth.js';
 import { assertWrite, documentAccess, middlewareProject, projectAccess } from '../middleware/access.js';
 import { logActivityIn } from '../services/activity.js';
 import { withWorkspaceLock } from '../services/membership.js';
@@ -115,6 +115,7 @@ async function storeFiles(req, project, taskId) {
       keys.set(file, key);
     }
     return await withWorkspaceLock(project.workspace, async (tx) => {
+      await assertActiveSession(req, tx, true);
       assertWrite(await projectAccess(req.user.id, project.id, tx));
       if (taskId && !(await tx.task.findFirst({ where: { deletedAt: null, id: taskId, project: project.id } }))) throw badRequest('Công việc không còn thuộc dự án');
       const out = [];
@@ -213,6 +214,7 @@ router.post('/projects/:projectId/documents', middlewareProject(), async (req, r
   // Stored and rendered as plain text (React escapes it); preserve markup and whitespace.
   const content = body.content;
   const doc = await withWorkspaceLock(req.pa.project.workspace, async (tx) => {
+    await assertActiveSession(req, tx, true);
     assertWrite(await projectAccess(req.user.id, req.pa.project.id, tx));
     if (task && !(await tx.task.findFirst({ where: { deletedAt: null, id: task, project: req.pa.project.id } }))) throw badRequest('Công việc không còn thuộc dự án');
     const doc = await tx.document.create({
@@ -277,7 +279,10 @@ router.get('/documents/:id/revisions/:version', async (req, res) => {
 // The editor must never initialize itself from the bounded preview.
 router.get('/documents/:id/content', async (req, res) => {
   const { doc } = await docAccess(req.user.id, req.params.id);
-  res.json({ content: await editableContent(doc), version: doc.version });
+  const content = await editableContent(doc);
+  await assertActiveSession(req);
+  await docAccess(req.user.id, doc.id);
+  res.json({ content, version: doc.version });
 });
 
 // Tài liệu văn bản: mỗi lần lưu tạo revision mới, cùng transaction với cập nhật tài liệu
@@ -301,6 +306,7 @@ router.patch('/documents/:id', async (req, res) => {
   }
   if (content !== undefined && doc.kind !== 'doc' && doc.mime !== 'text/plain') throw badRequest('Chỉ sửa được tài liệu văn bản');
   const updated = await withWorkspaceLock(doc.workspace, async (tx) => {
+    await assertActiveSession(req, tx, true);
     const fresh = await docAccess(req.user.id, doc.id, tx);
     assertWrite(fresh.access);
     if (fresh.doc.version !== body.version) throw conflict('Tài liệu đã được cập nhật. Hãy tải lại và đối chiếu nội dung trước khi lưu.', { version: fresh.doc.version });
@@ -347,7 +353,11 @@ router.get('/documents/:id/download', async (req, res) => {
   res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(doc.name)}`);
   const stored = async (message) => {
     try {
-      return await readFile(doc.storageKey);
+      const bytes = await readFile(doc.storageKey);
+      // Storage may be slow: access at request start is not sufficient after revoke.
+      await assertActiveSession(req);
+      await docAccess(req.user.id, doc.id);
+      return bytes;
     } catch (error) {
       if (error.code === 'ENOENT') throw notFound(message);
       throw error;
@@ -372,6 +382,7 @@ router.delete('/documents/:id', async (req, res) => {
   assertWrite(access);
   if (doc.uploadedBy !== req.user.id && !access.canManage) throw forbidden('Chỉ người tải lên hoặc quản lý dự án được xóa');
   await withWorkspaceLock(doc.workspace, async (tx) => {
+    await assertActiveSession(req, tx, true);
     const fresh = await docAccess(req.user.id, doc.id, tx);
     assertWrite(fresh.access);
     if (fresh.doc.uploadedBy !== req.user.id && !fresh.access.canManage) throw forbidden('Chỉ người tải lên hoặc quản lý dự án được xóa');

@@ -1,0 +1,131 @@
+[seed] Tạo dữ liệu demo Nhóm 24…
+[seed] Xong. Đăng nhập: mai.anh@nhom24.edu.vn / TaskFlow@2026  (System Admin: admin@taskflow.local)
+▶ Lộc Sprint 4: thu hồi token agent cùng phiên đăng nhập
+  ✖ đặt lại mật khẩu bằng liên kết thu hồi token và hủy việc agent đang chờ (396.5413ms)
+  ✖ đặt lại mật khẩu bằng OTP thu hồi token (378.1569ms)
+  ✖ đổi mật khẩu khi đang đăng nhập thu hồi token; phiên hiện tại vẫn dùng được (424.0355ms)
+  ✖ System Admin khóa tài khoản: token bị thu hồi, mở khóa cũng không sống lại (118.6672ms)
+  ✖ System Admin buộc đăng xuất: token bị thu hồi (101.3869ms)
+  ✔ đăng xuất thường trên một trình duyệt không thu hồi token agent (100.5514ms)
+  ✖ thu hồi không đụng token của người khác (194.8879ms)
+✖ Lộc Sprint 4: thu hồi token agent cùng phiên đăng nhập (47327.7191ms)
+ℹ tests 7
+ℹ suites 1
+ℹ pass 1
+ℹ fail 6
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 49037.728
+
+✖ failing tests:
+
+test at test\loc-sprint4-agent.test.js:75:3
+✖ đặt lại mật khẩu bằng liên kết thu hồi token và hủy việc agent đang chờ (396.5413ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  200 !== 401
+  
+      at TestContext.<anonymous> (file:///D:/Desktop/Nhom24/OJT202/.claude/worktrees/du-an-chi-tiet-eb8fd9/BackEnd/test/loc-sprint4-agent.test.js:81:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Promise.all (index 0)
+      at async Suite.run (node:internal/test_runner/test:1619:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 200,
+    expected: 401,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test\loc-sprint4-agent.test.js:85:3
+✖ đặt lại mật khẩu bằng OTP thu hồi token (378.1569ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  200 !== 401
+  
+      at TestContext.<anonymous> (file:///D:/Desktop/Nhom24/OJT202/.claude/worktrees/du-an-chi-tiet-eb8fd9/BackEnd/test/loc-sprint4-agent.test.js:90:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 200,
+    expected: 401,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test\loc-sprint4-agent.test.js:93:3
+✖ đổi mật khẩu khi đang đăng nhập thu hồi token; phiên hiện tại vẫn dùng được (424.0355ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  200 !== 401
+  
+      at TestContext.<anonymous> (file:///D:/Desktop/Nhom24/OJT202/.claude/worktrees/du-an-chi-tiet-eb8fd9/BackEnd/test/loc-sprint4-agent.test.js:96:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 200,
+    expected: 401,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test\loc-sprint4-agent.test.js:102:3
+✖ System Admin khóa tài khoản: token bị thu hồi, mở khóa cũng không sống lại (118.6672ms)
+  AssertionError [ERR_ASSERTION]: giống phiên đăng nhập: mở khóa không làm token cũ có hiệu lực lại
+  
+  200 !== 401
+  
+      at TestContext.<anonymous> (file:///D:/Desktop/Nhom24/OJT202/.claude/worktrees/du-an-chi-tiet-eb8fd9/BackEnd/test/loc-sprint4-agent.test.js:108:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 200,
+    expected: 401,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test\loc-sprint4-agent.test.js:112:3
+✖ System Admin buộc đăng xuất: token bị thu hồi (101.3869ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  200 !== 401
+  
+      at TestContext.<anonymous> (file:///D:/Desktop/Nhom24/OJT202/.claude/worktrees/du-an-chi-tiet-eb8fd9/BackEnd/test/loc-sprint4-agent.test.js:115:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 200,
+    expected: 401,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at test\loc-sprint4-agent.test.js:125:3
+✖ thu hồi không đụng token của người khác (194.8879ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  200 !== 401
+  
+      at TestContext.<anonymous> (file:///D:/Desktop/Nhom24/OJT202/.claude/worktrees/du-an-chi-tiet-eb8fd9/BackEnd/test/loc-sprint4-agent.test.js:129:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Suite.processPendingSubtests (node:internal/test_runner/test:831:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 200,
+    expected: 401,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

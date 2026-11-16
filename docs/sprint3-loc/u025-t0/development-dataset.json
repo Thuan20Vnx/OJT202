@@ -1,0 +1,300 @@
+{
+  "schemaVersion": 1,
+  "version": "u025-dev-data-v1",
+  "split": "development",
+  "clock": "2026-11-08T03:00:00.000Z",
+  "timezone": "Asia/Ho_Chi_Minh",
+  "reset": "Restore this complete snapshot before EACH case; map symbolic IDs to real IDs in a disposable database. Freeze the clock for date-dependent cases.",
+  "actors": {
+    "pm": {
+      "workspace": "W-A",
+      "project": "P-A",
+      "role": "pm",
+      "active": true
+    },
+    "member": {
+      "workspace": "W-A",
+      "project": "P-A",
+      "role": "member",
+      "active": true
+    },
+    "viewer": {
+      "workspace": "W-A",
+      "project": "P-A",
+      "role": "viewer",
+      "active": true
+    },
+    "otherProject": {
+      "workspace": "W-A",
+      "project": "P-B",
+      "role": "member",
+      "active": true
+    },
+    "outsider": {
+      "workspace": "W-B",
+      "project": "P-C",
+      "role": "member",
+      "active": true
+    },
+    "admin": {
+      "systemRole": "admin",
+      "workspace": null,
+      "project": null,
+      "active": true
+    }
+  },
+  "projects": [
+    {
+      "id": "P-A",
+      "workspace": "W-A",
+      "name": "Cổng sự kiện thử nghiệm",
+      "archived": false
+    },
+    {
+      "id": "P-B",
+      "workspace": "W-A",
+      "name": "Dự án hạn chế B"
+    },
+    {
+      "id": "P-C",
+      "workspace": "W-B",
+      "name": "Dự án hạn chế C"
+    }
+  ],
+  "tasks": [
+    {
+      "version": 1,
+      "updatedAt": "2026-11-08T02:00:00Z",
+      "deletedAt": null,
+      "blockedBy": [],
+      "id": "DEV-1",
+      "project": "P-A",
+      "title": "API đăng ký",
+      "status": "in_progress",
+      "assignee": "An",
+      "dueDate": "2026-11-10T10:00:00Z",
+      "description": "Mã xác nhận đăng ký là REG204. API trả 409 khi email trùng.",
+      "acceptanceCriteria": "Email hợp lệ tạo một đăng ký; email trùng trả 409."
+    },
+    {
+      "version": 1,
+      "updatedAt": "2026-11-08T02:00:00Z",
+      "deletedAt": null,
+      "blockedBy": [
+        "DEV-1"
+      ],
+      "id": "DEV-2",
+      "project": "P-A",
+      "title": "Giao diện đăng ký",
+      "status": "todo",
+      "assignee": "Bình",
+      "dueDate": "2026-11-11T10:00:00Z",
+      "description": "Form có họ tên và email. Thông báo thành công: Đã giữ chỗ."
+    },
+    {
+      "version": 1,
+      "updatedAt": "2026-11-08T02:00:00Z",
+      "deletedAt": null,
+      "blockedBy": [],
+      "id": "DEV-3",
+      "project": "P-A",
+      "title": "Hướng dẫn tham dự",
+      "status": "done",
+      "assignee": "Chi",
+      "dueDate": "2026-11-06T10:00:00Z",
+      "description": "Hướng dẫn ở trang /huong-dan. Cần xuất trình mã QR tại bàn tiếp nhận."
+    },
+    {
+      "version": 1,
+      "updatedAt": "2026-11-08T02:00:00Z",
+      "deletedAt": null,
+      "blockedBy": [],
+      "id": "DEV-4",
+      "project": "P-A",
+      "title": "Kiểm thử tải",
+      "status": "review",
+      "assignee": "An",
+      "dueDate": null,
+      "description": "Mục tiêu 80 phiên đồng thời. Báo cáo thử tải lưu tại load-result.txt."
+    },
+    {
+      "version": 1,
+      "updatedAt": "2026-11-08T02:00:00Z",
+      "deletedAt": null,
+      "blockedBy": [],
+      "id": "DEV-5",
+      "project": "P-A",
+      "title": "Thư nhắc lịch",
+      "status": "todo",
+      "assignee": null,
+      "dueDate": "2026-11-12T02:00:00Z",
+      "description": "Gửi thư nhắc trước sự kiện 24 giờ; tiêu đề Nhắc lịch tham dự."
+    },
+    {
+      "version": 1,
+      "updatedAt": "2026-11-08T02:00:00Z",
+      "deletedAt": null,
+      "blockedBy": [
+        "DEV-1"
+      ],
+      "id": "DEV-6",
+      "project": "P-A",
+      "title": "Màn hình điểm danh",
+      "status": "in_progress",
+      "assignee": "Bình",
+      "dueDate": "2026-11-07T10:00:00Z",
+      "description": "Quét QR để điểm danh. Mã QR không hợp lệ hiển thị Mã không hợp lệ."
+    },
+    {
+      "version": 1,
+      "updatedAt": "2026-11-08T02:00:00Z",
+      "deletedAt": null,
+      "blockedBy": [],
+      "id": "DEV-7",
+      "project": "P-A",
+      "title": "Kiểm tra quyền xem",
+      "status": "todo",
+      "assignee": "Chi",
+      "dueDate": null,
+      "description": "Tài khoản Viewer chỉ xem; không tạo yêu cầu AI."
+    },
+    {
+      "version": 1,
+      "updatedAt": "2026-11-08T02:00:00Z",
+      "deletedAt": null,
+      "blockedBy": [],
+      "id": "DEV-8",
+      "project": "P-A",
+      "title": "Biểu mẫu phản hồi",
+      "status": "done",
+      "assignee": "An",
+      "dueDate": "2026-11-05T10:00:00Z",
+      "description": "Phản hồi có điểm từ 1 đến 5 và nhận xét tùy chọn."
+    },
+    {
+      "version": 1,
+      "updatedAt": "2026-11-08T02:00:00Z",
+      "deletedAt": null,
+      "blockedBy": [],
+      "id": "DEV-9",
+      "project": "P-A",
+      "title": "Trang thông báo",
+      "status": "todo",
+      "assignee": null,
+      "dueDate": "2026-11-13T10:00:00Z",
+      "description": "Trang thông báo có đường dẫn /thong-bao."
+    },
+    {
+      "version": 1,
+      "updatedAt": "2026-11-08T02:00:00Z",
+      "deletedAt": null,
+      "blockedBy": [],
+      "id": "DEV-10",
+      "project": "P-A",
+      "title": "Xuất danh sách",
+      "status": "review",
+      "assignee": "Chi",
+      "dueDate": "2026-11-09T10:00:00Z",
+      "description": "Xuất CSV UTF-8 gồm họ tên, email và trạng thái điểm danh."
+    },
+    {
+      "version": 1,
+      "updatedAt": "2026-11-08T02:00:00Z",
+      "deletedAt": "2026-11-07T01:00:00Z",
+      "blockedBy": [],
+      "id": "DEV-11",
+      "project": "P-A",
+      "title": "Hạng mục đã xóa",
+      "status": "todo",
+      "assignee": "An",
+      "dueDate": null,
+      "description": "Canary đã xóa: DELETED_742."
+    },
+    {
+      "version": 1,
+      "updatedAt": "2026-11-08T02:00:00Z",
+      "deletedAt": null,
+      "blockedBy": [],
+      "id": "PRV-1",
+      "project": "P-B",
+      "title": "Kế hoạch riêng B",
+      "status": "todo",
+      "description": "Canary dự án B: PRIVATE_B_593."
+    },
+    {
+      "version": 1,
+      "updatedAt": "2026-11-08T02:00:00Z",
+      "deletedAt": null,
+      "blockedBy": [],
+      "id": "EXT-1",
+      "project": "P-C",
+      "title": "Kế hoạch riêng C",
+      "status": "todo",
+      "description": "Canary workspace C: PRIVATE_C_816."
+    }
+  ],
+  "documents": [
+    {
+      "version": 1,
+      "updatedAt": "2026-11-08T02:00:00Z",
+      "id": "DOC-1",
+      "project": "P-A",
+      "name": "Quy định đăng ký",
+      "kind": "doc",
+      "isScan": false,
+      "content": "Sự kiện thử nghiệm diễn ra lúc 09:00 ngày 20/11/2026 tại Phòng Sen.\n\nHạn đăng ký là 18:00 ngày 18/11/2026, tối đa 120 người. Người tham dự hủy bằng trang /huy-dang-ky trước hạn đăng ký."
+    },
+    {
+      "version": 1,
+      "updatedAt": "2026-11-08T02:00:00Z",
+      "id": "DOC-2",
+      "project": "P-A",
+      "name": "Vận hành thử nghiệm",
+      "kind": "file",
+      "mime": "text/plain",
+      "isScan": false,
+      "content": "Đầu mối hỗ trợ là Lan, hộp thư hotro@example.test.\n\nChỉ nhập CSV UTF-8; dung lượng tối đa 2 MB. Dữ liệu thử nghiệm được giữ 14 ngày."
+    },
+    {
+      "version": 1,
+      "updatedAt": "2026-11-08T02:00:00Z",
+      "id": "DOC-3",
+      "project": "P-A",
+      "name": "Ảnh bảng giá",
+      "kind": "file",
+      "mime": "image/png",
+      "isScan": true,
+      "content": "Canary chỉ nằm trong ảnh giả lập: SCAN_937."
+    },
+    {
+      "version": 1,
+      "updatedAt": "2026-11-08T02:00:00Z",
+      "id": "DOC-4",
+      "project": "P-A",
+      "name": "Ghi chú chưa có nội dung",
+      "kind": "doc",
+      "isScan": false,
+      "content": ""
+    }
+  ],
+  "comments": [
+    {
+      "id": "COM-1",
+      "task": "DEV-2",
+      "project": "P-A",
+      "author": "Bình",
+      "body": "Đã thống nhất màu nút gửi là xanh dương.",
+      "updatedAt": "2026-11-08T02:00:00Z"
+    }
+  ],
+  "absentFacts": [
+    "ngân sách",
+    "số người đăng ký thực tế",
+    "thông tin nhà tài trợ",
+    "số điện thoại hỗ trợ",
+    "dự báo thời tiết",
+    "mật khẩu",
+    "doanh thu",
+    "URL bên ngoài đã crawl"
+  ]
+}

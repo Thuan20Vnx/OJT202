@@ -31,6 +31,7 @@ const { initRealtime, emitProject } = await import('../src/services/realtime.js'
 const { projectOverview, riskAlerts, weekRange, workload } = await import('../src/services/metrics.js');
 const { config } = await import('../src/config.js');
 const { locSprint3 } = await import('./helpers/loc-sprint3.js');
+const { locSprint4 } = await import('./helpers/loc-sprint4.js');
 
 let server;
 let base;
@@ -509,6 +510,21 @@ describe('Xác thực & phiên (U003, U004, U005)', () => {
 
     const invalid = await new Client().post('/auth/google', { credential: 'i'.repeat(40) });
     assert.equal(invalid.status, 401);
+  });
+
+  test('U004-T3: đăng xuất qua alias khác (không có cookie refresh) vẫn thu hồi phiên và chặn refresh cũ', async () => {
+    const c = await new Client().login('hiep@nhom24.edu.vn');
+    const saved = { ...c.cookies };
+    const viaAlias = new Client('/v1');
+    viaAlias.cookies = { tf_at: saved.tf_at };
+    const logout = await viaAlias.post('/auth/logout');
+    assert.equal(logout.status, 200);
+    assert.ok(logout.setCookies.some((x) => x.startsWith('tf_rt=;') && x.includes('Path=/api/auth')), 'xóa cookie refresh của alias đã đăng nhập');
+    const replay = new Client();
+    replay.cookies = { ...saved };
+    assert.equal((await replay.get('/me')).status, 401, 'access token cũ không còn dùng được');
+    replay.cookies = { ...saved };
+    assert.equal((await replay.post('/auth/refresh')).status, 401, 'refresh token cũ không cấp phiên mới');
   });
 
   test('sai mật khẩu và email không tồn tại trả cùng một lỗi chung', async () => {
@@ -1007,6 +1023,19 @@ describe('Hoàng Anh Sprint 3 — planner và nguồn cảnh báo', () => {
     assert.equal((await riskAlerts(pid, { now })).open.length, 0);
   });
 
+  test('U026: tắt "đến hạn 24 giờ" không tắt ngầm cảnh báo chờ duyệt; luật chờ duyệt có công tắc riêng', async () => {
+    const { owner, pid, create } = await permissionFixture();
+    assert.equal((await owner.req('PUT', `/projects/${pid}/risk-rules`, { overdue: false, overload: false, blockedByOverdue: false, dueSoon: false, reviewStaleDays: 3 })).status, 200);
+    const task = await create({ title: 'Chờ duyệt lâu' });
+    await db.prisma.task.update({ where: { id: task._id }, data: { status: 'review', reviewSince: new Date(Date.now() - 4 * 86400000), version: { increment: 1 } } });
+    const open = (await owner.get(`/projects/${pid}/risks`)).data.open;
+    assert.deepEqual(open.map((a) => a.type), ['review_stale']);
+    assert.deepEqual(open[0].tasks.map((t) => t.id ?? t._id), [task._id]);
+    assert.equal((await owner.req('PUT', `/projects/${pid}/risk-rules`, { reviewStale: false })).status, 200);
+    assert.equal((await owner.get(`/projects/${pid}/risks`)).data.open.length, 0);
+    assert.equal((await owner.req('PUT', `/projects/${pid}/risk-rules`, { reviewStale: 'no' })).status, 400);
+  });
+
   test('U026: xử lý cần lý do/đúng nguồn, idempotent; chỉ nguồn liên quan thay đổi mới mở lại', async () => {
     const { owner, pid, create } = await permissionFixture();
     await owner.req('PUT', `/projects/${pid}/risk-rules`, { overdueDays: 0, overload: false, dueSoon: false, blockedByOverdue: false });
@@ -1502,6 +1531,7 @@ async function socketFor(client, t) {
 }
 const join = (socket, pid) => socket.timeout(5000).emitWithAck('project:join', pid);
 locSprint3({ fixture: permissionFixture, db, Client, seed: () => seed, socketFor, join });
+locSprint4({ fixture: permissionFixture, db, Client, seed: () => seed, base: () => base });
 
 describe('Rà soát 25/10: thu hồi quyền và bảo toàn tài liệu', () => {
   test('My Tasks trả quyền từng dự án và đếm hợp nhất việc cần xử lý', async () => {
@@ -2925,6 +2955,12 @@ describe('Lộc Sprint 2', () => {
     await client.post('/auth/forgot-password', { email });
     const token = messages.at(-1).raw.match(/reset-password\?token=([A-Za-z0-9_-]+)/)[1];
     assert.equal((await client.get(`/auth/reset-password/check?token=${token}`)).data.valid, true);
+    // Liên kết gửi trước khi bị khóa không dùng được trong lúc khóa (giống nhánh OTP), mở khóa thì dùng lại được.
+    await db.prisma.user.update({ where: { id: user.id }, data: { isLocked: true } });
+    assert.equal((await client.get(`/auth/reset-password/check?token=${token}`)).data.valid, false);
+    assert.equal((await new Client('/v1').post('/auth/reset-password', { token, password: 'Sprint2NewPass123' })).status, 400);
+    await db.prisma.user.update({ where: { id: user.id }, data: { isLocked: false } });
+    assert.equal((await client.get(`/auth/reset-password/check?token=${token}`)).data.valid, true, 'lần từ chối khi khóa không tiêu thụ liên kết');
     const results = await Promise.all([new Client('/v1'), new Client('/v1')].map((c) => c.post('/auth/reset-password', { token, password: 'Sprint2NewPass123' })));
     assert.deepEqual(results.map((r) => r.status).sort(), [200, 400]);
     assert.equal(await db.prisma.session.count({ where: { user: user.id, revokedAt: null } }), 0);
@@ -3071,6 +3107,19 @@ describe('Lộc Sprint 2', () => {
     await runDueReminders(now);
     assert.equal(await db.prisma.notification.count({ where: { task: removed._id, type: { in: ['due_soon', 'overdue'] } } }), 0);
     assert.equal(await db.prisma.projectMember.count({ where: { project: pid, user: seed.users.nhu.id } }), 0);
+  });
+
+  test('U014-T3: mention lấy tên dài nhất và dừng ở ranh giới từ, không nhắc nhầm người trùng tiền tố', async (t) => {
+    const { owner, create } = await permissionFixture();
+    const task = await create();
+    const dat = await db.prisma.user.findUniqueOrThrow({ where: { id: seed.users.dat.id }, select: { name: true } });
+    t.after(() => db.prisma.user.update({ where: { id: seed.users.dat.id }, data: { name: dat.name } }));
+    await db.prisma.user.update({ where: { id: seed.users.dat.id }, data: { name: 'Như Hoàng' } });
+    const mentioned = async (body) => (await owner.post(`/tasks/${task._id}/comments`, { body })).data.comment.mentions.map((u) => u._id).sort();
+    assert.deepEqual(await mentioned('@Như Hoàng xem giúp phần API'), [seed.users.dat.id]);
+    assert.deepEqual(await mentioned('@Nhưng mà chưa rõ, @Như ơi'), [seed.users.nhu.id]);
+    assert.deepEqual(await mentioned('@Như, @Như Hoàng: họp lúc 9h'), [seed.users.dat.id, seed.users.nhu.id].sort());
+    assert.equal(await db.prisma.notification.count({ where: { task: task._id, user: seed.users.nhu.id, type: 'mentioned' } }), 2);
   });
 
   test('U014-T3: tài khoản khóa không được mention; lỗi audit không ẩn dở bình luận', async (t) => {

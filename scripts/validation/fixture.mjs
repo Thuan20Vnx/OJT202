@@ -38,6 +38,8 @@ export async function startFixture({ production = false, build = null, provider 
     const { config } = await import('../../BackEnd/src/config.js');
     config.databaseUrl = '';
     config.uploadDir = uploads;
+    // Never reuse developer/cloud storage for a disposable validation fixture.
+    config.storage = { url: '', serviceKey: '', bucket: 'validation-local' };
     config.isProd = false;
     await db.connectDb({ ephemeral: true });
     const { seedDemo, DEMO_PASSWORD } = await import('../../BackEnd/src/seed.js');

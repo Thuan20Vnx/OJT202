@@ -12,6 +12,8 @@
     "test": "npm run test:validation && npm --prefix AIService test && npm --prefix BackEnd test && npm --prefix FrontEnd test && npm --prefix mcp test",
     "test:validation": "node --test scripts/validation/test/*.test.mjs",
     "validate:ai": "node scripts/validate-sprint4.mjs evaluate",
+    "validate:u025": "node scripts/validation/u025-run.mjs",
+    "grade:u025": "node scripts/validation/u025-grade.mjs",
     "validate:local": "npm run build && node scripts/validate-sprint4.mjs local",
     "validate:uat": "node scripts/validate-sprint4.mjs uat",
     "validate:grades": "node scripts/validate-sprint4.mjs grade",
@@ -19,6 +21,9 @@
     "validate:release": "node scripts/validate-sprint4.mjs release",
     "validate:install": "node scripts/validate-sprint4.mjs clean-install",
     "validate:identity": "node scripts/validate-sprint4.mjs identity",
+    "prepare:uat": "node scripts/sprint4-loc.mjs prepare",
+    "uat:sprint4": "npm run build && node scripts/sprint4-loc.mjs serve",
+    "validate:security": "npm run build && node scripts/sprint4-loc.mjs security",
     "demo:sprint4": "npm run build && node scripts/validate-sprint4.mjs demo",
     "test:e2e": "npm run build && node --test --test-concurrency=1 test/e2e/sprint1.test.mjs",
     "typecheck": "tsc -p BackEnd/tsconfig.json && tsc -p FrontEnd/tsconfig.json"

@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "kind": "uat",
+  "build": {
+    "revision": "ec87c7a93a37cd3462ce926a570277cdc35038e8",
+    "sourceHash": "9a389c62a102eb420e5c3d4567bcb9205efc023af4d750ef41bc4c1b37ff7b2f",
+    "sourceHashAlgorithm": "sha256-lf-v1",
+    "promptHash": "5ed987e127f9b3fdc2c72817903cee4e407a0cebf7e08a9bb6beecf916ffce29",
+    "dirty": true,
+    "node": "v24.15.0"
+  },
+  "status": "pending",
+  "participants": 0,
+  "externalParticipants": 0,
+  "completed": 0,
+  "success": {
+    "numerator": 0,
+    "denominator": 30,
+    "rate": null
+  },
+  "medianTaskMs": null,
+  "blockingIssues": [],
+  "baseline": {
+    "status": "pending",
+    "pairs": 0,
+    "denominator": 6,
+    "balanced": false,
+    "manualMedianMs": null,
+    "aiMedianMs": null,
+    "improvementPct": null,
+    "qualityPreserved": null
+  },
+  "limitations": "Six participants support conclusions within this project, not a market-wide claim."
+}
