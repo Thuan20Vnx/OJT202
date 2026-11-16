@@ -873,8 +873,24 @@ describe('Sprint 1 Hoàng Anh — quyền dự án và workflow (U006-T1, U008-T
     for (const p of [detail, board, mine]) {
       assert.equal(p.canEdit, false);
       assert.equal(p.canUpdateProgress, true);
-      assert.deepEqual(p.allowedStatuses, ['todo', 'in_progress']);
+      assert.deepEqual(p.allowedStatuses, ['todo', 'in_progress', 'review']);
     }
+    // Thành viên gửi kiểm duyệt thẳng từ Cần làm, nhưng vẫn không tự hoàn thành.
+    const sent = await member.patch(`/tasks/${t._id}`, { status: 'review', version: t.version });
+    assert.equal(sent.status, 200);
+    assert.equal(sent.data.task.status, 'review');
+    assert.equal((await member.patch(`/tasks/${t._id}`, { status: 'done', version: sent.data.task.version })).status, 403);
+  });
+
+  test('thành viên rời dự án, PM duy nhất không rời được', async () => {
+    const { pm, pid } = await privateProject();
+    const member = await new Client().login('nhu@nhom24.edu.vn');
+    const t = (await pm.post(`/projects/${pid}/tasks`, { title: 'Leave', assignee: seed.users.nhu.id })).data.task;
+    assert.equal((await pm.post(`/projects/${pid}/leave`)).status, 400);
+    assert.equal((await member.post(`/projects/${pid}/leave`)).status, 200);
+    assert.equal((await member.get(`/projects/${pid}/tasks`)).status, 404);
+    const after = (await pm.get(`/tasks/${t._id}`)).data.task;
+    assert.equal(after.assignee?._id ?? after.assignee ?? null, null);
   });
 });
 
@@ -1862,6 +1878,32 @@ describe('Lộc: phân quyền và nghiệp vụ bổ sung', () => {
     assert.equal((await other.post(`/me/invites/${token}/accept`)).status, 400);
     await db.prisma.invite.update({ where: { id: invite._id }, data: { revokedAt: null, expiresAt: new Date(Date.now() - 1000) } });
     assert.equal((await other.post(`/me/invites/${token}/accept`)).status, 400);
+  });
+
+  test('mời lại cùng email vẫn giữ dự án đã chọn; mời thành viên sẵn có kèm dự án thì thêm thẳng vào dự án', async () => {
+    const { owner, other, ws, pid } = await permissionFixture();
+    const dat = seed.users.dat.id;
+    const inProject = async () => !!(await db.prisma.projectMember.findUnique({ where: { project_user: { project: pid, user: dat } } }));
+    await owner.del(`/workspaces/${ws}/members/${dat}`);
+    assert.equal(await inProject(), false);
+    assert.equal((await owner.post(`/workspaces/${ws}/invites`, { emails: ['dat@nhom24.edu.vn'], projects: [pid] })).status, 201);
+    const again = await owner.post(`/workspaces/${ws}/invites`, { emails: ['dat@nhom24.edu.vn'] });
+    assert.equal(again.status, 201);
+    assert.equal(again.data.created[0].projects, 1, 'lời mời mới giữ dự án đã chọn ở lời mời cũ');
+    const mail = await db.prisma.outbox.findFirst({ where: { to: 'dat@nhom24.edu.vn' }, orderBy: { createdAt: 'desc' } });
+    const token = new URL(mail.link).pathname.split('/').at(-1);
+    assert.equal((await other.post(`/me/invites/${token}/accept`)).status, 200);
+    assert.equal(await inProject(), true, 'nhận lời mời thì vào được dự án');
+
+    await db.prisma.projectMember.delete({ where: { project_user: { project: pid, user: dat } } });
+    const current = await db.prisma.project.findUnique({ where: { id: pid } });
+    await db.prisma.project.update({ where: { id: pid }, data: { members: { set: current.members.filter((u) => u !== dat) } } });
+    const direct = await owner.post(`/workspaces/${ws}/invites`, { emails: ['dat@nhom24.edu.vn'], projects: [pid] });
+    assert.deepEqual([direct.status, direct.data.created.length, direct.data.added.length], [201, 0, 1]);
+    assert.equal(await inProject(), true, 'thành viên sẵn có được thêm thẳng vào dự án');
+    assert.ok((await other.get(`/projects/${pid}`)).status === 200);
+    const plain = await owner.post(`/workspaces/${ws}/invites`, { emails: ['dat@nhom24.edu.vn'] });
+    assert.deepEqual([plain.data.created.length, plain.data.added.length, plain.data.skipped.length], [0, 0, 1]);
   });
 
   test('quá hạn theo thời điểm: hôm nay, đúng hạn, không hạn, Done và ngưỡng 0/1 ngày', async () => {

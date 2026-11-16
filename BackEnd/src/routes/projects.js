@@ -283,6 +283,23 @@ router.delete('/projects/:projectId/members/:userId', middlewareProject(), async
   await changeMembers(req, res, (p) => ({ roster: p.memberships.filter((m) => m.user !== req.params.userId).map(({ user, role }) => ({ user, role })) }));
 });
 
+// Thành viên tự rời dự án. PM cuối cùng phải chuyển giao PM trước (saveProjectMembers chặn); việc đang giao cho người rời được gỡ người nhận.
+router.post('/projects/:projectId/leave', middlewareProject(), async (req, res) => {
+  const me = req.user.id;
+  await withWorkspaceLock(req.pa.project.workspace, async (tx) => {
+    await tx.$queryRaw`SELECT id FROM projects WHERE id = ${req.pa.project.id}::uuid FOR UPDATE`;
+    const cur = await tx.project.findUnique({ where: { id: req.pa.project.id }, include: { memberships: true } });
+    if (!cur?.memberships.some((m) => m.user === me)) throw badRequest('Bạn không còn là thành viên dự án');
+    const roster = cur.memberships.filter((m) => m.user !== me).map(({ user, role }) => ({ user, role }));
+    if (!roster.some((m) => m.role === 'pm')) throw badRequest('Bạn là PM duy nhất. Hãy chuyển giao PM cho người khác trước khi rời dự án');
+    const result = await saveProjectMembers(tx, cur, roster, cur.manager === me ? undefined : cur.manager, me);
+    await projectAudit(tx, result, me, 'Rời dự án', { members: cur.memberships }, { members: roster });
+  });
+  await refreshUserAccess(me);
+  await emitProject(req.pa.project.id, 'board:refresh', {});
+  res.json({ ok: true });
+});
+
 router.post('/projects/:projectId/transfer-manager', middlewareProject(), async (req, res) => {
   const { user } = parse(z.object({ user: z.string().uuid() }), req.body);
   await changeMembers(req, res, (p) => {

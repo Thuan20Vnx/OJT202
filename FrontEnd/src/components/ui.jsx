@@ -1,5 +1,6 @@
 import { t as tr, useI18n } from '../lib/i18n.js';
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { PRIORITY, STATUS, initials } from '../lib/format.js';
 import Select from './Select.jsx';
 
@@ -322,27 +323,49 @@ export function Tabs({ tabs, value, onChange, className = '' }) {
 }
 
 /** Dropdown đơn giản đóng khi bấm ra ngoài */
-export function Dropdown({ trigger, children, align = 'right', width = 'w-56' }) {
+/** portal: vẽ menu ra document.body (vị trí fixed) để không bị cắt trong khung cuộn như thanh bên. */
+export function Dropdown({ trigger, children, align = 'right', width = 'w-56', portal = false }) {
   useI18n();
   const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState(null);
   const ref = useRef(null);
+  const menuRef = useRef(null);
   useEffect(() => {
     if (!open) return;
-    const close = (e) => !ref.current?.contains(e.target) && setOpen(false);
+    const close = (e) => !ref.current?.contains(e.target) && !menuRef.current?.contains(e.target) && setOpen(false);
+    const shut = () => setOpen(false);
     document.addEventListener('mousedown', close);
-    return () => document.removeEventListener('mousedown', close);
-  }, [open]);
+    if (portal) { window.addEventListener('resize', shut); document.addEventListener('scroll', shut, true); }
+    return () => {
+      document.removeEventListener('mousedown', close);
+      window.removeEventListener('resize', shut);
+      document.removeEventListener('scroll', shut, true);
+    };
+  }, [open, portal]);
+  // Đặt menu ngay dưới nút; thiếu chỗ ở dưới thì lật lên trên.
+  useLayoutEffect(() => {
+    if (!open || !portal || !ref.current || !menuRef.current) return;
+    const r = ref.current.getBoundingClientRect();
+    const h = menuRef.current.offsetHeight;
+    const w = menuRef.current.offsetWidth;
+    const top = r.bottom + 6 + h > window.innerHeight - 8 ? Math.max(8, r.top - 6 - h) : r.bottom + 6;
+    const left = align === 'right' ? Math.max(8, r.right - w) : Math.min(r.left, window.innerWidth - w - 8);
+    setPos({ top, left });
+  }, [open, portal, align]);
+  const menu = open && (
+    <div
+      ref={menuRef}
+      className={`animate-pop-in z-50 ${width} rounded-lg border border-slate-200 bg-white p-1 shadow-pop ${portal ? 'fixed' : `absolute mt-1.5 ${align === 'right' ? 'right-0 origin-top-right' : 'left-0 origin-top-left'}`}`}
+      style={portal ? { top: pos?.top ?? -9999, left: pos?.left ?? -9999 } : undefined}
+      onClick={() => setOpen(false)}
+    >
+      {children}
+    </div>
+  );
   return (
     <div className="relative" ref={ref}>
       <div onClick={() => setOpen((o) => !o)}>{trigger}</div>
-      {open && (
-        <div
-          className={`animate-pop-in absolute z-50 mt-1.5 ${width} ${align === 'right' ? 'right-0 origin-top-right' : 'left-0 origin-top-left'} rounded-lg border border-slate-200 bg-white p-1 shadow-pop`}
-          onClick={() => setOpen(false)}
-        >
-          {children}
-        </div>
-      )}
+      {portal ? menu && createPortal(menu, document.body) : menu}
     </div>
   );
 }

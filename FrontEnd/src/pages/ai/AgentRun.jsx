@@ -6,6 +6,7 @@ import { api } from '../../lib/api.js';
 export const AGENT_LABELS = { antigravity: 'Antigravity', claude: 'Claude Code', codex: 'Codex' };
 const AGENT_ORDER = ['antigravity', 'claude', 'codex'];
 const STORAGE_KEY = 'taskflow.agent';
+const ENGINE_KEY = 'taskflow.engine';
 const FINAL = ['done', 'failed', 'cancelled'];
 
 const savedAgent = () => {
@@ -24,6 +25,10 @@ const savedAgent = () => {
 export function useAgentRun({ project, onDone }) {
   const [runner, setRunner] = useState(null);
   const [agent, setAgentState] = useState(savedAgent);
+  // engine: 'agent' = agent trên máy (không tính lượt), 'team' = AI của nhóm qua API (tính lượt).
+  const [engine, setEngineState] = useState(() => {
+    try { return localStorage.getItem(ENGINE_KEY) === 'team' ? 'team' : 'agent'; } catch { return 'agent'; }
+  });
   const [job, setJob] = useState(null);
   const [error, setError] = useState(null);
   const done = useRef(onDone);
@@ -62,6 +67,10 @@ export function useAgentRun({ project, onDone }) {
     setAgentState(value);
     try { localStorage.setItem(STORAGE_KEY, value); } catch { /* không lưu được thì chỉ dùng cho phiên này */ }
   }, []);
+  const setEngine = useCallback((value) => {
+    setEngineState(value);
+    try { localStorage.setItem(ENGINE_KEY, value); } catch { /* chỉ dùng cho phiên này */ }
+  }, []);
   const start = useCallback(async (kind, input) => {
     setError(null);
     try {
@@ -83,7 +92,7 @@ export function useAgentRun({ project, onDone }) {
     }
   }, [job]);
 
-  return { runner, agent, setAgent, job, active, error, start, cancel };
+  return { runner, agent, setAgent, engine, setEngine, job, active, error, start, cancel };
 }
 
 function Elapsed({ since }) {
@@ -202,7 +211,7 @@ export function AgentSplitButton({ run, onRun, disabled, label, icon = 'robot_2'
 }
 
 /** Trạng thái việc đang giao, gợi ý bật agent và lỗi: đặt dưới nút chạy. */
-export function AgentRunStatus({ run, className = '' }) {
+export function AgentRunStatus({ run, className = '', hideOffline = false }) {
   useI18n();
   const { runner, agent, job, active, error, cancel } = run;
   const online = !!runner?.online;
@@ -220,7 +229,7 @@ export function AgentRunStatus({ run, className = '' }) {
         </p>
       )}
       {!active && runner?.unsupported && <p className="text-label-md font-normal text-amber-700">{tr('Máy chủ TaskFlow đang chạy bản cũ, chưa hỗ trợ giao việc cho agent. Hãy khởi động lại BackEnd rồi tải lại trang.')}</p>}
-      {!active && runner && !online && !runner.unsupported && (
+      {!active && !hideOffline && runner && !online && !runner.unsupported && (
         <p className="text-label-md font-normal text-slate-500">
           {tr('Agent trên máy chưa bật.')} <a className="font-medium text-blue-600 hover:underline" href="taskflow://start">{tr('Bật agent')}</a>
           {tr(' · Chưa cài thì xem tab Agent dự án, hoặc chạy trong terminal:')} <code className="rounded bg-slate-100 px-1 py-0.5 text-slate-700">npm run agent</code>
@@ -232,13 +241,89 @@ export function AgentRunStatus({ run, className = '' }) {
   );
 }
 
-/** Nút chạy agent kèm trạng thái, dùng ở Lập kế hoạch và Ghi chú họp. */
-export function AgentRunButton({ run, kind, input, disabled, className = '', children }) {
+/**
+ * Chữ "i" đặt cạnh tiêu đề: bấm để mở/đóng phần giải thích. Đặt trong khung flex-wrap; phần chữ tự xuống dòng riêng.
+ */
+export function Info({ children }) {
+  const [open, setOpen] = useState(false);
   return (
-    <div className={`space-y-2 ${className}`}>
-      <AgentSplitButton run={run} onRun={() => run.start(kind, input)} disabled={disabled} />
-      {children}
-      <AgentRunStatus run={run} />
+    <>
+      <button type="button" className={`icon-btn h-6 w-6 ${open ? 'text-blue-600' : 'text-slate-400 hover:text-slate-600'}`} onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-label={tr('Giải thích')} title={tr('Giải thích')}>
+        <Icon name="info" size={16} />
+      </button>
+      {open && <p className="animate-fade-up basis-full text-label-md font-normal text-slate-500">{children}</p>}
+    </>
+  );
+}
+
+/** Thanh trạng thái mỏng đầu màn: agent trên máy đang bật hay tắt, và nơi agent đọc code. */
+export function AgentBar({ run, code }) {
+  useI18n();
+  const { runner } = run;
+  const online = !!runner?.online;
+  return (
+    <div className="card flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5">
+      <Icon name="computer" size={20} className={online ? 'text-emerald-600' : 'text-slate-400'} />
+      <p className="min-w-0 flex-1 text-body-sm text-slate-800">
+        {tr('Agent trên máy')}
+        <span className="text-label-md font-normal text-slate-500">
+          {' · '}{!runner ? tr('đang kiểm tra…') : online ? tr('đang bật: {0}', [runner.agents.map((a) => AGENT_LABELS[a]).join(', ') || tr('chưa có agent')]) : tr('đang tắt')}
+        </span>
+        {runner && !online && !runner.unsupported && <a className="ml-2 text-label-md font-medium text-blue-600 hover:underline" href="taskflow://start">{tr('Bật agent')}</a>}
+      </p>
+      {code && <CodeSourcePicker code={code} disabled={run.active} />}
+    </div>
+  );
+}
+
+/**
+ * Nút chính của màn: bấm để chạy bằng lựa chọn hiện tại; mũi tên mở menu chọn agent trên máy
+ * hoặc AI của nhóm (onTeam, tính lượt). Dòng nhỏ bên dưới cho biết đang chạy bằng gì.
+ */
+export function RunButton({ run, label, icon = 'auto_awesome', onAgent, onTeam, disabled, busy, teamDisabled }) {
+  useI18n();
+  const { runner, agent, setAgent, engine, setEngine, active } = run;
+  const team = engine === 'team' && !!onTeam;
+  const online = !!runner?.online;
+  const ready = (id) => online && runner.agents.includes(id);
+  const blocked = disabled || active || busy || (team ? teamDisabled : !ready(agent));
+  return (
+    <div className="space-y-2">
+      <div className="flex">
+        <button type="button" className="btn-primary h-10 min-w-0 flex-1 rounded-r-none" onClick={team ? onTeam : onAgent} disabled={blocked}>
+          {active || busy ? <Spinner /> : <Icon name={icon} size={18} />}
+          <span className="truncate">{label}</span>
+        </button>
+        <Dropdown
+          width="w-72"
+          trigger={(
+            <button type="button" className="btn-primary -ml-px h-10 rounded-l-none border-l border-blue-500 px-2" disabled={active || busy} aria-label={tr('Chọn cách chạy')} title={tr('Chọn cách chạy')}>
+              <Icon name="arrow_drop_down" size={20} />
+            </button>
+          )}
+        >
+          <p className="px-2.5 pb-1 pt-1.5 text-label-md font-normal text-slate-400">{tr('Agent trên máy · không tính lượt')}</p>
+          {AGENT_ORDER.map((id) => (
+            <MenuItem key={id} icon={!team && id === agent ? 'check' : 'robot_2'} onClick={() => { setAgent(id); setEngine('agent'); }}>
+              <span className="flex-1">{AGENT_LABELS[id]}</span>
+              {!ready(id) && <span className="text-label-md font-normal text-slate-400">{tr('chưa sẵn sàng')}</span>}
+            </MenuItem>
+          ))}
+          {onTeam && (
+            <>
+              <div className="my-1 border-t border-slate-100" />
+              <MenuItem icon={team ? 'check' : 'cloud'} disabled={teamDisabled} onClick={() => setEngine('team')}>
+                <span className="flex-1">{tr('AI của nhóm (Gemini)')}</span>
+                <span className="text-label-md font-normal text-slate-400">{tr('tính lượt')}</span>
+              </MenuItem>
+            </>
+          )}
+        </Dropdown>
+      </div>
+      <p className="text-label-md font-normal text-slate-500">
+        {team ? tr('Bằng AI của nhóm · tính 1 lượt') : tr('Bằng {0} trên máy · không tính lượt', [AGENT_LABELS[agent]])}
+      </p>
+      {(!team || run.active) && <AgentRunStatus run={run} hideOffline />}
     </div>
   );
 }

@@ -287,7 +287,8 @@ test('Như Sprint 2–4: My Tasks, comment retry/mention, nguồn tài liệu AI
     const askRes = await ctx.request.post(`/api/projects/${project._id}/ai/ask`, { headers, data: { question: 'Mã nghiệm thu Sao Bắc là gì?' } });
     assert.equal(askRes.status(), 200);
     await page.goto('/ai/qa');
-    await expect(page.getByText('Nguồn được đọc trực tiếp khi hỏi; chưa có chỉ mục tìm kiếm nền.')).toBeVisible();
+    await page.getByRole('button', { name: 'Giải thích', exact: true }).first().click();
+    await expect(page.getByText(/Nguồn được đọc trực tiếp khi hỏi; chưa có chỉ mục tìm kiếm nền\./)).toBeVisible();
     await expect(page.getByRole('textbox', { name: 'Câu hỏi về dự án' })).toBeVisible();
     await page.getByRole('button').filter({ hasText: 'Mã nghiệm thu Sao Bắc là gì?' }).first().click();
     await expect(page.getByRole('button').filter({ hasText: `${doc.name} · đoạn 1` })).toBeVisible();
@@ -724,13 +725,14 @@ test('Hoàng Anh Sprint 3: planner hai tab, duyệt một lần, lý do xử lý
     const projectResponse = await ctx.request.post(`/api/workspaces/${ws}/projects`, { headers, data: { name: 'Hoàng Anh AI có duyệt', keyPrefix: 'HAAI' } });
     assert.equal(projectResponse.status(), 201);
     const project = (await projectResponse.json()).project;
-    await page.evaluate(({ ws, pid }) => { localStorage.setItem('tf_ws', ws); localStorage.setItem('tf_project', pid); }, { ws, pid: project._id });
+    // Nút chính chạy theo lựa chọn đã lưu: chọn "AI của nhóm" (CI không có agent trên máy).
+    await page.evaluate(({ ws, pid }) => { localStorage.setItem('tf_ws', ws); localStorage.setItem('tf_project', pid); localStorage.setItem('taskflow.engine', 'team'); }, { ws, pid: project._id });
     await page.goto('/ai/planner');
     const goal = 'Xây dựng quản lý công việc Sprint 3';
     await page.getByRole('textbox', { name: 'Mục tiêu kế hoạch', exact: true }).fill(goal);
     const [generated] = await Promise.all([
       page.waitForResponse((r) => r.url().endsWith(`/projects/${project._id}/ai/plan`) && r.request().method() === 'POST'),
-      page.getByRole('button', { name: 'Tạo kế hoạch nháp', exact: true }).click(),
+      page.getByRole('button', { name: 'Lập kế hoạch', exact: true }).last().click(),
     ]);
     assert.equal(generated.status(), 201);
     const draft = (await generated.json()).draft;
@@ -740,6 +742,7 @@ test('Hoàng Anh Sprint 3: planner hai tab, duyệt một lần, lý do xử lý
     const second = await ctx.newPage();
     second.on('pageerror', (e) => errors.push(e.message));
     await second.goto('/ai/planner');
+    await second.getByRole('button', { name: /Lịch sử \(/ }).click();
     await second.getByRole('button').filter({ hasText: goal }).click();
     await second.getByTitle('Sửa', { exact: true }).first().click();
     await second.getByLabel('Tên công việc', { exact: true }).fill('Đã sửa từ tab hai');
@@ -796,7 +799,7 @@ test('Hoàng Anh Sprint 3: planner hai tab, duyệt một lần, lý do xử lý
     await page.goto('/ai/meeting');
     await page.getByLabel('Tên cuộc họp', { exact: true }).fill('Hoàng Anh kiểm tra action items');
     await page.getByLabel('Biên bản / ghi chú họp (dán văn bản)', { exact: true }).fill('Cần ai đó kiểm thử API.\nMai Anh: mình sẽ viết tài liệu ngày 2099-02-15\nMai Anh: Không cần triển khai thanh toán nữa, hủy công việc này.');
-    await page.getByRole('button', { name: 'Trích action items', exact: true }).click();
+    await page.getByRole('button', { name: 'Tách việc', exact: true }).click();
     await expect(page.getByRole('heading', { name: /Action items nháp.*2/ })).toBeVisible();
     const notes = page.getByLabel('Biên bản / ghi chú họp (dán văn bản)', { exact: true });
     const originalNotes = await notes.inputValue();

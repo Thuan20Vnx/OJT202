@@ -10,6 +10,7 @@ import CreateTaskModal from './CreateTaskModal.jsx';
 import TaskDetailModal from './TaskDetailModal.jsx';
 import ErrorBoundary from './ErrorBoundary.jsx';
 import ConnectionStatus from './ConnectionStatus.jsx';
+import RecentProjects from './RecentProjects.jsx';
 
 const NAV = [
   { to: '/overview', icon: 'dashboard', get label() { return tr("Tổng quan"); }, en: 'Overview' },
@@ -254,7 +255,7 @@ function TopBar({ onToggleSidebar, onCreate, sidebarOpen }: { onToggleSidebar: (
 
 function Sidebar({ collapsed, overlay, onClose }: { collapsed: boolean; overlay: boolean; onClose: () => void }) {
   useI18n();
-  const { ws, workspaces, setWsId, activeProjects, project, setProjectId, me, role } = useApp();
+  const { ws, workspaces, setWsId, activeProjects, project, setProjectId, me, role, reloadWorkspace } = useApp();
   const navItems = workspaces.some((w) => w.isMentor)
     ? [...NAV, { to: '/mentoring', icon: 'school', get label() { return tr('Các nhóm hướng dẫn'); }, en: 'My groups' }]
     : NAV;
@@ -350,24 +351,18 @@ function Sidebar({ collapsed, overlay, onClose }: { collapsed: boolean; overlay:
               </button>
             </span>
           </div>
-          <nav className="space-y-0.5">
-            {activeProjects.map((p) => (
-              <button
-                key={p._id}
-                onClick={() => {
-                  setProjectId(p._id);
-                  if (!PROJECT_SCOPED.includes('/' + loc.pathname.split('/')[1])) navigate('/overview');
-                }}
-                className={`flex w-full items-center gap-2.5 rounded-xl px-2.5 py-1.5 text-left text-body-sm transition-colors ${
-                  project?._id === p._id ? 'bg-slate-100 font-semibold text-slate-900' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                }`}
-              >
-                <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${PROJECT_COLOR[p.color] || 'bg-blue-500'}`} />
-                <span className="truncate">{p.name}</span>
-              </button>
-            ))}
-            {!activeProjects.length && <p className="px-2.5 py-1.5 text-body-sm text-slate-400">{tr("Chưa có dự án")}</p>}
-          </nav>
+          <RecentProjects
+            projects={activeProjects}
+            current={project}
+            wsId={ws?.workspace?._id}
+            role={role}
+            setProjectId={setProjectId}
+            reloadWorkspace={reloadWorkspace}
+            onOpen={(p: ProjectSummary) => {
+              setProjectId(p._id);
+              if (!PROJECT_SCOPED.includes('/' + loc.pathname.split('/')[1])) navigate('/overview');
+            }}
+          />
         </div>
       </div>
       <div className="space-y-0.5 border-t border-slate-100 p-3">

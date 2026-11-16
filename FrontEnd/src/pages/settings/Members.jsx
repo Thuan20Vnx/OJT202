@@ -78,7 +78,12 @@ export function InviteModal({ open, onClose, onDone }) {
     setBusy(true);
     try {
       const d = await api.post(`/workspaces/${ws.workspace._id}/invites`, { emails, ...(inviteRole === 'mentor' ? { role: 'viewer', mentor: true } : { role: inviteRole }), projects: sel });
-      toast(tr("Đã gửi {0} lời mời{1}", [d.created.length, d.skipped.length ? tr(", bỏ qua {0} (đã là thành viên)", [d.skipped.length]) : '']));
+      const parts = [
+        d.created.length && tr("Đã gửi {0} lời mời", [d.created.length]),
+        d.added?.length && tr("đã thêm {0} thành viên sẵn có vào dự án", [d.added.length]),
+        d.skipped.length && tr("bỏ qua {0} (đã là thành viên)", [d.skipped.length]),
+      ].filter(Boolean);
+      toast(parts.join(', '));
       setEmails([]);
       setSel([]);
       onDone?.();
@@ -151,7 +156,8 @@ export function InviteModal({ open, onClose, onDone }) {
               ))}
           </div>
         </div>
-        <Notice tone="warn">{tr("Lưu ý: Lời mời sẽ tự động hết hạn sau 72 giờ kể từ khi gửi email.")}</Notice>
+        {!sel.length && <Notice tone="warn">{tr("Chưa chọn dự án: người được mời chỉ vào workspace và chưa thấy dự án nào cho tới khi PM thêm họ vào dự án.")}</Notice>}
+        <Notice tone="warn">{tr("Lưu ý: Lời mời sẽ tự động hết hạn sau 72 giờ kể từ khi gửi email. Mời lại cùng email sẽ thay lời mời cũ nhưng vẫn giữ các dự án đã chọn trước đó; nếu người đó đã ở trong workspace thì được thêm thẳng vào dự án đã chọn.")}</Notice>
       </div>
     </Modal>
   );

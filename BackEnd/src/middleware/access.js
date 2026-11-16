@@ -78,7 +78,7 @@ export function taskPermissions(access, userId, task = access.task) {
   const canUpdate = access.canWrite && (access.projectRole === 'pm' || ((task.assignee === userId || task.contributors?.some((c) => c.user === userId)) && task.status !== 'done'));
   const allowedStatuses = !canUpdate ? [] : access.projectRole === 'pm'
     ? ['todo', 'in_progress', 'review', ...(task.status === 'review' || task.status === 'done' ? ['done'] : [])]
-    : ({ todo: ['todo', 'in_progress'], in_progress: ['todo', 'in_progress', 'review'], review: ['in_progress', 'review'] }[task.status] || []);
+    : ({ todo: ['todo', 'in_progress', 'review'], in_progress: ['todo', 'in_progress', 'review'], review: ['in_progress', 'review'] }[task.status] || []);
   return { canEdit: access.canManage, canUpdateProgress: canUpdate, allowedStatuses };
 }
 

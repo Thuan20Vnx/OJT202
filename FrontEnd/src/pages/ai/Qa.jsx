@@ -6,7 +6,7 @@ import { api } from '../../lib/api.js';
 import { useApp, useLoad } from '../../lib/app.jsx';
 import { fmtDateTime, fmtTime, timeAgo } from '../../lib/format.js';
 import { useLatestRequest, useProjectInfo, useSocketEvent } from '../../lib/hooks.js';
-import { AGENT_LABELS, AgentRunStatus, AgentSplitButton, CodeSourcePicker, useAgentRun, useCodeSource } from './AgentRun.jsx';
+import { AGENT_LABELS, AgentBar, AgentRunStatus, AgentSplitButton, Info, useAgentRun, useCodeSource } from './AgentRun.jsx';
 
 const getSuggestions = () => [tr("Việc nào sắp đến hạn tuần này?"), tr("Vì sao TF-103 đang bị chặn và ai đang xử lý?"), tr("Tóm tắt quyết định trong tài liệu kiến trúc")];
 
@@ -77,28 +77,12 @@ export default function Qa({ project, disabled }) {
   const docCount = scope.data?.documents;
 
   return (
-    <div className="grid grid-cols-1 gap-5 lg:grid-cols-[320px_1fr]">
-      <div className="space-y-4">
+    <div className="space-y-4">
+      <AgentBar run={agentRun} code={code} />
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[280px_1fr]">
+      <div className="min-w-0 space-y-4">
         <button className="btn-primary h-10 w-full" onClick={() => { beginRequest(); setConv(null); setQ(''); setError(null); setBusy(false); setPending(null); }}>
           <Icon name="add" size={18} />{tr(" Cuộc hỏi mới")}</button>
-        <div className="card p-4">
-          <p className="mb-2 flex items-center gap-1.5 text-label-lg font-semibold text-slate-900">
-            <Icon name="travel_explore" size={18} className="text-blue-600" />{tr(" Phạm vi tìm kiếm")}</p>
-          <ul className="space-y-1 text-body-sm text-slate-600">
-            <li className="flex items-center gap-2">
-              <Icon name="folder" size={16} className="text-blue-600" /> {project.name}
-            </li>
-            <li className="flex items-center gap-2">
-              <Icon name="task_alt" size={16} className="text-slate-400" /> {taskCount ?? '…'}{tr(" công việc")}</li>
-            <li className="flex items-center gap-2">
-              <Icon name="description" size={16} className="text-slate-400" /> {docCount ?? '…'}{tr(" tài liệu văn bản")}</li>
-          </ul>
-          <ErrorBox error={scope.error} onRetry={scope.reload} />
-          <p className="mt-2 text-body-sm text-slate-600">{tr("Nguồn được đọc trực tiếp khi hỏi; chưa có chỉ mục tìm kiếm nền.")}</p>
-          {scope.data?.latestTaskAt && <p className="mt-1 text-label-md text-slate-600">{tr("Cập nhật công việc:")} {fmtDateTime(scope.data.latestTaskAt)}</p>}
-          {scope.data?.latestDocumentAt && <p className="mt-1 text-label-md text-slate-600">{tr("Cập nhật tài liệu:")} {fmtDateTime(scope.data.latestDocumentAt)}</p>}
-          <Notice tone="warn" className="mt-3">{tr("Chỉ tìm trong dữ liệu bạn có quyền xem. Ảnh scan không được đọc.")}</Notice>
-        </div>
         <div className="card p-4">
           <p className="section-label mb-2">{tr("Lịch sử hỏi đáp")}</p>
           <ErrorBox error={list.error} onRetry={list.reload} />
@@ -119,12 +103,17 @@ export default function Qa({ project, disabled }) {
       </div>
 
       <div className="card flex min-h-[560px] flex-col">
-        <div className="flex items-center gap-2 border-b border-slate-100 px-4 py-3 text-body-sm">
-          <span className="text-slate-500">{tr("Đang hỏi về:")}</span>
-          <span className="chip border-blue-200 bg-blue-50 text-blue-700">
-            <Icon name="folder" size={12} /> {project.name}
-          </span>
-          <span className="chip border-slate-200 bg-slate-50 text-slate-500">{tr("Chỉ một dự án")}</span>
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-slate-100 px-4 py-3 text-body-sm">
+          <Icon name="folder" size={16} className="text-blue-600" />
+          <span className="font-medium text-slate-800">{project.name}</span>
+          <span className="text-label-md font-normal text-slate-500">{tr("· {0} công việc · {1} tài liệu", [taskCount ?? '…', docCount ?? '…'])}</span>
+          <Info>
+            {tr("Nguồn được đọc trực tiếp khi hỏi; chưa có chỉ mục tìm kiếm nền.")}
+            {scope.data?.latestTaskAt && <>{' '}{tr("Cập nhật công việc:")} {fmtDateTime(scope.data.latestTaskAt)}.</>}
+            {scope.data?.latestDocumentAt && <>{' '}{tr("Cập nhật tài liệu:")} {fmtDateTime(scope.data.latestDocumentAt)}.</>}
+            {' '}{tr("Chỉ tìm trong dữ liệu bạn có quyền xem. Ảnh scan không được đọc.")}
+          </Info>
+          {scope.error && <div className="basis-full"><ErrorBox error={scope.error} onRetry={scope.reload} /></div>}
         </div>
         <div className="scroll-thin flex-1 space-y-5 overflow-y-auto p-5">
           {!messages?.length && (
@@ -258,12 +247,10 @@ export default function Qa({ project, disabled }) {
             />
             <AgentSplitButton run={agentRun} primary height="h-[52px]" icon="send" label={tr("Gửi")} className="shrink-0" onRun={() => ask()} disabled={!canAsk || q.trim().length < 3} />
           </div>
-          <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
-            <CodeSourcePicker code={code} disabled={agentRun.active} className="-ml-1.5" />
-            <span className="text-label-md font-normal text-slate-400">{tr("Gửi bằng {0} trên máy bạn · AI có thể sai, luôn kiểm tra nguồn trích dẫn.", [AGENT_LABELS[agentRun.agent]])}</span>
-          </div>
-          <AgentRunStatus run={agentRun} className="mt-2" />
+          <p className="mt-1.5 text-label-md font-normal text-slate-400">{tr("Gửi bằng {0} trên máy bạn · AI có thể sai, luôn kiểm tra nguồn trích dẫn.", [AGENT_LABELS[agentRun.agent]])}</p>
+          <AgentRunStatus run={agentRun} className="mt-2" hideOffline />
         </div>
+      </div>
       </div>
     </div>
   );

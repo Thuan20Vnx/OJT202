@@ -9,6 +9,7 @@ import { STATUS, STATUS_ORDER, dueInfo, fmtDate } from '../lib/format.js';
 import { useProjectInfo, useSocketEvent } from '../lib/hooks.js';
 import { taskActions } from '../lib/task-permissions.js';
 import { PRIORITY_RANK, WORK_TYPES } from '../lib/delivery.js';
+import NoProject from '../components/NoProject.jsx';
 
 export function TaskCard({ task, draggable, onDragStart, onOpen, statuses = [], onMove, busy }) {
   useI18n();
@@ -136,7 +137,7 @@ export default function Board() {
     return list;
   }, [data, filter, getLanguage()]);
 
-  if (!project) return <Empty icon="folder_off" title={tr("Chưa có dự án")} action={<button className="btn-primary" onClick={() => navigate('/projects?new=1')}>{tr("Tạo dự án")}</button>} />;
+  if (!project) return <NoProject role={role} />;
 
   const canDrag = canWriteProject && role !== 'viewer';
   const cols = STATUS_ORDER.map((s) => ({ status: s, tasks: tasks.filter((t) => t.status === s).sort((a, b) => (sort === 'priority' ? (PRIORITY_RANK[a.priority] ?? 1) - (PRIORITY_RANK[b.priority] ?? 1) : 0) || a.order - b.order) }));

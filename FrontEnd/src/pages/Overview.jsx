@@ -7,6 +7,7 @@ import { useApp, useLoad } from '../lib/app.jsx';
 import { fmtProjectDate as fmtDate, timeAgo } from '../lib/format.js';
 import { useSocketEvent } from '../lib/hooks.js';
 import CapacityEditor from '../components/CapacityEditor.jsx';
+import NoProject from '../components/NoProject.jsx';
 
 export const SEVERITY = {
   critical: { get label() { return tr("Nghiêm trọng"); }, chip: 'border-rose-200 bg-rose-50 text-rose-700', icon: 'error', card: 'border-rose-200 bg-rose-50/40' },
@@ -22,16 +23,7 @@ export default function Overview() {
   useSocketEvent('risks:changed', () => reload(), [reload]);
   useSocketEvent('board:refresh', () => reload(), [reload]);
 
-  if (!project)
-    return (
-      <Empty
-        icon="folder_off"
-        title={tr("Chưa có dự án")}
-        action={
-          <button className="btn-primary" onClick={() => navigate('/projects?new=1')}>{tr("Tạo dự án")}</button>
-        }
-      />
-    );
+  if (!project) return <NoProject role={role} />;
   if (loading && !data) return <PageLoader />;
   if (error)
     return (

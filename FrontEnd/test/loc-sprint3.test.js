@@ -39,6 +39,9 @@ test('U022: inclusive UI dates cover the complete DST fall day', () => {
 });
 
 test('U027: sửa nguồn trong lúc trích phải trích lại hoặc khôi phục trước khi duyệt', async (t) => {
+  const previous = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+  Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: { getItem: (key) => (key === 'taskflow.engine' ? 'team' : null), setItem() {} } });
+  t.after(() => { if (previous) Object.defineProperty(globalThis, 'localStorage', previous); else delete globalThis.localStorage; });
   t.mock.method(api, 'get', async (url) => url.endsWith('/p') ? { project: { members: [] }, access: { canManage: true } } : { drafts: [] });
   let finish;
   t.mock.method(api, 'post', (_, input) => new Promise((resolve) => {
@@ -51,7 +54,7 @@ test('U027: sửa nguồn trong lúc trích phải trích lại hoặc khôi ph�
   const original = 'Lộc: mình sẽ viết API';
   await changeText(original);
   let pending;
-  await act(async () => { pending = button(tree, 'Trích action items').props.onClick(); });
+  await act(async () => { pending = button(tree, 'Tách việc').props.onClick(); });
   await changeText('Như: gửi báo cáo');
   await act(async () => { finish(); await pending; });
   assert.match(label(tree.root), /Biên bản đã thay đổi/);

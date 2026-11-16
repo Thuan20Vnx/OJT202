@@ -311,14 +311,32 @@ router.post('/:wsId/invites', middlewareWorkspace('wsId', 'admin'), async (req, 
     if (projects.length !== new Set(body.projects).size) throw badRequest('Dự án không thuộc workspace hoặc đã lưu trữ');
     const created = [];
     const skipped = [];
+    const added = [];
     for (const email of [...new Set(body.emails)]) {
       const existingUser = await tx.user.findUnique({ where: { email }, select: { id: true } });
-      if (existingUser && (await tx.membership.findUnique({ where: { workspace_user: { workspace: ws.id, user: existingUser.id } } }))) {
-        skipped.push({ email, reason: 'Đã là thành viên' });
+      const member = existingUser && (await tx.membership.findUnique({ where: { workspace_user: { workspace: ws.id, user: existingUser.id } } }));
+      if (member) {
+        // Đã ở trong workspace: mời kèm dự án thì thêm thẳng vào các dự án đó thay vì bỏ qua.
+        const joined = [];
+        for (const p of projects) {
+          const exists = await tx.projectMember.findUnique({ where: { project_user: { project: p.id, user: member.user } } });
+          if (exists) continue;
+          await tx.projectMember.create({ data: { project: p.id, user: member.user, role: member.role === 'viewer' ? 'viewer' : 'member' } });
+          await tx.project.update({ where: { id: p.id }, data: { members: { push: member.user } } });
+          joined.push(p.id);
+        }
+        if (joined.length) added.push({ email, user: member.user, projects: joined });
+        else skipped.push({ email, reason: 'Đã là thành viên' });
         continue;
       }
       const pending = await tx.invite.findFirst({ where: { workspace: ws.id, email, acceptedAt: null, revokedAt: null, role: 'admin' } });
       if (pending && fresh.role !== 'owner') throw forbidden('Chỉ Owner được thay đổi lời mời Admin');
+      // Mời lại cùng email: lời mời cũ bị thay, nhưng giữ các dự án đã chọn ở lời mời cũ (người mời vẫn là PM của dự án đó).
+      const previous = await tx.invite.findMany({ where: { workspace: ws.id, email, acceptedAt: null, revokedAt: null }, select: { projects: true } });
+      const carried = previous.flatMap((i) => i.projects).filter((id) => !projects.some((p) => p.id === id));
+      const kept = carried.length
+        ? await tx.project.findMany({ where: { id: { in: carried }, workspace: ws.id, status: 'active', memberships: { some: { user: req.user.id, role: 'pm' } } }, select: { id: true } })
+        : [];
       await tx.invite.updateMany({ where: { workspace: ws.id, email, acceptedAt: null, revokedAt: null }, data: { revokedAt: new Date() } });
       const raw = randomToken(24);
       const inv = await tx.invite.create({
@@ -327,7 +345,7 @@ router.post('/:wsId/invites', middlewareWorkspace('wsId', 'admin'), async (req, 
           email,
           role: body.role,
           mentor: body.mentor,
-          projects: projects.map((p) => p.id),
+          projects: [...projects, ...kept].map((p) => p.id),
           tokenHash: sha256(raw),
           invitedBy: req.user.id,
           expiresAt: new Date(Date.now() + config.inviteTtlMs),
@@ -335,10 +353,18 @@ router.post('/:wsId/invites', middlewareWorkspace('wsId', 'admin'), async (req, 
       });
       created.push({ inv, raw });
     }
-    return { ws, created, skipped };
+    return { ws, created, skipped, added };
   });
   for (const { inv, raw } of result.created) await sendInvite(result.ws, inv, raw, req.user);
-  res.status(201).json({ created: result.created.map(({ inv }) => ({ id: inv.id, email: inv.email, role: inv.role, expiresAt: inv.expiresAt })), skipped: result.skipped });
+  for (const row of result.added) {
+    await refreshUserAccess(row.user);
+    for (const project of row.projects) await emitProject(project, 'board:refresh', {});
+  }
+  res.status(201).json({
+    created: result.created.map(({ inv }) => ({ id: inv.id, email: inv.email, role: inv.role, expiresAt: inv.expiresAt, projects: inv.projects.length })),
+    skipped: result.skipped,
+    added: result.added.map(({ email, projects }) => ({ email, projects: projects.length })),
+  });
 });
 
 router.post('/:wsId/invites/:id/resend', middlewareWorkspace('wsId', 'admin'), async (req, res) => {

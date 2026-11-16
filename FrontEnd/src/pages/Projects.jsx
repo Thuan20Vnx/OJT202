@@ -31,6 +31,15 @@ export default function Projects() {
       setParams({}, { replace: true });
     }
   }, [params, setParams]);
+  // ?edit=<id> (từ menu 3 chấm ở Dự án gần đây): mở luôn form sửa dự án đó khi danh sách đã tải.
+  useEffect(() => {
+    const id = params.get('edit');
+    const target = id && data?.projects?.find((p) => p._id === id);
+    if (target) {
+      setEditing(target);
+      setParams({}, { replace: true });
+    }
+  }, [params, setParams, data]);
 
   const archive = async (p, restore) => {
     try {
