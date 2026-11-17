@@ -266,7 +266,7 @@ export function Pagination({ page, total, limit, onPage, onLimit }) {
           <Select className="input mr-2 h-8 w-auto py-0 text-body-sm" value={limit} onChange={(e) => onLimit(Number(e.target.value))}>
             {[10, 20, 50].map((n) => (
               <option key={n} value={n}>
-                {n} / trang
+                {tr("{0} / trang", [n])}
               </option>
             ))}
           </Select>
@@ -279,7 +279,7 @@ export function Pagination({ page, total, limit, onPage, onLimit }) {
             {n}
           </button>
         ))}
-        <button className="icon-btn h-8 w-8" disabled={page >= pages} onClick={() => onPage(page + 1)} aria-label="Trang sau">
+        <button className="icon-btn h-8 w-8" disabled={page >= pages} onClick={() => onPage(page + 1)} aria-label={tr("Trang sau")}>
           <Icon name="chevron_right" />
         </button>
       </div>

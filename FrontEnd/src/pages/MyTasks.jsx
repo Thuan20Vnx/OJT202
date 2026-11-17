@@ -229,16 +229,16 @@ export default function MyTasks() {
                           <span className="chip border-rose-200 bg-rose-50 text-rose-700">
                             <Icon name="block" size={12} />{tr(" Đang bị chặn")}</span>
                         )}
-                        <span className="hidden items-center gap-1.5 whitespace-nowrap text-label-md text-slate-600 lg:flex">
+                        <span className="flex min-w-0 max-w-[9rem] items-center gap-1.5 whitespace-nowrap text-label-md text-slate-600 lg:max-w-none">
                           <span className={`h-2 w-2 rounded-full ${PROJECT_COLOR[t.project?.color]}`} />
-                          {t.project?.name}
+                          <span className="truncate">{t.project?.name}</span>
                         </span>
                         <span className="hidden md:inline-flex">
                           <StatusChip status={t.status} />
                         </span>
                         <PriorityChip priority={t.priority} />
                         <span
-                          className={`hidden w-28 whitespace-nowrap text-right text-label-md sm:block ${due?.tone === 'danger' ? 'font-semibold text-rose-600' : 'text-slate-500'}`}
+                          className={`whitespace-nowrap text-right text-label-md sm:w-28 ${due?.tone === 'danger' ? 'font-semibold text-rose-600' : 'text-slate-500'}`}
                         >
                           {due ? due.text : tr("Không có hạn")}
                         </span>

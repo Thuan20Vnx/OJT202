@@ -43,9 +43,11 @@ export default function Invite() {
               <Icon name="group_add" size={26} />
             </span>
             <div>
-              <h2 className="text-headline-md text-slate-900">Tham gia {inv.workspace.name}</h2>
-              <p className="text-body-sm text-slate-500">{tr("Lời mời dành cho ")}<b>{inv.email}</b>{tr(" với vai trò ")}<b>{ROLE[inv.role]}</b>.
+              <h2 className="text-headline-md text-slate-900">{tr("Tham gia {0}", [inv.workspace.name])}</h2>
+              <p className="text-body-sm text-slate-500">{tr("Lời mời dành cho ")}<b>{inv.email}</b>{tr(" với vai trò ")}<b>{inv.mentor ? tr("Giảng viên") : ROLE[inv.role]}</b>.
               </p>
+              {inv.invitedBy && <p className="mt-1 text-body-sm text-slate-500">{tr("Người mời: ")}<b>{inv.invitedBy}</b></p>}
+              {inv.projects?.length > 0 && <p className="mt-1 text-body-sm text-slate-500">{tr("Dự án được thêm vào: ")}<b>{inv.projects.join(', ')}</b></p>}
             </div>
             {me === undefined ? null : me ? (
               me.email === inv.email ? (

@@ -225,7 +225,7 @@ export default function Board() {
             <Icon name="search" size={16} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
             <input className="input h-8 w-48 pl-8 text-body-sm" placeholder={tr("Lọc theo tên, mã...")} value={filter.search} onChange={(e) => setFilter({ ...filter, search: e.target.value })} />
           </div>
-          <Select aria-label="Sắp xếp công việc" className="input h-8 w-auto py-0 text-body-sm" value={sort} onChange={(e) => setSort(e.target.value)}><option value="priority">Ưu tiên cao trước</option><option value="manual">Thứ tự thủ công</option></Select>
+          <Select aria-label={tr("Sắp xếp công việc")} className="input h-8 w-auto py-0 text-body-sm" value={sort} onChange={(e) => setSort(e.target.value)}><option value="priority">{tr("Ưu tiên cao trước")}</option><option value="manual">{tr("Thứ tự thủ công")}</option></Select>
           <Select className="input h-8 w-auto py-0 text-body-sm" value={filter.assignee} onChange={(e) => setFilter({ ...filter, assignee: e.target.value })}>
             <option value="">{tr("Mọi người nhận")}</option>
             <option value="none">{tr("Chưa giao")}</option>

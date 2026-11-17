@@ -65,11 +65,14 @@ export function scheduleProgress(tasks, now = new Date()) {
   };
   const scheduled = leaves.filter((t) => t.dueDate);
   const plannedPct = scheduled.length ? Math.round(average(scheduled, plannedOf)) : null;
+  const scheduledActualPct = scheduled.length ? Math.round(average(scheduled, actualOf)) : null;
   return {
     actualPct: Math.round(average(leaves, actualOf)),
     plannedPct,
+    // Thực tế của riêng các việc có hạn: đặt cạnh plannedPct để hai số so được với nhau.
+    scheduledActualPct,
     // So trên cùng tập việc có kế hoạch, việc chưa có hạn không làm lệch kết quả.
-    deltaPct: plannedPct == null ? null : Math.round(average(scheduled, actualOf)) - plannedPct,
+    deltaPct: plannedPct == null ? null : scheduledActualPct - plannedPct,
     unscheduled: leaves.length - scheduled.length,
   };
 }

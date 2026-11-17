@@ -295,8 +295,12 @@ router.post('/google', async (req, res) => {
 router.get('/invite/:token', async (req, res) => {
   const inv = await prisma.invite.findUnique({ where: { tokenHash: sha256(req.params.token) } });
   if (!inv || inv.revokedAt || inv.acceptedAt || inv.expiresAt < new Date()) return res.json({ valid: false });
-  const ws = await prisma.workspace.findUnique({ where: { id: inv.workspace }, select: { id: true, name: true } });
-  res.json({ valid: true, email: inv.email, role: inv.role, mentor: inv.mentor, workspace: ws });
+  const [ws, inviter, projects] = await Promise.all([
+    prisma.workspace.findUnique({ where: { id: inv.workspace }, select: { id: true, name: true } }),
+    prisma.user.findUnique({ where: { id: inv.invitedBy }, select: { name: true } }),
+    prisma.project.findMany({ where: { id: { in: inv.projects }, workspace: inv.workspace, status: 'active' }, select: { name: true }, orderBy: { name: 'asc' } }),
+  ]);
+  res.json({ valid: true, email: inv.email, role: inv.role, mentor: inv.mentor, workspace: ws, invitedBy: inviter?.name ?? null, projects: projects.map((p) => p.name) });
 });
 
 export default router;

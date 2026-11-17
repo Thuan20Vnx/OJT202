@@ -255,33 +255,45 @@ router.get('/projects/:projectId/issues', middlewareProject(), async (req, res) 
   res.json({ issues, access: { canWrite: req.pa.canWrite, canManage: req.pa.canManage } });
 });
 
-router.post('/projects/:projectId/issues', middlewareProject(), async (req, res) => {
-  assertWrite(req.pa);
-  const body = parse(
-    z.object({
-      title: requiredText(200),
-      type: z.enum(ISSUE_TYPES).default('technical'),
-      severity: z.enum(['low', 'medium', 'high', 'critical']),
-      cause: requiredText(2000),
-      action: requiredText(2000),
-      owner: z.string().uuid().nullable().default(null),
-      task: z.string().uuid().nullable().default(null),
-      affectedUser: z.string().uuid().nullable().default(null),
-      startDate: calendarDate.nullable().default(null),
-      endDate: calendarDate.nullable().default(null),
-    }).strict(),
-    req.body,
-  );
+const issueFields = {
+  title: requiredText(200),
+  type: z.enum(ISSUE_TYPES).default('technical'),
+  severity: z.enum(['low', 'medium', 'high', 'critical']),
+  cause: requiredText(2000),
+  action: requiredText(2000),
+  owner: z.string().uuid().nullable().default(null),
+  affectedUser: z.string().uuid().nullable().default(null),
+  startDate: calendarDate.nullable().default(null),
+  endDate: calendarDate.nullable().default(null),
+};
+
+/** Kiểm tra nội dung vấn đề (ngày, vắng mặt, người thuộc dự án) và trả ngày dạng Date. Vấn đề không phải vắng mặt thì bỏ người vắng/khoảng ngày. */
+async function issueData(tx, projectId, body) {
+  if (body.type !== 'absence') Object.assign(body, { affectedUser: null, startDate: null, endDate: null });
   if (body.startDate && body.endDate && body.endDate < body.startDate) throw badRequest('Ngày kết thúc không được trước ngày bắt đầu');
   if (body.type === 'absence' && (!body.affectedUser || !body.startDate || !body.endDate)) throw badRequest('Vấn đề vắng mặt cần có người vắng và khoảng ngày');
+  const people = [body.owner, body.affectedUser].filter(Boolean);
+  if (people.length && await tx.projectMember.count({ where: { project: projectId, user: { in: people } } }) !== new Set(people).size) throw badRequest('Người được chọn phải là thành viên dự án');
+  return { ...body, startDate: body.startDate && new Date(`${body.startDate}T00:00:00Z`), endDate: body.endDate && new Date(`${body.endDate}T00:00:00Z`) };
+}
+
+/** Tìm vấn đề trong dự án; sửa nội dung hoặc xóa chỉ người báo hoặc PM. */
+async function editableIssue(tx, access, issueId, userId) {
+  const found = isId(issueId) ? await tx.taskIssue.findFirst({ where: { id: issueId, project: access.project.id } }) : null;
+  if (!found) throw notFound('Không tìm thấy vấn đề');
+  if (!access.canManage && found.reporter !== userId) throw forbidden('Chỉ người báo vấn đề hoặc PM được sửa hay xóa');
+  return found;
+}
+
+router.post('/projects/:projectId/issues', middlewareProject(), async (req, res) => {
+  assertWrite(req.pa);
+  const body = parse(z.object({ ...issueFields, task: z.string().uuid().nullable().default(null) }).strict(), req.body);
   const { issue, recipients } = await withWorkspaceLock(req.pa.project.workspace, async (tx) => {
     const access = await projectAccess(req.user.id, req.pa.project.id, tx);
     assertWrite(access);
-    const people = [body.owner, body.affectedUser].filter(Boolean);
-    if (people.length && await tx.projectMember.count({ where: { project: access.project.id, user: { in: people } } }) !== new Set(people).size) throw badRequest('Người được chọn phải là thành viên dự án');
     if (body.task && !(await tx.task.findFirst({ where: { id: body.task, project: access.project.id, deletedAt: null } }))) throw badRequest('Công việc không thuộc dự án');
-    const dates = { startDate: body.startDate && new Date(`${body.startDate}T00:00:00Z`), endDate: body.endDate && new Date(`${body.endDate}T00:00:00Z`) };
-    const issue = await tx.taskIssue.create({ data: { ...body, ...dates, project: access.project.id, reporter: req.user.id } });
+    const data = await issueData(tx, access.project.id, body);
+    const issue = await tx.taskIssue.create({ data: { ...data, project: access.project.id, reporter: req.user.id } });
     await audit(tx, access.project, req.user.id, 'Ghi nhận vấn đề', issue.title, { type: issue.type, severity: issue.severity });
     const pms = await tx.projectMember.findMany({ where: { project: access.project.id, role: 'pm' }, select: { user: true } });
     return { issue, recipients: [...new Set([body.owner, ...pms.map((p) => p.user)].filter(Boolean))] };
@@ -292,6 +304,37 @@ router.post('/projects/:projectId/issues', middlewareProject(), async (req, res)
   })));
   await emitProject(req.pa.project.id, 'issues:changed', {});
   res.status(201).json({ issue });
+});
+
+router.put('/projects/:projectId/issues/:issueId', middlewareProject(), async (req, res) => {
+  assertWrite(req.pa);
+  const body = parse(z.object({ ...issueFields, version }).strict(), req.body);
+  const issue = await withWorkspaceLock(req.pa.project.workspace, async (tx) => {
+    const access = await projectAccess(req.user.id, req.pa.project.id, tx);
+    assertWrite(access);
+    const found = await editableIssue(tx, access, req.params.issueId, req.user.id);
+    assertVersion(body.version, found.version);
+    const { version: _v, ...fields } = body;
+    const data = await issueData(tx, access.project.id, fields);
+    const issue = await tx.taskIssue.update({ where: { id: found.id }, data: { ...data, version: { increment: 1 } } });
+    await audit(tx, access.project, req.user.id, 'Sửa vấn đề', issue.title, { type: issue.type, severity: issue.severity });
+    return issue;
+  });
+  await emitProject(req.pa.project.id, 'issues:changed', {});
+  res.json({ issue });
+});
+
+router.delete('/projects/:projectId/issues/:issueId', middlewareProject(), async (req, res) => {
+  assertWrite(req.pa);
+  await withWorkspaceLock(req.pa.project.workspace, async (tx) => {
+    const access = await projectAccess(req.user.id, req.pa.project.id, tx);
+    assertWrite(access);
+    const found = await editableIssue(tx, access, req.params.issueId, req.user.id);
+    await tx.taskIssue.delete({ where: { id: found.id } });
+    await audit(tx, access.project, req.user.id, 'Xóa vấn đề', found.title, { type: found.type });
+  });
+  await emitProject(req.pa.project.id, 'issues:changed', {});
+  res.json({ ok: true });
 });
 
 router.patch('/projects/:projectId/issues/:issueId', middlewareProject(), async (req, res) => {

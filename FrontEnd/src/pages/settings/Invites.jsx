@@ -10,7 +10,8 @@ const hoursLeft = (d) => Math.max(0, Math.round((new Date(d) - Date.now()) / 360
 
 export default function Invites() {
   useI18n();
-  const { ws, role } = useApp();
+  const { ws, role, projects } = useApp();
+  const projectName = (id) => projects.find((p) => p._id === id)?.name;
   const toast = useToast();
   const [inviting, setInviting] = useState(false);
   const { data, loading, error, reload } = useLoad(() => api.get(`/workspaces/${ws.workspace._id}/invites`), [ws.workspace._id]);
@@ -54,6 +55,7 @@ export default function Invites() {
             <tr>
               <th className="table-th">Email</th>
               <th className="table-th">{tr("Vai trò")}</th>
+              <th className="table-th">{tr("Dự án kèm theo")}</th>
               <th className="table-th">{tr("Người mời")}</th>
               <th className="table-th">{tr("Hết hạn")}</th>
               <th className="table-th text-right">{tr("Thao tác")}</th>
@@ -64,6 +66,9 @@ export default function Invites() {
               <tr key={i._id}>
                 <td className="table-td font-medium text-slate-900">{i.email}</td>
                 <td className="table-td">{ROLE[i.role]}</td>
+                <td className="table-td text-body-sm text-slate-600">
+                  {i.projects?.length ? i.projects.map((p) => (typeof p === 'object' ? p?.name : projectName(p)) || tr("Dự án khác")).join(', ') : <span className="text-slate-300">—</span>}
+                </td>
                 <td className="table-td">
                   <span className="flex items-center gap-2">
                     <Avatar user={i.invitedBy} size={22} /> {i.invitedBy?.name} · <span className="text-slate-400">{timeAgo(i.createdAt)}</span>

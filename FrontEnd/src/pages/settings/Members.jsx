@@ -145,8 +145,11 @@ export function InviteModal({ open, onClose, onDone }) {
         <div>
           <span className="label">{tr("Chỉ định dự án tham gia ngay")}</span>
           <div className="space-y-1.5 rounded-lg border border-slate-200 p-2.5">
+            {!projects.some((p) => p.status === 'active' && p.projectRole === 'pm') && (
+              <p className="text-body-sm text-slate-400">{tr("Bạn chưa là PM của dự án nào nên chưa gán được dự án khi mời. Người được mời sẽ do PM thêm vào dự án sau.")}</p>
+            )}
             {projects
-              .filter((p) => p.status === 'active')
+              .filter((p) => p.status === 'active' && p.projectRole === 'pm')
               .map((p) => (
                 <label key={p._id} className="flex items-center gap-2 text-body-sm">
                   <input type="checkbox" className="form-checkbox rounded text-blue-600" checked={sel.includes(p._id)} onChange={() => setSel(sel.includes(p._id) ? sel.filter((x) => x !== p._id) : [...sel, p._id])} />
@@ -370,7 +373,7 @@ export default function Members() {
                       {isAdmin && (
                         <td className="table-td text-right">
                           {lastOwner || !canEditRole ? (
-                            <span className="text-label-md font-normal text-slate-400" title={tr("Không thể xóa Owner cuối cùng")}>
+                            <span className="text-label-md font-normal text-slate-400" title={lastOwner ? tr("Không thể xóa Owner cuối cùng") : tr("Chỉ Owner được đổi quyền hoặc xóa Owner/Admin")}>
                               <Icon name="lock" size={16} />
                             </span>
                           ) : (
@@ -387,6 +390,11 @@ export default function Members() {
                     </tr>
                   );
                 })}
+                {!list.length && (
+                  <tr>
+                    <td colSpan={8} className="table-td py-8 text-center text-body-sm text-slate-400">{tr("Không tìm thấy thành viên phù hợp với bộ lọc.")}</td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>

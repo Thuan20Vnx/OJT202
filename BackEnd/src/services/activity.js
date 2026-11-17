@@ -34,7 +34,7 @@ const TASK_FIELDS = {
   labels: 'Cập nhật nhãn',
   sprint: 'Chuyển sprint',
   checklist: 'Cập nhật checklist',
-  order: 'Sắp xếp công việc',
+  // Kéo thả đổi thứ tự trong cột chỉ là sắp xếp hiển thị (giá trị là số nội bộ): không ghi vào nhật ký.
 };
 
 const comparable = (v) => (v instanceof Date ? v.toISOString() : JSON.stringify(v ?? null));

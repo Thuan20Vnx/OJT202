@@ -84,15 +84,17 @@ export default function Calendar() {
 
   const deps = data?.dependencies || [];
   const blocked = deps.filter((d) => d.status !== 'done' && d.blockedBy.some((b) => b.status !== 'done'));
-  // Chuỗi phụ thuộc: bắt đầu từ việc không bị chặn bởi ai trong danh sách
+  // Chuỗi nghẽn: chỉ tính quan hệ còn hiệu lực (việc chặn chưa Hoàn thành, việc bị chặn chưa Hoàn thành),
+  // bắt đầu từ việc không bị chặn bởi ai trong danh sách.
+  const active = deps.filter((d) => d.status !== 'done').map((d) => ({ ...d, blockedBy: d.blockedBy.filter((b) => b.status !== 'done') })).filter((d) => d.blockedBy.length);
   const chains = [];
-  for (const d of deps) {
+  for (const d of active) {
     for (const b of d.blockedBy) {
-      if (!deps.some((x) => x._id === b._id)) {
+      if (!active.some((x) => x._id === b._id)) {
         const chain = [b, d];
         let cur = d;
         for (;;) {
-          const nxt = deps.find((x) => x.blockedBy.some((y) => y._id === cur._id));
+          const nxt = active.find((x) => x.blockedBy.some((y) => y._id === cur._id));
           if (!nxt || chain.some((c) => c._id === nxt._id)) break;
           chain.push(nxt);
           cur = nxt;
@@ -117,7 +119,7 @@ export default function Calendar() {
                 <Icon name="chevron_left" />
               </button>
               <span className="min-w-[130px] text-center text-label-lg font-semibold text-slate-800">{title}</span>
-              <button className="icon-btn h-8 w-8" onClick={() => move(1)} aria-label="Sau">
+              <button className="icon-btn h-8 w-8" onClick={() => move(1)} aria-label={tr("Sau")}>
                 <Icon name="chevron_right" />
               </button>
             </div>
@@ -241,7 +243,7 @@ export default function Calendar() {
             <h2 className="flex items-center gap-1.5 text-label-sm uppercase tracking-wider text-slate-500">
               <Icon name="account_tree" size={16} />{tr(" Phụ thuộc công việc")}</h2>
             <p className="mb-3 text-label-md font-normal text-slate-400">{tr("Theo dõi luồng chặn & điểm nghẽn")}</p>
-            {!chains.length && <p className="text-body-sm text-slate-400">{tr("Chưa có phụ thuộc trong dự án.")}</p>}
+            {!chains.length && <p className="text-body-sm text-slate-400">{deps.length ? tr("Không còn chuỗi nghẽn: các việc chặn đều đã Hoàn thành.") : tr("Chưa có phụ thuộc trong dự án.")}</p>}
             {chains.map((chain, ci) => (
               <div key={ci} className="mb-3 space-y-1">
                 <p className="flex items-center justify-between text-label-md text-slate-600">{tr("Chuỗi nghẽn ")}{ci + 1}

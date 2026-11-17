@@ -1906,6 +1906,18 @@ describe('Lộc: phân quyền và nghiệp vụ bổ sung', () => {
     assert.deepEqual([plain.data.created.length, plain.data.added.length, plain.data.skipped.length], [0, 0, 1]);
   });
 
+  test('tester ảo: tên dự án quá dài báo đúng lỗi; lần gọi AI lỗi không bị trừ lượt', async () => {
+    const { owner, ws, pid } = await permissionFixture();
+    const long = await owner.post(`/workspaces/${ws}/projects`, { name: 'x'.repeat(150) });
+    assert.equal(long.status, 400);
+    assert.match(JSON.stringify(long.data), /tối đa 100 ký tự/);
+    assert.doesNotMatch(JSON.stringify(long.data), /Vui lòng nhập tên dự án/);
+    const before = (await owner.get(`/projects/${pid}/ai/usage`)).data.used;
+    const base = { workspace: ws, user: seed.users.maianh.id, feature: 'planner', model: '-', queuedAt: new Date() };
+    await db.prisma.aiCall.createMany({ data: [{ ...base, status: 'error' }, { ...base, status: 'timeout' }, { ...base, status: 'success' }] });
+    assert.equal((await owner.get(`/projects/${pid}/ai/usage`)).data.used, before + 2, 'lỗi không tính, hết giờ và thành công thì tính');
+  });
+
   test('quá hạn theo thời điểm: hôm nay, đúng hạn, không hạn, Done và ngưỡng 0/1 ngày', async () => {
     const { owner, pid, create } = await permissionFixture();
     const now = new Date();
@@ -2240,6 +2252,19 @@ describe('Lộc: phân quyền và nghiệp vụ bổ sung', () => {
     assert.equal((await admin.post(`/workspaces/${ws}/invites`, { emails: [inv.email], role: 'member' })).status, 403);
     assert.equal((await owner.post(`/workspaces/${ws}/invites/${inv.id}/resend`)).status, 200);
     assert.equal((await owner.get(`/auth/invite/${raw}`)).data.valid, false);
+  });
+
+  test('tester ảo: trang lời mời nêu người mời và dự án kèm theo', async () => {
+    const { ws, pid } = await permissionFixture();
+    const { sha256 } = await import('../src/utils/security.js');
+    const raw = 'invite-info-test';
+    await db.prisma.invite.create({
+      data: { workspace: ws, email: 'invite.info@example.test', role: 'member', projects: [pid], invitedBy: seed.users.maianh.id, tokenHash: sha256(raw), expiresAt: new Date(Date.now() + 3600000) },
+    });
+    const info = (await new Client().get(`/auth/invite/${raw}`)).data;
+    assert.equal(info.valid, true);
+    assert.equal(info.invitedBy, 'Mai Anh');
+    assert.equal(info.projects.length, 1);
   });
 
   test('tải lô tệp sai rollback toàn bộ; TXT sau sửa tải đúng phiên bản; restore sai trả 404', async () => {

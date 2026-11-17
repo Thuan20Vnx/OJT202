@@ -118,7 +118,7 @@ export default function Overview() {
           <h2 className="text-headline-sm text-slate-900">{tr("Tiến độ thực tế so với kế hoạch")}</h2>
           <p className="mb-4 text-label-md font-normal text-slate-500">{tr("Tính theo % báo cáo ở nhật ký và giờ ước lượng, không chỉ đếm số việc xong.")}</p>
           {[
-            [tr("Thực tế"), data.schedule.actualPct, ''],
+            [data.schedule.plannedPct != null && data.schedule.unscheduled > 0 ? tr("Thực tế (việc có hạn)") : tr("Thực tế"), data.schedule.scheduledActualPct ?? data.schedule.actualPct, ''],
             [tr("Theo kế hoạch"), data.schedule.plannedPct, 'opacity-50'],
           ].map(([label, value, tone]) => (
             <div key={label} className="mb-3">
@@ -131,7 +131,7 @@ export default function Overview() {
               {data.schedule.deltaPct === 0 ? tr("Đúng kế hoạch") : data.schedule.deltaPct < 0 ? tr("Chậm {0}% so với kế hoạch", [-data.schedule.deltaPct]) : tr("Nhanh {0}% so với kế hoạch", [data.schedule.deltaPct])}
             </p>
           )}
-          {data.schedule.unscheduled > 0 && <p className="mt-1 text-label-md font-normal text-amber-700">{tr("{0} việc chưa có hạn nên chưa có mốc kế hoạch.", [data.schedule.unscheduled])}</p>}
+          {data.schedule.unscheduled > 0 && <p className="mt-1 text-label-md font-normal text-amber-700">{tr("{0} việc chưa có hạn nên chưa có mốc kế hoạch.", [data.schedule.unscheduled])}{data.schedule.plannedPct != null && tr(" Tính cả các việc này, thực tế là {0}%.", [data.schedule.actualPct])}</p>}
         </section>
         <section className="card p-5">
           <h2 className="text-headline-sm text-slate-900">{tr("Thống kê theo nhãn")}</h2>

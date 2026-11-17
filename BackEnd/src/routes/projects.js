@@ -20,7 +20,7 @@ const dateStr = z
 
 const projectBase = z
   .object({
-    name: z.string({ error: 'Vui lòng nhập tên dự án' }).trim().min(1, 'Vui lòng nhập tên dự án').max(100),
+    name: z.string({ error: 'Vui lòng nhập tên dự án' }).trim().min(1, 'Vui lòng nhập tên dự án').max(100, 'Tên dự án tối đa 100 ký tự'),
     description: z.string().trim().max(2000),
     color: z.enum(COLORS),
     timezone: z.string().refine(isTimeZone, 'Múi giờ dự án không hợp lệ'),

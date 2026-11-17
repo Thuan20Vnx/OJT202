@@ -651,7 +651,7 @@ export default function TaskDetailModal({ taskId, onClose }) {
   return (
     <Shell onClose={onClose}>
       {/* Header */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 px-6 py-3">
+      <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 px-4 py-3 sm:px-6">
         <span className="rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 font-mono text-label-md font-semibold text-slate-700">{task.key}</span>
         {parent && (
           <Link to={`?task=${parent._id}`} className="text-label-md text-slate-500 hover:text-blue-600">
@@ -688,7 +688,7 @@ export default function TaskDetailModal({ taskId, onClose }) {
               toast(tr("Đã sao chép liên kết"), 'info');
             }}
           >
-            <Icon name="link" size={16} />{tr("Sao chép liên kết")}</button>
+            <Icon name="link" size={16} /><span className="hidden sm:inline">{tr("Sao chép liên kết")}</span></button>
           {canWrite && (
             <Dropdown
               trigger={
@@ -714,15 +714,16 @@ export default function TaskDetailModal({ taskId, onClose }) {
         <button className="btn-outline btn-sm" onClick={() => load()}>{tr("Thử lại")}</button>
       </div>}
 
-      <div className="grid min-h-0 flex-1 overflow-hidden lg:grid-cols-[1fr_320px]">
+      <div className="scroll-thin grid min-h-0 flex-1 overflow-y-auto lg:grid-cols-[1fr_320px] lg:overflow-hidden">
         {/* Cột chính */}
-        <div className="scroll-thin space-y-6 overflow-y-auto px-6 py-5">
+        <div className="scroll-thin space-y-6 px-4 py-5 sm:px-6 lg:overflow-y-auto">
           <textarea
             aria-label={tr("Tên công việc")}
             value={form.title}
             disabled={!canWrite}
             onChange={(e) => setF('title', e.target.value)}
-            rows={1}
+            rows={Math.min(4, Math.max(1, Math.ceil((form.title || '').length / 45)))}
+            style={{ fieldSizing: 'content' }}
             className="w-full resize-none border-0 bg-transparent p-0 text-headline-lg text-slate-900 focus:ring-0 disabled:text-slate-900"
           />
 
@@ -942,7 +943,7 @@ export default function TaskDetailModal({ taskId, onClose }) {
                   </div>
                 );
               })}
-              {!files.length && <p className="text-body-sm text-slate-400">{tr("Kéo thả tệp vào đây · PDF, TXT, PNG, JPG – tối đa 10MB")}</p>}
+              {!files.length && <p className="text-body-sm text-slate-400">{access.canWrite ? tr("Kéo thả tệp vào đây · PDF, TXT, PNG, JPG – tối đa 10MB") : tr("Chưa có tệp đính kèm")}</p>}
             </div>
           </Section>
 
@@ -990,7 +991,9 @@ export default function TaskDetailModal({ taskId, onClose }) {
                     </div>
                   </div>
                 ))}
-                {(access.canWrite || access.canComment) && <CommentBox members={members} onSend={sendComment} />}
+                {access.canWrite || access.canComment
+                  ? <CommentBox members={members} onSend={sendComment} />
+                  : <p className="rounded-lg bg-slate-50 px-3 py-2 text-body-sm text-slate-500">{tr("Bạn chỉ có quyền xem dự án này nên không bình luận được.")}</p>}
               </div>
             ) : (
               <div className="space-y-3">
@@ -1015,7 +1018,7 @@ export default function TaskDetailModal({ taskId, onClose }) {
         </div>
 
         {/* Cột thuộc tính */}
-        <aside className="scroll-thin space-y-4 overflow-y-auto border-l border-slate-100 bg-slate-50/60 px-5 py-5">
+        <aside className="scroll-thin space-y-4 border-t border-slate-100 bg-slate-50/60 px-4 py-5 sm:px-5 lg:overflow-y-auto lg:border-l lg:border-t-0">
           <p className="section-label">{tr("Chi tiết thuộc tính")}</p>
           <Prop label={tr("Người nhận")}>
             {canWrite ? <MemberPicker members={members} value={form.assignee} onChange={(v) => setF('assignee', v)} /> : <PersonLine user={task.assignee} />}

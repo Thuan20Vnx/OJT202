@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Burndown } from '../components/charts.jsx';
 import { Confirm, Empty, ErrorBox, Field, Icon, Modal, PageHeader, PageLoader, Progress, Select, StatusChip } from '../components/ui.jsx';
 import { api } from '../lib/api.js';
@@ -15,6 +16,7 @@ const STATE = {
 const isoDate = (d) => (d ? new Date(d).toLocaleDateString('en-CA') : '');
 
 function TaskRows({ tasks, selected, onToggle, canManage }) {
+  const navigate = useNavigate();
   return (
     <ul className="divide-y divide-slate-100">
       {tasks.map((t) => (
@@ -23,7 +25,7 @@ function TaskRows({ tasks, selected, onToggle, canManage }) {
             <input type="checkbox" aria-label={tr('Chọn {0}', [t.key])} checked={selected.has(t._id)} onChange={() => onToggle(t._id)} />
           )}
           <span className="w-16 shrink-0 font-semibold text-slate-500">{t.key}</span>
-          <span className="min-w-0 flex-1 truncate text-slate-800">{t.title}</span>
+          <button className="min-w-0 flex-1 truncate text-left text-slate-800 hover:text-blue-700 hover:underline" onClick={() => navigate(`?task=${t._id}`)}>{t.title}</button>
           <span className="hidden text-right tabular-nums text-slate-500 sm:block">{t.estimateHours != null ? `${t.estimateHours} h` : '—'}</span>
           <StatusChip status={t.status} />
         </li>
@@ -145,7 +147,7 @@ export default function Sprints() {
       {!sprints.length && <Empty icon="sprint" title={tr('Chưa có Sprint nào')} />}
       <section className="card p-4">
         <h2 className="text-headline-sm text-slate-900">{tr('Backlog')} <span className="font-normal text-slate-400">({data.backlog.length})</span></h2>
-        <p className="mb-2 text-label-md font-normal text-slate-500">{tr('Việc chưa xếp vào Sprint nào. Chọn rồi chuyển vào Sprint ở thanh phía trên.')}</p>
+        <p className="mb-2 text-label-md font-normal text-slate-500">{canManage ? tr('Việc chưa xếp vào Sprint nào. Chọn rồi chuyển vào Sprint ở thanh phía trên.') : tr('Việc chưa xếp vào Sprint nào. PM sẽ xếp vào Sprint.')}</p>
         <TaskRows tasks={data.backlog} selected={selected} onToggle={toggle} canManage={canManage} />
       </section>
 

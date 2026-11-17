@@ -58,8 +58,12 @@ const attemptUsage = (attempts) => ({
   usageComplete: attempts.every((item) => item.inputTokens !== null && item.outputTokens !== null),
 });
 
+// Không tính vào hạn mức ngày: lần bị chặn (tắt AI, hết lượt) và lần lỗi không ra kết quả (AI bận, nhà cung cấp lỗi).
+// Hết thời gian chờ vẫn tính vì nhà cung cấp có thể đã xử lý xong.
+const UNCOUNTED = ['quota_exceeded', 'disabled', 'error'];
+
 export async function usageToday(workspaceId) {
-  return prisma.aiCall.count({ where: { workspace: workspaceId, createdAt: { gte: startOfDay() }, status: { notIn: ['quota_exceeded', 'disabled'] } } });
+  return prisma.aiCall.count({ where: { workspace: workspaceId, createdAt: { gte: startOfDay() }, status: { notIn: UNCOUNTED } } });
 }
 
 /**
@@ -74,7 +78,7 @@ export async function runAi({ workspaceId, userId, feature, payload, minTimeoutM
   // Giữ chỗ trong transaction ngắn; không giữ khóa trong lúc đợi dịch vụ AI.
   const { ws, call } = await withWorkspaceLock(workspaceId, async (tx) => {
     const ws = await tx.workspace.findUniqueOrThrow({ where: { id: workspaceId } });
-    const used = await tx.aiCall.count({ where: { workspace: workspaceId, createdAt: { gte: startOfDay() }, status: { notIn: ['quota_exceeded', 'disabled'] } } });
+    const used = await tx.aiCall.count({ where: { workspace: workspaceId, createdAt: { gte: startOfDay() }, status: { notIn: UNCOUNTED } } });
     const status = !ws.ai?.enabled || ws.ai?.features?.[feature] === false ? 'disabled' : used >= (ws.ai?.dailyLimit ?? 50) ? 'quota_exceeded' : 'pending';
     const call = await tx.aiCall.create({ data: { workspace: workspaceId, user: userId, feature, status, model: '-', queuedAt } });
     return { ws, call };

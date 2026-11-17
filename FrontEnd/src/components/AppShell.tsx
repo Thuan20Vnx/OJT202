@@ -169,8 +169,8 @@ function TopBar({ onToggleSidebar, onCreate, sidebarOpen }: { onToggleSidebar: (
   };
 
   return (
-    <header className="sticky top-0 z-40 flex h-[60px] shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4">
-      <div className="flex min-w-0 items-center gap-3">
+    <header className="sticky top-0 z-40 flex h-[60px] shrink-0 items-center justify-between gap-2 border-b border-slate-200 bg-white px-3 sm:px-4">
+      <div className="flex min-w-0 items-center gap-2 sm:gap-3">
         <button className="icon-btn" onClick={onToggleSidebar} title={tr("Thu gọn / Mở rộng sidebar")} aria-label={tr("Mở/đóng menu")} aria-expanded={sidebarOpen}>
           {/* Biểu tượng ☰ xoay và đổi thành "menu_open" khi menu đang mở */}
           <span className="relative h-5 w-5">
@@ -178,15 +178,15 @@ function TopBar({ onToggleSidebar, onCreate, sidebarOpen }: { onToggleSidebar: (
             <Icon name="menu_open" className={`absolute inset-0 transition-all duration-300 ${sidebarOpen ? 'opacity-100' : '-rotate-90 scale-50 opacity-0'}`} />
           </span>
         </button>
-        <Link to="/overview" className="flex items-center gap-2">
+        <Link to="/overview" className="flex shrink-0 items-center gap-2" aria-label="TaskFlow">
           <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-600 text-white shadow-sm">
             <Icon name="task_alt" size={17} />
           </span>
-          <span className="text-headline-sm font-bold tracking-tight text-slate-900">TaskFlow</span>
+          <span className="hidden text-headline-sm font-bold tracking-tight text-slate-900 sm:inline">TaskFlow</span>
         </Link>
-        <div className="mx-1 h-4 w-px bg-slate-200" />
+        <div className="mx-1 hidden h-4 w-px bg-slate-200 lg:block" />
         <nav className="hidden min-w-0 items-center gap-1.5 whitespace-nowrap text-body-sm text-slate-500 lg:flex">
-          <span className="truncate">{base === '/admin' ? tr("Quản trị hệ thống") : tr("Không gian làm việc")}</span>
+          <span className="truncate">{base === '/admin' ? tr("Hệ thống") : tr("Không gian làm việc")}</span>
           {base === '/settings' && ws && (
             <>
               <Icon name="chevron_right" size={14} className="text-slate-400" />
@@ -208,7 +208,7 @@ function TopBar({ onToggleSidebar, onCreate, sidebarOpen }: { onToggleSidebar: (
         </nav>
       </div>
       <SearchBox />
-      <div className="flex shrink-0 items-center gap-2.5">
+      <div className="flex shrink-0 items-center gap-1.5 sm:gap-2.5">
         <div className="flex items-center rounded-lg bg-slate-100 p-0.5 text-label-sm" role="group" aria-label={tr("Ngôn ngữ")}>
           {['vi', 'en'].map((l) => (
             <button key={l} disabled={savingLanguage} aria-pressed={lang === l} onClick={() => changeLang(l)} className={`rounded-md px-2 py-1 font-bold uppercase ${lang === l ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}>
@@ -223,8 +223,10 @@ function TopBar({ onToggleSidebar, onCreate, sidebarOpen }: { onToggleSidebar: (
           <Icon name="notifications" />
           {unread > 0 && <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" />}
         </button>
-        <button className="btn-primary hidden sm:inline-flex" onClick={onCreate} disabled={!canManageProject}>
-          <Icon name="add" size={16} />{tr("Tạo công việc")}</button>
+        <span className="hidden sm:inline-flex" title={canManageProject ? undefined : tr("Chỉ PM của dự án tạo được công việc. Thành viên cập nhật việc được giao cho mình.")}>
+          <button className="btn-primary" onClick={onCreate} disabled={!canManageProject}>
+            <Icon name="add" size={16} />{tr("Tạo công việc")}</button>
+        </span>
         <div className="h-4 w-px bg-slate-200" />
         <Dropdown
           trigger={
@@ -298,8 +300,8 @@ function Sidebar({ collapsed, overlay, onClose }: { collapsed: boolean; overlay:
             <button className="flex w-full items-center justify-between rounded-xl border border-slate-200 p-2 text-left transition-colors hover:bg-slate-50">
               <span className="flex min-w-0 items-center gap-2.5">
                 <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-label-md font-bold text-blue-600">{(wsName.match(/\d+/) || [wsName[0] || 'W'])[0]}</span>
-                <span className="truncate text-label-lg font-semibold text-slate-900">{wsName}</span>
-                <span className="rounded bg-blue-100 px-1.5 py-0.5 text-[10px] font-bold text-blue-700">{ws?.workspace?.plan || 'Pro'}</span>
+                <span className="truncate text-label-lg font-semibold text-slate-900">{wsName || tr("Chưa có workspace")}</span>
+                {ws && <span className="rounded bg-blue-100 px-1.5 py-0.5 text-[10px] font-bold text-blue-700">{ws.workspace.plan || 'Pro'}</span>}
               </span>
               <Icon name="unfold_more" size={16} className="text-slate-400" />
             </button>
@@ -316,6 +318,10 @@ function Sidebar({ collapsed, overlay, onClose }: { collapsed: boolean; overlay:
           <MenuItem icon="add" onClick={() => navigate('/onboarding')}>{tr("Tạo workspace mới")}</MenuItem>
         </Dropdown>
 
+        {!ws && (
+          <p className="rounded-lg bg-slate-50 p-3 text-body-sm text-slate-500">{tr("Bạn chưa thuộc workspace nào. Tạo workspace mới hoặc nhờ Owner/Admin mời để dùng bảng công việc, dự án và trợ lý AI.")}</p>
+        )}
+        {ws && <>
         <div>
           <div className="section-label mb-1.5 px-2">{tr("Điều hướng")}</div>
           <nav className="space-y-0.5">
@@ -346,7 +352,7 @@ function Sidebar({ collapsed, overlay, onClose }: { collapsed: boolean; overlay:
             <span className="section-label">{tr("Dự án gần đây")}</span>
             <span className="flex items-center gap-1">
               <NavLink to="/projects" className={({ isActive }) => `text-label-sm ${isActive ? 'font-semibold text-blue-700' : 'text-slate-400 hover:text-slate-700'}`}>{tr("Xem tất cả")}</NavLink>
-              <button disabled={role === 'viewer'} className="flex h-5 w-5 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-40" title={tr("Thêm dự án")} onClick={() => navigate('/projects?new=1')}>
+              <button disabled={!['owner', 'admin'].includes(role ?? '')} className="flex h-5 w-5 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-40" title={['owner', 'admin'].includes(role ?? '') ? tr("Thêm dự án") : tr("Chỉ Owner/Admin của workspace tạo được dự án")} onClick={() => navigate('/projects?new=1')}>
                 <Icon name="add" size={15} />
               </button>
             </span>
@@ -364,15 +370,16 @@ function Sidebar({ collapsed, overlay, onClose }: { collapsed: boolean; overlay:
             }}
           />
         </div>
+        </>}
       </div>
       <div className="space-y-0.5 border-t border-slate-100 p-3">
         {me?.isSystemAdmin && (
           <NavLink to="/admin" className={({ isActive }) => `nav-item ${isActive ? 'nav-item-active' : ''}`}>
             <Icon name="admin_panel_settings" className="text-slate-400" />{tr("Quản trị hệ thống")}</NavLink>
         )}
-        <NavLink to="/settings/members" className={({ isActive }) => `nav-item ${isActive || loc.pathname.startsWith('/settings') ? 'nav-item-active' : ''}`}>
-          <Icon name="settings" className="text-slate-400" />{tr("Cài đặt Workspace")}</NavLink>
-        <a href="https://github.com" onClick={(e) => e.preventDefault()} className="nav-item" title={tr("Xem README trong thư mục dự án")}>
+        {ws && <NavLink to="/settings/members" className={({ isActive }) => `nav-item ${isActive || loc.pathname.startsWith('/settings') ? 'nav-item-active' : ''}`}>
+          <Icon name="settings" className="text-slate-400" />{tr("Cài đặt Workspace")}</NavLink>}
+        <a href="https://github.com/Thuan20Vnx/OJT202#readme" target="_blank" rel="noreferrer noopener" className="nav-item" title={tr("Mở hướng dẫn sử dụng (README) của TaskFlow")}>
           <Icon name="help_outline" className="text-slate-400" />{tr("Trợ giúp & Tài liệu")}</a>
       </div>
     </aside>

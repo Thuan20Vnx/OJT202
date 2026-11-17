@@ -288,10 +288,15 @@ router.get('/tasks/:id', async (req, res) => {
   res.json(result);
 });
 
+// Ngày trong nhật ký hiển thị dạng dd/mm/yyyy thay vì chuỗi ISO thô.
+const showDay = (v) => (v ? new Date(v).toLocaleDateString('vi-VN', { timeZone: BUSINESS_TIMEZONE }) : 'Chưa đặt');
 const ACTIVITY_LABELS = {
   status: (v) => STATUS_VI[v] || v,
   priority: (v) => PRIORITY_VI[v] || v,
   dueDate: (v) => (v ? new Date(v).toLocaleString('vi-VN', { timeZone: BUSINESS_TIMEZONE }) : 'Chưa đặt'),
+  plannedStartDate: (v) => showDay(v),
+  actualStartDate: (v) => showDay(v),
+  actualEndDate: (v) => showDay(v),
 };
 
 /**

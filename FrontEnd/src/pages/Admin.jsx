@@ -1,6 +1,5 @@
 import { t as tr, useI18n } from '../lib/i18n.js';
 import { useRef, useState } from 'react';
-import { Navigate } from 'react-router-dom';
 import { Avatar, Dropdown, ErrorBox, Field, Icon, MenuItem, Modal, Notice, PageHeader, PageLoader, Pagination, Select, Spinner, StatCard, Tabs } from '../components/ui.jsx';
 import { api, qs } from '../lib/api.js';
 import { useApp, useLoad, useToast } from '../lib/app.jsx';
@@ -24,7 +23,14 @@ export default function Admin() {
   const users = useLoad(() => allowed ? api.get(`/admin/users${qs({ status, search, page })}`) : Promise.resolve(null), [allowed, status, search, page]);
   const wss = useLoad(() => (allowed && tab === 'workspaces' ? api.get('/admin/workspaces') : Promise.resolve(null)), [allowed, tab]);
   const audit = useLoad(() => (allowed && tab === 'audit' ? api.get('/admin/audit') : Promise.resolve(null)), [allowed, tab]);
-  if (!me?.isSystemAdmin) return <Navigate to="/overview" replace />;
+  if (!me?.isSystemAdmin) {
+    return (
+      <div className="mx-auto max-w-xl p-6">
+        <Notice tone="danger">{tr("Trang Quản trị hệ thống chỉ dành cho quản trị viên của TaskFlow. Tài khoản của bạn không có quyền này.")}</Notice>
+        <a href="/overview" className="btn-outline mt-4 inline-flex">{tr("Về Tổng quan")}</a>
+      </div>
+    );
+  }
 
   const act = async (u, action) => {
     if (acting.current) return;

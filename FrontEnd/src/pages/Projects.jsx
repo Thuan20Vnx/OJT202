@@ -198,7 +198,7 @@ export default function Projects() {
 function ProjectModal({ open, project, members, meId, wsId, onClose, onSaved }) {
   useI18n();
   const toast = useToast();
-  const [f, setF] = useState({});
+  const [f, setF] = useState({ name: '', description: '', color: 'blue', timezone: 'Asia/Ho_Chi_Minh', startDate: '', endDate: '', members: [], memberRoles: {} });
   const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState(false);
   const [q, setQ] = useState('');
@@ -249,7 +249,7 @@ function ProjectModal({ open, project, members, meId, wsId, onClose, onSaved }) 
     >
       <div className="space-y-4">
         <Field label={tr("Tên dự án")} required error={errors.name}>
-          <input className="input" value={f.name || ''} onChange={(e) => setF({ ...f, name: e.target.value })} placeholder={tr("Hệ thống CRM Khách hàng")} />
+          <input className="input" maxLength={100} value={f.name || ''} onChange={(e) => setF({ ...f, name: e.target.value })} placeholder={tr("Hệ thống CRM Khách hàng")} />
         </Field>
         <Field label={tr("Mô tả dự án")}>
           <textarea

@@ -315,7 +315,8 @@ describe('Sprint, tiến độ, vấn đề, đóng góp', () => {
     assert.equal(schedule.unscheduled, 1);
     assert.equal(schedule.plannedPct, 75);
     assert.equal(schedule.actualPct, 17);
-    assert.equal(schedule.deltaPct, 25 - 75);
+    assert.equal(schedule.scheduledActualPct, 25, 'thực tế so cùng tập việc có hạn với kế hoạch');
+    assert.equal(schedule.deltaPct, schedule.scheduledActualPct - schedule.plannedPct);
     // Có việc con thì việc cha không còn được tính
     await owner.post(url, { title: 'Con', parent: late._id, estimateHours: 1, dueDate: iso(30), plannedStartDate: iso(1) });
     const after2 = (await owner.get(`/projects/${project._id}/overview`)).data.schedule;
@@ -334,6 +335,11 @@ describe('Sprint, tiến độ, vấn đề, đóng góp', () => {
     assert.equal(await db.prisma.notification.count({ where: { user: owner.id, dedupeKey: `issue:${created.data.issue._id}` } }), 1, 'PM được báo');
     const week = (await owner.get(`/workspaces/${ws._id}/team-workload`)).data.people.find((p) => p.user._id === a.id);
     assert.equal(week.absences.length, 1);
+    // Tester ảo: việc đã Hoàn thành không còn giờ "còn lại" trên trang tải.
+    const doneTask = (await owner.post(`/projects/${project._id}/tasks`, { title: 'Xong rồi', assignee: a.id, estimateHours: 3 })).data.task;
+    await db.prisma.task.update({ where: { id: doneTask._id }, data: { status: 'done', remainingHours: 1 } });
+    const listed = (await owner.get(`/workspaces/${ws._id}/team-workload`)).data.people.find((p) => p.user._id === a.id).tasks.find((t) => t._id === doneTask._id);
+    assert.equal(listed.remainingHours, 0);
 
     const outsider = await user('Ngoai');
     assert.equal((await outsider.get(url)).status, 404);
@@ -353,6 +359,21 @@ describe('Sprint, tiến độ, vấn đề, đóng góp', () => {
     assert.equal((await owner.post(`/tasks/${task._id}/issues`, { title: 'Chờ API', severity: 'low', cause: 'Đối tác', action: 'Mock', owner: null })).status, 201);
     const all = (await owner.get(url)).data.issues;
     assert.equal(all.find((i) => i.title === 'Chờ API').taskRef.key, task.key);
+
+    // Tester ảo: người báo hoặc PM sửa/xóa được vấn đề; người khác (kể cả người xử lý) thì không.
+    const fresh = (await owner.get(url)).data.issues.find((i) => i._id === issue._id);
+    const edited = { title: 'An ốm thêm', type: 'absence', severity: 'medium', cause: 'Sốt', action: 'Bình làm thay', owner: b.id, affectedUser: a.id, startDate: today, endDate: today, version: fresh.version };
+    assert.equal((await b.req('PUT', `${url}/${issue._id}`, edited)).status, 403, 'người xử lý không sửa nội dung');
+    assert.equal((await a.req('PUT', `${url}/${issue._id}`, { ...edited, endDate: '2000-01-01' })).status, 400);
+    const saved = await a.req('PUT', `${url}/${issue._id}`, edited);
+    assert.equal(saved.status, 200, JSON.stringify(saved.data));
+    assert.equal(saved.data.issue.title, 'An ốm thêm');
+    assert.equal((await a.req('PUT', `${url}/${issue._id}`, edited)).status, 409, 'phiên bản cũ');
+    const toTech = await owner.req('PUT', `${url}/${issue._id}`, { ...edited, type: 'technical', version: saved.data.issue.version });
+    assert.equal(toTech.data.issue.affectedUser, null, 'đổi khỏi vắng mặt thì bỏ lịch vắng');
+    assert.equal((await c.del(`${url}/${issue._id}`)).status, 403);
+    assert.equal((await a.del(`${url}/${issue._id}`)).status, 200);
+    assert.equal((await owner.get(url)).data.issues.some((i) => i._id === issue._id), false);
   });
 
   test('bảng đóng góp tính theo từng người, lọc theo Sprint, CSV và không tính việc đã xóa', async () => {
