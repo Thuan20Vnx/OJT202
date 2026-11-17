@@ -1038,6 +1038,7 @@ export default function TaskDetailModal({ taskId, onClose }) {
                 <button
                   key={p}
                   disabled={!canWrite}
+                  aria-pressed={form.priority === p}
                   onClick={() => setF('priority', p)}
                   className={`rounded-md py-1 text-label-md ${form.priority === p ? 'bg-white font-semibold text-slate-900 shadow-sm' : 'text-slate-500'}`}
                 >

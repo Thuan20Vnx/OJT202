@@ -474,11 +474,12 @@ router.get('/:wsId/ai', middlewareWorkspace(), async (req, res) => {
     aiServiceInfo(),
   ]);
   const ok = today.filter((c) => c.status.includes('success'));
-  const latencies = today.filter((c) => c.finishedAt && c.status !== 'pending').map((c) => c.latencyMs).sort((a, b) => a - b);
+  const latencies = today.filter((c) => c.status !== 'pending' && c.latencyMs > 0).map((c) => c.latencyMs).sort((a, b) => a - b);
   res.json({
     settings: req.ws.workspace.ai,
     today: {
-      used: today.length,
+      // Khớp hạn mức ngày (gateway.js UNCOUNTED): lần lỗi không ra kết quả không trừ lượt.
+      used: today.filter((c) => c.status !== 'error').length,
       tokens: today.reduce((s, c) => s + c.inputTokens + c.outputTokens, 0),
       unknownUsageCalls: today.filter((c) => !c.usageComplete).length,
       p50LatencyMs: latencies.length ? latencies[Math.ceil(latencies.length * 0.5) - 1] : null,

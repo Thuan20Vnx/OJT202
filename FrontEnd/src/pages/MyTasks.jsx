@@ -74,7 +74,7 @@ export default function MyTasks() {
       <PageHeader
         title={`${greet}, ${me?.name || ''} 👋`}
         subtitle={
-          <>{tr("Bạn có ")}<b className="text-blue-700">{s.actionable ?? '–'}{tr(" việc")}</b>{tr(" cần xử lý hôm nay.")}</>
+          <>{tr("Bạn có ")}<b className="text-blue-700">{data ? s.actionable ?? 0 : '–'}{tr(" việc")}</b>{tr(" cần xử lý hôm nay.")}</>
         }
         actions={
           <div className="flex rounded-lg border border-slate-200 bg-white p-0.5">
@@ -185,6 +185,13 @@ export default function MyTasks() {
         <PageLoader />
       ) : !items.length && !error ? (
         <div className="card">
+          {JSON.stringify(f) === JSON.stringify(DEFAULT) ? (
+            <Empty
+              icon="assignment_ind"
+              title={tr("Bạn chưa có công việc nào cần làm")}
+              action={<button className="btn-outline" onClick={() => navigate('/board')}>{tr("Xem Bảng công việc")}</button>}
+            >{tr("Khi PM giao việc cho bạn, việc sẽ hiện ở đây. Trong lúc chờ, xem Bảng công việc để nắm dự án.")}</Empty>
+          ) : (
           <Empty
             icon="filter_alt_off"
             title={tr("Không có công việc nào khớp bộ lọc")}
@@ -192,6 +199,7 @@ export default function MyTasks() {
               <button className="btn-outline" onClick={() => { setF(DEFAULT); setPage(1); }}>{tr("Đặt lại bộ lọc")}</button>
             }
           >{tr("Thử bỏ bớt điều kiện lọc hoặc chọn “Giao cho: Tất cả”.")}</Empty>
+          )}
         </div>
       ) : (
         <div className="space-y-4">

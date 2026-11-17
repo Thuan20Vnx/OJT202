@@ -1,6 +1,6 @@
 import { t as tr, useI18n } from '../../lib/i18n.js';
 import { useRef, useState } from 'react';
-import { Avatar, Empty, ErrorBox, Icon, PageLoader } from '../../components/ui.jsx';
+import { Avatar, Confirm, Empty, ErrorBox, Icon, PageLoader } from '../../components/ui.jsx';
 import { api } from '../../lib/api.js';
 import { useApp, useLoad, useToast } from '../../lib/app.jsx';
 import { ROLE, timeAgo } from '../../lib/format.js';
@@ -13,6 +13,7 @@ export default function Invites() {
   const { ws, role, projects } = useApp();
   const projectName = (id) => projects.find((p) => p._id === id)?.name;
   const toast = useToast();
+  const [cancelling, setCancelling] = useState(null);
   const [inviting, setInviting] = useState(false);
   const { data, loading, error, reload } = useLoad(() => api.get(`/workspaces/${ws.workspace._id}/invites`), [ws.workspace._id]);
   const [actionError, setActionError] = useState(null);
@@ -79,7 +80,7 @@ export default function Invites() {
                 </td>
                 <td className="table-td text-right">
                   <button className="btn-ghost btn-sm" disabled={busy || (i.role === 'admin' && role !== 'owner')} onClick={() => change(i, true)}>{tr("Gửi lại")}</button>
-                  <button className="btn-ghost btn-sm text-rose-600" disabled={busy || (i.role === 'admin' && role !== 'owner')} onClick={() => change(i, false)}>{tr("Hủy lời mời")}</button>
+                  <button className="btn-ghost btn-sm text-rose-600" disabled={busy || (i.role === 'admin' && role !== 'owner')} onClick={() => setCancelling(i)}>{tr("Hủy lời mời")}</button>
                 </td>
               </tr>
             ))}
@@ -87,6 +88,9 @@ export default function Invites() {
         </table>
       )}
       <InviteModal open={inviting} onClose={() => setInviting(false)} onDone={reload} />
+      <Confirm open={!!cancelling} danger busy={busy} title={tr("Hủy lời mời tới {0}?", [cancelling?.email])} confirmText={tr("Hủy lời mời")} onClose={() => setCancelling(null)} onConfirm={async () => { await change(cancelling, false); setCancelling(null); }}>
+        <p>{tr("Liên kết mời đã gửi sẽ hết hiệu lực. Muốn mời lại thì gửi lời mời mới.")}</p>
+      </Confirm>
     </div>
   );
 }

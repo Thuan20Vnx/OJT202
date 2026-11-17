@@ -13,7 +13,7 @@ export const ISSUE_TYPE = {
   external: { get label() { return tr('Phụ thuộc bên ngoài'); }, icon: 'link' },
   other: { get label() { return tr('Khác'); }, icon: 'more_horiz' },
 };
-const SEVERITY = {
+export const SEVERITY = {
   low: { get label() { return tr('Thấp'); }, chip: 'border-slate-200 bg-slate-50 text-slate-600' },
   medium: { get label() { return tr('Trung bình'); }, chip: 'border-blue-200 bg-blue-50 text-blue-700' },
   high: { get label() { return tr('Cao'); }, chip: 'border-amber-200 bg-amber-50 text-amber-700' },

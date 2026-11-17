@@ -36,7 +36,8 @@ export default function Projects() {
     const id = params.get('edit');
     const target = id && data?.projects?.find((p) => p._id === id);
     if (target) {
-      setEditing(target);
+      if (target.projectRole === 'pm' && target.status !== 'archived') setEditing(target);
+      else toast(target.status === 'archived' ? tr("Dự án đã lưu trữ, chỉ được xem") : tr("Chỉ PM của dự án được sửa dự án và quản lý thành viên"), 'error');
       setParams({}, { replace: true });
     }
   }, [params, setParams, data]);

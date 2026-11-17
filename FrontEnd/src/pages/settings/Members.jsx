@@ -257,7 +257,7 @@ export default function Members() {
           <StatCard label={tr("Tổng thành viên")} value={`${members.length}/20`} icon="group" />
           <StatCard label="Owner / Admin" value={count('owner') + count('admin')} icon="shield_person" tone="purple" />
           <StatCard label="Member" value={count('member')} icon="person" tone="green" />
-          <StatCard label="Viewer" value={count('viewer')} icon="visibility" tone="slate" />
+          <StatCard label="Viewer" value={members.filter((m) => m.role === 'viewer' && !m.isMentor).length} sub={members.some((m) => m.isMentor) ? tr("+ {0} giảng viên", [members.filter((m) => m.isMentor).length]) : undefined} icon="visibility" tone="slate" />
         </div>
         <ErrorBox error={error} onRetry={reload} />
         <div className="card">

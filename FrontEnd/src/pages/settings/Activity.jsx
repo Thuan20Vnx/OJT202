@@ -5,6 +5,7 @@ import { api, download, qs } from '../../lib/api.js';
 import { useApp, useLoad } from '../../lib/app.jsx';
 import { fmtDate, fmtTime, isoDate } from '../../lib/format.js';
 import { useDebouncedValue, useSocketEvent } from '../../lib/hooks.js';
+import { ISSUE_TYPE, SEVERITY } from '../Issues.jsx';
 
 const TONE = (a) =>
   (/Xóa|Gỡ/.test(a)
@@ -17,7 +18,32 @@ const TONE = (a) =>
           ? 'border-blue-200 bg-blue-50 text-blue-700'
           : 'border-amber-200 bg-amber-50 text-amber-700');
 
-const show = (v) => (v == null ? '—' : typeof v === 'object' ? JSON.stringify(v) : String(v));
+// Giá trị dạng đối tượng (vd. {"type":"absence","severity":"medium"}) hiện thành chữ thay vì JSON thô.
+// Trường kỹ thuật (mã, phiên bản) bị bỏ; trường lạ vẫn hiện "tên: giá trị" để không mất thông tin.
+const HIDDEN_KEYS = new Set(['version', 'createdTask', 'id', '_id']);
+const FIELD = {
+  get type() { return (v) => ISSUE_TYPE[v]?.label ?? v; },
+  get severity() { return (v) => tr('Mức độ: {0}', [SEVERITY[v]?.label ?? v]); },
+  get status() { return (v) => ({ open: tr('Đang mở'), resolved: tr('Đã xử lý') })[v] ?? v; },
+  get movedTasks() { return (v) => tr('{0} việc chưa xong', [v]); },
+  get moveTo() { return (v) => tr('chuyển sang {0}', [v]); },
+  get tasks() { return (v) => tr('{0} việc', [v]); },
+  get week() { return (v) => tr('tuần {0}', [v]); },
+  get hours() { return (v) => tr('{0} giờ', [v]); },
+  get taskKey() { return (v) => v; },
+  get state() { return (v) => ({ accepted: tr('Đã chấp nhận') })[v] ?? v; },
+};
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const ENUM = { get archived() { return tr('Đã lưu trữ'); }, get active() { return tr('Đang hoạt động'); } };
+const show = (v) => {
+  if (v == null) return '—';
+  if (typeof v !== 'object') return ENUM[v] ?? tr(String(v));
+  if (Array.isArray(v)) return v.map(show).join(', ');
+  const parts = Object.entries(v)
+    .filter(([k, x]) => !HIDDEN_KEYS.has(k) && x != null && x !== '' && !(typeof x === 'string' && UUID.test(x)))
+    .map(([k, x]) => (FIELD[k] ? FIELD[k](x) : `${k}: ${typeof x === 'object' ? show(x) : x}`));
+  return parts.length ? parts.join(' · ') : '—';
+};
 const getColumns = () => [
   ['time', tr("Thời gian")],
   ['actor', tr("Người thực hiện")],

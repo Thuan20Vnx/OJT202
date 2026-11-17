@@ -1,4 +1,5 @@
 import { isoDate } from '../lib/format.js';
+import { t as tr } from '../lib/i18n.js';
 
 const day = (value) => value ? Date.parse(`${isoDate(value)}T00:00:00Z`) : null;
 export function scheduleDomain(tasks) {
@@ -16,7 +17,7 @@ export default function ScheduleComparison({ task, domain }) {
     const finishAt = b ?? (a && ongoing ? day(new Date()) : a);
     const left = startAt == null ? 0 : Math.max(0, Math.min(98, (startAt - from) / (to - from) * 100));
     const width = Math.max(2, Math.min(100 - left, ((finishAt ?? startAt) - startAt) / (to - from) * 100));
-    const text = `${label}: ${start ? isoDate(start) : 'Chưa có ngày bắt đầu'} → ${end ? isoDate(end) : ongoing && start ? 'Đang thực hiện' : 'Chưa có ngày kết thúc'}`;
+    const text = `${label}: ${start ? isoDate(start) : tr('Chưa có ngày bắt đầu')} → ${end ? isoDate(end) : ongoing && start ? tr('Đang thực hiện') : tr('Chưa có ngày kết thúc')}`;
     return <div className="space-y-1" key={label}>
       <p className="text-label-md text-slate-600">{text}</p>
       <div className="relative h-3 rounded bg-slate-100" role="img" aria-label={text}>
@@ -27,9 +28,9 @@ export default function ScheduleComparison({ task, domain }) {
   const delay = task.dueDate && task.actualEndDate ? Math.round((day(task.actualEndDate) - day(task.dueDate)) / 86400000) : null;
   const late = task.status !== 'done' && task.dueDate && new Date(task.dueDate) < new Date();
   return <div className="space-y-2" data-testid="schedule-comparison">
-    {line('Kế hoạch', task.plannedStartDate, task.dueDate, 'bg-blue-500')}
-    {line('Thực tế', task.actualStartDate, task.actualEndDate, task.status === 'done' ? 'bg-emerald-500' : 'bg-amber-500', task.status !== 'done')}
-    {delay != null && <p className={`text-label-md ${delay > 0 ? 'text-rose-700' : 'text-emerald-700'}`}>{delay > 0 ? `Kết thúc trễ ${delay} ngày` : delay < 0 ? `Kết thúc sớm ${-delay} ngày` : 'Kết thúc đúng ngày kế hoạch'}</p>}
-    {late && !task.actualEndDate && <p className="text-label-md font-semibold text-rose-700">Đã qua hạn kế hoạch, chưa ghi nhận kết thúc thực tế</p>}
+    {line(tr('Kế hoạch'), task.plannedStartDate, task.dueDate, 'bg-blue-500')}
+    {line(tr('Thực tế'), task.actualStartDate, task.actualEndDate, task.status === 'done' ? 'bg-emerald-500' : 'bg-amber-500', task.status !== 'done')}
+    {delay != null && <p className={`text-label-md ${delay > 0 ? 'text-rose-700' : 'text-emerald-700'}`}>{delay > 0 ? tr('Kết thúc trễ {0} ngày', [delay]) : delay < 0 ? tr('Kết thúc sớm {0} ngày', [-delay]) : tr('Kết thúc đúng ngày kế hoạch')}</p>}
+    {late && !task.actualEndDate && <p className="text-label-md font-semibold text-rose-700">{tr('Đã qua hạn kế hoạch, chưa ghi nhận kết thúc thực tế')}</p>}
   </div>;
 }

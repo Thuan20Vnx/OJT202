@@ -13,6 +13,7 @@ export default function VerifyEmail() {
   const navigate = useNavigate();
   const [state, setState] = useState('loading');
   const [error, setError] = useState('');
+  const [invite, setInvite] = useState(false);
   const once = useRef(false);
   useEffect(() => {
     if (once.current) return; // token chỉ dùng được một lần – tránh StrictMode gọi 2 lần
@@ -22,7 +23,11 @@ export default function VerifyEmail() {
       .then(async () => {
         setState('ok');
         const d = await loadMe();
-        setTimeout(() => navigate(d?.workspaces?.length ? '/overview' : '/onboarding', { replace: true }), 1400);
+        let invite = null;
+        try { invite = localStorage.getItem('taskflow.afterVerify'); localStorage.removeItem('taskflow.afterVerify'); } catch { /* bỏ qua */ }
+        const target = invite?.startsWith('/invite/') ? invite : d?.workspaces?.length ? '/overview' : '/onboarding';
+        setInvite(target.startsWith('/invite/'));
+        setTimeout(() => navigate(target, { replace: true }), 1400);
       })
       .catch((e) => {
         setError(e.message);
@@ -34,7 +39,7 @@ export default function VerifyEmail() {
       <div className="card p-6 text-center shadow-card">
         {state === 'loading' && <PageLoader />}
         {state === 'ok' && (
-          <AuthSuccess title={tr("Email đã được xác minh")} progressMs={1400}>{tr("Tài khoản đã sẵn sàng. Đang chuyển bạn tới bước tạo không gian làm việc…")}</AuthSuccess>
+          <AuthSuccess title={tr("Email đã được xác minh")} progressMs={1400}>{invite ? tr("Tài khoản đã sẵn sàng. Đang đưa bạn về lời mời để tham gia nhóm…") : tr("Tài khoản đã sẵn sàng. Đang chuyển bạn tới bước tạo không gian làm việc…")}</AuthSuccess>
         )}
         {state === 'error' && (
           <div className="space-y-4">

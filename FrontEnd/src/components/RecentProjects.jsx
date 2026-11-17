@@ -24,6 +24,7 @@ function RenameInput({ project, onDone }) {
   useEffect(() => { ref.current?.focus(); ref.current?.select(); }, []);
   const save = async () => {
     const next = name.trim();
+    if (!next) toast(tr('Tên dự án không được để trống, đã giữ tên cũ.'), 'error');
     if (!next || next === project.name) return onDone(false);
     setBusy(true);
     try {
@@ -93,7 +94,9 @@ export default function RecentProjects({ projects, current, wsId, role, onOpen, 
     const next = [...new Set([...hidden, p._id])];
     setHidden(next);
     writeHidden(wsId, next);
-    toast(tr('Đã ẩn {0} khỏi Dự án gần đây. Mở lại từ Xem tất cả.', [p.name]));
+    toast(p._id === current?._id
+      ? tr('{0} sẽ ẩn khỏi Dự án gần đây khi bạn chuyển sang dự án khác (dự án đang mở luôn hiện). Mở lại từ Xem tất cả.', [p.name])
+      : tr('Đã ẩn {0} khỏi Dự án gần đây. Mở lại từ Xem tất cả.', [p.name]));
   };
   const copyLink = async (p) => {
     try {

@@ -245,6 +245,9 @@ export default function Login({ initialTab = 'login' }) {
       });
       setSent(f.email);
       setMailPending(false);
+      // Liên kết xác minh mở ở tab khác nên không còn ?next=: nhớ lời mời để trang xác minh đưa về đó.
+      const next = params.get('next');
+      try { if (next?.startsWith('/invite/')) localStorage.setItem('taskflow.afterVerify', next); } catch { /* bỏ qua */ }
     } catch (err) {
       if (err.details?.code === 'MAIL_UNAVAILABLE') {
         setSent(f.email);
