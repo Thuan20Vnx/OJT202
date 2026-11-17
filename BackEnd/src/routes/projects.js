@@ -84,7 +84,8 @@ async function projectStats(projectIds) {
     SELECT project_id AS id,
            COUNT(*)::int AS total,
            COUNT(*) FILTER (WHERE status = 'done')::int AS done,
-           COUNT(*) FILTER (WHERE status <> 'done' AND "dueDate" IS NOT NULL AND "dueDate" < now())::int AS overdue
+           -- Cột thời gian không múi giờ, Prisma lưu theo UTC: so với giờ UTC, không phải giờ theo múi của phiên DB.
+           COUNT(*) FILTER (WHERE status <> 'done' AND "dueDate" IS NOT NULL AND "dueDate" < (now() AT TIME ZONE 'UTC'))::int AS overdue
     FROM tasks
     WHERE project_id = ANY(${projectIds}::uuid[]) AND parent_task_id IS NULL AND deleted_at IS NULL
     GROUP BY project_id`;

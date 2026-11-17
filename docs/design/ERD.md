@@ -50,6 +50,8 @@ erDiagram
     Json ai
     DateTime createdAt
     DateTime updatedAt
+    DateTime deletionScheduledAt
+    String deletionRequestedBy
   }
   Membership {
     String id PK
@@ -618,6 +620,9 @@ model Workspace {
   ai        Json     @default("{\"enabled\":true,\"dailyLimit\":50,\"timeoutSec\":30,\"features\":{\"planner\":true,\"report\":true,\"qa\":true,\"risk\":true,\"meeting\":true}}")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  /// Owner yêu cầu xóa: workspace chỉ đọc tới thời điểm này rồi job xóa hẳn. null = bình thường.
+  deletionScheduledAt DateTime? @map("deletion_scheduled_at")
+  deletionRequestedBy String?   @map("deletion_requested_by") @db.Uuid
 
   ownerRef        User             @relation(fields: [owner], references: [id])
   memberships     Membership[]
