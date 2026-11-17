@@ -196,6 +196,7 @@ router.post('/projects/:projectId/tasks', middlewareProject(), async (req, res) 
     // Kiểm tra phụ thuộc trước khi cấp số thứ tự để lỗi không làm nhảy số
     const deps = { id: null, project: project.id, blockedBy: [] };
     for (const dep of blockedBy || []) await addDependency(deps, dep, tx);
+    if (body.status === 'done') await assertBlockersDone(deps.blockedBy, tx);
     const number = await nextSeq(`task:${project.id}`, tx);
     // Không tự suy diễn deadline: thiếu ngày thì để trống
     const task = await tx.task.create({
@@ -282,7 +283,7 @@ router.get('/tasks/:id', async (req, res) => {
     parent,
     files,
     activity,
-    access: { ...taskPermissions(access, req.user.id), canWrite, canManage, canComment: access.canComment, role, projectRole, archived: project.status === 'archived' },
+    access: { ...taskPermissions(access, req.user.id), canWrite, canManage, canComment: access.canComment, role, projectRole, archived: project.status === 'archived', pendingDeletion: access.pendingDeletion },
   };
   }, { isolationLevel: 'RepeatableRead' });
   res.json(result);
@@ -298,6 +299,15 @@ const ACTIVITY_LABELS = {
   actualStartDate: (v) => showDay(v),
   actualEndDate: (v) => showDay(v),
 };
+
+// Việc chỉ Hoàn thành được khi mọi việc chặn nó đã Hoàn thành; lỗi nêu rõ đang chờ việc nào.
+async function assertBlockersDone(blockedBy, tx) {
+  if (!blockedBy?.length) return;
+  const open = await tx.task.findMany({ where: { id: { in: blockedBy }, deletedAt: null, status: { not: 'done' } }, select: { key: true, title: true }, orderBy: { number: 'asc' } });
+  if (!open.length) return;
+  const names = open.slice(0, 3).map((t) => `${t.key} ${t.title}`).join(', ') + (open.length > 3 ? ` và ${open.length - 3} việc khác` : '');
+  throw badRequest(`Chưa thể Hoàn thành: đang chờ ${names}`, { code: 'BLOCKED', blockers: open.map((t) => t.key) });
+}
 
 /**
  * Cập nhật có kiểm tra version ngay trong câu UPDATE (… WHERE id = ? AND version = ?):
@@ -319,6 +329,7 @@ async function applyUpdate(req, before, project, patch, prepare) {
     if (!access.canManage && Object.keys(patch).some((k) => !['status', 'order', 'remainingHours', 'actualStartDate', 'actualEndDate'].includes(k))) throw forbidden('Chỉ PM được sửa nội dung công việc');
     assertTaskStatus(access, patch.status, access.task.status);
     if (patch.status && !permissions.allowedStatuses.includes(patch.status)) throw forbidden('Chuyển trạng thái không hợp lệ');
+    if (patch.status === 'done' && access.task.status !== 'done') await assertBlockersDone(access.task.blockedBy, tx);
     applyTaskDates(patch, access.task, req.user.timezone);
     if (patch.spentHours !== undefined && patch.spentHours !== access.task.spentHours) {
       if (await tx.taskDailyUpdate.count({ where: { task: before.id } })) throw badRequest('Effort đã có nhật ký. Hãy sửa giờ trong nhật ký thay vì ghi đè tổng giờ.');

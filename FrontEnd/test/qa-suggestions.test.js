@@ -17,7 +17,7 @@ const button = (tree, label) => tree.root.findAllByType('button').find((node) =>
 test('AI Q&A hiển thị và gửi gợi ý câu hỏi động từ nguồn của dự án', async (t) => {
   const question = 'Vì sao TF-24 đang bị chặn và cần xử lý việc nào trước?';
   t.mock.method(api, 'get', async (url) => {
-    if (url === '/projects/project-1') return { access: { canWrite: true } };
+    if (url === '/projects/project-1') return { access: { canWrite: true, canAsk: true } };
     if (url === '/agent/runner') return { runner: { online: true, agents: ['antigravity'] } };
     if (url.endsWith('/ai/conversations')) return { conversations: [] };
     if (url.endsWith('/ai/sources')) return { tasks: 2, documents: 1, suggestions: [question, 'Tóm tắt nội dung chính của tài liệu Kiến trúc'] };

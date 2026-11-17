@@ -1,13 +1,14 @@
 import { t as tr, useI18n } from '../lib/i18n.js';
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Avatar, Empty, ErrorBox, Icon, PageHeader, PageLoader, Pagination, PriorityChip, Select, StatCard, StatusChip } from '../components/ui.jsx';
+import { Avatar, Confirm, Empty, ErrorBox, Icon, PageHeader, PageLoader, Pagination, PriorityChip, Select, StatCard, StatusChip } from '../components/ui.jsx';
 import { api, qs } from '../lib/api.js';
 import { useApp, useLoad, useToast } from '../lib/app.jsx';
 import { PROJECT_COLOR, STATUS, STATUS_ORDER, dueInfo, sod } from '../lib/format.js';
 import { useDebouncedValue, useSocketEvent } from '../lib/hooks.js';
 import { dates, timeZone } from '../lib/dates.js';
 import { taskActions } from '../lib/task-actions.js';
+import { unfinishedText, unfinishedWork } from '../lib/task-done.js';
 
 const DEFAULT = { assignee: 'me', status: '', priority: '', due: '', project: '', search: '' };
 
@@ -29,6 +30,7 @@ export default function MyTasks() {
   const [f, setF] = useState(DEFAULT);
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
+  const [doneAsk, setDoneAsk] = useState(null);
   const [collapsed, setCollapsed] = useState({});
   const search = useDebouncedValue(f.search);
   const pending = useRef(new Set());
@@ -49,8 +51,9 @@ export default function MyTasks() {
   const greet = hour < 11 ? tr("Chào buổi sáng") : hour < 14 ? tr("Chào buổi trưa") : hour < 18 ? tr("Chào buổi chiều") : tr("Chào buổi tối");
 
   const toggleDone = (t) => setStatus(t, taskActions(t).nextStatus);
-  const setStatus = async (t, status) => {
+  const setStatus = async (t, status, confirmed = false) => {
     if (!status || pending.current.has(t._id)) return;
+    if (status === 'done' && t.status !== 'done' && !confirmed && !t.isBlocked && unfinishedWork(t).any) { setDoneAsk({ task: t, run: () => setStatus(t, status, true) }); return; }
     pending.current.add(t._id);
     setBusyIds(new Set(pending.current));
     try {
@@ -281,6 +284,15 @@ export default function MyTasks() {
           </div>
         </div>
       )}
+      <Confirm
+        open={!!doneAsk}
+        title={tr("Vẫn chuyển sang Hoàn thành?")}
+        confirmText={tr("Vẫn hoàn thành")}
+        onClose={() => setDoneAsk(null)}
+        onConfirm={() => { const a = doneAsk; setDoneAsk(null); a.run(); }}
+      >
+        <p>{doneAsk && tr("{0} còn {1}.", [doneAsk.task.key, unfinishedText(unfinishedWork(doneAsk.task))])}</p>
+      </Confirm>
     </div>
   );
 }

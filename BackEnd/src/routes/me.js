@@ -156,6 +156,8 @@ router.post('/invites/:token/accept', async (req, res) => {
   if (!inv || inv.revokedAt || inv.acceptedAt || inv.expiresAt < new Date()) throw badRequest('Lời mời đã hết hạn hoặc không còn hiệu lực');
   if (inv.email !== req.user.email) throw forbidden(`Lời mời này dành cho ${inv.email}`);
   const userId = req.user.id;
+  const target = await prisma.workspace.findUnique({ where: { id: inv.workspace }, select: { deletionScheduledAt: true } });
+  if (target?.deletionScheduledAt) throw badRequest('Workspace này đang chờ xóa nên không nhận thành viên mới');
   await withWorkspaceLock(inv.workspace, async (tx) => {
     const { count } = await tx.invite.updateMany({
       where: { id: inv.id, tokenHash: sha256(req.params.token), acceptedAt: null, revokedAt: null, expiresAt: { gt: new Date() } },

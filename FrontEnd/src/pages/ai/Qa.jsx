@@ -14,7 +14,8 @@ export default function Qa({ project, disabled }) {
   useI18n();
   const { me } = useApp();
   const info = useProjectInfo(project._id);
-  disabled = disabled || !info?.access?.canWrite;
+  // Viewer/Giảng viên cũng hỏi được: câu trả lời chỉ lưu trong lịch sử của chính họ.
+  disabled = disabled || !info?.access?.canAsk;
   const navigate = useNavigate();
   const [conv, setConv] = useState(null);
   const [q, setQ] = useState('');
@@ -221,7 +222,7 @@ export default function Qa({ project, disabled }) {
           <div ref={end} />
         </div>
         <div className="border-t border-slate-100 p-4">
-          {info && !info.access?.canWrite && <Notice tone="warn" className="mb-2">{tr("Dự án chỉ đọc: bạn có thể xem lịch sử nhưng không gửi câu hỏi AI.")}</Notice>}
+          {info && !info.access?.canAsk && <Notice tone="warn" className="mb-2">{tr("Dự án chỉ đọc: bạn có thể xem lịch sử nhưng không gửi câu hỏi AI.")}</Notice>}
           <div className="mb-2 flex flex-wrap gap-1.5">
             <span className="text-label-md font-normal text-slate-400">{tr("Gợi ý:")}</span>
             {(scope.data?.suggestions || []).map((s) => (
@@ -240,7 +241,7 @@ export default function Qa({ project, disabled }) {
               aria-label={tr("Câu hỏi về dự án")}
               rows={2}
               className="textarea flex-1 resize-none"
-              placeholder={tr("Hỏi hoặc nhờ agent, ví dụ: đọc code trên GitHub rồi tick hoàn thành các việc đã xong")}
+              placeholder={info?.access?.canWrite ? tr("Hỏi hoặc nhờ agent, ví dụ: đọc code trên GitHub rồi tick hoàn thành các việc đã xong") : tr("Hỏi agent về dự án, ví dụ: việc nào đang trễ hạn?")}
               value={q}
               onChange={(e) => setQ(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), ask())}

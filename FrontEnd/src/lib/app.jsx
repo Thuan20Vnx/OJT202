@@ -58,6 +58,15 @@ export function ToastProvider({ children }) {
 }
 export const useToast = () => useContext(ToastCtx);
 
+/**
+ * Workspace đang chờ xóa: mọi người chỉ xem (server cũng chặn mọi thao tác ghi). Giao diện coi như Viewer để ẩn nút sửa;
+ * realRole giữ vai trò thật (Owner vẫn thấy nút Hủy xóa).
+ */
+function readOnlyWhilePendingDeletion(data) {
+  if (!data?.workspace?.deletionScheduledAt) return { ...data, realRole: data?.role };
+  return { ...data, realRole: data.role, role: 'viewer', projects: (data.projects || []).map((p) => ({ ...p, projectRole: 'viewer' })) };
+}
+
 export function AppProvider({ children }) {
   useI18n();
   const [me, setMeState] = useState(undefined); // undefined = đang tải, null = chưa đăng nhập
@@ -144,7 +153,7 @@ export function AppProvider({ children }) {
     const req = api.get(`/workspaces/${activeWsId}`);
     loadingWs.current = req;
     const data = await req;
-    if (loadingWs.current === req && currentWsScope.current === wsScope) setWs({ ...data, userId: me._id });
+    if (loadingWs.current === req && currentWsScope.current === wsScope) setWs({ ...readOnlyWhilePendingDeletion(data), userId: me._id });
     return data;
   }, [activeWsId, me?._id, wsScope]);
 
@@ -253,6 +262,8 @@ export function AppProvider({ children }) {
     setWsId: setWorkspaceId,
     ws,
     role: ws?.role,
+    realRole: ws?.realRole,
+    pendingDeletion: ws?.workspace?.deletionScheduledAt || null,
     projects,
     activeProjects,
     project,

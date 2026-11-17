@@ -158,7 +158,7 @@ router.get('/projects/:projectId', middlewareProject(), async (req, res) => {
       ...project,
       members: project.members.map((m) => ({ ...m, role: roleOf[m.id]?.role, projectRole: projectMemberships.find((pm) => pm.user === m.id)?.role, weeklyHours: roleOf[m.id]?.weeklyHours ?? 20, jobTitle: roleOf[m.id]?.title })),
     },
-    access: { role: req.pa.role, projectRole: req.pa.projectRole, canWrite: req.pa.canWrite, canManage: req.pa.canManage },
+    access: { role: req.pa.role, projectRole: req.pa.projectRole, canWrite: req.pa.canWrite, canManage: req.pa.canManage, canComment: req.pa.canComment, canAsk: req.pa.canAsk, pendingDeletion: req.pa.pendingDeletion },
   });
 });
 

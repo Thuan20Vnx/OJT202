@@ -126,7 +126,7 @@ const stubReads = (t) => t.mock.method(api, 'get', async (url) => {
   if (url.endsWith('/ai/conversations')) return { conversations: [] };
   if (url.endsWith('/tasks')) return { tasks: [] };
   if (url.includes('/documents?')) return { counts: { doc: 0 } };
-  return { project: { members: [] }, access: { canManage: true, canWrite: true } };
+  return { project: { members: [] }, access: { canManage: true, canWrite: true, canAsk: true } };
 });
 
 test('đổi dự án xóa kế hoạch đang mở và bỏ phản hồi tạo nháp cũ', async (t) => {
@@ -180,7 +180,7 @@ test('hỏi đáp chỉ giao cho agent trên máy, chặn gửi lặp khi đang 
     if (url === '/agent/runner') return { runner: { online: true, agents: ['antigravity'] } };
     if (url.endsWith('/repo')) return { connection: null };
     if (url.endsWith('/ai/conversations')) return { conversations: [] };
-    return { project: { members: [] }, access: { canManage: true, canWrite: true } };
+    return { project: { members: [] }, access: { canManage: true, canWrite: true, canAsk: true } };
   });
   const post = t.mock.method(api, 'post', async () => ({ job: { _id: 'j', status: 'queued', agent: 'antigravity', createdAt: new Date().toISOString() } }));
   const tree = await mount(t, app(React.createElement(Qa, { project: { _id: 'p', name: 'P' } })));

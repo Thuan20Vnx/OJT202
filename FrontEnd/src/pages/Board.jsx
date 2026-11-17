@@ -2,7 +2,7 @@ import { t as tr, getLanguage, useI18n } from '../lib/i18n.js';
 import { useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import CreateTaskModal from '../components/CreateTaskModal.jsx';
-import { Avatar, AvatarStack, Empty, ErrorBox, Icon, PageLoader, PriorityChip, Progress, Select } from '../components/ui.jsx';
+import { Avatar, AvatarStack, Confirm, Empty, ErrorBox, Icon, PageLoader, PriorityChip, Progress, Select } from '../components/ui.jsx';
 import { api } from '../lib/api.js';
 import { useApp, useLoad, useToast } from '../lib/app.jsx';
 import { STATUS, STATUS_ORDER, dueInfo, fmtDate } from '../lib/format.js';
@@ -10,6 +10,7 @@ import { useProjectInfo, useSocketEvent } from '../lib/hooks.js';
 import { taskActions } from '../lib/task-permissions.js';
 import { PRIORITY_RANK, WORK_TYPES } from '../lib/delivery.js';
 import NoProject from '../components/NoProject.jsx';
+import { unfinishedText, unfinishedWork } from '../lib/task-done.js';
 
 export function TaskCard({ task, draggable, onDragStart, onOpen, statuses = [], onMove, busy }) {
   useI18n();
@@ -96,7 +97,7 @@ export function TaskCard({ task, draggable, onDragStart, onOpen, statuses = [], 
 
 export default function Board() {
   useI18n();
-  const { project, canWriteProject, canManageProject, role, me } = useApp();
+  const { project, canWriteProject, canManageProject, role, me, pendingDeletion } = useApp();
   const info = useProjectInfo(project?._id);
   const toast = useToast();
   const navigate = useNavigate();
@@ -107,6 +108,7 @@ export default function Board() {
   const [creating, setCreating] = useState(null);
   const pendingMoves = useRef(new Set());
   const [moving, setMoving] = useState(new Set());
+  const [doneAsk, setDoneAsk] = useState(null);
   const { data, error, loading, reload, setData } = useLoad(() => (project ? api.get(`/projects/${project._id}/tasks`) : Promise.resolve({ tasks: [] })), [project?._id]);
 
   // Realtime đồng bộ giữa các thành viên
@@ -146,11 +148,15 @@ export default function Board() {
   const sprint = info?.project?.sprint;
   const daysLeft = sprint?.end ? Math.max(0, Math.ceil((new Date(sprint.end) - Date.now()) / 86400000)) : null;
 
-  const moveTask = async (taskId, status, index) => {
+  const moveTask = async (taskId, status, index, confirmed = false) => {
     setOver(null);
     const task = all.find((t) => t._id === taskId);
     setDrag(null);
     if (!task || pendingMoves.current.has(taskId)) return;
+    if (status === 'done' && task.status !== 'done' && !confirmed && !task.isBlocked && unfinishedWork(task).any) {
+      setDoneAsk({ task, run: () => moveTask(taskId, status, index, true) });
+      return;
+    }
     if (task.status === status && sort === 'priority') { toast('Đổi sang thứ tự thủ công để sắp xếp trong cùng cột.', 'info'); return; }
     if (!taskActions(task, project, me).allowedStatuses.includes(status)) {
       toast(tr("Bạn chỉ chuyển được việc mình nhận đến Review. PM duyệt Done hoặc mở lại."), 'error');
@@ -246,7 +252,7 @@ export default function Board() {
           )}
           <div className="ml-auto flex items-center gap-2">
             <AvatarStack users={info?.project?.members || []} />
-            {!canDrag && <span className="text-label-md font-normal text-slate-400">{role === 'viewer' ? tr("Viewer chỉ xem, không kéo thả") : tr("Chỉ đọc")}</span>}
+            {!canDrag && <span className="text-label-md font-normal text-slate-400">{pendingDeletion ? tr("Workspace đang chờ xóa – chỉ xem") : role === 'viewer' ? tr("Viewer chỉ xem, không kéo thả") : tr("Chỉ đọc")}</span>}
           </div>
         </div>
       </div>
@@ -316,6 +322,15 @@ export default function Board() {
         </div>
       )}
       <CreateTaskModal open={!!creating} defaultStatus={creating || 'todo'} onClose={() => setCreating(null)} onCreated={() => reload()} />
+      <Confirm
+        open={!!doneAsk}
+        title={tr("Vẫn chuyển sang Hoàn thành?")}
+        confirmText={tr("Vẫn hoàn thành")}
+        onClose={() => setDoneAsk(null)}
+        onConfirm={() => { const a = doneAsk; setDoneAsk(null); a.run(); }}
+      >
+        <p>{doneAsk && tr("{0} còn {1}.", [doneAsk.task.key, unfinishedText(unfinishedWork(doneAsk.task))])}</p>
+      </Confirm>
     </div>
   );
 }

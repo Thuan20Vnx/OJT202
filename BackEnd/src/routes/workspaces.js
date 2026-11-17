@@ -16,6 +16,7 @@ import { badRequest, conflict, forbidden, notFound, parse } from '../utils/http.
 import { pagination } from '../utils/http.js';
 import { randomToken, sha256, slugify, toCsv } from '../utils/security.js';
 import { enforce } from '../services/throttle.js';
+import { DELETION_DELAY_MS, announceDeletion } from '../services/workspace-deletion.js';
 import { isDateInput, parseDate, startOfDay } from '../utils/dates.js';
 
 const router = Router();
@@ -74,6 +75,42 @@ router.patch('/:wsId', middlewareWorkspace('wsId', 'admin'), async (req, res) =>
     });
     return updated;
   });
+  res.json({ workspace: ws });
+});
+
+// ---------- Xóa workspace (hẹn 24 giờ) ----------
+// Không dùng middlewareWorkspace cho 2 route này: middleware chặn mọi thao tác ghi khi workspace đang chờ xóa, mà Owner vẫn phải hủy được.
+router.post('/:wsId/deletion', async (req, res) => {
+  const body = parse(z.object({ name: z.string({ error: 'Gõ lại tên workspace để xác nhận' }).trim().min(1, 'Gõ lại tên workspace để xác nhận') }).strict(), req.body);
+  const ws = await withWorkspaceLock((await workspaceAccess(req.user.id, req.params.wsId)).workspace.id, async (tx) => {
+    const fresh = await workspaceAccess(req.user.id, req.params.wsId, tx);
+    if (fresh.role !== 'owner') throw forbidden('Chỉ Owner được xóa workspace');
+    if (fresh.workspace.deletionScheduledAt) throw conflict('Workspace đã được hẹn xóa', { workspace: fresh.workspace });
+    if (body.name !== fresh.workspace.name) throw badRequest('Tên workspace không khớp', { fields: { name: 'Gõ lại đúng tên workspace' } });
+    const updated = await tx.workspace.update({ where: { id: fresh.workspace.id }, data: { deletionScheduledAt: new Date(Date.now() + DELETION_DELAY_MS), deletionRequestedBy: req.user.id } });
+    await logActivityIn(tx, {
+      workspace: updated.id, actor: req.user.id, action: 'Yêu cầu xóa workspace',
+      entityType: 'workspace', entityId: updated.id, entityLabel: updated.name,
+    });
+    return updated;
+  });
+  await announceDeletion(ws, 'scheduled', { by: req.user.name, actor: req.user.id });
+  res.json({ workspace: ws });
+});
+
+router.delete('/:wsId/deletion', async (req, res) => {
+  const { before, ws } = await withWorkspaceLock((await workspaceAccess(req.user.id, req.params.wsId)).workspace.id, async (tx) => {
+    const fresh = await workspaceAccess(req.user.id, req.params.wsId, tx);
+    if (fresh.role !== 'owner') throw forbidden('Chỉ Owner được hủy xóa workspace');
+    if (!fresh.workspace.deletionScheduledAt) throw conflict('Workspace không có yêu cầu xóa nào', { workspace: fresh.workspace });
+    const updated = await tx.workspace.update({ where: { id: fresh.workspace.id }, data: { deletionScheduledAt: null, deletionRequestedBy: null } });
+    await logActivityIn(tx, {
+      workspace: updated.id, actor: req.user.id, action: 'Hủy xóa workspace',
+      entityType: 'workspace', entityId: updated.id, entityLabel: updated.name,
+    });
+    return { before: fresh.workspace, ws: updated };
+  });
+  await announceDeletion({ ...ws, deletionScheduledAt: before.deletionScheduledAt }, 'cancelled', { by: req.user.name, actor: req.user.id });
   res.json({ workspace: ws });
 });
 

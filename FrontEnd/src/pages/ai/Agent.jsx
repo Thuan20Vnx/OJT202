@@ -251,6 +251,22 @@ function Fold({ icon, title, children }) {
   );
 }
 
+/** Viewer/Giảng viên: token theo quyền của người tạo nên chỉ đọc + hỏi đáp riêng; server chặn mọi thao tác ghi khác. */
+function ReadOnlyToken() {
+  useI18n();
+  const can = [tr('Xem dự án, công việc, tài liệu bạn được xem trên web'), tr('Tìm kiếm trong dự án'), tr('Hỏi đáp bằng agent; câu trả lời chỉ lưu trong lịch sử của bạn')];
+  const cannot = [tr('Tick hoàn thành công việc'), tr('Gửi kế hoạch, biên bản họp, báo cáo'), tr('Sửa hay xóa bất kỳ dữ liệu nào của dự án')];
+  return (
+    <div className="mb-4 rounded-lg border border-slate-200 bg-slate-50 p-3 text-body-sm">
+      <p className="mb-2 flex items-center gap-2 font-semibold text-slate-800"><Icon name="lock" size={16} />{tr('Token chỉ đọc')}<span className="font-normal text-slate-500">{tr('– bạn là Viewer/Giảng viên ở mọi dự án')}</span></p>
+      <div className="grid gap-2 sm:grid-cols-2">
+        <ul className="space-y-1">{can.map((x) => <li key={x} className="flex gap-1.5 text-slate-700"><Icon name="check" size={16} className="shrink-0 text-emerald-600" />{x}</li>)}</ul>
+        <ul className="space-y-1">{cannot.map((x) => <li key={x} className="flex gap-1.5 text-slate-500"><Icon name="block" size={16} className="shrink-0 text-rose-500" />{x}</li>)}</ul>
+      </div>
+    </div>
+  );
+}
+
 /** Cài agent một lần theo 3 bước; danh sách token và cấu hình MCP thủ công gập lại bên dưới. */
 function SetupCard({ projectId }) {
   const toast = useToast();
@@ -293,6 +309,7 @@ function SetupCard({ projectId }) {
         <p className="text-label-lg font-semibold text-slate-900">{tr('Cài đặt một lần')}</p>
         <Info>{tr('Claude Code, Codex hoặc Antigravity chạy bằng gói của chính bạn nên không tốn hạn mức AI của nhóm: tự đọc code trên máy, hỏi đáp về dự án, lập kế hoạch và tách việc từ biên bản họp. Kết quả gửi về TaskFlow dưới dạng bản nháp để PM duyệt. Code không đi qua server TaskFlow.')}</Info>
       </div>
+      {data.access?.readOnly && <ReadOnlyToken />}
       <div className="space-y-4 pb-3">
         <Step n={1} done={!!created}>
           <form className="flex flex-wrap gap-2" onSubmit={create}>
@@ -324,7 +341,7 @@ function SetupCard({ projectId }) {
           {data.tokens.map((t) => (
             <li key={t._id} className="flex items-center gap-2 py-2 text-body-sm">
               <div className="min-w-0 flex-1">
-                <p className="truncate font-semibold text-slate-800">{t.name}</p>
+                <p className="flex items-center gap-1.5 truncate font-semibold text-slate-800">{t.name}{data.access?.readOnly && <span className="chip border-slate-200 bg-slate-50 text-slate-600">{tr('Chỉ đọc')}</span>}</p>
                 <p className="text-label-md font-normal text-slate-500">
                   <code>{t.prefix}…</code> · {new Date(t.expiresAt) < new Date() ? tr('đã hết hạn') : tr('hết hạn {0}', [fmtDate(t.expiresAt)])}
                   {t.lastUsedAt ? tr(' · dùng lần cuối {0}', [fmtDateTime(t.lastUsedAt)]) : tr(' · chưa dùng')}

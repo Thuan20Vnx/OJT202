@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ProjectSummary, UserSummary } from '../lib/app-context.ts';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { api } from '../lib/api.js';
@@ -8,6 +8,7 @@ import { PROJECT_COLOR, ROLE } from '../lib/format.js';
 import { Avatar, Dropdown, Icon, MenuItem, StatusChip } from './ui.jsx';
 import CreateTaskModal from './CreateTaskModal.jsx';
 import TaskDetailModal from './TaskDetailModal.jsx';
+import DeletionBanner from './DeletionBanner.jsx';
 import ErrorBoundary from './ErrorBoundary.jsx';
 import ConnectionStatus from './ConnectionStatus.jsx';
 import RecentProjects from './RecentProjects.jsx';
@@ -142,7 +143,7 @@ function SearchBox() {
 }
 
 function TopBar({ onToggleSidebar, onCreate, sidebarOpen }: { onToggleSidebar: () => void; onCreate: () => void; sidebarOpen: boolean }) {
-  const { me, ws, role, unread, logout, theme, toggleTheme, project, canManageProject } = useApp();
+  const { me, ws, role, unread, logout, theme, toggleTheme, project, canManageProject, pendingDeletion } = useApp();
   const { language: lang, setLanguage: setLang } = useI18n();
   const { setMe } = useApp();
   const toast = useToast();
@@ -223,7 +224,7 @@ function TopBar({ onToggleSidebar, onCreate, sidebarOpen }: { onToggleSidebar: (
           <Icon name="notifications" />
           {unread > 0 && <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" />}
         </button>
-        <span className="hidden sm:inline-flex" title={canManageProject ? undefined : tr("Chỉ PM của dự án tạo được công việc. Thành viên cập nhật việc được giao cho mình.")}>
+        <span className="hidden sm:inline-flex" title={canManageProject ? undefined : pendingDeletion ? tr("Workspace đang chờ xóa nên chỉ được xem.") : tr("Chỉ PM của dự án tạo được công việc. Thành viên cập nhật việc được giao cho mình.")}>
           <button className="btn-primary" onClick={onCreate} disabled={!canManageProject}>
             <Icon name="add" size={16} />{tr("Tạo công việc")}</button>
         </span>
@@ -257,7 +258,7 @@ function TopBar({ onToggleSidebar, onCreate, sidebarOpen }: { onToggleSidebar: (
 
 function Sidebar({ collapsed, overlay, onClose }: { collapsed: boolean; overlay: boolean; onClose: () => void }) {
   useI18n();
-  const { ws, workspaces, setWsId, activeProjects, project, setProjectId, me, role, reloadWorkspace } = useApp();
+  const { ws, workspaces, setWsId, activeProjects, project, setProjectId, me, role, reloadWorkspace, pendingDeletion } = useApp();
   const navItems = workspaces.some((w) => w.isMentor)
     ? [...NAV, { to: '/mentoring', icon: 'school', get label() { return tr('Các nhóm hướng dẫn'); }, en: 'My groups' }]
     : NAV;
@@ -352,7 +353,7 @@ function Sidebar({ collapsed, overlay, onClose }: { collapsed: boolean; overlay:
             <span className="section-label">{tr("Dự án gần đây")}</span>
             <span className="flex items-center gap-1">
               <NavLink to="/projects" className={({ isActive }) => `text-label-sm ${isActive ? 'font-semibold text-blue-700' : 'text-slate-400 hover:text-slate-700'}`}>{tr("Xem tất cả")}</NavLink>
-              <button disabled={!['owner', 'admin'].includes(role ?? '')} className="flex h-5 w-5 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-40" title={['owner', 'admin'].includes(role ?? '') ? tr("Thêm dự án") : tr("Chỉ Owner/Admin của workspace tạo được dự án")} onClick={() => navigate('/projects?new=1')}>
+              <button disabled={!['owner', 'admin'].includes(role ?? '')} className="flex h-5 w-5 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-40" title={['owner', 'admin'].includes(role ?? '') ? tr("Thêm dự án") : pendingDeletion ? tr("Workspace đang chờ xóa nên chỉ được xem.") : tr("Chỉ Owner/Admin của workspace tạo được dự án")} onClick={() => navigate('/projects?new=1')}>
                 <Icon name="add" size={15} />
               </button>
             </span>
@@ -438,15 +439,41 @@ export default function AppShell() {
   const loc = useLocation();
   const navigate = useNavigate();
   const params = new URLSearchParams(loc.search);
-  const taskId = params.get('task');
+  const urlTaskId = params.get('task');
+  // Chi tiết việc còn thay đổi chưa lưu mà URL đổi (nút Quay lại, bấm link khác) thì giữ hộp chi tiết lại và hỏi trước.
+  const [taskId, setTaskId] = useState(urlTaskId);
+  const taskDirty = useRef(false);
+  const [leaveRequest, setLeaveRequest] = useState<{ search: string; pathname: string } | null>(null);
+  const shownTask = useRef(taskId);
+  shownTask.current = taskId;
+  useEffect(() => {
+    if (urlTaskId === shownTask.current) { setLeaveRequest(null); return; }
+    if (shownTask.current && taskDirty.current) setLeaveRequest({ search: loc.search, pathname: loc.pathname });
+    else setTaskId(urlTaskId);
+  }, [urlTaskId, loc.search, loc.pathname]);
+  const onTaskDirty = useCallback((d: boolean) => { taskDirty.current = d; }, []);
   const closeTask = () => {
+    taskDirty.current = false;
     params.delete('task');
+    setTaskId(null);
     navigate({ search: params.toString() }, { replace: true });
+  };
+  const leaveTask = () => {
+    taskDirty.current = false;
+    setLeaveRequest(null);
+    setTaskId(urlTaskId);
+  };
+  const stayOnTask = () => {
+    const next = new URLSearchParams(loc.search);
+    if (taskId) next.set('task', taskId);
+    setLeaveRequest(null);
+    navigate({ pathname: loc.pathname, search: next.toString() }, { replace: true });
   };
   return (
     <div className="flex h-full flex-col overflow-hidden">
       <TopBar onToggleSidebar={() => setCollapsed((c) => !c)} onCreate={() => setCreating(true)} sidebarOpen={!collapsed} />
       <ConnectionStatus />
+      <DeletionBanner />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar collapsed={collapsed} overlay={narrow} onClose={() => setCollapsed(true)} />
         <main id="main-content" className="scroll-thin min-w-0 flex-1 overflow-y-auto bg-slate-50">
@@ -457,7 +484,7 @@ export default function AppShell() {
         </main>
       </div>
       <CreateTaskModal open={creating} onClose={() => setCreating(false)} />
-      {taskId && <TaskDetailModal key={taskId} taskId={taskId} onClose={closeTask} />}
+      {taskId && <TaskDetailModal key={taskId} taskId={taskId} onClose={closeTask} onDirtyChange={onTaskDirty} leaveRequest={leaveRequest} onLeave={leaveTask} onStay={stayOnTask} />}
     </div>
   );
 }

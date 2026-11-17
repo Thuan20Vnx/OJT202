@@ -58,3 +58,25 @@ export async function revokeAllAgentTokens(db, userId, now = new Date()) {
   await db.agentJob.updateMany({ where: { user: userId, status: { in: ['queued', 'running'] } }, data: { status: 'cancelled', finishedAt: now } });
   return count;
 }
+
+/**
+ * Quyền của token theo từng dự án, giống trên web: read_only (Viewer, Giảng viên, dự án lưu trữ hoặc workspace chờ xóa)
+ * chỉ đọc + hỏi đáp riêng; member được tick việc của mình, gửi báo cáo; pm thêm kế hoạch, biên bản.
+ */
+export async function projectsWithAccess(userId) {
+  const projects = await prisma.project.findMany({
+    where: { memberships: { some: { user: userId } }, workspaceRef: { memberships: { some: { user: userId } } } },
+    select: {
+      id: true, name: true, keyPrefix: true, status: true, description: true,
+      memberships: { where: { user: userId }, select: { role: true } },
+      workspaceRef: { select: { name: true, deletionScheduledAt: true, memberships: { where: { user: userId }, select: { role: true } } } },
+      repoConnection: { select: { provider: true, baseUrl: true, repoPath: true } },
+    },
+    orderBy: { updatedAt: 'desc' },
+  });
+  return projects.map(({ workspaceRef, repoConnection: repo, memberships, ...p }) => {
+    const viewer = workspaceRef.memberships[0]?.role === 'viewer' || memberships[0]?.role === 'viewer';
+    const readOnly = viewer || p.status === 'archived' || !!workspaceRef.deletionScheduledAt;
+    return { projectId: p.id, ...p, workspace: workspaceRef.name, access: readOnly ? 'read_only' : memberships[0]?.role === 'pm' ? 'pm' : 'member', repo: repo ? `${repo.baseUrl}/${repo.repoPath}` : null };
+  });
+}

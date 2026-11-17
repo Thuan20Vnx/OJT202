@@ -16,6 +16,7 @@ const TYPE = {
   status: { icon: 'swap_horiz', tone: 'bg-emerald-50 text-emerald-600' },
   comment: { icon: 'chat_bubble', tone: 'bg-slate-100 text-slate-600' },
   invite: { icon: 'group_add', tone: 'bg-cyan-50 text-cyan-600' },
+  workspace: { icon: 'delete_forever', tone: 'bg-rose-50 text-rose-600' },
 };
 
 export default function Notifications() {

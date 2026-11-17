@@ -1,11 +1,11 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { USER, isId, populateAll, prisma } from '../db.js';
-import { assertManage, assertWrite, middlewareProject, projectAccess, taskAccess } from '../middleware/access.js';
+import { assertAsk, assertManage, assertWrite, middlewareProject, projectAccess, taskAccess } from '../middleware/access.js';
 import { STATUS_VI, applyUpdate } from './tasks.js';
 import { plainText } from '../utils/security.js';
 import { JOB_AGENTS, claimJob, completeJob, finishJob, runnerStopped, runningJob } from '../services/agent-jobs.js';
-import { answerLimit, reportLimit, requireAgentToken } from '../services/agent-tokens.js';
+import { answerLimit, projectsWithAccess, reportLimit, requireAgentToken } from '../services/agent-tokens.js';
 import { validateAgentAnswer, validateAgentMeeting, validateAgentPlan, validateAgentReport } from '../services/ai/contracts.js';
 import { createAiDraft, projectMembers } from '../services/ai/drafts.js';
 import { collectSources, sourceFingerprint } from '../services/ai/qa.js';
@@ -35,18 +35,16 @@ async function jobOf(req, kind) {
 const taskSelect = { id: true, key: true, title: true, status: true, priority: true, dueDate: true, labels: true, sprint: true, progressPct: true, assigneeRef: { select: { name: true, email: true } } };
 
 router.get('/me', async (req, res) => {
-  res.json({ user: { id: req.user.id, name: req.user.name, email: req.user.email }, token: { name: req.agentToken.name, expiresAt: req.agentToken.expiresAt } });
+  const projects = await projectsWithAccess(req.user.id);
+  const readOnly = !projects.some((p) => p.access !== 'read_only');
+  res.json({
+    user: { id: req.user.id, name: req.user.name, email: req.user.email },
+    token: { name: req.agentToken.name, expiresAt: req.agentToken.expiresAt, readOnly },
+  });
 });
 
 router.get('/projects', async (req, res) => {
-  const projects = await prisma.project.findMany({
-    where: { memberships: { some: { user: req.user.id } }, workspaceRef: { memberships: { some: { user: req.user.id } } } },
-    select: { id: true, name: true, keyPrefix: true, status: true, description: true, workspaceRef: { select: { name: true } }, repoConnection: { select: { provider: true, baseUrl: true, repoPath: true } } },
-    orderBy: { updatedAt: 'desc' },
-  });
-  res.json({
-    projects: projects.map(({ workspaceRef, repoConnection: repo, ...p }) => ({ projectId: p.id, ...p, workspace: workspaceRef.name, repo: repo ? `${repo.baseUrl}/${repo.repoPath}` : null })),
-  });
+  res.json({ projects: await projectsWithAccess(req.user.id) });
 });
 
 router.get('/projects/:projectId/tasks', middlewareProject(), async (req, res) => {
@@ -165,7 +163,7 @@ router.get('/projects/:projectId/search', middlewareProject(), async (req, res) 
  * TaskFlow không chấm nội dung, chỉ giữ trích dẫn trỏ tới nguồn có thật trong dự án và che bí mật.
  */
 router.post('/projects/:projectId/answers', middlewareProject(), async (req, res) => {
-  assertWrite(req.pa);
+  assertAsk(req.pa);
   await answerLimit(req.agentToken.id);
   const job = await jobOf(req, 'qa');
   const body = validateAgentAnswer(job ? { ...req.body, question: job.input.question, conversationId: job.input.conversation ?? undefined } : req.body);
@@ -192,7 +190,7 @@ router.post('/projects/:projectId/answers', middlewareProject(), async (req, res
   const content = clean(body.answer).replace(/\[(\d+)\]/g, (_m, n) => (renumber.has(Number(n)) ? `[${renumber.get(Number(n))}]` : ''));
   const agent = (body.agent || req.agentToken.name).slice(0, 80);
   // Quyền có thể đổi trong lúc xử lý: kiểm lại ngay trước khi ghi.
-  assertWrite(await projectAccess(req.user.id, project.id));
+  assertAsk(await projectAccess(req.user.id, project.id));
   const now = new Date().toISOString();
   const messages = [
     ...(existing?.messages || []),

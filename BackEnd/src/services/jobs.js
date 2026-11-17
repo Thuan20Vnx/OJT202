@@ -2,6 +2,7 @@ import { prisma } from '../db.js';
 import { notify } from './notify.js';
 import { purgeRateCounters } from './throttle.js';
 import { runDailySuggestions } from './repo/agent.js';
+import { runWorkspaceDeletions } from './workspace-deletion.js';
 
 /** Bỏ qua việc đã nhắc: job chạy 10 phút/lần, nếu INSERT lại thì Postgres ghi lỗi 23505 cho từng việc. */
 async function remindOnce(tasks, type, prefix, text) {
@@ -28,7 +29,7 @@ export async function runDueReminders(now = new Date()) {
 }
 
 export function startJobs() {
-  const tick = () => Promise.all([runDueReminders(), purgeRateCounters(), runDailySuggestions()]).catch((e) => console.error('[jobs]', e.message));
+  const tick = () => Promise.all([runDueReminders(), purgeRateCounters(), runDailySuggestions(), runWorkspaceDeletions()]).catch((e) => console.error('[jobs]', e.message));
   setTimeout(tick, 5000);
   return setInterval(tick, 10 * 60 * 1000);
 }

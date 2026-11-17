@@ -8,6 +8,7 @@ import { useProjectInfo, useSocketEvent } from '../lib/hooks.js';
 import { MemberPicker } from './CreateTaskModal.jsx';
 import TaskDates, { TASK_DATES } from './TaskDates.jsx';
 import LabelPicker from './LabelPicker.jsx';
+import { unfinishedText, unfinishedWork } from '../lib/task-done.js';
 import TaskDelivery from './TaskDelivery.jsx';
 import { WORK_TYPES } from '../lib/delivery.js';
 import { Avatar, Confirm, Dropdown, Icon, MenuItem, Notice, PageLoader, Progress, Spinner, StatusChip } from './ui.jsx';
@@ -131,7 +132,7 @@ const renderBody = (body) =>
     ),
   );
 
-export default function TaskDetailModal({ taskId, onClose }) {
+export default function TaskDetailModal({ taskId, onClose, onDirtyChange, leaveRequest, onLeave, onStay }) {
   useI18n();
   const { me, wsId, setWsId, setProjectId } = useApp();
   const toast = useToast();
@@ -167,6 +168,12 @@ export default function TaskDetailModal({ taskId, onClose }) {
     });
   }, []);
   const [tab, setTab] = useState('comments');
+  const [doneAsk, setDoneAsk] = useState(null);
+  const [leaveAsk, setLeaveAsk] = useState(false);
+  useEffect(() => { onDirtyChange?.(dirty); }, [dirty, onDirtyChange]);
+  useEffect(() => () => onDirtyChange?.(false), [onDirtyChange]);
+  // Còn thay đổi chưa lưu thì hỏi trước khi đóng (nút Đóng, Esc, bấm ra ngoài; nút Quay lại do AppShell báo qua leaveRequest).
+  const requestClose = useCallback(() => { if (dirtyRef.current) setLeaveAsk(true); else onClose(); }, [onClose]);
   const [saving, setSaving] = useState(false);
   const [newSub, setNewSub] = useState('');
   const subRequest = useRef(null);
@@ -443,7 +450,8 @@ export default function TaskDetailModal({ taskId, onClose }) {
     }
   };
 
-  const changeStatus = async (status) => {
+  const changeStatus = async (status, confirmed = false) => {
+    if (status === 'done' && !confirmed && task.status !== 'done' && !task.isBlocked && unfinishedWork(task, subtasks).any) { setDoneAsk(status); return; }
     const scope = taskScope.current;
     try {
       await patch({ status });
@@ -527,7 +535,7 @@ export default function TaskDetailModal({ taskId, onClose }) {
     setDepError(null);
     try {
       const d = await api.get(`/projects/${task.project}/tasks`);
-      if (current()) setDepOptions(d.tasks.filter((t) => t._id !== task._id));
+      if (current()) setDepOptions(dependencyCandidates(d.tasks, task));
     } catch (e) {
       if (current()) setDepError(e.message);
     } finally {
@@ -536,7 +544,8 @@ export default function TaskDetailModal({ taskId, onClose }) {
   };
   const openDeps = () => {
     setDepOpen((open) => !open);
-    if (!depOpen && !depOptions.length) return loadDeps();
+    // Luôn tải lại khi mở: danh sách phải phản ánh phụ thuộc mới nhất để không gợi ý việc tạo vòng lặp.
+    if (!depOpen) return loadDeps();
   };
   const changeDependency = async (request) => {
     if (mutation.current) return;
@@ -649,7 +658,7 @@ export default function TaskDetailModal({ taskId, onClose }) {
   const checkDone = (task.checklist || []).filter((c) => c.done).length;
 
   return (
-    <Shell onClose={onClose}>
+    <Shell onClose={requestClose}>
       {/* Header */}
       <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 px-4 py-3 sm:px-6">
         <span className="rounded-md border border-slate-200 bg-slate-50 px-2 py-0.5 font-mono text-label-md font-semibold text-slate-700">{task.key}</span>
@@ -679,7 +688,7 @@ export default function TaskDetailModal({ taskId, onClose }) {
           <span className="chip h-7 border-rose-200 bg-rose-50 px-2.5 text-rose-700">
             <Icon name="block" size={14} />{tr("Đang bị chặn")}</span>
         )}
-        {!canWrite && <span className="chip h-7 border-slate-200 bg-slate-50 text-slate-500">{access.archived ? tr("Dự án đã lưu trữ – chỉ xem") : access.canUpdateProgress ? tr("Cập nhật tiến độ thực tế") : tr("Chỉ xem")}</span>}
+        {!canWrite && <span className="chip h-7 border-slate-200 bg-slate-50 text-slate-500">{access.pendingDeletion ? tr("Workspace đang chờ xóa – chỉ xem") : access.archived ? tr("Dự án đã lưu trữ – chỉ xem") : access.canUpdateProgress ? tr("Cập nhật tiến độ thực tế") : tr("Chỉ xem")}</span>}
         <div className="ml-auto flex items-center gap-1">
           <button
             className="btn-ghost btn-sm"
@@ -700,7 +709,7 @@ export default function TaskDetailModal({ taskId, onClose }) {
               <MenuItem icon="delete" danger onClick={() => remove(false)}>{tr("Xóa công việc")}</MenuItem>
             </Dropdown>
           )}
-          <button className="icon-btn" onClick={onClose} aria-label={tr("Đóng")}>
+          <button className="icon-btn" onClick={requestClose} aria-label={tr("Đóng")}>
             <Icon name="close" />
           </button>
         </div>
@@ -765,6 +774,7 @@ export default function TaskDetailModal({ taskId, onClose }) {
                         <p className="px-2 py-1 text-label-md font-normal text-slate-400">{tr("Công việc này bị chặn bởi…")}</p>
                         {depLoading && <div role="status" className="px-2 py-2"><Spinner /></div>}
                         {depError && <div className="px-2 py-2"><p role="alert" className="text-body-sm text-rose-700">{depError}</p><button className="btn-outline btn-sm mt-2" onClick={loadDeps}>{tr('Thử lại')}</button></div>}
+                        {!depLoading && !depError && !depOptions.length && <p className="px-2 py-2 text-body-sm text-slate-500">{tr("Không còn việc nào chọn được (đã liên kết hoặc sẽ tạo vòng lặp).")}</p>}
                         {depOptions.map((t) => (
                           <button
                             key={t._id}
@@ -993,7 +1003,7 @@ export default function TaskDetailModal({ taskId, onClose }) {
                 ))}
                 {access.canWrite || access.canComment
                   ? <CommentBox members={members} onSend={sendComment} />
-                  : <p className="rounded-lg bg-slate-50 px-3 py-2 text-body-sm text-slate-500">{tr("Bạn chỉ có quyền xem dự án này nên không bình luận được.")}</p>}
+                  : <p className="rounded-lg bg-slate-50 px-3 py-2 text-body-sm text-slate-500">{access.pendingDeletion ? tr("Workspace đang chờ xóa nên chỉ được xem.") : tr("Bạn chỉ có quyền xem dự án này nên không bình luận được.")}</p>}
               </div>
             ) : (
               <div className="space-y-3">
@@ -1127,6 +1137,31 @@ export default function TaskDetailModal({ taskId, onClose }) {
           <ul className="mt-2 max-h-48 overflow-y-auto list-disc pl-5">{confirmDel.tasks.map((t) => <li key={t._id}>{t.key} — {t.title}</li>)}</ul>
         </>}
       </Confirm>
+      <Confirm
+        open={!!doneAsk}
+        title={tr("Vẫn chuyển sang Hoàn thành?")}
+        confirmText={tr("Vẫn hoàn thành")}
+        onClose={() => setDoneAsk(null)}
+        onConfirm={() => { const s = doneAsk; setDoneAsk(null); changeStatus(s, true); }}
+      >
+        <p>{tr("{0} còn {1}.", [task.key, unfinishedText(unfinishedWork(task, subtasks))])}</p>
+      </Confirm>
+      <Confirm
+        open={leaveAsk || !!leaveRequest}
+        danger
+        title={tr("Bỏ thay đổi chưa lưu?")}
+        confirmText={tr("Bỏ thay đổi")}
+        onClose={() => { setLeaveAsk(false); if (leaveRequest) onStay?.(); }}
+        onConfirm={() => {
+          dirtyRef.current = false;
+          setDirty(false);
+          onDirtyChange?.(false);
+          setLeaveAsk(false);
+          if (leaveRequest) onLeave?.(); else onClose();
+        }}
+      >
+        <p>{tr("Bạn đã sửa công việc này nhưng chưa bấm Lưu thay đổi. Đóng lúc này sẽ mất các thay đổi đó.")}</p>
+      </Confirm>
     </Shell>
   );
 }
@@ -1145,10 +1180,34 @@ const PersonLine = ({ user }) => (
   </span>))
 );
 
+/**
+ * Việc có thể chọn làm "bị chặn bởi": bỏ chính nó, việc đã liên kết và việc đang (trực tiếp hoặc gián tiếp) chờ việc này
+ * – chọn những việc đó sẽ tạo vòng lặp phụ thuộc (server vẫn kiểm tra lại).
+ */
+export function dependencyCandidates(tasks, task) {
+  const idOf = (b) => (typeof b === 'object' ? b?._id : b);
+  const deps = new Map(tasks.map((t) => [t._id, (t.blockedBy || []).map(idOf).filter(Boolean)]));
+  const waitsOnTask = (start) => {
+    const seen = new Set();
+    const stack = [start];
+    while (stack.length) {
+      const id = stack.pop();
+      if (id === task._id) return true;
+      if (seen.has(id)) continue;
+      seen.add(id);
+      stack.push(...(deps.get(id) || []));
+    }
+    return false;
+  };
+  const linked = new Set((task.blockedBy || []).map(idOf));
+  return tasks.filter((t) => t._id !== task._id && !linked.has(t._id) && !waitsOnTask(t._id));
+}
+
 function Shell({ children, onClose }) {
   useI18n();
   useEffect(() => {
-    const onKey = (e) => e.key === 'Escape' && onClose();
+    // Đang mở hộp thoại con (xác nhận…) thì Esc chỉ đóng hộp thoại đó.
+    const onKey = (e) => e.key === 'Escape' && document.querySelectorAll('[role="dialog"]').length <= 1 && onClose();
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);

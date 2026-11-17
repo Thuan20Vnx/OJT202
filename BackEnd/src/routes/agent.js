@@ -4,10 +4,10 @@ import { z } from 'zod';
 import { config } from '../config.js';
 import { isId, nextSeq, prisma } from '../db.js';
 import { assertActiveSession, requireAuth } from '../middleware/auth.js';
-import { assertManage, assertWrite, middlewareProject, projectAccess } from '../middleware/access.js';
+import { assertAsk, assertManage, assertWrite, middlewareProject, projectAccess } from '../middleware/access.js';
 import { logActivity, logActivityIn } from '../services/activity.js';
 import { JOB_AGENTS, cancelJob, createJob, disconnectRunner, getJob, publicJob, runnerStatus } from '../services/agent-jobs.js';
-import { createAgentToken, listAgentTokens, revokeAgentToken } from '../services/agent-tokens.js';
+import { createAgentToken, listAgentTokens, projectsWithAccess, revokeAgentToken } from '../services/agent-tokens.js';
 import { withWorkspaceLock } from '../services/membership.js';
 import { emitProject } from '../services/realtime.js';
 import { encryptToken, parseRepoUrl, repoClient } from '../services/repo/client.js';
@@ -157,14 +157,21 @@ router.post('/agent/runs/:id/items/:key/dismiss', async (req, res) => {
 /** Thông tin để giao diện dựng sẵn cấu hình MCP cho Claude Code, Codex, Antigravity. */
 const mcpInfo = (req) => ({ serverPath: path.resolve(config.root, '../mcp/src/index.js'), apiUrl: `${req.protocol}://${req.get('host')}` });
 
+/** Token dùng chung quyền của người tạo: không dự án nào được ghi (Viewer, Giảng viên…) thì là token chỉ đọc. */
+async function tokenAccess(userId) {
+  const projects = await projectsWithAccess(userId);
+  return { readOnly: !projects.some((p) => p.access !== 'read_only'), pm: projects.some((p) => p.access === 'pm') };
+}
+
 router.get('/agent-tokens', async (req, res) => {
-  res.json({ tokens: await listAgentTokens(req.user.id), mcp: mcpInfo(req) });
+  const [tokens, access] = await Promise.all([listAgentTokens(req.user.id), tokenAccess(req.user.id)]);
+  res.json({ tokens, access, mcp: mcpInfo(req) });
 });
 
 router.post('/agent-tokens', async (req, res) => {
   const body = parse(z.object({ name: z.string().trim().min(1, 'Đặt tên cho token, ví dụ "Claude Code trên laptop"').max(80), days: z.union([z.literal(7), z.literal(30), z.literal(90)]) }).strict(), req.body);
   const { token, record } = await createAgentToken(req.user.id, body);
-  res.status(201).json({ token, record, mcp: mcpInfo(req) });
+  res.status(201).json({ token, record, access: await tokenAccess(req.user.id), mcp: mcpInfo(req) });
 });
 
 router.delete('/agent-tokens/:id', async (req, res) => {
@@ -209,7 +216,8 @@ const jobInputs = {
 /** Xếp một việc cho agent trên máy của chính người bấm. Quyền giống nút AI tương ứng trên web. */
 router.post('/projects/:projectId/agent/jobs', middlewareProject(), async (req, res) => {
   const body = parse(z.object({ kind: z.enum(['plan', 'qa', 'meeting']), agent: z.enum(JOB_AGENTS), input: z.unknown() }).strict(), req.body);
-  if (body.kind === 'qa') assertWrite(req.pa);
+  // Hỏi đáp: mọi thành viên kể cả Viewer/Giảng viên (câu trả lời chỉ vào lịch sử của chính họ). Kế hoạch, biên bản: chỉ PM.
+  if (body.kind === 'qa') assertAsk(req.pa);
   else assertManage(req.pa);
   const input = parse(jobInputs[body.kind], body.input);
   const project = req.pa.project;
