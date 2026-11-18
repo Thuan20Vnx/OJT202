@@ -116,7 +116,7 @@ export default function Select({ value, onChange, children, className = 'input',
     else if (e.key === 'Home') setActive(move(-1, 1));
     else if (e.key === 'End') setActive(move(options.length, -1));
     else if (e.key === 'Enter' || e.key === ' ') choose(active);
-    else if (e.key === 'Escape') close();
+    else if (e.key === 'Escape') { e.stopPropagation(); close(); }
     else if (e.key === 'Tab') return close(false);
     else if (e.key.length === 1) {
       // Gõ chữ cái để nhảy tới lựa chọn (không phân biệt dấu)

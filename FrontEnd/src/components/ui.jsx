@@ -151,6 +151,14 @@ const topDialog = () => [...document.querySelectorAll('[role="dialog"][aria-moda
  * khi đóng trả tiêu điểm về nơi đã mở. Chỉ hộp thoại trên cùng (cuối cây DOM) xử lý Tab.
  * getEl trả về phần tử role="dialog".
  */
+// Nhớ phần tử có tiêu điểm trước đó: ô autoFocus trong hộp thoại lấy tiêu điểm trước khi effect chạy,
+// nên "nơi mở" thật là phần tử được focus ngay trước nó.
+let focusPrev = null;
+let focusCur = null;
+if (typeof document !== 'undefined') {
+  document.addEventListener('focusin', (e) => { if (e.target !== focusCur) { focusPrev = focusCur; focusCur = e.target; } }, true);
+}
+
 export function useDialogFocus(getEl, active = true) {
   const getRef = useRef(getEl);
   getRef.current = getEl;
@@ -158,10 +166,11 @@ export function useDialogFocus(getEl, active = true) {
     if (!active) return undefined;
     const el = getRef.current();
     if (!el) return undefined;
-    const opener = document.activeElement;
+    const opener = el.contains(document.activeElement) ? focusPrev : document.activeElement;
     // autoFocus của phần tử bên trong đã chạy trước đó: không giành lại.
     if (!el.contains(document.activeElement)) {
-      const first = focusablesIn(el)[0];
+      // Ưu tiên ô nhập đầu tiên (gõ được ngay), sau đó mới tới nút (vd nút Đóng ở tiêu đề).
+      const first = el.querySelector('input:not([type="hidden"]):not([disabled]),textarea:not([disabled]),select:not([disabled]),[aria-haspopup="listbox"]:not([disabled])') || focusablesIn(el)[0];
       if (first) first.focus({ preventScroll: true });
       else { el.tabIndex = -1; el.focus({ preventScroll: true }); }
     }
@@ -213,7 +222,8 @@ export function Modal({ open, onClose, title, subtitle, icon, children, footer, 
     if (!open) return;
     // Có hộp thoại khác mở chồng lên (xác nhận…) thì Esc chỉ đóng hộp trên cùng.
     const onKey = (e) => {
-      if (e.key !== 'Escape') return;
+      // Esc đã được thành phần bên trong xử lý (Select, menu đang mở) thì không đóng hộp thoại.
+      if (e.key !== 'Escape' || e.defaultPrevented) return;
       const top = topDialog();
       if (top && dialogRef.current && top !== dialogRef.current) return;
       onClose?.();
@@ -443,7 +453,13 @@ export function Dropdown({ trigger, children, align = 'right', width = 'w-56', p
       ref={menuRef}
       className={`animate-pop-in z-50 ${width} rounded-lg border border-slate-200 bg-white p-1 shadow-pop ${portal ? 'fixed' : `absolute mt-1.5 ${align === 'right' ? 'right-0 origin-top-right' : 'left-0 origin-top-left'}`}`}
       style={portal ? { top: pos?.top ?? -9999, left: pos?.left ?? -9999 } : undefined}
-      onClick={() => setOpen(false)}
+      onClick={() => {
+        // Chọn mục bằng bàn phím: tiêu điểm đang trong menu sẽ mất khi menu đóng, trả về nút mở
+        // (trừ khi mục vừa chọn đã chuyển tiêu điểm đi nơi khác, vd mở hộp thoại).
+        const inside = menuRef.current?.contains(document.activeElement);
+        setOpen(false);
+        if (inside) setTimeout(() => { if (!document.activeElement || document.activeElement === document.body) triggerEl()?.focus?.({ preventScroll: true }); }, 0);
+      }}
       id={menuId}
       role="menu"
       onKeyDown={(e) => {
