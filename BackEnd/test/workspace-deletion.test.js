@@ -113,7 +113,12 @@ describe('Xóa workspace hẹn 24 giờ', () => {
 
     const notified = await db.prisma.notification.findMany({ where: { workspace: t.ws._id, type: 'workspace' }, select: { user: true } });
     assert.deepEqual(new Set(notified.map((n) => n.user)), new Set([t.owner.id, t.admin.id, t.member.id]));
-    const mails = await db.prisma.outbox.findMany({ where: { subject: { contains: t.ws.name } } });
+    // Email gửi nền (không chặn phản hồi): chờ outbox đủ thư, tránh test chập chờn trên CI.
+    let mails = [];
+    for (let i = 0; i < 50 && mails.length < 3; i++) {
+      mails = await db.prisma.outbox.findMany({ where: { subject: { contains: t.ws.name } } });
+      if (mails.length < 3) await new Promise((r) => setTimeout(r, 100));
+    }
     assert.deepEqual(new Set(mails.map((m) => m.to)), new Set([t.owner.email, t.admin.email, t.member.email]));
   });
 
@@ -128,6 +133,10 @@ describe('Xóa workspace hẹn 24 giờ', () => {
     const info = (await t.member.get(`/projects/${t.project._id}`)).data;
     assert.equal(info.access.canWrite, false);
     assert.equal(info.access.pendingDeletion, true);
+    // Việc của tôi cũng không mời kéo thả/đổi trạng thái (trước đây vẫn trả quyền ghi)
+    const mine = (await t.member.get(`/me/tasks?workspace=${t.ws._id}`)).data.items.find((x) => x._id === task._id);
+    assert.equal(mine.permissions.canUpdateProgress, false);
+    assert.equal(mine.access.canWrite, false);
 
     // Mọi thao tác ghi đều bị chặn với thông báo rõ ràng, kể cả Owner
     const blocked = [

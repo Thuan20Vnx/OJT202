@@ -26,11 +26,11 @@ export function TaskCard({ task, draggable, onDragStart, onOpen, statuses = [], 
       className={`group cursor-pointer rounded-lg border bg-white p-3 transition-all hover:border-slate-300 hover:shadow-card ${task.isBlocked ? 'border-rose-200' : 'border-slate-200'} ${draggable ? 'active:rotate-1 active:shadow-drag' : ''}`}
     >
       <div className="mb-1.5 flex items-center justify-between gap-2">
-        <span className="flex items-center gap-1 font-mono text-label-sm text-slate-400">
+        <span className="flex shrink-0 items-center gap-1 whitespace-nowrap font-mono text-label-sm text-slate-400">
           {done && <Icon name="check_circle" size={14} fill className="text-emerald-500" />}
           {task.key}
         </span>
-        <div className="flex items-center gap-1">
+        <div className="flex min-w-0 flex-wrap items-center justify-end gap-1">
           {task.isBlocked && (
             <span className="chip border-rose-200 bg-rose-50 text-rose-700">
               <Icon name="block" size={12} />{tr(" Đang bị chặn")}</span>

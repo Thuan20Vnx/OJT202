@@ -68,8 +68,23 @@ test('sao lưu → khôi phục vào database mới: số dòng từng bảng v�
   const [{ port }] = await db.prisma.$queryRaw`SELECT inet_server_port() AS port`;
   const url = (name) => `postgresql://taskflow:taskflow@127.0.0.1:${port}/${name}`;
 
+  // Lỗi kết nối không để lại thư mục dở dang, chạy lại cùng --out được.
+  const failed = path.join(work, 'failed');
+  await assert.rejects(backup({ url: `postgresql://x:y@127.0.0.1:1/none`, out: failed }));
+  assert.equal(fs.existsSync(failed), false);
+
+  // Có người ghi trong lúc sao lưu (như job nhắc hạn, rate_counters): số đếm phải cùng snapshot với bản dump.
   const out = path.join(work, 'backup');
-  const manifest = await backup({ url: url('taskflow'), out, storage: { mode: 'local', dir: config.uploadDir } });
+  let writing = true, written = 0;
+  const writer = (async () => {
+    while (writing) {
+      await db.prisma.$executeRawUnsafe(`INSERT INTO rate_counters(key, count) VALUES ('backup-race-${written++}', 1)`);
+      await new Promise((r) => setTimeout(r, 5));
+    }
+  })();
+  const manifest = await backup({ url: url('taskflow'), out, storage: { mode: 'local', dir: config.uploadDir } }).finally(() => { writing = false; });
+  await writer;
+  assert.ok(written > 0);
   assert.ok(manifest.tables.tasks > 0 && manifest.migrations.length > 0);
   assert.ok(manifest.files[`files/${key}`], 'tệp được documents tham chiếu nằm trong bản sao lưu');
   await assert.rejects(backup({ url: url('taskflow'), out }), /đã có dữ liệu/, 'không ghi đè bản sao lưu cũ');

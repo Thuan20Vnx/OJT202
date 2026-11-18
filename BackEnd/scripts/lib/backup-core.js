@@ -53,7 +53,12 @@ function prismaFor(url) {
 export async function findPgTool(name) {
   const exe = process.platform === 'win32' ? `${name}.exe` : name;
   const candidates = [];
-  if (process.env.PG_BIN) candidates.push(path.join(process.env.PG_BIN, exe));
+  if (process.env.PG_BIN) {
+    // Đã chỉ định rõ thì không lặng lẽ dùng bản khác (có thể cũ hơn server).
+    const file = path.join(process.env.PG_BIN, exe);
+    if (!fs.existsSync(file)) throw new Error(`PG_BIN=${process.env.PG_BIN} không có ${exe}`);
+    candidates.push(file);
+  }
   for (const dir of (process.env.PATH || '').split(path.delimiter)) if (dir) candidates.push(path.join(dir, exe));
   if (process.platform === 'win32') {
     const base = 'C:\\Program Files\\PostgreSQL';
@@ -108,6 +113,7 @@ export function useStorage(target) {
 export async function backup({ url, out, storage, schema = 'public', includeFiles = true, log = () => {} }) {
   if (!SCHEMA_RE.test(schema)) throw new Error('Tên schema không hợp lệ');
   if (fs.existsSync(out) && fs.readdirSync(out).length) throw new Error(`Thư mục đích đã có dữ liệu: ${out}`);
+  const created = !fs.existsSync(out);
   fs.mkdirSync(path.join(out, FILES), { recursive: true });
   const db = prismaFor(url);
   try {
@@ -116,17 +122,22 @@ export async function backup({ url, out, storage, schema = 'public', includeFile
     if (pgDump.major < major) throw new Error(`pg_dump ${pgDump.major} cũ hơn server PostgreSQL ${major}`);
     const startedAt = new Date();
     log(`Đang dump database ${describe(url)} bằng ${pgDump.version}`);
-    // Một transaction chỉ đọc cho số đếm; pg_dump tự chụp snapshot nhất quán của riêng nó.
-    const before = await tableCounts(db, schema);
-    await run(pgDump.file, ['--format=custom', `--schema=${schema}`, '--no-owner', '--no-privileges', '--compress=6', `--file=${path.join(out, DUMP)}`], {
-      env: { ...process.env, ...pgEnv(url) }, windowsHide: true, maxBuffer: 16 * 1024 * 1024,
-    });
-    const migrations = (await db.$queryRaw`SELECT migration_name FROM _prisma_migrations WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL ORDER BY migration_name`).map((r) => r.migration_name);
+    // Số đếm, migration, danh sách tệp và pg_dump cùng đọc MỘT snapshot (pg_export_snapshot + --snapshot),
+    // nên database đang có người ghi (job nhắc hạn, rate_counters) cũng không làm lệch số khi khôi phục.
+    const { before, migrations, keys } = await db.$transaction(async (tx) => {
+      const [{ id }] = await tx.$queryRaw`SELECT pg_export_snapshot() AS id`;
+      const before = await tableCounts(tx, schema);
+      const migrations = (await tx.$queryRawUnsafe(`SELECT migration_name FROM "${schema}"._prisma_migrations WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL ORDER BY migration_name`)).map((r) => r.migration_name);
+      const keys = includeFiles ? (await tx.$queryRawUnsafe(`SELECT DISTINCT "storageKey" AS key FROM "${schema}".documents WHERE "storageKey" IS NOT NULL ORDER BY 1`)).map((r) => r.key) : [];
+      await run(pgDump.file, ['--format=custom', `--schema=${schema}`, `--snapshot=${id}`, '--no-owner', '--no-privileges', '--compress=6', `--file=${path.join(out, DUMP)}`], {
+        env: { ...process.env, ...pgEnv(url) }, windowsHide: true, maxBuffer: 16 * 1024 * 1024,
+      });
+      return { before, migrations, keys };
+    }, { isolationLevel: 'RepeatableRead', maxWait: 30_000, timeout: 6 * 3600_000 });
     const files = { [DUMP]: await sha256File(path.join(out, DUMP)) };
     let storageMode = null, missing = [];
     if (includeFiles) {
       storageMode = useStorage(storage);
-      const keys = (await db.$queryRaw`SELECT DISTINCT "storageKey" AS key FROM documents WHERE "storageKey" IS NOT NULL ORDER BY 1`).map((r) => r.key);
       log(`Đang chép ${keys.length} tệp từ ${storageMode === 'supabase' ? 'Supabase Storage' : 'UPLOAD_DIR'}`);
       for (const key of keys) {
         const name = path.basename(key);
@@ -148,6 +159,10 @@ export async function backup({ url, out, storage, schema = 'public', includeFile
     manifest.backupHash = sha256(JSON.stringify(Object.entries(files).sort(([a], [b]) => a.localeCompare(b))));
     fs.writeFileSync(path.join(out, MANIFEST), JSON.stringify(manifest, null, 2) + '\n', { flag: 'wx' });
     return manifest;
+  } catch (error) {
+    // Không để lại thư mục dở dang (chạy lại với cùng --out sẽ bị từ chối vì "đã có dữ liệu").
+    if (created) fs.rmSync(out, { recursive: true, force: true });
+    throw error;
   } finally {
     await db.$disconnect();
   }
@@ -158,7 +173,7 @@ export async function verifyBackup(dir) {
   const manifest = JSON.parse(fs.readFileSync(path.join(dir, MANIFEST), 'utf8'));
   if (manifest.kind !== 'taskflow-backup' || manifest.schemaVersion !== 1) throw new Error('manifest.json không phải bản sao lưu TaskFlow');
   for (const [rel, expected] of Object.entries(manifest.files)) {
-    if (rel.includes('..') || path.isAbsolute(rel)) throw new Error(`Đường dẫn không hợp lệ trong manifest: ${rel}`);
+    if (rel.split(/[\\/]/).includes('..') || path.isAbsolute(rel)) throw new Error(`Đường dẫn không hợp lệ trong manifest: ${rel}`);
     const file = path.join(dir, rel);
     if (!fs.existsSync(file)) throw new Error(`Thiếu tệp ${rel}`);
     if ((await sha256File(file)) !== expected) throw new Error(`Sai checksum: ${rel}`);

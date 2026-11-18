@@ -356,9 +356,9 @@ router.get('/tasks/:id', async (req, res) => {
   const { task, canWrite, canManage, role, project, projectRole } = access;
   const [blockers, blocking, activity, parent] = await Promise.all([
     blockerRows(task),
-    prisma.task.findMany({ where: { deletedAt: null, blockedBy: { has: task.id } }, select: { id: true, key: true, title: true, status: true, dueDate: true } }),
+    prisma.task.findMany({ where: { deletedAt: null, project: task.project, blockedBy: { has: task.id } }, select: { id: true, key: true, title: true, status: true, dueDate: true } }),
     prisma.activity.findMany({ where: { entityType: 'task', entityId: task.id }, orderBy: { createdAt: 'desc' }, take: 50, include: { actorRef: { select: USER } } }),
-    task.parent ? prisma.task.findUnique({ where: { deletedAt: null, id: task.parent }, select: { id: true, key: true, title: true } }) : null,
+    task.parent ? prisma.task.findFirst({ where: { deletedAt: null, id: task.parent, project: task.project }, select: { id: true, key: true, title: true } }) : null,
   ]);
   const { task: full, subtasks, files } = shapeSnapshot(row, blockers);
   res.json({
@@ -764,6 +764,10 @@ router.post('/tasks/:id/comments', async (req, res) => {
   res.status(201).json({ comment: full });
 });
 
+// Khóa workspace của bình luận là khóa chia sẻ, nên hai lần sửa/xóa cùng một bình luận cần khóa thêm chính dòng đó:
+// lần sau chờ lần trước xong rồi mới đọc lại (đã xóa → 404, không ghi nhật ký trùng).
+const lockComment = (tx, id) => tx.$queryRaw`SELECT id FROM comments WHERE id = ${id}::uuid FOR UPDATE`;
+
 router.patch('/comments/:id', async (req, res) => {
   const { comment, access } = await commentAccess(req);
   if (comment.author !== req.user.id) throw forbidden('Chỉ được sửa bình luận của mình');
@@ -772,6 +776,7 @@ router.patch('/comments/:id', async (req, res) => {
   const body = plainText(raw);
   if (!body) throw badRequest('Nội dung trống');
   const full = await withWorkspaceLock(access.project.workspace, async (tx) => {
+    await lockComment(tx, comment.id);
     const fresh = await commentAccess(req, tx);
     assertComment(fresh.access);
     return tx.comment.update({ where: { id: comment.id }, data: { body, mentions: await resolveMentions(fresh.access.project, body, [], tx), editedAt: new Date() } });
@@ -788,6 +793,7 @@ router.delete('/comments/:id', async (req, res) => {
   const { comment, access } = await commentAccess(req);
   if (comment.author !== req.user.id && !access.canManage) throw forbidden('Chỉ được xóa bình luận của mình');
   await withWorkspaceLock(access.project.workspace, async (tx) => {
+    await lockComment(tx, comment.id);
     const fresh = await commentAccess(req, tx);
     assertComment(fresh.access);
     if (fresh.comment.author !== req.user.id && !fresh.access.canManage) throw forbidden('Chỉ PM được ẩn bình luận của người khác');

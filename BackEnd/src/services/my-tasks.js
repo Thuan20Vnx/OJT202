@@ -62,7 +62,8 @@ export async function listMyTasks(req, res) {
   const byId = new Map(blockers.map((b) => [b.id, b]));
   const items = rows.map(({ assigneeRef, projectRef, checklistItems, subtasks, _count, ...t }) => {
     const projectRole = role === 'viewer' ? 'viewer' : projectRef.memberships[0]?.role;
-    const canWrite = !!projectRole && projectRole !== 'viewer' && projectRef.status !== 'archived';
+    // Workspace đang chờ xóa: chỉ đọc như ở chi tiết việc/Kanban.
+    const canWrite = !!projectRole && projectRole !== 'viewer' && projectRef.status !== 'archived' && !workspace.deletionScheduledAt;
     const access = { project: projectRef, projectRole, canWrite, canManage: canWrite && projectRole === 'pm' };
     const permissions = taskPermissions(access, req.user.id, t);
     return {

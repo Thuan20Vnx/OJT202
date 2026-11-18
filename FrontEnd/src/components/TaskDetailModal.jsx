@@ -723,9 +723,9 @@ export default function TaskDetailModal({ taskId, onClose, onDirtyChange, leaveR
         <button className="btn-outline btn-sm" onClick={() => load()}>{tr("Thử lại")}</button>
       </div>}
 
-      <div className="scroll-thin grid min-h-0 flex-1 overflow-y-auto lg:grid-cols-[1fr_320px] lg:overflow-hidden">
+      <div className="scroll-thin grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)] overflow-y-auto lg:grid-cols-[minmax(0,1fr)_320px] lg:overflow-hidden">
         {/* Cột chính */}
-        <div className="scroll-thin space-y-6 px-4 py-5 sm:px-6 lg:overflow-y-auto">
+        <div className="scroll-thin min-w-0 space-y-6 px-4 py-5 sm:px-6 lg:overflow-y-auto">
           <textarea
             aria-label={tr("Tên công việc")}
             value={form.title}
@@ -796,13 +796,13 @@ export default function TaskDetailModal({ taskId, onClose, onDirtyChange, leaveR
                 {blockers.map((b) => (
                   <div
                     key={b._id}
-                    className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-body-sm ${b.status !== 'done' ? 'border-rose-200 bg-rose-50/60' : 'border-slate-200'}`}
+                    className={`flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2 text-body-sm sm:flex-nowrap ${b.status !== 'done' ? 'border-rose-200 bg-rose-50/60' : 'border-slate-200'}`}
                   >
                     <span className="chip border-rose-200 bg-white text-rose-600">{tr("Bị chặn bởi")}</span>
                     <Link to={`?task=${b._id}`} className="font-semibold text-slate-800 hover:text-blue-600">
                       {b.key}
                     </Link>
-                    <span className="flex-1 truncate text-slate-600">{b.title}</span>
+                    <span className="min-w-[8rem] flex-1 truncate text-slate-600">{b.title}</span>
                     <StatusChip status={b.status} />
                     {canWrite && (
                       <button disabled={updating} className="text-slate-400 hover:text-rose-500" onClick={() => removeDep(b._id)} title={tr("Gỡ phụ thuộc")}>
@@ -812,12 +812,12 @@ export default function TaskDetailModal({ taskId, onClose, onDirtyChange, leaveR
                   </div>
                 ))}
                 {blocking.map((b) => (
-                  <div key={b._id} className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-body-sm">
+                  <div key={b._id} className="flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-body-sm sm:flex-nowrap">
                     <span className="chip border-amber-200 bg-amber-50 text-amber-700">{tr("Đang chặn")}</span>
                     <Link to={`?task=${b._id}`} className="font-semibold text-slate-800 hover:text-blue-600">
                       {b.key}
                     </Link>
-                    <span className="flex-1 truncate text-slate-600">{b.title}</span>
+                    <span className="min-w-[8rem] flex-1 truncate text-slate-600">{b.title}</span>
                     <StatusChip status={b.status} />
                   </div>
                 ))}
@@ -980,7 +980,7 @@ export default function TaskDetailModal({ taskId, onClose, onDirtyChange, leaveR
                           {timeAgo(c.createdAt)}
                           {c.editedAt && tr(" · đã sửa")}
                         </span>
-                        {access.canWrite && (c.author?._id === me?._id || canWrite) && editing !== c._id && (
+                        {(access.canWrite || access.canComment) && (c.author?._id === me?._id || access.canManage) && editing !== c._id && (
                           <span className="ml-auto flex gap-2 text-label-md">
                             {c.author?._id === me?._id && <button className="text-slate-400 hover:text-blue-600" onClick={() => editComment(c._id)}>{tr("Sửa")}</button>}
                             <button

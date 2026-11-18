@@ -66,6 +66,8 @@ Migration của Prisma chỉ đi tới, không tự lùi. Chọn một trong hai
    $env:RESTORE_DATABASE_URL = "<database MỚI, rỗng>"                   # không dán mật khẩu vào lệnh
    npm run db:restore -- --from <thư mục sao lưu> --yes [--supabase | --upload-dir <thư mục>]
    ```
+   Checksum trong `manifest.json` chỉ phát hiện tệp hỏng/thiếu, không chống người cố ý sửa (không có chữ ký): cất bản sao lưu ở nơi chỉ người vận hành ghi được. `--clean` chỉ xóa đối tượng có trong bản dump; bảng thừa ở đích sẽ làm lệch số đếm, nên tốt nhất khôi phục vào database mới, trống.
+
    Lệnh restore **không bao giờ** tự lấy `DATABASE_URL`. Nếu database đích đã có bảng, nó từ chối trừ khi thêm `--clean`. Sau khi khôi phục, nó đếm lại từng bảng và so với manifest, đọc lại từng tệp và so checksum. Khi đạt, trỏ `DATABASE_URL` của bản code cũ sang database vừa khôi phục, chạy code cũ (mục 4.1), giữ database lỗi để điều tra. Dữ liệu phát sinh sau lúc sao lưu sẽ mất, cần báo cho người dùng.
 
 ## 5. Diễn tập đã chạy (U031)

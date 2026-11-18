@@ -74,13 +74,17 @@ function SearchBox() {
   const [q, setQ] = useState('');
   const [res, setRes] = useState<{ projects: ProjectSummary[]; tasks: { _id: string; key: string; title: string; status: string; project: { _id: string } }[] } | null>(null);
   const [open, setOpen] = useState(false);
+  // Dưới lg ô tìm kiếm thu thành nút kính lúp; bấm vào thì mở thành thanh ngang dưới topbar.
+  const [expanded, setExpanded] = useState(false);
   const ref = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
+  const pick = () => { setQ(''); setExpanded(false); };
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
-        ref.current?.focus();
+        setExpanded(true);
+        setTimeout(() => ref.current?.focus());
       }
     };
     window.addEventListener('keydown', onKey);
@@ -92,18 +96,25 @@ function SearchBox() {
     return () => clearTimeout(t);
   }, [q, wsId]);
   return (
-    <div className="relative mx-6 hidden max-w-md flex-1 lg:block">
+    <>
+    <button type="button" className="icon-btn lg:hidden" aria-label={tr("Tìm kiếm")} title={tr("Tìm kiếm")} aria-expanded={expanded} onClick={() => { setExpanded(true); setTimeout(() => ref.current?.focus()); }}>
+      <Icon name="search" />
+    </button>
+    <div className={`${expanded ? 'fixed inset-x-0 top-[60px] z-50 block border-b border-slate-200 bg-white px-3 py-2 shadow-pop' : 'hidden'} lg:relative lg:inset-auto lg:top-auto lg:z-auto lg:mx-6 lg:block lg:max-w-md lg:flex-1 lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none`}>
+    <div className="relative">
       <Icon name="search" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
       <input
         ref={ref}
         value={q}
         onChange={(e) => setQ(e.target.value)}
         onFocus={() => setOpen(true)}
-        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        onBlur={() => setTimeout(() => { setOpen(false); setExpanded(false); }, 150)}
+        onKeyDown={(e) => { if (e.key === 'Escape') { setExpanded(false); ref.current?.blur(); } }}
+        aria-label={tr("Tìm kiếm công việc")}
         className="input h-9 rounded-lg bg-slate-50 pl-9 pr-12 text-body-sm"
         placeholder={tr("Tìm kiếm công việc... (⌘K)")}
       />
-      <kbd className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 rounded border border-slate-200 bg-white px-1.5 py-0.5 font-mono text-[10px] text-slate-400">⌘K</kbd>
+      <kbd className="pointer-events-none absolute right-2.5 hidden lg:block top-1/2 -translate-y-1/2 rounded border border-slate-200 bg-white px-1.5 py-0.5 font-mono text-[10px] text-slate-400">⌘K</kbd>
       {open && res && (
         <div className="absolute left-0 right-0 top-11 z-50 rounded-xl border border-slate-200 bg-white p-1.5 shadow-pop">
           {!res.tasks.length && !res.projects.length && <p className="px-3 py-4 text-center text-body-sm text-slate-500">{tr("Không có kết quả")}</p>}
@@ -113,7 +124,7 @@ function SearchBox() {
               onMouseDown={() => {
                 setProjectId(p._id);
                 navigate('/overview');
-                setQ('');
+                pick();
               }}
               className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-body-sm hover:bg-slate-50"
             >
@@ -127,7 +138,7 @@ function SearchBox() {
               onMouseDown={() => {
                 setProjectId(t.project._id);
                 navigate(`?task=${t._id}`);
-                setQ('');
+                pick();
               }}
               className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-body-sm hover:bg-slate-50"
             >
@@ -139,6 +150,8 @@ function SearchBox() {
         </div>
       )}
     </div>
+    </div>
+    </>
   );
 }
 

@@ -171,11 +171,11 @@ export default function Calendar() {
         </div>
       </div>
       <ErrorBox error={error} onRetry={reload} />
-      <div className="grid gap-4 xl:grid-cols-[1fr_320px]">
-        <div className="card overflow-hidden">
-          <div className="grid grid-cols-7 border-b border-slate-200 bg-slate-50">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="card min-w-0 overflow-hidden">
+          <div className="grid grid-cols-[repeat(7,minmax(0,1fr))] border-b border-slate-200 bg-slate-50">
             {getDaysOfWeek().map((d) => (
-              <div key={d} className="px-2 py-2 text-center text-label-md text-slate-500">
+              <div key={d} className="truncate px-0.5 py-2 text-center text-label-md text-slate-500 sm:px-2">
                 {d}
               </div>
             ))}
@@ -183,7 +183,7 @@ export default function Calendar() {
           {loading && !data ? (
             <PageLoader />
           ) : (
-            <div className="grid grid-cols-7">
+            <div className="grid grid-cols-[repeat(7,minmax(0,1fr))]">
               {Array.from({ length: range.days }, (_, i) => {
                 const date = addDays(range.start, i);
                 const key = isoDate(date);
@@ -195,7 +195,7 @@ export default function Calendar() {
                     key={key}
                     onDragOver={(e) => canWriteProject && e.preventDefault()}
                     onDrop={() => drag && reschedule(drag, key)}
-                    className={`relative border-b border-r border-slate-100 p-1.5 ${view === 'week' ? 'min-h-[420px]' : 'min-h-[118px]'} ${inMonth ? 'bg-white' : 'bg-slate-50/70'}`}
+                    className={`relative min-w-0 overflow-hidden border-b border-r border-slate-100 p-0.5 sm:p-1.5 ${view === 'week' ? 'min-h-[420px]' : 'min-h-[118px]'} ${inMonth ? 'bg-white' : 'bg-slate-50/70'}`}
                   >
                     <div className="mb-1 flex items-center justify-between">
                       <span
@@ -203,7 +203,7 @@ export default function Calendar() {
                       >
                         {date.getDate()}
                       </span>
-                      {key === today && <span className="text-label-sm text-blue-600">{tr("Hôm nay")}</span>}
+                      {key === today && <span className="hidden text-label-sm text-blue-600 sm:inline">{tr("Hôm nay")}</span>}
                     </div>
                     {key === sprintEnd && <div className="mb-1 rounded bg-purple-100 px-1.5 py-0.5 text-label-sm text-purple-700">{tr("Kết thúc ")}{info.project.sprint.name}</div>}
                     <div className="space-y-1">
@@ -221,7 +221,7 @@ export default function Calendar() {
                           >
                             <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${overdue ? 'bg-rose-500' : STATUS[t.status].dot}`} />
                             {t.isBlocked && <Icon name="block" size={12} className="text-rose-600" />}
-                            <span className="shrink-0 font-mono text-slate-400">{t.key}</span>
+                            <span className="hidden shrink-0 font-mono text-slate-400 sm:inline">{t.key}</span>
                             <span className={`truncate ${t.status === 'done' ? 'text-slate-400 line-through' : 'text-slate-700'}`}>{t.title}</span>
                           </button>
                         );

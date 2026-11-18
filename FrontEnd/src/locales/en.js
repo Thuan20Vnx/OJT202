@@ -257,6 +257,8 @@ export const english = {
   "Hồ sơ cá nhân": "My profile",
   "Quản trị hệ thống": "System administration",
   "Tìm kiếm công việc... (⌘K)": "Search tasks... (⌘K)",
+  "Tìm kiếm": "Search",
+  "Tìm kiếm công việc": "Search tasks",
   "Không có kết quả": "No results",
   "Thành viên & Phân quyền": "Members & permissions",
   "Lời mời": "Invitations",
@@ -1503,7 +1505,8 @@ export const english = {
   "Thêm phụ thuộc": "Add dependency",
   "Đổi vai trò chuyên môn": "Change specialty",
   "Lưu trữ dự án": "Archive project",
-  "Khôi phục dự án": "Restore project",
+  "Khôi phục dự án": "Restore project"
+,
   "{0} giờ {1} phút": "{0} h {1} min",
   "{0} phút": "{0} min",
   "Đã hủy xóa workspace. Mọi thứ hoạt động bình thường trở lại.": "Workspace deletion cancelled. Everything is back to normal.",
