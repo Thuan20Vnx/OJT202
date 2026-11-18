@@ -282,6 +282,7 @@ router.post('/projects/:projectId/tasks', middlewareProject(), async (req, res) 
     const deps = { id: null, project: project.id, blockedBy: [] };
     for (const dep of blockedBy || []) await addDependency(deps, dep, tx);
     if (body.status === 'done') await assertBlockersDone(deps.blockedBy, tx);
+    if (body.sprint && body.sprint !== project.sprint?.name) await assertSprint(tx, project.id, body.sprint);
     const number = await nextSeq(`task:${project.id}`, tx);
     // Không tự suy diễn deadline: thiếu ngày thì để trống
     const task = await tx.task.create({
@@ -413,6 +414,7 @@ async function applyUpdate(req, before, project, patch, prepare) {
     assertTaskStatus(access, patch.status, access.task.status);
     if (patch.status && !permissions.allowedStatuses.includes(patch.status)) throw forbidden('Chuyển trạng thái không hợp lệ');
     if (patch.status === 'done' && access.task.status !== 'done') await assertBlockersDone(access.task.blockedBy, tx);
+    if (patch.sprint && patch.sprint !== access.task.sprint) await assertSprint(tx, access.project.id, patch.sprint);
     applyTaskDates(patch, access.task, req.user.timezone);
     if (patch.spentHours !== undefined && patch.spentHours !== access.task.spentHours) {
       if (await tx.taskDailyUpdate.count({ where: { task: before.id } })) throw badRequest('Effort đã có nhật ký. Hãy sửa giờ trong nhật ký thay vì ghi đè tổng giờ.');
@@ -728,6 +730,13 @@ async function resolveMentions(project, body, explicit = [], db = prisma) {
     if (hit) ids.add(hit.id);
   }
   return [...ids];
+}
+
+/** Sprint gán cho việc phải có thật trong dự án và chưa đóng; nếu không việc sẽ biến mất khỏi Sprint lẫn Backlog. */
+async function assertSprint(tx, projectId, name) {
+  const sprint = await tx.sprint.findFirst({ where: { project: projectId, name }, select: { status: true } });
+  if (!sprint) throw badRequest(`Sprint "${name}" không tồn tại trong dự án`);
+  if (sprint.status === 'closed') throw badRequest('Không xếp việc vào Sprint đã đóng');
 }
 
 const commentAccess = async (req, db = prisma) => {

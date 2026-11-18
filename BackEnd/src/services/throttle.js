@@ -10,10 +10,10 @@ import { sha256 } from '../utils/security.js';
 export async function hit(key, { limit, windowMs, amount = 1 }) {
   const cutoff = new Date(Date.now() - windowMs);
   const [row] = await prisma.$queryRaw`
-    INSERT INTO rate_counters (key, count, "windowStart") VALUES (${key}, ${amount}, now())
+    INSERT INTO rate_counters (key, count, "windowStart") VALUES (${key}, ${amount}, now() AT TIME ZONE 'UTC')
     ON CONFLICT (key) DO UPDATE SET
-      count = CASE WHEN rate_counters."windowStart" < ${cutoff} THEN ${amount} ELSE rate_counters.count + ${amount} END,
-      "windowStart" = CASE WHEN rate_counters."windowStart" < ${cutoff} THEN now() ELSE rate_counters."windowStart" END
+      count = CASE WHEN rate_counters."windowStart" < (${cutoff}::timestamptz AT TIME ZONE 'UTC') THEN ${amount} ELSE rate_counters.count + ${amount} END,
+      "windowStart" = CASE WHEN rate_counters."windowStart" < (${cutoff}::timestamptz AT TIME ZONE 'UTC') THEN now() AT TIME ZONE 'UTC' ELSE rate_counters."windowStart" END
     RETURNING count, "windowStart"`;
   const retryAfterSec = Math.max(1, Math.ceil((row.windowStart.getTime() + windowMs - Date.now()) / 1000));
   return { allowed: row.count <= limit, count: row.count, retryAfterSec };
@@ -60,10 +60,10 @@ export async function recordLoginFailure(email) {
   const cutoff = new Date(Date.now() - loginFailureWindowMinutes * 60000);
   const lockUntil = new Date(Date.now() + loginLockMinutes * 60000);
   const [row] = await prisma.$queryRaw`
-    INSERT INTO rate_counters (key, count, "windowStart") VALUES (${loginKey(email)}, 1, now())
+    INSERT INTO rate_counters (key, count, "windowStart") VALUES (${loginKey(email)}, 1, now() AT TIME ZONE 'UTC')
     ON CONFLICT (key) DO UPDATE SET
-      count = CASE WHEN rate_counters."windowStart" < ${cutoff} THEN 1 ELSE rate_counters.count + 1 END,
-      "windowStart" = CASE WHEN rate_counters."windowStart" < ${cutoff} THEN now() ELSE rate_counters."windowStart" END
+      count = CASE WHEN rate_counters."windowStart" < (${cutoff}::timestamptz AT TIME ZONE 'UTC') THEN 1 ELSE rate_counters.count + 1 END,
+      "windowStart" = CASE WHEN rate_counters."windowStart" < (${cutoff}::timestamptz AT TIME ZONE 'UTC') THEN now() AT TIME ZONE 'UTC' ELSE rate_counters."windowStart" END
     RETURNING count`;
   if (row.count < max) return max - row.count;
   await prisma.rateCounter.update({ where: { key: loginKey(email) }, data: { count: 0, lockedUntil: lockUntil, windowStart: new Date() } });

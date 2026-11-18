@@ -97,6 +97,15 @@ describe('Bảo mật đăng nhập và chống spam', () => {
     assert.equal((await anon.post('/auth/login', { email: c.email, password: PASSWORD })).status, 200);
   });
 
+  test('đổi mật khẩu: đoán sai mật khẩu hiện tại 5 lần thì bị khóa như đăng nhập', async () => {
+    const c = await user('ChPw');
+    for (let i = 1; i <= 4; i++) assert.equal((await c.post('/me/password', { currentPassword: 'SaiMatKhau1', newPassword: 'MatKhauMoi2026' })).status, 400);
+    const fifth = await c.post('/me/password', { currentPassword: 'SaiMatKhau1', newPassword: 'MatKhauMoi2026' });
+    assert.equal(fifth.status, 429);
+    assert.equal((await c.post('/me/password', { currentPassword: PASSWORD, newPassword: 'MatKhauMoi2026' })).status, 429, 'đang khóa thì mật khẩu đúng cũng bị từ chối');
+    assert.equal((await new Client().post('/auth/login', { email: c.email, password: PASSWORD })).status, 429, 'khóa chung với đăng nhập');
+  });
+
   test('đăng nhập đúng xóa bộ đếm sai; email không tồn tại bị khóa y hệt nên không dò được', async () => {
     const c = await user('Reset');
     const anon = new Client();
@@ -125,6 +134,8 @@ describe('Bảo mật đăng nhập và chống spam', () => {
       const third = await reg(3);
       assert.equal(third.status, 429);
       assert.equal(third.data.details.code, 'RATE_LIMITED');
+      // Cửa sổ 1 giờ: số giây chờ không lệch theo múi giờ của phiên database (trước đây +7 giờ với DB giờ Bangkok)
+      assert.ok(third.data.details.retryAfterSec > 3500 && third.data.details.retryAfterSec <= 3600, `retryAfterSec=${third.data.details.retryAfterSec}`);
 
       const count = () => db.prisma.outbox.count({ where: { to: 'spam1@scope.test' } });
       const before = await count();

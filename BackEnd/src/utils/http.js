@@ -59,6 +59,11 @@ export function errorHandler(err, req, res, _next) {
     const msg = err.code === 'LIMIT_FILE_SIZE' ? 'Tệp vượt quá 10MB' : 'Tải tệp thất bại';
     return res.status(400).json({ error: msg });
   }
+  // busboy (bên dưới multer) ném Error thường khi body multipart hỏng/thiếu boundary: lỗi của request, không phải server.
+  if (/^(Unexpected end of form|Multipart: Boundary not found|Malformed part header|Unexpected end of multipart data)/.test(err?.message || ''))
+    return res.status(400).json({ error: 'Dữ liệu tải lên không hợp lệ' });
+  // express.json: JSON hỏng
+  if (err?.type === 'entity.parse.failed') return res.status(400).json({ error: 'Dữ liệu JSON không hợp lệ' });
   // Prisma: id sai định dạng uuid (P2023) hoặc bản ghi không còn (P2025) => 404; vi phạm UNIQUE => 409
   if (err?.code === 'P2023' || err?.code === 'P2025') return res.status(404).json({ error: 'Không tìm thấy' });
   if (err?.code === 'P2002') return res.status(409).json({ error: 'Dữ liệu bị trùng', details: { fields: err.meta?.target } });

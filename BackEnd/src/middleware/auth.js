@@ -54,7 +54,9 @@ export async function authenticate(token) {
   if (!token) return null;
   let payload;
   try {
-    payload = jwt.verify(token, config.jwtSecret);
+    // Chỉ nhận HS256 và bắt buộc có hạn (exp) – đúng như signAccess tạo ra.
+    payload = jwt.verify(token, config.jwtSecret, { algorithms: ['HS256'] });
+    if (typeof payload !== 'object' || !payload.exp) return null;
   } catch {
     return null;
   }
