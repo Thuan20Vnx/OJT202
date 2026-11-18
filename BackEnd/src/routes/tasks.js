@@ -414,7 +414,7 @@ async function applyUpdate(req, before, project, patch, prepare) {
     assertTaskStatus(access, patch.status, access.task.status);
     if (patch.status && !permissions.allowedStatuses.includes(patch.status)) throw forbidden('Chuyển trạng thái không hợp lệ');
     if (patch.status === 'done' && access.task.status !== 'done') await assertBlockersDone(access.task.blockedBy, tx);
-    if (patch.sprint && patch.sprint !== access.task.sprint) await assertSprint(tx, access.project.id, patch.sprint);
+    if (patch.sprint && patch.sprint !== access.task.sprint && patch.sprint !== access.project.sprint?.name) await assertSprint(tx, access.project.id, patch.sprint);
     applyTaskDates(patch, access.task, req.user.timezone);
     if (patch.spentHours !== undefined && patch.spentHours !== access.task.spentHours) {
       if (await tx.taskDailyUpdate.count({ where: { task: before.id } })) throw badRequest('Effort đã có nhật ký. Hãy sửa giờ trong nhật ký thay vì ghi đè tổng giờ.');

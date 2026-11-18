@@ -413,7 +413,10 @@ router.post('/:wsId/invites/:id/resend', middlewareWorkspace('wsId', 'admin'), a
     const inv = isId(req.params.id) ? await tx.invite.findFirst({ where: { id: req.params.id, workspace: fresh.workspace.id, acceptedAt: null, revokedAt: null } }) : null;
     if (!inv) throw notFound('Không tìm thấy lời mời');
     if (inv.role === 'admin' && fresh.role !== 'owner') throw forbidden('Chỉ Owner được thay đổi lời mời Admin');
-    return tx.invite.update({ where: { id: inv.id }, data: { tokenHash: sha256(raw), expiresAt: new Date(Date.now() + config.inviteTtlMs) } });
+    // Người mời cũ đã rời workspace/bị hạ quyền thì lời mời sẽ bị từ chối khi nhận: người gửi lại đứng tên thay.
+    const original = await tx.membership.findUnique({ where: { workspace_user: { workspace: fresh.workspace.id, user: inv.invitedBy } }, select: { role: true } });
+    const takeOver = !atLeast(original?.role, 'admin');
+    return tx.invite.update({ where: { id: inv.id }, data: { tokenHash: sha256(raw), expiresAt: new Date(Date.now() + config.inviteTtlMs), ...(takeOver && { invitedBy: req.user.id }) } });
   });
   await sendInvite(req.ws.workspace, updated, raw, req.user);
   res.json({ ok: true, expiresAt: updated.expiresAt });

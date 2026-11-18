@@ -6,6 +6,9 @@ import { initRealtime } from './services/realtime.js';
 import { startJobs } from './services/jobs.js';
 import { seedDemo } from './seed.js';
 
+// Lưới an toàn: một promise lỗi không ai bắt (vd trong handler socket) không được làm sập cả API.
+process.on('unhandledRejection', (reason) => console.error('[unhandledRejection]', reason));
+
 async function main() {
   await connectDb();
   if (config.seedDemo) await seedDemo();

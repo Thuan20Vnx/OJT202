@@ -313,7 +313,7 @@ function SetupCard({ projectId }) {
       <div className="space-y-4 pb-3">
         <Step n={1} done={!!created}>
           <form className="flex flex-wrap gap-2" onSubmit={create}>
-            <input className="input min-w-0 flex-1" required maxLength={80} aria-label={tr('Tên token')} placeholder={tr('Tên token, ví dụ: laptop')} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+            <input className="input min-w-[10rem] flex-1" required maxLength={80} aria-label={tr('Tên token')} placeholder={tr('Tên token, ví dụ: laptop')} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
             <Select className="input w-auto" value={form.days} onChange={(e) => setForm({ ...form, days: e.target.value })}>
               <option value="7">{tr('7 ngày')}</option>
               <option value="30">{tr('30 ngày')}</option>

@@ -58,8 +58,8 @@ export default function Invite() {
               )
             ) : (
               <div className="grid grid-cols-2 gap-2">
-                <Link className="btn-primary" to={`/login?next=/invite/${token}`}>{tr("Đăng nhập")}</Link>
-                <Link className="btn-outline" to={`/register?next=/invite/${token}`}>{tr("Tạo tài khoản")}</Link>
+                <Link className="btn-primary" to={`/login?next=/invite/${token}`} state={{ email: inv.email }}>{tr("Đăng nhập")}</Link>
+                <Link className="btn-outline" to={`/register?next=/invite/${token}`} state={{ email: inv.email }}>{tr("Tạo tài khoản")}</Link>
               </div>
             )}
           </>

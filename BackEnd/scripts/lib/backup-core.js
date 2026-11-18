@@ -161,7 +161,9 @@ export async function backup({ url, out, storage, schema = 'public', includeFile
     return manifest;
   } catch (error) {
     // Không để lại thư mục dở dang (chạy lại với cùng --out sẽ bị từ chối vì "đã có dữ liệu").
+    // Thư mục có sẵn (trống) thì chỉ xóa những gì lệnh này tạo ra.
     if (created) fs.rmSync(out, { recursive: true, force: true });
+    else for (const name of [FILES, DUMP, MANIFEST]) fs.rmSync(path.join(out, name), { recursive: true, force: true });
     throw error;
   } finally {
     await db.$disconnect();

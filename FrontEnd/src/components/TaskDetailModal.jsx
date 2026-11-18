@@ -1036,7 +1036,7 @@ export default function TaskDetailModal({ taskId, onClose, onDirtyChange, leaveR
           <Prop label={tr("Người tạo")}>
             <PersonLine user={task.creator} />
           </Prop>
-          <Prop label="Loại công việc"><select aria-label="Loại công việc" className="input h-9" disabled={!canWrite} value={form.workType} onChange={(e) => setF('workType', e.target.value)}>{Object.entries(WORK_TYPES).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></Prop>
+          <Prop label={tr("Loại công việc")}><select aria-label={tr("Loại công việc")} className="input h-9" disabled={!canWrite} value={form.workType} onChange={(e) => setF('workType', e.target.value)}>{Object.entries(WORK_TYPES).map(([key, label]) => <option key={key} value={key}>{tr(label)}</option>)}</select></Prop>
           <Prop label={tr("Lịch công việc")}>
             <span className="mb-1 block text-label-sm text-slate-500">{task.dueDate ? tr("Hạn hiện tại: {0}", [fmtDateTime(task.dueDate)]) : ''}</span>
             <TaskDates value={form} onChange={setF} canPlan={canWrite} canActual={access.canUpdateProgress} />

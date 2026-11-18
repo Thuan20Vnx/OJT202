@@ -1,4 +1,4 @@
-import { isoDate } from '../lib/format.js';
+import { fmtDate, isoDate } from '../lib/format.js';
 import { t as tr } from '../lib/i18n.js';
 
 const day = (value) => value ? Date.parse(`${isoDate(value)}T00:00:00Z`) : null;
@@ -17,7 +17,7 @@ export default function ScheduleComparison({ task, domain }) {
     const finishAt = b ?? (a && ongoing ? day(new Date()) : a);
     const left = startAt == null ? 0 : Math.max(0, Math.min(98, (startAt - from) / (to - from) * 100));
     const width = Math.max(2, Math.min(100 - left, ((finishAt ?? startAt) - startAt) / (to - from) * 100));
-    const text = `${label}: ${start ? isoDate(start) : tr('Chưa có ngày bắt đầu')} → ${end ? isoDate(end) : ongoing && start ? tr('Đang thực hiện') : tr('Chưa có ngày kết thúc')}`;
+    const text = `${label}: ${start ? fmtDate(start, { year: true }) : tr('Chưa có ngày bắt đầu')} → ${end ? fmtDate(end, { year: true }) : ongoing && start ? tr('Đang thực hiện') : tr('Chưa có ngày kết thúc')}`;
     return <div className="space-y-1" key={label}>
       <p className="text-label-md text-slate-600">{text}</p>
       <div className="relative h-3 rounded bg-slate-100" role="img" aria-label={text}>

@@ -10,7 +10,8 @@ const ASSIGNED = /((?:password|passwd|secret|api[_-]?key|access[_-]?token|auth[_
 // Giá trị không có ngoặc (password=abc12345, token: abc12345): dừng ở khoảng trắng/dấu phân cách.
 const ASSIGNED_BARE = /((?:password|passwd|secret|api[_-]?key|access[_-]?token|auth[_-]?token)\s*[:=]\s*)([^"'\s,;)}\]]{8,})/gi;
 // Cả khối PEM (thân base64 nằm ở các dòng sau dòng BEGIN), xử lý trước khi tách dòng.
-const PEM_BLOCK = /-----BEGIN ((?:[A-Z]+ )*)PRIVATE KEY-----[\s\S]*?(?:-----END \1PRIVATE KEY-----|$)/g;
+// Không có dòng END thì chỉ che các dòng base64 liền sau (không nuốt cả phần văn bản còn lại).
+const PEM_BLOCK = /-----BEGIN ((?:[A-Z]+ )*)PRIVATE KEY-----(?:[\s\S]*?-----END \1PRIVATE KEY-----|(?:\r?\n[A-Za-z0-9+/=]+(?=\r?\n|$))*)/g;
 const PLACEHOLDER = /^(?:change-?me|your|example|xxx|test|dummy|placeholder|<|\$\{|process\.env)/i;
 export const MASK = '[ĐÃ ẨN]';
 

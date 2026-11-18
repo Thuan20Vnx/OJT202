@@ -35,7 +35,7 @@ function SpecialtyCell({ member, editable, onChange }) {
   ));
   if (!editable) return <div className="flex flex-wrap gap-1">{chips}{!chips.length && <span className="text-slate-300">—</span>}</div>;
   return (
-    <Dropdown trigger={
+    <Dropdown portal trigger={
       <button type="button" aria-label={tr('Sửa vai trò chuyên môn của {0}', [member.user.name])} className="flex min-h-8 flex-wrap items-center gap-1 rounded-md p-0.5 text-left hover:bg-slate-100">
         {chips}{!chips.length && <span className="px-1 text-label-md font-normal text-slate-400">{tr('+ Thêm vai trò')}</span>}
       </button>
@@ -377,7 +377,7 @@ export default function Members() {
                               <Icon name="lock" size={16} />
                             </span>
                           ) : (
-                            <Dropdown trigger={<button className="icon-btn h-8 w-8"><Icon name="more_vert" /></button>}>
+                            <Dropdown portal trigger={<button className="icon-btn h-8 w-8"><Icon name="more_vert" /></button>}>
                               {m.projects.map((p) => (
                                 <MenuItem key={p._id} icon="folder_off" onClick={() => removeFromProject(m, p)}>{tr("Gỡ khỏi ")}{p.name}
                                 </MenuItem>

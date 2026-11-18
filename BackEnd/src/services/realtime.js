@@ -8,7 +8,15 @@ import { toApi } from './serialize.js';
 let io = null;
 
 export function initRealtime(httpServer) {
-  io = new Server(httpServer, { cors: { origin: config.clientUrl, credentials: true }, path: '/socket.io' });
+  io = new Server(httpServer, {
+    cors: { origin: config.clientUrl, credentials: true },
+    path: '/socket.io',
+    // CORS không áp cho websocket thô: tự chặn Origin lạ (giống quy tắc ghi của API HTTP; không có Origin = client native).
+    allowRequest: (req, done) => {
+      const origin = req.headers.origin;
+      done(null, !origin || origin === new URL(config.clientUrl).origin);
+    },
+  });
 
   io.use(async (socket, next) => {
     const cookies = parseCookie(socket.handshake.headers.cookie || '');
@@ -25,7 +33,9 @@ export function initRealtime(httpServer) {
     socket.join(`user:${userId}`);
 
     // Vào phòng dự án chỉ khi có quyền đọc dự án
-    socket.on('project:join', async (projectId, ack) => {
+    socket.on('project:join', async (projectId, ackArg) => {
+      // Tham số thứ hai do client gửi: không phải hàm thì bỏ qua (trước đây ném lỗi ngoài try và làm sập tiến trình).
+      const ack = typeof ackArg === 'function' ? ackArg : null;
       try {
         const revision = socket.data.accessRevision;
         if (!(await authenticate(socket.data.token))) return socket.disconnect(true);

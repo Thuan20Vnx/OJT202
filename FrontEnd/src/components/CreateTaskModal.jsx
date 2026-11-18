@@ -308,7 +308,7 @@ export default function CreateTaskModal({ open, onClose, defaultStatus, projectI
               {collaborators.length > 0 && <p className="mt-1 text-label-md font-normal text-slate-500">{tr("Giờ ước lượng được chia đều cho {0} người; PM chỉnh lại ở mục Phân bổ effort.", [collaborators.length + 1])}</p>}
             </fieldset>
           )}
-          <Field label="Loại công việc"><Select className="input" value={f.workType} onChange={set('workType')}>{Object.entries(WORK_TYPES).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</Select></Field>
+          <Field label={tr("Loại công việc")}><Select className="input" value={f.workType} onChange={set('workType')}>{Object.entries(WORK_TYPES).map(([key, label]) => <option key={key} value={key}>{tr(label)}</option>)}</Select></Field>
           <TaskDates value={f} onChange={(key, value) => set(key)(value)} errors={errors} />
           <div>
             <span className="label">{tr("Mức độ ưu tiên")}</span>

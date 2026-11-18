@@ -1,6 +1,6 @@
-import { t as tr, useI18n } from '../../lib/i18n.js';
+import { getLanguage, t as tr, useI18n } from '../../lib/i18n.js';
 import { useRef, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import AuthLayout, { AuthSuccess } from './AuthLayout.jsx';
 import { Field, Icon, Notice, Spinner } from '../../components/ui.jsx';
 import GoogleSignIn from './GoogleSignIn.jsx';
@@ -105,9 +105,11 @@ export default function Login({ initialTab = 'login' }) {
   const { loadMe } = useApp();
   const navigate = useNavigate();
   const [params] = useSearchParams();
+  // Từ trang lời mời: điền sẵn email được mời (truyền qua state, không để email trên URL).
+  const invitedEmail = useLocation().state?.email;
   const [f, setF] = useState({
     name: '',
-    email: '',
+    email: typeof invitedEmail === 'string' ? invitedEmail : '',
     password: '',
     remember: true,
     accept: false,
@@ -241,6 +243,7 @@ export default function Login({ initialTab = 'login' }) {
         email: f.email,
         password: f.password,
         acceptTerms: f.accept,
+        language: getLanguage(),
         website: e.target.elements.website?.value || undefined,
       });
       setSent(f.email);

@@ -44,7 +44,7 @@ export function TaskCard({ task, draggable, onDragStart, onOpen, statuses = [], 
           <Icon name="warning" size={14} className="mt-px" />{tr("Chờ ")}{task.blockedBy.filter((b) => b && b.status !== 'done').map((b) => b.key).join(', ')}
         </p>
       )}
-      {task.workType && <p className="mt-2 text-label-md text-slate-500">{WORK_TYPES[task.workType]}{task.contributors?.length > 1 ? ` · ${task.contributors.length} người thực hiện` : ''}</p>}
+      {task.workType && <p className="mt-2 text-label-md text-slate-500">{tr(WORK_TYPES[task.workType])}{task.contributors?.length > 1 ? ` · ${tr('{0} người thực hiện', [task.contributors.length])}` : ''}</p>}
       {task.labels?.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-1">
           {task.labels.slice(0, 2).map((l) => (

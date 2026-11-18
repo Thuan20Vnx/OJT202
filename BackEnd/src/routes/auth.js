@@ -46,9 +46,11 @@ const enforceMailIp = (req) => enforce(`mail:ip:${req.ip}`, { limit: config.secu
 router.post('/register', async (req, res) => {
   const body = parse(
     z.object({
-      name: z.string({ error: 'Vui lòng nhập họ tên' }).trim().min(1, 'Vui lòng nhập họ tên').max(80),
+      name: z.string({ error: 'Vui lòng nhập họ tên' }).trim().min(1, 'Vui lòng nhập họ tên').max(80, 'Họ tên tối đa 80 ký tự'),
       email,
       password: strongPassword,
+      // Ngôn ngữ đang chọn trên giao diện lúc đăng ký (không gửi thì mặc định tiếng Việt).
+      language: z.enum(['vi', 'en']).optional(),
       acceptTerms: z.literal(true, { error: 'Bạn cần đồng ý điều khoản' }),
       // Bẫy bot: trường ẩn trên form, người thật không bao giờ điền.
       website: z.string().max(200).optional(),
@@ -59,7 +61,7 @@ router.post('/register', async (req, res) => {
   await enforce(`register:ip:${req.ip}`, { limit: config.security.registerPerIpPerHour, windowMs: HOUR }, 'Đã tạo quá nhiều tài khoản từ mạng này. Vui lòng thử lại sau 1 giờ.');
   const exists = await prisma.user.findUnique({ where: { email: body.email }, select: { id: true } });
   if (exists) throw badRequest('Email đã được sử dụng', { fields: { email: 'Email đã được sử dụng' } });
-  const user = await prisma.user.create({ data: { name: body.name, email: body.email, passwordHash: await bcrypt.hash(body.password, 12) } });
+  const user = await prisma.user.create({ data: { name: body.name, email: body.email, passwordHash: await bcrypt.hash(body.password, 12), ...(body.language && { language: body.language }) } });
   await sendVerification(user);
   res.status(201).json({ ok: true, email: user.email });
 });

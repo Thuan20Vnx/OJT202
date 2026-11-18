@@ -47,10 +47,28 @@ export function parse(schema, data) {
   } catch (e) {
     if (e instanceof ZodError) {
       const fields = {};
-      for (const issue of e.issues) fields[issue.path.join('.') || '_'] = issue.message;
-      throw badRequest(Object.values(fields)[0] || 'Dữ liệu không hợp lệ', { fields });
+      for (const issue of e.issues) fields[issue.path.join('.') || '_'] = viMessage(issue);
+      const [firstPath, firstMessage] = Object.entries(fields)[0] || [];
+      // Câu mặc định (không gắn với ô nào trên form) thì nêu tên trường để người gọi API biết sai ở đâu.
+      const generic = firstMessage && firstMessage !== e.issues[0]?.message && firstPath !== '_';
+      throw badRequest(firstMessage ? (generic ? `${firstPath}: ${firstMessage}` : firstMessage) : 'Dữ liệu không hợp lệ', { fields });
     }
     throw e;
+  }
+}
+
+/** Câu lỗi mặc định của zod là tiếng Anh; câu do code tự viết (tiếng Việt) thì giữ nguyên. */
+function viMessage(issue) {
+  if (!/^(Invalid|Too big|Too small|Unrecognized)/.test(issue.message)) return issue.message;
+  const unit = issue.origin === 'string' ? ' ký tự' : issue.origin === 'array' || issue.origin === 'set' ? ' mục' : '';
+  switch (issue.code) {
+    case 'too_big': return `Tối đa ${issue.maximum}${unit}`;
+    case 'too_small': return issue.origin === 'string' && Number(issue.minimum) === 1 ? 'Không được để trống' : `Tối thiểu ${issue.minimum}${unit}`;
+    case 'invalid_type': return /received undefined/.test(issue.message) ? 'Thiếu dữ liệu bắt buộc' : 'Sai kiểu dữ liệu';
+    case 'unrecognized_keys': return `Trường không được hỗ trợ: ${(issue.keys || []).join(', ')}`;
+    case 'invalid_value': return 'Giá trị không hợp lệ';
+    case 'invalid_format': return 'Sai định dạng';
+    default: return 'Dữ liệu không hợp lệ';
   }
 }
 
