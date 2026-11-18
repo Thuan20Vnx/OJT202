@@ -285,9 +285,9 @@ export default function Overview() {
           {data.recent.map((a) => (
             <div key={a._id} className="flex items-center gap-3 py-2.5 text-body-sm">
               <Avatar user={a.actor} size={26} />
-              <p className="flex-1 text-slate-600">
+              <p className="min-w-0 flex-1 break-words text-slate-600">
                 <b className="text-slate-800">{a.actor?.name}</b> {tr(a.action).toLowerCase()} <span className="text-slate-800">{a.entityLabel}</span>
-                {a.after != null && typeof a.after !== 'object' && <span className="text-slate-500"> → {['Đổi trạng thái', 'Đổi ưu tiên', 'Phân quyền'].includes(a.action) ? tr(String(a.after)) : String(a.after)}</span>}
+                {a.after != null && typeof a.after !== 'object' && <span className="text-slate-500"> → {['Đổi trạng thái', 'Đổi ưu tiên', 'Phân quyền'].includes(a.action) ? tr(String(a.after)) : String(a.after).slice(0, 120)}</span>}
               </p>
               <span className="whitespace-nowrap text-label-md font-normal text-slate-400">{timeAgo(a.createdAt)}</span>
             </div>

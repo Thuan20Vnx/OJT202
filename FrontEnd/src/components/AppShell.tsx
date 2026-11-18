@@ -1,11 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import type { ProjectSummary, UserSummary } from '../lib/app-context.ts';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { useApp, useToast } from '../lib/app.jsx';
 import { t as tr, useI18n } from '../lib/i18n.js';
 import { PROJECT_COLOR, ROLE } from '../lib/format.js';
-import { Avatar, Dropdown, Icon, MenuItem, StatusChip } from './ui.jsx';
+import { Avatar, DialogFocus, Dropdown, Icon, MenuItem, StatusChip } from './ui.jsx';
 import CreateTaskModal from './CreateTaskModal.jsx';
 import TaskDetailModal from './TaskDetailModal.jsx';
 import DeletionBanner from './DeletionBanner.jsx';
@@ -78,7 +78,15 @@ function SearchBox() {
   const [expanded, setExpanded] = useState(false);
   const ref = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
-  const pick = () => { setQ(''); setExpanded(false); };
+  const [active, setActive] = useState(-1);
+  const listId = useId();
+  const pick = () => { setQ(''); setExpanded(false); setOpen(false); setActive(-1); };
+  const choices = [
+    ...(res?.projects || []).map((p) => ({ id: p._id, run: () => { setProjectId(p._id); navigate('/overview'); pick(); } })),
+    ...(res?.tasks || []).map((t) => ({ id: t._id, run: () => { setProjectId(t.project._id); navigate(`?task=${t._id}`); pick(); } })),
+  ];
+  const optId = (i: number) => `${listId}-opt-${i}`;
+  const showList = open && !!res;
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
@@ -92,7 +100,7 @@ function SearchBox() {
   }, []);
   useEffect(() => {
     if (!q.trim() || !wsId) return setRes(null);
-    const t = setTimeout(() => api.get<NonNullable<typeof res>>(`/workspaces/${wsId}/search?q=${encodeURIComponent(q)}`).then(setRes).catch(() => {}), 200);
+    const t = setTimeout(() => api.get<NonNullable<typeof res>>(`/workspaces/${wsId}/search?q=${encodeURIComponent(q)}`).then((r) => { setRes(r); setActive(-1); }).catch(() => {}), 200);
     return () => clearTimeout(t);
   }, [q, wsId]);
   return (
@@ -109,38 +117,54 @@ function SearchBox() {
         onChange={(e) => setQ(e.target.value)}
         onFocus={() => setOpen(true)}
         onBlur={() => setTimeout(() => { setOpen(false); setExpanded(false); }, 150)}
-        onKeyDown={(e) => { if (e.key === 'Escape') { setExpanded(false); ref.current?.blur(); } }}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') { setExpanded(false); ref.current?.blur(); return; }
+          if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+            if (!choices.length) return;
+            e.preventDefault();
+            setOpen(true);
+            setActive((i) => (e.key === 'ArrowDown' ? (i + 1) % choices.length : i <= 0 ? choices.length - 1 : i - 1));
+          } else if (e.key === 'Enter' && showList && choices[active]) {
+            e.preventDefault();
+            choices[active].run();
+          }
+        }}
+        role="combobox"
+        aria-autocomplete="list"
+        aria-expanded={showList && choices.length > 0}
+        aria-controls={showList && choices.length > 0 ? listId : undefined}
+        aria-activedescendant={showList && active >= 0 && active < choices.length ? optId(active) : undefined}
         aria-label={tr("Tìm kiếm công việc")}
         className="input h-9 rounded-lg bg-slate-50 pl-9 pr-12 text-body-sm"
         placeholder={tr("Tìm kiếm công việc... (⌘K)")}
       />
       <kbd className="pointer-events-none absolute right-2.5 hidden lg:block top-1/2 -translate-y-1/2 rounded border border-slate-200 bg-white px-1.5 py-0.5 font-mono text-[10px] text-slate-400">⌘K</kbd>
-      {open && res && (
-        <div className="absolute left-0 right-0 top-11 z-50 rounded-xl border border-slate-200 bg-white p-1.5 shadow-pop">
-          {!res.tasks.length && !res.projects.length && <p className="px-3 py-4 text-center text-body-sm text-slate-500">{tr("Không có kết quả")}</p>}
-          {res.projects.map((p) => (
+      {showList && res && (
+        <div id={choices.length ? listId : undefined} role={choices.length ? 'listbox' : undefined} aria-label={choices.length ? tr("Kết quả tìm kiếm") : undefined} className="absolute left-0 right-0 top-11 z-50 rounded-xl border border-slate-200 bg-white p-1.5 shadow-pop">
+          {!res.tasks.length && !res.projects.length && <p role="status" className="px-3 py-4 text-center text-body-sm text-slate-500">{tr("Không có kết quả")}</p>}
+          {res.projects.map((p, i) => (
             <button
               key={p._id}
-              onMouseDown={() => {
-                setProjectId(p._id);
-                navigate('/overview');
-                pick();
-              }}
-              className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-body-sm hover:bg-slate-50"
+              id={optId(i)}
+              role="option"
+              aria-selected={active === i}
+              tabIndex={-1}
+              onMouseDown={() => choices[i].run()}
+              className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-body-sm hover:bg-slate-50 ${active === i ? 'bg-slate-100' : ''}`}
             >
               <span className={`h-2.5 w-2.5 rounded-full ${PROJECT_COLOR[p.color]}`} />
               {p.name}
             </button>
           ))}
-          {res.tasks.map((t) => (
+          {res.tasks.map((t, j) => (
             <button
               key={t._id}
-              onMouseDown={() => {
-                setProjectId(t.project._id);
-                navigate(`?task=${t._id}`);
-                pick();
-              }}
-              className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-body-sm hover:bg-slate-50"
+              id={optId(res.projects.length + j)}
+              role="option"
+              aria-selected={active === res.projects.length + j}
+              tabIndex={-1}
+              onMouseDown={() => choices[res.projects.length + j].run()}
+              className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-body-sm hover:bg-slate-50 ${active === res.projects.length + j ? 'bg-slate-100' : ''}`}
             >
               <span className="font-mono text-label-md text-slate-400">{t.key}</span>
               <span className="flex-1 truncate">{t.title}</span>
@@ -497,7 +521,7 @@ export default function AppShell() {
         </main>
       </div>
       <CreateTaskModal open={creating} onClose={() => setCreating(false)} />
-      {taskId && <TaskDetailModal key={taskId} taskId={taskId} onClose={closeTask} onDirtyChange={onTaskDirty} leaveRequest={leaveRequest} onLeave={leaveTask} onStay={stayOnTask} />}
+      {taskId && <DialogFocus key={taskId}><TaskDetailModal taskId={taskId} onClose={closeTask} onDirtyChange={onTaskDirty} leaveRequest={leaveRequest} onLeave={leaveTask} onStay={stayOnTask} /></DialogFocus>}
     </div>
   );
 }

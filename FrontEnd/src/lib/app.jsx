@@ -6,6 +6,19 @@ import { setTimeZone } from './dates.js';
 import { setLanguage } from './i18n.js';
 
 import { AppCtx } from './app-context.ts';
+// Phiên mất giữa chừng (bị khóa, buộc đăng xuất, đổi mật khẩu nơi khác): trang đăng nhập cần nói rõ lý do.
+// Chỉ dùng cho thông báo; lỗi storage (chế độ riêng tư) thì bỏ qua.
+export function sessionMark(kind) {
+  try {
+    if (kind === 'set') localStorage.setItem('taskflow.hadSession', '1');
+    else if (kind === 'clear') localStorage.removeItem('taskflow.hadSession');
+    else if (localStorage.getItem('taskflow.hadSession')) {
+      localStorage.removeItem('taskflow.hadSession');
+      sessionStorage.setItem('taskflow.sessionEnded', '1');
+    }
+  } catch { /* storage bị chặn */ }
+}
+
 export { AppCtx, useApp } from './app-context.ts';
 /** @type {import('react').Context<(message: string, tone?: string) => void>} */
 const ToastCtx = createContext(() => {});
@@ -103,11 +116,13 @@ export function AppProvider({ children }) {
       if (requestId !== identityRequest.current) return null;
       setOffline(false);
       setMe(data.user);
+      sessionMark('set');
       setWorkspaces(data.workspaces);
       return data;
     } catch (e) {
       if (requestId !== identityRequest.current) return null;
       if (e.status === 401) {
+        sessionMark('ended');
         setOffline(false);
         setMe(null);
         setWorkspaces([]);
@@ -127,6 +142,7 @@ export function AppProvider({ children }) {
     const unsubscribe = onUnauthorized(() => {
       identityRequest.current++;
       clearTimeout(retryTimer.current);
+      sessionMark('ended');
       setOffline(false);
       setMe(null);
       setWorkspaces([]);
@@ -236,6 +252,7 @@ export function AppProvider({ children }) {
   const logout = useCallback(async () => {
     identityRequest.current++;
     clearTimeout(retryTimer.current);
+    sessionMark('clear');
     await api.post('/auth/logout').catch(() => {});
     identityRequest.current++;
     clearTimeout(retryTimer.current);

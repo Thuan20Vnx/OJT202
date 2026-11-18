@@ -115,6 +115,15 @@ export default function Login({ initialTab = 'login' }) {
     accept: false,
   });
   const [errors, setErrors] = useState({});
+  const [sessionEnded] = useState(() => {
+    try {
+      const ended = sessionStorage.getItem('taskflow.sessionEnded');
+      sessionStorage.removeItem('taskflow.sessionEnded');
+      return !!ended;
+    } catch {
+      return false;
+    }
+  });
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(null);
@@ -346,6 +355,9 @@ export default function Login({ initialTab = 'login' }) {
               </p>
             </div>
 
+            {sessionEnded && !error && (
+              <Notice tone="info">{tr("Phiên đăng nhập của bạn đã kết thúc (đăng xuất ở thiết bị khác, đổi mật khẩu hoặc tài khoản bị khóa). Vui lòng đăng nhập lại.")}</Notice>
+            )}
             {error && (
               <Notice tone="danger">
                 {error}

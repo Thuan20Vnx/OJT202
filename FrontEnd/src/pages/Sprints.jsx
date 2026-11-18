@@ -20,10 +20,10 @@ function TaskRows({ tasks, selected, onToggle, canManage }) {
   return (
     <ul className="divide-y divide-slate-100">
       {tasks.map((t) => (
-        <li key={t._id} className="flex items-center gap-3 py-2 text-body-sm">
-          {canManage && t.status !== 'done' && (
+        <li key={t._id} className="flex min-w-0 items-center gap-3 py-2 text-body-sm">
+          {canManage && (t.status !== 'done' ? (
             <input type="checkbox" aria-label={tr('Chọn {0}', [t.key])} checked={selected.has(t._id)} onChange={() => onToggle(t._id)} />
-          )}
+          ) : <span className="w-[13px] shrink-0" aria-hidden="true" />)}
           <span className="w-16 shrink-0 font-semibold text-slate-500">{t.key}</span>
           <button className="min-w-0 flex-1 truncate text-left text-slate-800 hover:text-blue-700 hover:underline" onClick={() => navigate(`?task=${t._id}`)}>{t.title}</button>
           <span className="hidden text-right tabular-nums text-slate-500 sm:block">{t.estimateHours != null ? `${t.estimateHours} h` : '—'}</span>
@@ -136,7 +136,7 @@ export default function Sprints() {
               <span className="whitespace-nowrap text-right text-label-md tabular-nums text-slate-600">{tr('{0}/{1} việc · {2}/{3} giờ', [s.stats.done, s.stats.total, s.stats.doneHours, s.stats.hours])}</span>
             </div>
             {expanded && (
-              <div className="mt-3 grid gap-4 lg:grid-cols-[1fr_1fr]">
+              <div className="mt-3 grid grid-cols-1 gap-4 lg:grid-cols-2">
                 <TaskRows tasks={s.tasks} selected={selected} onToggle={toggle} canManage={canManage} />
                 {s.burndown ? <Burndown days={s.burndown.days} /> : <p className="text-body-sm text-slate-400">{tr('Đặt ngày bắt đầu và kết thúc để có biểu đồ burndown.')}</p>}
               </div>

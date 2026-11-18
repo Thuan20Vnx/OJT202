@@ -1,5 +1,5 @@
 import { t as tr, useI18n } from '../lib/i18n.js';
-import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import { cloneElement, isValidElement, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { PRIORITY, STATUS, initials } from '../lib/format.js';
 import Select from './Select.jsx';
@@ -142,19 +142,90 @@ export function Notice({ tone = 'info', icon, children, className = '' }) {
   );
 }
 
+const FOCUSABLE = 'a[href],button:not([disabled]),input:not([disabled]):not([type="hidden"]),select:not([disabled]),textarea:not([disabled]),[contenteditable="true"],[tabindex]:not([tabindex="-1"])';
+const focusablesIn = (root) => [...root.querySelectorAll(FOCUSABLE)].filter((el) => el.getClientRects().length > 0 && !el.closest('[inert],[aria-hidden="true"]'));
+const topDialog = () => [...document.querySelectorAll('[role="dialog"][aria-modal="true"]')].pop();
+
+/**
+ * Quản lý tiêu điểm cho hộp thoại: khi mở chuyển tiêu điểm vào trong, Tab/Shift+Tab quay vòng trong hộp,
+ * khi đóng trả tiêu điểm về nơi đã mở. Chỉ hộp thoại trên cùng (cuối cây DOM) xử lý Tab.
+ * getEl trả về phần tử role="dialog".
+ */
+export function useDialogFocus(getEl, active = true) {
+  const getRef = useRef(getEl);
+  getRef.current = getEl;
+  useEffect(() => {
+    if (!active) return undefined;
+    const el = getRef.current();
+    if (!el) return undefined;
+    const opener = document.activeElement;
+    // autoFocus của phần tử bên trong đã chạy trước đó: không giành lại.
+    if (!el.contains(document.activeElement)) {
+      const first = focusablesIn(el)[0];
+      if (first) first.focus({ preventScroll: true });
+      else { el.tabIndex = -1; el.focus({ preventScroll: true }); }
+    }
+    const onKey = (e) => {
+      if (e.key !== 'Tab' || e.defaultPrevented) return;
+      const dlg = getRef.current();
+      if (!dlg || topDialog() !== dlg) return;
+      const cur = document.activeElement;
+      // Tiêu điểm đang ở menu/danh sách mở ra ngoài hộp (portal): để thành phần đó tự xử lý.
+      if (!dlg.contains(cur) && cur?.closest?.('[role="menu"],[role="listbox"]')) return;
+      const list = focusablesIn(dlg);
+      if (!list.length) { e.preventDefault(); dlg.focus(); return; }
+      const first = list[0];
+      const last = list[list.length - 1];
+      if (!dlg.contains(cur) || cur === dlg) { e.preventDefault(); (e.shiftKey ? last : first).focus(); }
+      else if (e.shiftKey && cur === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && cur === last) { e.preventDefault(); first.focus(); }
+    };
+    document.addEventListener('keydown', onKey, true);
+    return () => {
+      document.removeEventListener('keydown', onKey, true);
+      const cur = document.activeElement;
+      if (!(!cur || cur === document.body || el.contains(cur) || !document.contains(el))) return;
+      if (opener && opener !== document.body && document.contains(opener)) {
+        opener.focus({ preventScroll: true });
+        // Bấm nền mờ: trình duyệt bỏ tiêu điểm sau khi xử lý mousedown, nên kiểm tra lại ngay sau đó.
+        setTimeout(() => { if ((!document.activeElement || document.activeElement === document.body) && document.contains(opener)) opener.focus({ preventScroll: true }); }, 0);
+      } else {
+        // Nơi mở đã biến mất (menu đã đóng…): trả tiêu điểm về hộp thoại bên dưới nếu có.
+        const under = topDialog();
+        if (under) { if (!under.hasAttribute('tabindex')) under.setAttribute('tabindex', '-1'); under.focus({ preventScroll: true }); }
+      }
+    };
+  }, [active]);
+}
+
+/** Bọc một hộp thoại tự vẽ (role="dialog") để có cùng cách quản lý tiêu điểm như Modal. */
+export function DialogFocus({ children }) {
+  const ref = useRef(null);
+  useDialogFocus(() => ref.current?.querySelector('[role="dialog"][aria-modal="true"]'));
+  return <div ref={ref} style={{ display: 'contents' }}>{children}</div>;
+}
+
 export function Modal({ open, onClose, title, subtitle, icon, children, footer, width = 'max-w-lg', bodyClass = 'p-5' }) {
   useI18n();
   const titleId = useId();
+  const dialogRef = useRef(null);
   useEffect(() => {
     if (!open) return;
-    const onKey = (e) => e.key === 'Escape' && onClose?.();
+    // Có hộp thoại khác mở chồng lên (xác nhận…) thì Esc chỉ đóng hộp trên cùng.
+    const onKey = (e) => {
+      if (e.key !== 'Escape') return;
+      const top = topDialog();
+      if (top && dialogRef.current && top !== dialogRef.current) return;
+      onClose?.();
+    };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [open, onClose]);
+  useDialogFocus(() => dialogRef.current, open);
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/40 p-4 backdrop-blur-[2px]" onMouseDown={(e) => e.target === e.currentTarget && onClose?.()}>
-      <div className={`animate-slide-in flex max-h-[92vh] w-full ${width} flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-pop`} role="dialog" aria-modal="true" aria-labelledby={title ? titleId : undefined}>
+      <div ref={dialogRef} className={`animate-slide-in flex max-h-[92vh] w-full ${width} flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-pop`} role="dialog" aria-modal="true" aria-labelledby={title ? titleId : undefined}>
         {title && (
           <div className="flex items-start gap-3 border-b border-slate-100 px-5 py-4">
             {icon && (
@@ -330,6 +401,21 @@ export function Dropdown({ trigger, children, align = 'right', width = 'w-56', p
   const [pos, setPos] = useState(null);
   const ref = useRef(null);
   const menuRef = useRef(null);
+  const viaKeyboard = useRef(false);
+  const menuId = useId();
+  const triggerEl = () => {
+    const box = ref.current?.firstElementChild;
+    return box?.matches?.(FOCUSABLE) ? box : box?.querySelector?.(FOCUSABLE) || box;
+  };
+  const menuItems = () => [...(menuRef.current?.querySelectorAll('[role="menuitem"]:not([disabled])') || [])];
+  const closeToTrigger = () => { setOpen(false); triggerEl()?.focus?.({ preventScroll: true }); };
+  // Mở bằng bàn phím (Enter/Space/mũi tên) thì đưa tiêu điểm vào mục đầu tiên.
+  useEffect(() => {
+    if (!open || !viaKeyboard.current) return;
+    viaKeyboard.current = false;
+    const items = menuItems();
+    (items[0] || (menuRef.current && focusablesIn(menuRef.current)[0]))?.focus({ preventScroll: true });
+  }, [open]);
   useEffect(() => {
     if (!open) return;
     const close = (e) => !ref.current?.contains(e.target) && !menuRef.current?.contains(e.target) && setOpen(false);
@@ -358,13 +444,39 @@ export function Dropdown({ trigger, children, align = 'right', width = 'w-56', p
       className={`animate-pop-in z-50 ${width} rounded-lg border border-slate-200 bg-white p-1 shadow-pop ${portal ? 'fixed' : `absolute mt-1.5 ${align === 'right' ? 'right-0 origin-top-right' : 'left-0 origin-top-left'}`}`}
       style={portal ? { top: pos?.top ?? -9999, left: pos?.left ?? -9999 } : undefined}
       onClick={() => setOpen(false)}
+      id={menuId}
+      role="menu"
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') { e.stopPropagation(); e.preventDefault(); closeToTrigger(); return; }
+        if (e.key === 'Tab') { setOpen(false); triggerEl()?.focus?.({ preventScroll: true }); e.preventDefault(); return; }
+        if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(e.key) || /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
+        const items = menuItems();
+        if (!items.length) return;
+        e.preventDefault();
+        const i = items.indexOf(document.activeElement);
+        const next = e.key === 'Home' ? 0 : e.key === 'End' ? items.length - 1 : e.key === 'ArrowDown' ? (i + 1) % items.length : (i <= 0 ? items.length - 1 : i - 1);
+        items[next].focus({ preventScroll: true });
+      }}
     >
       {children}
     </div>
   );
+  const trig = isValidElement(trigger)
+    ? cloneElement(trigger, { 'aria-haspopup': 'menu', 'aria-expanded': open, ...(open ? { 'aria-controls': menuId } : {}) })
+    : trigger;
   return (
     <div className="relative" ref={ref}>
-      <div onClick={() => setOpen((o) => !o)}>{trigger}</div>
+      <div
+        onClick={(e) => { if (!open) viaKeyboard.current = e?.detail === 0; setOpen((o) => !o); }}
+        onKeyDown={(e) => {
+          if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+            if (open || e.target.closest?.('input,textarea,select') || e.target.disabled) return;
+            e.preventDefault();
+            viaKeyboard.current = true;
+            setOpen(true);
+          } else if (e.key === 'Escape' && open) { e.stopPropagation(); setOpen(false); }
+        }}
+      >{trig}</div>
       {portal ? menu && createPortal(menu, document.body) : menu}
     </div>
   );
@@ -374,6 +486,8 @@ export const MenuItem = ({ icon, children, onClick, danger = false, disabled = f
   (useI18n(), (<button
     disabled={disabled}
     onClick={onClick}
+    role="menuitem"
+    tabIndex={-1}
     className={`flex h-8 w-full items-center gap-2 rounded-md px-2.5 text-left text-body-sm transition-colors disabled:opacity-40 ${danger ? 'text-rose-600 hover:bg-rose-50' : 'text-slate-700 hover:bg-slate-100'}`}
   >
     {icon && <Icon name={icon} size={18} />}

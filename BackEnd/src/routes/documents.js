@@ -317,6 +317,9 @@ router.patch('/documents/:id', async (req, res) => {
       // Rename also advances version so a stale form cannot overwrite a new name.
       if (isTextDocument(fresh.doc)) {
         const previous = await editableContent(fresh.doc, content !== undefined);
+        // Lưu mà không đổi gì (nội dung và tên như cũ): không tạo phiên bản trùng.
+        if (!body.restoreVersion && content === previous && (!body.name || body.name === fresh.doc.name))
+          return tx.document.findUnique({ where: { id: doc.id }, omit: { storageKey: true } });
         await tx.documentRevision.upsert({
           where: { document_version: { document: doc.id, version: fresh.doc.version } },
           create: { document: doc.id, version: fresh.doc.version, content: previous, author: fresh.doc.uploadedBy }, update: {},

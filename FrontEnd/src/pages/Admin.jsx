@@ -282,7 +282,7 @@ function LockModal({ user, reasons, onClose, onDone }) {
             <Select className="input" value={reason} onChange={(e) => setReason(e.target.value)}>
               <option value="">{tr("Chọn lý do…")}</option>
               {reasons.map((r) => (
-                <option key={r}>{r}</option>
+                <option key={r} value={r}>{tr(r)}</option>
               ))}
             </Select>
           </Field>

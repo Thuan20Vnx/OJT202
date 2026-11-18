@@ -96,8 +96,9 @@ router.post('/projects/:projectId/risks/resolve', middlewareProject(), async (re
       entityType: 'project',
       entityId: access.project.id,
       entityLabel: alert.title,
-      before: previous ? JSON.stringify({ sourceVersion: previous.sourceVersion, reason: previous.reason }) : null,
-      after: JSON.stringify({ sourceVersion, reason, snapshot: alert.snapshot }),
+      before: previous?.reason ? `Lý do trước: ${previous.reason}` : null,
+      // Nhật ký hiển thị cho người dùng: chỉ ghi lý do, không đổ snapshot nội bộ (id, ngưỡng) ra giao diện.
+      after: `Lý do: ${reason}`,
     });
   });
   await emitProject(req.pa.project.id, 'risks:changed', {});
@@ -123,7 +124,7 @@ router.delete('/projects/:projectId/risks/resolve', middlewareProject(), async (
         entityType: 'project',
         entityId: access.project.id,
         entityLabel: current.title,
-        before: JSON.stringify({ sourceVersion, reason: current.reason }),
+        before: `Đã xử lý với lý do: ${current.reason}`,
       });
   });
   await emitProject(req.pa.project.id, 'risks:changed', {});

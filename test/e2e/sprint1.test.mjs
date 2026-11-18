@@ -68,7 +68,7 @@ async function login(page, email) {
 
 async function status(page, name) {
   await page.getByRole('button', { name: 'Đổi trạng thái công việc' }).click();
-  await page.getByRole('button', { name, exact: true }).click();
+  await page.getByRole('menuitem', { name, exact: true }).click();
   await expect(page.getByRole('button', { name: 'Đổi trạng thái công việc' })).toContainText(name);
 }
 
@@ -110,7 +110,7 @@ test('Lộc Sprint 3: báo cáo mở nguồn thật; quản trị lỗi/thử l�
     await system.page.getByPlaceholder('Tìm theo tên hoặc email').fill('nhu@nhom24.edu.vn');
     const row = system.page.getByRole('row').filter({ hasText: 'nhu@nhom24.edu.vn' });
     await row.getByRole('button').click();
-    await system.page.getByRole('button', { name: 'Khóa tài khoản', exact: true }).click();
+    await system.page.getByRole('menuitem', { name: 'Khóa tài khoản', exact: true }).click();
     const modal = system.page.getByRole('dialog');
     await modal.getByRole('combobox').click();
     await system.page.getByRole('option', { name: 'Khác', exact: true }).click();
@@ -120,7 +120,7 @@ test('Lộc Sprint 3: báo cáo mở nguồn thật; quản trị lỗi/thử l�
     assert.equal((await member.ctx.request.get('/api/v1/me')).status(), 401);
     await system.page.screenshot({ path: path.join(artifacts, 'loc-sprint3-admin-lock.png'), fullPage: true, animations: 'disabled' });
     await row.getByRole('button').click();
-    await system.page.getByRole('button', { name: 'Mở khóa', exact: true }).click();
+    await system.page.getByRole('menuitem', { name: 'Mở khóa', exact: true }).click();
     await expect(row).toContainText('Đang hoạt động');
     assert.equal((await member.ctx.request.get('/api/v1/me')).status(), 401, 'unlock must not resurrect a revoked session');
     await system.page.getByRole('button', { name: 'Nhật ký quản trị', exact: false }).click();
@@ -531,7 +531,7 @@ test('U003/U007/U009: SMTP register/invite → task → remaining hours → Revi
     const disposable = (await disposableResponse.json()).task;
     await page.goto(`/board?task=${disposable._id}`);
     await page.getByRole('button', { name: 'Thao tác công việc', exact: true }).click();
-    await page.getByRole('button', { name: 'Xóa công việc', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'Xóa công việc', exact: true }).click();
     await page.getByRole('button', { name: 'Xóa tất cả', exact: true }).click();
     await expect(page.getByRole('dialog', { name: 'Chi tiết công việc' })).not.toBeVisible();
     assert.ok((await db.prisma.task.findUnique({ where: { id: disposable._id } })).deletedAt);
@@ -539,7 +539,7 @@ test('U003/U007/U009: SMTP register/invite → task → remaining hours → Revi
     await expect(page.getByText('Xóa mềm qua giao diện', { exact: true })).toHaveCount(0);
     await page.goto('/projects');
     await page.getByRole('button', { name: 'Thao tác dự án Review mentor Sprint 1' }).click();
-    await page.getByRole('button', { name: 'Sửa dự án', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'Sửa dự án', exact: true }).click();
     await page.getByLabel('Chuyển giao PM').selectOption(seed.users.nhu.id);
     await page.getByRole('button', { name: 'Lưu thay đổi', exact: true }).click();
     await expect.poll(async () => (await db.prisma.project.findUnique({ where: { id: project.id } })).manager).toBe(seed.users.nhu.id);
@@ -685,7 +685,7 @@ test('Hoàng Anh Sprint 2: thông báo hai tab, mất mạng, capacity tuần, p
 
     await owner.page.goto(`/board?task=${parent._id}`);
     await owner.page.getByRole('button', { name: 'Thao tác công việc', exact: true }).click();
-    await owner.page.getByRole('button', { name: 'Xóa công việc', exact: true }).click();
+    await owner.page.getByRole('menuitem', { name: 'Xóa công việc', exact: true }).click();
     const preview = owner.page.getByRole('dialog').last();
     await expect(preview.getByText(/Xóa 2 công việc/)).toBeVisible();
     const late = await make({ title: 'Task con vừa được thêm', parent: parent._id });
