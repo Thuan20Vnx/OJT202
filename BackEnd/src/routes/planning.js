@@ -41,10 +41,13 @@ router.post('/projects/:projectId/labels', middlewareProject(), async (req, res)
 });
 
 // Đổi tên hoặc xóa nhãn cập nhật luôn các công việc đang dùng để thống kê không bị tách đôi.
-async function replaceLabel(req, from, to) {
+async function replaceLabel(req, from, wanted) {
   await withWorkspaceLock(req.pa.project.workspace, async (tx) => {
     const access = await projectAccess(req.user.id, req.pa.project.id, tx);
     assertManage(access);
+    // Danh mục không phân biệt hoa thường (như khi tạo nhãn): đổi thành tên đã có thì gộp vào đúng cách viết đó.
+    const existing = wanted && (await tx.projectLabel.findFirst({ where: { project: access.project.id, name: { equals: wanted, mode: 'insensitive' }, NOT: { name: from } }, select: { name: true } }));
+    const to = existing?.name ?? wanted;
     const tasks = await tx.task.findMany({ where: { project: access.project.id, labels: { has: from } }, select: { id: true, labels: true } });
     for (const t of tasks) {
       const labels = [...new Set(t.labels.map((l) => (l === from ? to : l)).filter(Boolean))];
