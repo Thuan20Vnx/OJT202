@@ -73,6 +73,8 @@ export function createApp(options: { staticDir?: string } = {}): express.Express
       clearTimeout(timer);
     }
   });
+  // PostgreSQL không nhận ký tự NUL trong chuỗi: chặn sớm %00 trong đường dẫn để trả 400 thay vì 500.
+  api.use((req, res, next) => (/%00/.test(req.path) ? res.status(400).json({ error: 'Đường dẫn không được chứa ký tự NUL' }) : next()));
   api.use(csrfGuard);
   api.get(['/tasks', '/me/tasks'], requireAuth, myTasksFromQuery);
   api.use('/auth', authRoutes);

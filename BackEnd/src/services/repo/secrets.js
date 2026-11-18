@@ -7,13 +7,21 @@ const KNOWN = [
   ['Khóa riêng', /-----BEGIN (?:[A-Z]+ )?PRIVATE KEY-----/g],
 ];
 const ASSIGNED = /((?:password|passwd|secret|api[_-]?key|access[_-]?token|auth[_-]?token)["']?\s*[:=]\s*)(["'])([^"'\s]{8,})\2/gi;
+// Giá trị không có ngoặc (password=abc12345, token: abc12345): dừng ở khoảng trắng/dấu phân cách.
+const ASSIGNED_BARE = /((?:password|passwd|secret|api[_-]?key|access[_-]?token|auth[_-]?token)\s*[:=]\s*)([^"'\s,;)}\]]{8,})/gi;
+// Cả khối PEM (thân base64 nằm ở các dòng sau dòng BEGIN), xử lý trước khi tách dòng.
+const PEM_BLOCK = /-----BEGIN ((?:[A-Z]+ )*)PRIVATE KEY-----[\s\S]*?(?:-----END \1PRIVATE KEY-----|$)/g;
 const PLACEHOLDER = /^(?:change-?me|your|example|xxx|test|dummy|placeholder|<|\$\{|process\.env)/i;
 export const MASK = '[ĐÃ ẨN]';
 
 /** Che bí mật trước khi gửi cho AI. Chỉ trả vị trí và loại, không bao giờ giữ giá trị. */
 export function redactSecrets(text, { addedLinesOnly = false } = {}) {
   const hits = [];
-  const lines = String(text).split('\n').map((line, index) => {
+  const source = String(text).replace(PEM_BLOCK, (_block, _kind, offset, all) => {
+    hits.push({ type: 'Khóa riêng', severity: 'high', line: addedLinesOnly ? null : all.slice(0, offset).split('\n').length });
+    return MASK;
+  });
+  const lines = source.split('\n').map((line, index) => {
     let out = line;
     const report = (type, severity) => {
       if (!addedLinesOnly || line.startsWith('+')) hits.push({ type, severity, line: addedLinesOnly ? null : index + 1 });
@@ -28,6 +36,11 @@ export function redactSecrets(text, { addedLinesOnly = false } = {}) {
       if (PLACEHOLDER.test(value)) return match;
       report('Giá trị bí mật viết thẳng trong code', 'medium');
       return `${prefix}${quote}${MASK}${quote}`;
+    });
+    out = out.replace(ASSIGNED_BARE, (match, prefix, value) => {
+      if (PLACEHOLDER.test(value) || value.startsWith('[')) return match;
+      report('Giá trị bí mật viết thẳng trong code', 'medium');
+      return `${prefix}${MASK}`;
     });
     return out;
   });
