@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { USER, countBy, ilike, isId, nextSeq, populate, populateAll, prisma, subtaskCounts } from '../db.js';
 import { requireAuth } from '../middleware/auth.js';
-import { assertComment, assertManage, taskPermissions, assertTaskStatus, assertWrite, middlewareProject, projectAccess, taskAccess } from '../middleware/access.js';
+import { assertComment, assertManage, taskPermissions, assertTaskStatus, assertWrite, middlewareProject, projectAccess, taskAccess, taskAccessFromRow, withMembership } from '../middleware/access.js';
 import { logActivityIn, logTaskChanges } from '../services/activity.js';
 import { withWorkspaceLock } from '../services/membership.js';
 import { notify } from '../services/notify.js';
@@ -47,11 +47,12 @@ const STALE_MSG = 'Công việc vừa được người khác cập nhật. Dữ
 
 /** Nạp người nhận/người tạo/phụ thuộc + đếm việc con, bình luận, tệp – tất cả chạy song song trong một lượt */
 async function enrich(tasks, access, userId, db = prisma) {
-  const contributions = await db.taskContributor.findMany({ where: { task: { in: tasks.map((t) => t.id) } }, include: { userRef: { select: USER } } });
-  for (const task of tasks) task.contributors = contributions.filter((c) => c.task === task.id);
-  const permissions = access ? new Map(tasks.map((t) => [t.id, taskPermissions(access, userId, t)])) : null;
   const ids = tasks.map((t) => t.id);
-  const [, subs, comments, files, checklists, logs] = await Promise.all([
+  // populate thay assignee bằng object; quyền phải tính trên id gốc. Mọi truy vấn chạy song song trong MỘT lượt
+  // (trước đây chờ người cùng làm xong mới chạy phần còn lại: thêm một lượt đi-về ~54 ms với Supabase).
+  const assignees = new Map(tasks.map((t) => [t.id, t.assignee]));
+  const [contributions, , subs, comments, files, checklists, logs] = await Promise.all([
+    db.taskContributor.findMany({ where: { task: { in: ids } }, include: { userRef: { select: USER } } }),
     populateAll(tasks, [
       ['assignee', 'user', USER],
       ['creator', 'user', USER],
@@ -63,6 +64,10 @@ async function enrich(tasks, access, userId, db = prisma) {
     checklistMap(ids, db),
     countBy('taskDailyUpdate', 'task', { task: { in: ids } }, db),
   ]);
+  const byTask = new Map(ids.map((id) => [id, []]));
+  for (const c of contributions) byTask.get(c.task)?.push(c);
+  for (const task of tasks) task.contributors = byTask.get(task.id) ?? [];
+  const permissions = access ? new Map(tasks.map((t) => [t.id, taskPermissions(access, userId, { ...t, assignee: assignees.get(t.id) })])) : null;
   return tasks.map((t) => ({
     ...t,
     checklist: checklists.get(t.id) || [],
@@ -75,12 +80,97 @@ async function enrich(tasks, access, userId, db = prisma) {
   }));
 }
 
+/**
+ * Mọi phần của MỘT công việc cần khớp nhau (phiên bản, checklist, việc con, tệp, số đếm) được đọc bằng một câu SQL
+ * (Prisma relationJoins) nên tự nhất quán như một snapshot – thay cho transaction RepeatableRead trước đây, vốn buộc
+ * ~18 truy vấn chạy nối tiếp trên một kết nối (≈1 s khi DB ở Supabase, mỗi lượt đi-về ~54 ms; xem docs/sprint4-thuan).
+ */
+const SNAPSHOT_INCLUDE = {
+  contributors: { include: { userRef: { select: USER } } },
+  assigneeRef: { select: USER },
+  creatorRef: { select: USER },
+  checklistItems: { orderBy: [{ position: 'asc' }, { id: 'asc' }] },
+  subtasks: { where: { deletedAt: null }, orderBy: { number: 'asc' }, include: { assigneeRef: { select: USER } } },
+  documents: { omit: { storageKey: true }, orderBy: { createdAt: 'desc' }, include: { uploadedByRef: { select: USER } } },
+  _count: { select: { comments: { where: { deletedAt: null } }, dailyUpdates: true } },
+};
+const BLOCKER_SELECT = { id: true, key: true, title: true, status: true, dueDate: true, assignee: true };
+
+/** Việc chặn: chỉ việc chưa xóa, cùng dự án (như populate), giữ thứ tự trong blockedBy. */
+async function blockerRows(task, db = prisma) {
+  if (!task.blockedBy?.length) return [];
+  const rows = await db.task.findMany({ where: { id: { in: task.blockedBy }, deletedAt: null, project: task.project }, select: BLOCKER_SELECT });
+  const byId = new Map(rows.map((r) => [r.id, r]));
+  return task.blockedBy.map((id) => byId.get(id)).filter(Boolean);
+}
+
+/**
+ * Danh sách việc (Kanban, tìm kiếm, lịch) cùng dạng với enrich() nhưng chỉ 2 câu SQL thay vì 8: mọi dữ liệu đi kèm
+ * nằm trong một câu include (relationJoins), việc chặn một câu riêng (blockedBy là mảng id, không phải quan hệ).
+ * Với Supabase, pooler phiên chỉ có 15 kết nối và mỗi câu ~50 ms đi-về, nên số câu SQL là trần thông lượng.
+ */
+const LIST_INCLUDE = {
+  contributors: { include: { userRef: { select: USER } } },
+  assigneeRef: { select: USER },
+  creatorRef: { select: USER },
+  checklistItems: { orderBy: [{ position: 'asc' }, { id: 'asc' }] },
+  subtasks: { where: { deletedAt: null }, select: { status: true } },
+  _count: { select: { comments: { where: { deletedAt: null } }, documents: true, dailyUpdates: true } },
+};
+
+async function listTasks(args, access, userId) {
+  const rows = await prisma.task.findMany({ ...args, include: LIST_INCLUDE });
+  const ids = [...new Set(rows.flatMap((r) => r.blockedBy))];
+  const projects = [...new Set(rows.map((r) => r.project))];
+  const blockers = ids.length ? await prisma.task.findMany({ where: { id: { in: ids }, deletedAt: null, project: { in: projects } }, select: { ...BLOCKER_SELECT, project: true } }) : [];
+  const byId = new Map(blockers.map((b) => [b.id, b]));
+  return rows.map(({ contributors, assigneeRef, creatorRef, checklistItems, subtasks, _count, ...t }) => {
+    // Như populate: chỉ việc chặn cùng dự án với việc đang xét.
+    const blockedBy = t.blockedBy.map((id) => byId.get(id)).filter((b) => b && b.project === t.project).map(({ project: _p, ...b }) => b);
+    return {
+      ...t,
+      contributors,
+      assignee: assigneeRef ?? null,
+      creator: creatorRef ?? null,
+      blockedBy,
+      checklist: checklistItems.map((c) => ({ _id: c.id, text: c.title, done: c.isDone })),
+      ...(access && { permissions: taskPermissions(access, userId, { ...t, contributors }) }),
+      subtasks: { total: subtasks.length, done: subtasks.filter((x) => x.status === 'done').length },
+      commentCount: _count.comments,
+      fileCount: _count.documents,
+      hasDailyUpdates: _count.dailyUpdates > 0,
+      isBlocked: blockedBy.some((b) => b.status !== 'done'),
+    };
+  });
+}
+
+/** Dòng task kèm SNAPSHOT_INCLUDE → cùng dạng với enrich(), cộng danh sách việc con và tệp cho trang chi tiết. */
+function shapeSnapshot(row, blockers) {
+  const { contributors, assigneeRef, creatorRef, checklistItems, subtasks, documents, _count, projectRef: _project, ...task } = row;
+  return {
+    task: {
+      ...task,
+      contributors,
+      assignee: assigneeRef ?? null,
+      creator: creatorRef ?? null,
+      blockedBy: blockers,
+      checklist: checklistItems.map((c) => ({ _id: c.id, text: c.title, done: c.isDone })),
+      subtasks: { total: subtasks.length, done: subtasks.filter((s) => s.status === 'done').length },
+      commentCount: _count.comments,
+      fileCount: documents.length,
+      hasDailyUpdates: _count.dailyUpdates > 0,
+      isBlocked: blockers.some((b) => b.status !== 'done'),
+    },
+    subtasks: subtasks.map(({ assigneeRef: a, ...s }) => ({ ...s, assignee: a ?? null })),
+    files: documents.map(({ uploadedByRef: u, ...d }) => ({ ...d, uploadedBy: u ?? d.uploadedBy })),
+  };
+}
+
 async function loadTask(id) {
-  return prisma.$transaction(async (tx) => {
-    const t = await tx.task.findUnique({ where: { deletedAt: null, id } });
-    if (!t) throw notFound('Không tìm thấy công việc');
-    return (await enrich([t], null, null, tx))[0];
-  }, { isolationLevel: 'RepeatableRead' });
+  if (!isId(id)) throw notFound('Không tìm thấy công việc');
+  const row = await prisma.task.findUnique({ where: { deletedAt: null, id }, include: SNAPSHOT_INCLUDE });
+  if (!row) throw notFound('Không tìm thấy công việc');
+  return shapeSnapshot(row, await blockerRows(row)).task;
 }
 
 async function assertAssignee(project, assignee, db = prisma) {
@@ -131,8 +221,7 @@ router.get('/projects/:projectId/tasks', middlewareProject(), async (req, res) =
   if (search) where.OR = taskSearch(search);
   if (typeof req.query.sprint === 'string') where.sprint = req.query.sprint.slice(0, 60);
   if (typeof req.query.label === 'string' && req.query.label) where.labels = { has: req.query.label.slice(0, 40) };
-  const tasks = await prisma.task.findMany({ where: { ...where, deletedAt: null }, orderBy: [{ order: 'asc' }, { number: 'asc' }] });
-  res.json({ tasks: await enrich(tasks, req.pa, req.user.id) });
+  res.json({ tasks: await listTasks({ where: { ...where, deletedAt: null }, orderBy: [{ order: 'asc' }, { number: 'asc' }] }, req.pa, req.user.id) });
 });
 
 router.get('/projects/:projectId/calendar', middlewareProject(), async (req, res) => {
@@ -144,19 +233,15 @@ router.get('/projects/:projectId/calendar', middlewareProject(), async (req, res
   if (isId(req.query.assignee)) where.assignee = req.query.assignee;
   if (req.query.status) where.status = { in: listParam(req.query.status, Object.keys(STATUS_VI)) };
   // Chuỗi phụ thuộc trong dự án để vẽ panel "Phụ thuộc công việc"
-  const [tasks, deps] = await Promise.all([
-    prisma.task.findMany({ where: { ...where, deletedAt: null }, orderBy: { dueDate: 'asc' } }),
+  const [enriched, deps] = await Promise.all([
+    listTasks({ where: { ...where, deletedAt: null }, orderBy: { dueDate: 'asc' } }, req.pa, req.user.id),
     prisma.task.findMany({
       where: { deletedAt: null, project: req.pa.project.id, NOT: { blockedBy: { isEmpty: true } } },
       select: { id: true, project: true, key: true, title: true, status: true, dueDate: true, blockedBy: true, assignee: true },
-    }),
-  ]);
-  const [enriched] = await Promise.all([
-    enrich(tasks, req.pa, req.user.id),
-    populateAll(deps, [
+    }).then((rows) => populateAll(rows, [
       ['blockedBy', 'task', { key: true, title: true, status: true, dueDate: true }],
       ['assignee', 'user', USER],
-    ]),
+    ])),
   ]);
   res.json({ tasks: enriched, dependencies: deps });
 });
@@ -264,29 +349,27 @@ router.post('/projects/:projectId/tasks', middlewareProject(), async (req, res) 
 
 // ---------- Chi tiết ----------
 router.get('/tasks/:id', async (req, res) => {
-  const result = await prisma.$transaction(async (tx) => {
-  const access = await taskAccess(req.user.id, req.params.id, tx);
+  if (!isId(req.params.id)) throw notFound('Không tìm thấy công việc');
+  // Lượt 1: quyền + toàn bộ snapshot của việc trong một câu SQL. Lượt 2: dữ liệu của việc KHÁC, chạy song song.
+  const row = await prisma.task.findUnique({ where: { deletedAt: null, id: req.params.id }, include: { ...SNAPSHOT_INCLUDE, projectRef: { include: withMembership(req.user.id) } } });
+  const access = taskAccessFromRow(row, req.user.id);
   const { task, canWrite, canManage, role, project, projectRole } = access;
-  // Mỗi phần tải song song rồi tự nạp dữ liệu liên quan – tổng cộng 2 lượt đi-về tới DB
-  const [[full], subtasks, blocking, files, activity, parent] = await Promise.all([
-    enrich([{ ...task }], null, null, tx),
-    tx.task.findMany({ where: { deletedAt: null, parent: task.id }, orderBy: { number: 'asc' } }).then((r) => populate(r, 'assignee', 'user', USER, tx)),
-    tx.task.findMany({ where: { deletedAt: null, blockedBy: { has: task.id } }, select: { id: true, key: true, title: true, status: true, dueDate: true } }),
-    tx.document.findMany({ where: { task: task.id }, omit: { storageKey: true }, orderBy: { createdAt: 'desc' } }).then((r) => populate(r, 'uploadedBy', 'user', USER, tx)),
-    tx.activity.findMany({ where: { entityType: 'task', entityId: task.id }, orderBy: { createdAt: 'desc' }, take: 50 }).then((r) => populate(r, 'actor', 'user', USER, tx)),
-    task.parent ? tx.task.findUnique({ where: { deletedAt: null, id: task.parent }, select: { id: true, key: true, title: true } }) : null,
+  const [blockers, blocking, activity, parent] = await Promise.all([
+    blockerRows(task),
+    prisma.task.findMany({ where: { deletedAt: null, blockedBy: { has: task.id } }, select: { id: true, key: true, title: true, status: true, dueDate: true } }),
+    prisma.activity.findMany({ where: { entityType: 'task', entityId: task.id }, orderBy: { createdAt: 'desc' }, take: 50, include: { actorRef: { select: USER } } }),
+    task.parent ? prisma.task.findUnique({ where: { deletedAt: null, id: task.parent }, select: { id: true, key: true, title: true } }) : null,
   ]);
-  return {
+  const { task: full, subtasks, files } = shapeSnapshot(row, blockers);
+  res.json({
     task: full,
     subtasks,
     blocking,
     parent,
     files,
-    activity,
+    activity: activity.map(({ actorRef, ...a }) => ({ ...a, actor: actorRef ?? null })),
     access: { ...taskPermissions(access, req.user.id), canWrite, canManage, canComment: access.canComment, role, projectRole, archived: project.status === 'archived', pendingDeletion: access.pendingDeletion },
-  };
-  }, { isolationLevel: 'RepeatableRead' });
-  res.json(result);
+  });
 });
 
 // Ngày trong nhật ký hiển thị dạng dd/mm/yyyy thay vì chuỗi ISO thô.
@@ -632,6 +715,8 @@ router.get('/tasks/:id/comments', async (req, res) => {
 });
 
 async function resolveMentions(project, body, explicit = [], db = prisma) {
+  // Không có "@" và không chỉ định ai: chắc chắn không nhắc ai, khỏi tốn một lượt truy vấn.
+  if (!explicit.length && !body.includes('@')) return [];
   const members = await db.user.findMany({ where: { id: { in: project.members }, isLocked: false }, select: { id: true, name: true } });
   const ids = new Set(explicit.filter((id) => members.some((m) => m.id === id)));
   // Chỉ người trong dự án. Tại mỗi "@" chọn tên DÀI NHẤT khớp và phải kết thúc ở ranh giới từ:
@@ -663,7 +748,7 @@ router.post('/tasks/:id/comments', async (req, res) => {
     const mentions = await resolveMentions(fresh.project, body, explicit, tx);
     const full = await tx.comment.create({ data: { task: fresh.task.id, project: fresh.project.id, author: req.user.id, body, mentions } });
     return { full, mentions, task: fresh.task };
-  });
+  }, { shared: true });
   const base = { actor: req.user.id, workspace: task.workspace, project: task.project, task: task.id, excerpt: body.slice(0, 200) };
   await Promise.all([
     populateAll(full, [
@@ -690,7 +775,7 @@ router.patch('/comments/:id', async (req, res) => {
     const fresh = await commentAccess(req, tx);
     assertComment(fresh.access);
     return tx.comment.update({ where: { id: comment.id }, data: { body, mentions: await resolveMentions(fresh.access.project, body, [], tx), editedAt: new Date() } });
-  });
+  }, { shared: true });
   await populateAll(full, [
     ['author', 'user', USER],
     ['mentions', 'user', USER],
@@ -718,7 +803,7 @@ router.delete('/comments/:id', async (req, res) => {
       before: '(nội dung đã xóa)',
       after: { commentId: comment.id, author: comment.author, hidden: true },
     });
-  });
+  }, { shared: true });
   emitProject(access.project.id, 'comment:deleted', { taskId: comment.task, commentId: comment.id });
   res.json({ ok: true });
 });

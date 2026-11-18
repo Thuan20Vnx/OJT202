@@ -7,11 +7,12 @@ import { LocalClient } from './http.mjs';
 import { hash, requireValue } from './core.mjs';
 
 /** Database isolation is mandatory; a paid AI provider needs explicit caller opt-in. */
-export async function startFixture({ production = false, build = null, provider = 'local', requestLimit = 2000 } = {}) {
+/** `databaseUrl`: chỉ dùng cho đo U031 trên schema riêng (vd Supabase ?schema=perf_u031); mặc định luôn là DB nhúng tạm. */
+export async function startFixture({ production = false, build = null, provider = 'local', requestLimit = 2000, databaseUrl = '' } = {}) {
   requireValue(['local', 'configured'].includes(provider), 'Provider must be local or configured');
   const apiKey = provider === 'configured' ? process.env.GEMINI_API_KEY : '';
   requireValue(provider === 'local' || apiKey, 'Configured provider needs an explicit GEMINI_API_KEY');
-  Object.assign(process.env, { NODE_ENV: 'test', DATABASE_URL: '', MAIL_MODE: 'outbox', GEMINI_API_KEY: apiKey ?? '', AI_SERVICE_KEY: randomBytes(24).toString('hex') });
+  Object.assign(process.env, { NODE_ENV: 'test', DATABASE_URL: databaseUrl, MAIL_MODE: 'outbox', GEMINI_API_KEY: apiKey ?? '', AI_SERVICE_KEY: randomBytes(24).toString('hex') });
   const uploads = await fs.mkdtemp(path.join(os.tmpdir(), 'taskflow-sprint4-'));
   process.env.UPLOAD_DIR = uploads;
   let ai, server, io, db;
@@ -36,12 +37,12 @@ export async function startFixture({ production = false, build = null, provider 
     process.env.AI_SERVICE_URL = `http://127.0.0.1:${ai.address().port}`;
     db = await import('../../BackEnd/src/db.js');
     const { config } = await import('../../BackEnd/src/config.js');
-    config.databaseUrl = '';
+    config.databaseUrl = databaseUrl;
     config.uploadDir = uploads;
     // Never reuse developer/cloud storage for a disposable validation fixture.
     config.storage = { url: '', serviceKey: '', bucket: 'validation-local' };
     config.isProd = false;
-    await db.connectDb({ ephemeral: true });
+    await db.connectDb({ ephemeral: !databaseUrl });
     const { seedDemo, DEMO_PASSWORD } = await import('../../BackEnd/src/seed.js');
     const seed = await seedDemo();
     config.ai.serviceUrl = process.env.AI_SERVICE_URL;

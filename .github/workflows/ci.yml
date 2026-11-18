@@ -31,6 +31,8 @@ jobs:
       - run: npm run test:e2e
       - run: npm run validate:security -- --out .data/sprint4-loc/ci-security
       - run: npm run validate:local -- --samples 1 --out .data/validation/ci-development
+      # U030-T2: ma trận giao diện theo vai trò (dùng bản build vừa tạo ở bước trên)
+      - run: node scripts/validate-sprint4.mjs ui-roles --out .data/validation/ci-ui-roles
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -48,7 +50,45 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
+          name: u030-ui-role-evidence
+          path: .data/validation/ci-ui-roles/
+          include-hidden-files: true
+          if-no-files-found: ignore
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
           name: sprint4-development-evidence
           path: .data/validation/ci-development/
           include-hidden-files: true
           if-no-files-found: ignore
+
+  # U033: build image API/web + AIService, chạy cả cụm bằng docker compose và kiểm readiness/SPA/mã commit.
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tạo .env.docker tạm (bí mật ngẫu nhiên, mail SMTP giả không gửi thật)
+        run: |
+          {
+            echo "POSTGRES_PASSWORD=$(openssl rand -hex 16)"
+            echo "JWT_SECRET=$(openssl rand -hex 32)"
+            echo "AI_SERVICE_KEY=$(openssl rand -hex 24)"
+            echo "CLIENT_URL=http://localhost:4000"
+            echo "MAIL_MODE=smtp"
+            echo "SMTP_HOST=smtp.invalid"
+            echo "MAIL_FROM=no-reply@example.test"
+          } > .env.docker
+      - name: Build và chạy
+        run: RELEASE_SHA=${{ github.sha }} docker compose --env-file .env.docker up -d --build --wait --wait-timeout 180
+      - name: Kiểm tra cụm vừa chạy
+        run: |
+          curl -fsS http://localhost:4000/api/health/ready | tee ready.json
+          grep -q '"db":"up"' ready.json
+          curl -fsS http://localhost:4000/api/health | grep -q "${{ github.sha }}"
+          curl -fsS -H 'accept: text/html' http://localhost:4000/board | grep -qi '<div id="root"'
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:4000/api/workspaces)" = "401"
+          docker compose --env-file .env.docker exec -T ai node -e "fetch('http://127.0.0.1:5000/health').then(r=>process.exit(r.ok?0:1))"
+      - name: Nhật ký khi lỗi
+        if: failure()
+        run: docker compose --env-file .env.docker logs --no-color

@@ -10,7 +10,8 @@ services:
     branch: main
     buildCommand: npm --prefix BackEnd ci --omit=dev
     startCommand: npm --prefix BackEnd start
-    healthCheckPath: /api/health
+    # Readiness: Render chỉ chuyển traffic sang bản mới khi truy vấn được database.
+    healthCheckPath: /api/health/ready
     envVars:
       - key: NODE_VERSION
         value: "24"

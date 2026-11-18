@@ -1,10 +1,9 @@
 import { z } from 'zod';
-import { USER, countBy, isId, populateAll, prisma, subtaskCounts } from '../db.js';
+import { USER, isId, prisma } from '../db.js';
 import { taskPermissions, workspaceAccess } from '../middleware/access.js';
 import { pagination, parse } from '../utils/http.js';
 import { addDays, startOfDay, weekRange } from '../utils/dates.js';
 import { listParam, taskFilters, taskSearch } from './task-filters.js';
-import { checklistMap } from './checklists.js';
 
 export async function listMyTasks(req, res) {
   const { workspace, role } = req.ws;
@@ -31,51 +30,70 @@ export async function listMyTasks(req, res) {
   } else if (due === 'none') where.dueDate = null;
   if (search) where.OR = taskSearch(search);
   const { page, limit } = pagination(req.query, 20);
-  const mine = { workspace: workspace.id, ...readable, OR: [{ assignee: req.user.id }, { contributors: { some: { user: req.user.id } } }] };
-  const open = { ...mine, status: { not: 'done' } };
+  const mineOr = [{ assignee: req.user.id }, { contributors: { some: { user: req.user.id } } }];
   const weekAgo = new Date(sod.getTime() - 6 * 86400000);
-  // Danh sách (kèm dữ liệu liên quan), tổng số và 4 chỉ số tóm tắt chạy song song
-  const [items, total, today, overdue, upcoming, doneWeek, actionable] = await Promise.all([
-    prisma.task
-      .findMany({ where: { ...where, deletedAt: null }, include: { contributors: true }, orderBy: [{ dueDate: { sort: 'asc', nulls: 'last' } }, { priority: 'desc' }, { number: 'asc' }, { id: 'asc' }], skip: (page - 1) * limit, take: limit })
-      .then(async (rows) => {
-        const ids = rows.map((t) => t.id);
-        const [, subs, comments, checklists] = await Promise.all([
-          populateAll(rows, [
-            ['assignee', 'user', USER],
-            ['project', 'project', { name: true, color: true, keyPrefix: true, manager: true, status: true, memberships: { where: { user: req.user.id } } }],
-            ['blockedBy', 'task', { key: true, title: true, status: true, dueDate: true }],
-          ]),
-          subtaskCounts(ids),
-          countBy('comment', 'task', { task: { in: ids }, deletedAt: null }),
-          checklistMap(ids),
-        ]);
-        return rows.map((t) => {
-          const projectRole = role === 'viewer' ? 'viewer' : t.project.memberships[0]?.role;
-          const canWrite = !!projectRole && projectRole !== 'viewer' && t.project.status !== 'archived';
-          const access = { project: t.project, projectRole, canWrite, canManage: canWrite && projectRole === 'pm' };
-          const permissions = taskPermissions(access, req.user.id, { ...t, assignee: t.assignee?.id });
-          return {
-            ...t, checklist: checklists.get(t.id) || [], subtasks: subs[t.id] || { total: 0, done: 0 }, commentCount: comments[t.id] || 0,
-            permissions,
-            access: { canWrite: permissions.canUpdateProgress, canManage: access.canManage },
-          };
-        });
-      }),
+  // 4 câu SQL thay vì 12 (U031, Supabase: số câu SQL là trần thông lượng): danh sách kèm mọi dữ liệu đi kèm trong
+  // một câu include, việc chặn một câu, tổng số một câu, và 5 chỉ số tóm tắt đếm bằng JS trên các việc của mình.
+  const [rows, total, mineRows] = await Promise.all([
+    prisma.task.findMany({
+      where: { ...where, deletedAt: null },
+      include: {
+        contributors: true,
+        assigneeRef: { select: USER },
+        projectRef: { select: { id: true, name: true, color: true, keyPrefix: true, manager: true, status: true, memberships: { where: { user: req.user.id } } } },
+        checklistItems: { orderBy: [{ position: 'asc' }, { id: 'asc' }] },
+        subtasks: { where: { deletedAt: null }, select: { status: true } },
+        _count: { select: { comments: { where: { deletedAt: null } } } },
+      },
+      orderBy: [{ dueDate: { sort: 'asc', nulls: 'last' } }, { priority: 'desc' }, { number: 'asc' }, { id: 'asc' }],
+      skip: (page - 1) * limit,
+      take: limit,
+    }),
     prisma.task.count({ where: { ...where, deletedAt: null } }),
-    prisma.task.count({ where: { deletedAt: null, ...open, dueDate: { gte: sod, lt: eod } } }),
-    prisma.task.count({ where: { deletedAt: null, ...open, dueDate: { lt: now } } }),
-    prisma.task.count({ where: { deletedAt: null, ...open, dueDate: { gte: now, lt: eow } } }),
-    prisma.task.count({ where: { deletedAt: null, ...mine, status: 'done', completedAt: { gte: weekAgo } } }),
-    // Union of overdue and due today, so tasks overdue earlier today count once.
-    prisma.task.count({ where: { deletedAt: null, ...open, dueDate: { lt: eod } } }),
+    prisma.task.findMany({
+      where: { deletedAt: null, workspace: workspace.id, ...readable, AND: [{ OR: mineOr }, { OR: [{ status: { not: 'done' } }, { status: 'done', completedAt: { gte: weekAgo } }] }] },
+      select: { status: true, dueDate: true, completedAt: true },
+    }),
   ]);
+  const blockerIds = [...new Set(rows.flatMap((t) => t.blockedBy))];
+  const blockers = blockerIds.length
+    ? await prisma.task.findMany({ where: { id: { in: blockerIds }, deletedAt: null, project: { in: [...new Set(rows.map((t) => t.project))] } }, select: { id: true, project: true, key: true, title: true, status: true, dueDate: true } })
+    : [];
+  const byId = new Map(blockers.map((b) => [b.id, b]));
+  const items = rows.map(({ assigneeRef, projectRef, checklistItems, subtasks, _count, ...t }) => {
+    const projectRole = role === 'viewer' ? 'viewer' : projectRef.memberships[0]?.role;
+    const canWrite = !!projectRole && projectRole !== 'viewer' && projectRef.status !== 'archived';
+    const access = { project: projectRef, projectRole, canWrite, canManage: canWrite && projectRole === 'pm' };
+    const permissions = taskPermissions(access, req.user.id, t);
+    return {
+      ...t,
+      assignee: assigneeRef ?? null,
+      project: projectRef,
+      blockedBy: t.blockedBy.map((id) => byId.get(id)).filter((b) => b && b.project === t.project).map(({ project: _p, ...b }) => b),
+      checklist: checklistItems.map((c) => ({ _id: c.id, text: c.title, done: c.isDone })),
+      subtasks: { total: subtasks.length, done: subtasks.filter((x) => x.status === 'done').length },
+      commentCount: _count.comments,
+      permissions,
+      access: { canWrite: permissions.canUpdateProgress, canManage: access.canManage },
+    };
+  });
+  const summary = { today: 0, overdue: 0, upcoming: 0, doneWeek: 0, actionable: 0 };
+  for (const t of mineRows) {
+    if (t.status === 'done') { if (t.completedAt && t.completedAt >= weekAgo) summary.doneWeek++; continue; }
+    const d = t.dueDate;
+    if (!d) continue;
+    if (d >= sod && d < eod) summary.today++;
+    if (d < now) summary.overdue++;
+    if (d >= now && d < eow) summary.upcoming++;
+    // Gộp quá hạn và đến hạn hôm nay, việc quá hạn từ sáng nay chỉ tính một lần.
+    if (d < eod) summary.actionable++;
+  }
   res.json({
     items,
     total,
     page,
     limit,
-    summary: { today, overdue, upcoming, doneWeek, actionable },
+    summary,
   });
 }
 

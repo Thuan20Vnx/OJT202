@@ -5,6 +5,7 @@ import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import helmet from 'helmet';
 import { config } from './config.js';
+import { pingDb } from './db.js';
 import { csrfGuard, requireAuth } from './middleware/auth.js';
 import { myTasksFromQuery } from './services/my-tasks.js';
 import { errorHandler } from './utils/http.js';
@@ -57,6 +58,21 @@ export function createApp(options: { staticDir?: string } = {}): express.Express
 
   const api = express.Router();
   api.get('/health', (_req, res) => { res.setHeader('Cache-Control', 'no-store'); res.json({ ok: true, time: new Date().toISOString(), build: config.release }); });
+  // Readiness cho load balancer/Docker: chỉ báo sẵn sàng khi truy vấn được database (liveness ở /health).
+  api.get('/health/ready', async (_req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    const started = Date.now();
+    let timer;
+    try {
+      const timeout = new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('timeout')), 3000); });
+      await Promise.race([pingDb(), timeout]);
+      res.json({ ok: true, db: 'up', dbLatencyMs: Date.now() - started, build: config.release });
+    } catch {
+      res.status(503).json({ ok: false, db: 'down', build: config.release });
+    } finally {
+      clearTimeout(timer);
+    }
+  });
   api.use(csrfGuard);
   api.get(['/tasks', '/me/tasks'], requireAuth, myTasksFromQuery);
   api.use('/auth', authRoutes);

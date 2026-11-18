@@ -69,11 +69,17 @@ export async function authenticate(token) {
   return { user, session };
 }
 
+// Mỗi router gắn requireAuth riêng; request đi qua nhiều router trước khi tới handler nên trước đây phiên bị
+// kiểm lại 2–4 lần nối tiếp (U031: ~54 ms mỗi lần khi DB ở Supabase). Chỉ kiểm một lần cho mỗi request.
+const AUTHED = Symbol('taskflow.authenticated');
+
 export async function requireAuth(req, _res, next) {
+  if (req[AUTHED]) return next();
   const result = await authenticate(req.cookies?.[ACCESS_COOKIE]);
   if (!result) throw unauthorized();
   req.user = result.user;
   req.session = result.session;
+  req[AUTHED] = true;
   next();
 }
 

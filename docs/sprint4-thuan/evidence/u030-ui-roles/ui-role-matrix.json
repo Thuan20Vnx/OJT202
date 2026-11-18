@@ -1,0 +1,336 @@
+{
+  "schemaVersion": 1,
+  "kind": "ui-role-matrix",
+  "build": {
+    "revision": "d3c45a67773d40793c548d2ade0049b39d53fa15",
+    "sourceHash": "21df6480d96f769cc389c841984887c1fd2bbfd001699942d70b9d0092329512",
+    "sourceHashAlgorithm": "sha256-lf-v1",
+    "promptHash": "533c2c256becc980797bb51826a44b4399e82a829895af6c7a668f2bc6ed05ac",
+    "dirty": true,
+    "node": "v24.21.0"
+  },
+  "createdAt": "2026-11-18T17:22:57.820Z",
+  "roles": [
+    "pm",
+    "member",
+    "viewer",
+    "outsider"
+  ],
+  "records": [
+    {
+      "id": "setup-mention-notification",
+      "surface": "notification",
+      "role": "member",
+      "expected": true,
+      "actual": true,
+      "passed": true
+    },
+    {
+      "id": "qa-citations-in-scope",
+      "surface": "ai-source",
+      "role": "member",
+      "expected": true,
+      "actual": true,
+      "passed": true
+    },
+    {
+      "id": "create-task-button",
+      "surface": "board",
+      "role": "pm",
+      "expected": true,
+      "actual": true,
+      "passed": true
+    },
+    {
+      "id": "board-shows-project",
+      "surface": "board",
+      "role": "pm",
+      "expected": true,
+      "actual": true,
+      "passed": true
+    },
+    {
+      "id": "task-delete-menu",
+      "surface": "task",
+      "role": "pm",
+      "expected": true,
+      "actual": true,
+      "passed": true
+    },
+    {
+      "id": "comment-box",
+      "surface": "task",
+      "role": "pm",
+      "expected": true,
+      "actual": true,
+      "passed": true
+    },
+    {
+      "id": "foreign-task-deeplink",
+      "surface": "task",
+      "role": "pm",
+      "expected": true,
+      "actual": true,
+      "passed": true
+    },
+    {
+      "id": "invite-button",
+      "surface": "settings",
+      "role": "pm",
+      "expected": true,
+      "actual": true,
+      "passed": true
+    },
+    {
+      "id": "notifications-after-removal",
+      "surface": "notification",
+      "role": "pm",
+      "expected": false,
+      "actual": false,
+      "passed": true
+    },
+    {
+      "id": "qa-history-private",
+      "surface": "ai-source",
+      "role": "pm",
+      "expected": false,
+      "actual": false,
+      "passed": true
+    },
+    {
+      "id": "no-page-errors",
+      "surface": "browser",
+      "role": "pm",
+      "expected": [],
+      "actual": [],
+      "passed": true
+    },
+    {
+      "id": "create-task-button",
+      "surface": "board",
+      "role": "member",
+      "expected": false,
+      "actual": false,
+      "passed": true
+    },
+    {
+      "id": "board-shows-project",
+      "surface": "board",
+      "role": "member",
+      "expected": true,
+      "actual": true,
+      "passed": true
+    },
+    {
+      "id": "task-delete-menu",
+      "surface": "task",
+      "role": "member",
+      "expected": false,
+      "actual": false,
+      "passed": true
+    },
+    {
+      "id": "comment-box",
+      "surface": "task",
+      "role": "member",
+      "expected": true,
+      "actual": true,
+      "passed": true
+    },
+    {
+      "id": "foreign-task-deeplink",
+      "surface": "task",
+      "role": "member",
+      "expected": false,
+      "actual": false,
+      "passed": true
+    },
+    {
+      "id": "invite-button",
+      "surface": "settings",
+      "role": "member",
+      "expected": false,
+      "actual": false,
+      "passed": true
+    },
+    {
+      "id": "notifications-control-visible",
+      "surface": "notification",
+      "role": "member",
+      "expected": true,
+      "actual": true,
+      "passed": true,
+      "note": "thông báo ở dự án còn quyền vẫn hiện"
+    },
+    {
+      "id": "notifications-after-removal",
+      "surface": "notification",
+      "role": "member",
+      "expected": false,
+      "actual": false,
+      "passed": true,
+      "note": "Như đã được nhắc tên ở dự án B rồi bị gỡ"
+    },
+    {
+      "id": "qa-history-private",
+      "surface": "ai-source",
+      "role": "member",
+      "expected": true,
+      "actual": true,
+      "passed": true
+    },
+    {
+      "id": "qa-citations-rendered",
+      "surface": "ai-source",
+      "role": "member",
+      "expected": true,
+      "actual": true,
+      "passed": true
+    },
+    {
+      "id": "qa-citation-count",
+      "surface": "ai-source",
+      "role": "member",
+      "expected": 3,
+      "actual": 3,
+      "passed": true
+    },
+    {
+      "id": "no-page-errors",
+      "surface": "browser",
+      "role": "member",
+      "expected": [],
+      "actual": [],
+      "passed": true
+    },
+    {
+      "id": "create-task-button",
+      "surface": "board",
+      "role": "viewer",
+      "expected": false,
+      "actual": false,
+      "passed": true
+    },
+    {
+      "id": "board-shows-project",
+      "surface": "board",
+      "role": "viewer",
+      "expected": true,
+      "actual": true,
+      "passed": true
+    },
+    {
+      "id": "task-delete-menu",
+      "surface": "task",
+      "role": "viewer",
+      "expected": false,
+      "actual": false,
+      "passed": true
+    },
+    {
+      "id": "comment-box",
+      "surface": "task",
+      "role": "viewer",
+      "expected": false,
+      "actual": false,
+      "passed": true
+    },
+    {
+      "id": "comment-readonly-reason",
+      "surface": "task",
+      "role": "viewer",
+      "expected": true,
+      "actual": true,
+      "passed": true
+    },
+    {
+      "id": "foreign-task-deeplink",
+      "surface": "task",
+      "role": "viewer",
+      "expected": false,
+      "actual": false,
+      "passed": true
+    },
+    {
+      "id": "invite-button",
+      "surface": "settings",
+      "role": "viewer",
+      "expected": false,
+      "actual": false,
+      "passed": true
+    },
+    {
+      "id": "notifications-after-removal",
+      "surface": "notification",
+      "role": "viewer",
+      "expected": false,
+      "actual": false,
+      "passed": true
+    },
+    {
+      "id": "qa-history-private",
+      "surface": "ai-source",
+      "role": "viewer",
+      "expected": false,
+      "actual": false,
+      "passed": true
+    },
+    {
+      "id": "no-page-errors",
+      "surface": "browser",
+      "role": "viewer",
+      "expected": [],
+      "actual": [],
+      "passed": true
+    },
+    {
+      "id": "board-no-leak",
+      "surface": "board",
+      "role": "outsider",
+      "expected": false,
+      "actual": false,
+      "passed": true
+    },
+    {
+      "id": "task-deeplink-no-leak",
+      "surface": "task",
+      "role": "outsider",
+      "expected": false,
+      "actual": false,
+      "passed": true
+    },
+    {
+      "id": "foreign-task-deeplink",
+      "surface": "task",
+      "role": "outsider",
+      "expected": false,
+      "actual": false,
+      "passed": true
+    },
+    {
+      "id": "notifications-after-removal",
+      "surface": "notification",
+      "role": "outsider",
+      "expected": false,
+      "actual": false,
+      "passed": true
+    },
+    {
+      "id": "qa-history-private",
+      "surface": "ai-source",
+      "role": "outsider",
+      "expected": false,
+      "actual": false,
+      "passed": true
+    },
+    {
+      "id": "no-page-errors",
+      "surface": "browser",
+      "role": "outsider",
+      "expected": [],
+      "actual": [],
+      "passed": true
+    }
+  ],
+  "passed": true
+}

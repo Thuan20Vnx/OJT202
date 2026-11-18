@@ -5,7 +5,7 @@ export const ROLE_RANK = { viewer: 0, member: 1, admin: 2, owner: 3 };
 export const atLeast = (role, min) => ROLE_RANK[role] >= ROLE_RANK[min];
 
 // Kèm membership của user trong workspace của dự án – lấy cùng dự án bằng một câu JOIN
-const withMembership = (userId) => ({
+export const withMembership = (userId) => ({
   workspaceRef: { select: { deletionScheduledAt: true, memberships: { where: { user: userId }, take: 1 } } },
   memberships: { where: { user: userId }, take: 1 },
 });
@@ -45,6 +45,13 @@ function checkProject(found, userId) {
 export async function projectAccess(userId, projectId, db = prisma) {
   if (!isId(projectId)) throw notFound('Không tìm thấy dự án');
   return checkProject(await db.project.findUnique({ where: { id: projectId }, include: withMembership(userId) }), userId);
+}
+
+/** Kiểm quyền từ một dòng task đã kèm `projectRef: { include: withMembership(userId) }` (dùng khi gộp truy vấn). */
+export function taskAccessFromRow(found, userId) {
+  if (!found) throw notFound('Không tìm thấy công việc');
+  const { projectRef, ...task } = found;
+  return { task, ...checkProject(projectRef, userId) };
 }
 
 /** Công việc + dự án + membership trong một truy vấn */

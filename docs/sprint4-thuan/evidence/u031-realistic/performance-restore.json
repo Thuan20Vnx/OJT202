@@ -1,0 +1,322 @@
+{
+  "schemaVersion": 1,
+  "kind": "performance-restore",
+  "build": {
+    "revision": "d3c45a67773d40793c548d2ade0049b39d53fa15",
+    "sourceHash": "21df6480d96f769cc389c841984887c1fd2bbfd001699942d70b9d0092329512",
+    "sourceHashAlgorithm": "sha256-lf-v1",
+    "promptHash": "533c2c256becc980797bb51826a44b4399e82a829895af6c7a668f2bc6ed05ac",
+    "dirty": true,
+    "node": "v24.21.0"
+  },
+  "createdAt": "2026-11-18T17:38:25.271Z",
+  "environment": "Windows_NT 10.0.26300 x64; 16× AMD Ryzen 9 8945HS w/ Radeon 780M Graphics; RAM 15 GB; Node v24.21.0; PostgreSQL 17.10 on x86_64-windows (nhúng, cùng máy); API + DB + client cùng máy qua loopback",
+  "method": {
+    "virtualUsers": 50,
+    "loginsExcluded": "đăng nhập xong trước khi bắt đầu đo",
+    "iterationsPerUser": 6,
+    "thinkTimeMs": [
+      1000,
+      3000
+    ],
+    "requestsPerIteration": 10,
+    "readEndpoints": [
+      "GET /me",
+      "GET my-tasks",
+      "GET projects",
+      "GET board",
+      "GET overview",
+      "GET task",
+      "GET comments",
+      "GET search",
+      "GET notifications"
+    ],
+    "note": "Mỗi người dùng ảo đăng nhập bằng tài khoản riêng, chỉ đọc dự án mình tham gia; đo từ trước fetch đến khi đọc xong body."
+  },
+  "dataset": {
+    "users": 50,
+    "projects": 20,
+    "taskCount": 10050,
+    "projectTasks": 10000,
+    "comments": 5000,
+    "files": 40,
+    "tasksPerProject": 500
+  },
+  "virtualUsers": 50,
+  "taskCount": 10050,
+  "readRequests": 2700,
+  "writeRequests": 300,
+  "p95Ms": 88.7,
+  "reads": {
+    "requests": 2700,
+    "errors": 0,
+    "p50Ms": 16,
+    "p95Ms": 88.7,
+    "p99Ms": 120.2,
+    "maxMs": 164.1
+  },
+  "writes": {
+    "requests": 300,
+    "errors": 0,
+    "p50Ms": 12.4,
+    "p95Ms": 26,
+    "p99Ms": 35.9,
+    "maxMs": 80.7
+  },
+  "byEndpoint": {
+    "GET /me": {
+      "requests": 300,
+      "errors": 0,
+      "p50Ms": 4.1,
+      "p95Ms": 9.1,
+      "p99Ms": 26.8,
+      "maxMs": 53.8
+    },
+    "GET my-tasks": {
+      "requests": 300,
+      "errors": 0,
+      "p50Ms": 39.4,
+      "p95Ms": 67.5,
+      "p99Ms": 110.1,
+      "maxMs": 158.2
+    },
+    "GET projects": {
+      "requests": 300,
+      "errors": 0,
+      "p50Ms": 8.1,
+      "p95Ms": 33.1,
+      "p99Ms": 62.6,
+      "maxMs": 74.4
+    },
+    "GET board": {
+      "requests": 300,
+      "errors": 0,
+      "p50Ms": 77.6,
+      "p95Ms": 125.6,
+      "p99Ms": 153.7,
+      "maxMs": 164.1
+    },
+    "GET overview": {
+      "requests": 300,
+      "errors": 0,
+      "p50Ms": 46.8,
+      "p95Ms": 100.1,
+      "p99Ms": 128.1,
+      "maxMs": 156.9
+    },
+    "GET task": {
+      "requests": 300,
+      "errors": 0,
+      "p50Ms": 10,
+      "p95Ms": 36.5,
+      "p99Ms": 62.6,
+      "maxMs": 75.1
+    },
+    "GET comments": {
+      "requests": 300,
+      "errors": 0,
+      "p50Ms": 6.8,
+      "p95Ms": 23,
+      "p99Ms": 45,
+      "maxMs": 113.5
+    },
+    "GET search": {
+      "requests": 300,
+      "errors": 0,
+      "p50Ms": 22.8,
+      "p95Ms": 55.9,
+      "p99Ms": 68.6,
+      "maxMs": 78.4
+    },
+    "GET notifications": {
+      "requests": 300,
+      "errors": 0,
+      "p50Ms": 5.8,
+      "p95Ms": 13.6,
+      "p99Ms": 24.3,
+      "maxMs": 30.3
+    },
+    "POST comment": {
+      "requests": 300,
+      "errors": 0,
+      "p50Ms": 12.4,
+      "p95Ms": 26,
+      "p99Ms": 35.9,
+      "maxMs": 80.7
+    }
+  },
+  "durationSec": 130.7,
+  "throughputRps": 22.9,
+  "explains": [
+    {
+      "sql": "SELECT \"t0\".\"id\", \"t0\".\"workspace_id\" AS \"workspace\", \"t0\".\"project_id\" AS \"project\", \"t0\".\"number\", \"t0\".\"key\", \"t0\".\"title\", \"t0\".\"description\", \"t0\".\"acceptance_criteria\" AS \"acceptanceCriteria\", \"t0\".\"status\"::text, \"t0\".\"priority\"::text, \"t0\".\"assignee_id\" AS \"assignee\", \"t0\".\"creator_id\" AS \"creator\", \"t0\".\"dueDate\", \"t0\".\"plannedStartDate\", \"t0\".\"actualStartDate\", \"t0\".\"actualEndDate\", \"t0\".\"estimateHours\", \"t0\".\"spentHours\", \"t0\".\"legacySpentHours\", \"t0\".\"workType\", \"t0\".\"progressPct\", \"t0\".\"remainingHours\", \"t0\".\"deleted_at\" AS \"deletedAt\", \"t0\".\"labels\", \"t0\".\"sprint\", \"t0\".\"parent_t…",
+      "calls": 300,
+      "totalMs": 8421,
+      "avgMs": 28.1,
+      "maxMs": 58,
+      "executionMs": 24,
+      "scans": [
+        "Seq Scan on tasks",
+        "Seq Scan on task_contributors",
+        "Index Only Scan (projects_pkey) on projects",
+        "Seq Scan on task_contributors",
+        "Seq Scan on users",
+        "Seq Scan on projects",
+        "Seq Scan on project_members",
+        "Seq Scan on checklist_items",
+        "Index Scan (tasks_parent_task_id_idx) on tasks",
+        "Index Scan (comments_task_id_idx) on comments",
+        "Seq Scan on project_members"
+      ],
+      "seqScanRows": 10365
+    },
+    {
+      "sql": "SELECT \"t0\".\"id\", \"t0\".\"workspace_id\" AS \"workspace\", \"t0\".\"project_id\" AS \"project\", \"t0\".\"number\", \"t0\".\"key\", \"t0\".\"title\", \"t0\".\"description\", \"t0\".\"acceptance_criteria\" AS \"acceptanceCriteria\", \"t0\".\"status\"::text, \"t0\".\"priority\"::text, \"t0\".\"assignee_id\" AS \"assignee\", \"t0\".\"creator_id\" AS \"creator\", \"t0\".\"dueDate\", \"t0\".\"plannedStartDate\", \"t0\".\"actualStartDate\", \"t0\".\"actualEndDate\", \"t0\".\"estimateHours\", \"t0\".\"spentHours\", \"t0\".\"legacySpentHours\", \"t0\".\"workType\", \"t0\".\"progressPct\", \"t0\".\"remainingHours\", \"t0\".\"deleted_at\" AS \"deletedAt\", \"t0\".\"labels\", \"t0\".\"sprint\", \"t0\".\"parent_t…",
+      "calls": 300,
+      "totalMs": 4888,
+      "avgMs": 16.3,
+      "maxMs": 49,
+      "executionMs": 10.8,
+      "scans": [
+        "Bitmap Heap Scan on tasks",
+        "Bitmap Index Scan (tasks_project_id_aiDraftItem_key)",
+        "Seq Scan on task_contributors",
+        "Seq Scan on users",
+        "Seq Scan on users",
+        "Seq Scan on users",
+        "Seq Scan on checklist_items",
+        "Index Scan (tasks_parent_task_id_idx) on tasks",
+        "Index Scan (comments_task_id_idx) on comments",
+        "Seq Scan on documents",
+        "Seq Scan on task_daily_updates"
+      ],
+      "seqScanRows": 95
+    },
+    {
+      "sql": "SELECT \"t0\".\"id\", \"t0\".\"workspace_id\" AS \"workspace\", \"t0\".\"project_id\" AS \"project\", \"t0\".\"number\", \"t0\".\"key\", \"t0\".\"title\", \"t0\".\"description\", \"t0\".\"acceptance_criteria\" AS \"acceptanceCriteria\", \"t0\".\"status\"::text, \"t0\".\"priority\"::text, \"t0\".\"assignee_id\" AS \"assignee\", \"t0\".\"creator_id\" AS \"creator\", \"t0\".\"dueDate\", \"t0\".\"plannedStartDate\", \"t0\".\"actualStartDate\", \"t0\".\"actualEndDate\", \"t0\".\"estimateHours\", \"t0\".\"spentHours\", \"t0\".\"legacySpentHours\", \"t0\".\"workType\", \"t0\".\"progressPct\", \"t0\".\"remainingHours\", \"t0\".\"deleted_at\" AS \"deletedAt\", \"t0\".\"labels\", \"t0\".\"sprint\", \"t0\".\"parent_t…",
+      "calls": 300,
+      "totalMs": 1849,
+      "avgMs": 6.2,
+      "maxMs": 25,
+      "executionMs": 7.6,
+      "scans": [
+        "Bitmap Heap Scan on tasks",
+        "Bitmap Index Scan (tasks_project_id_aiDraftItem_key)",
+        "Seq Scan on task_contributors",
+        "Seq Scan on users",
+        "Seq Scan on users",
+        "Seq Scan on users",
+        "Seq Scan on checklist_items",
+        "Index Scan (tasks_parent_task_id_idx) on tasks",
+        "Index Scan (comments_task_id_idx) on comments",
+        "Seq Scan on documents",
+        "Seq Scan on task_daily_updates"
+      ],
+      "seqScanRows": 94
+    },
+    {
+      "sql": "SELECT \"t0\".\"id\", \"t0\".\"workspace_id\" AS \"workspace\", \"t0\".\"project_id\" AS \"project\", \"t0\".\"number\", \"t0\".\"key\", \"t0\".\"title\", \"t0\".\"description\", \"t0\".\"acceptance_criteria\" AS \"acceptanceCriteria\", \"t0\".\"status\"::text, \"t0\".\"priority\"::text, \"t0\".\"assignee_id\" AS \"assignee\", \"t0\".\"creator_id\" AS \"creator\", \"t0\".\"dueDate\", \"t0\".\"plannedStartDate\", \"t0\".\"actualStartDate\", \"t0\".\"actualEndDate\", \"t0\".\"estimateHours\", \"t0\".\"spentHours\", \"t0\".\"legacySpentHours\", \"t0\".\"workType\", \"t0\".\"progressPct\", \"t0\".\"remainingHours\", \"t0\".\"deleted_at\" AS \"deletedAt\", \"t0\".\"labels\", \"t0\".\"sprint\", \"t0\".\"parent_t…",
+      "calls": 300,
+      "totalMs": 1161,
+      "avgMs": 3.9,
+      "maxMs": 20,
+      "executionMs": 0.7,
+      "scans": [
+        "Bitmap Heap Scan on tasks",
+        "Bitmap Index Scan (tasks_project_id_aiDraftItem_key)"
+      ],
+      "seqScanRows": 0
+    },
+    {
+      "sql": "SELECT COUNT(*) AS \"_count$_all\" FROM (SELECT \"public\".\"tasks\".\"id\" FROM \"public\".\"tasks\" LEFT JOIN \"public\".\"projects\" AS \"j0\" ON (\"j0\".\"id\") = (\"public\".\"tasks\".\"project_id\") WHERE (\"public\".\"tasks\".\"workspace_id\" = $1 AND (EXISTS(SELECT \"t1\".\"project_id\" FROM \"public\".\"project_members\" AS \"t1\" WHERE (\"t1\".\"user_id\" = $2 AND (\"j0\".\"id\") = (\"t1\".\"project_id\") AND \"t1\".\"project_id\" IS NOT NULL)) AND (\"j0\".\"id\" IS NOT NULL)) AND (\"public\".\"tasks\".\"assignee_id\" = $3 OR EXISTS(SELECT \"t2\".\"task\" FROM \"public\".\"task_contributors\" AS \"t2\" WHERE (\"t2\".\"user\" = $4 AND (\"public\".\"tasks\".\"id\") = (\"t2\".…",
+      "calls": 300,
+      "totalMs": 1152,
+      "avgMs": 3.8,
+      "maxMs": 25,
+      "executionMs": 2.1,
+      "scans": [
+        "Seq Scan on projects",
+        "Seq Scan on project_members",
+        "Bitmap Heap Scan on tasks",
+        "Bitmap Index Scan (tasks_project_id_aiDraftItem_key)",
+        "Seq Scan on task_contributors"
+      ],
+      "seqScanRows": 171
+    },
+    {
+      "sql": "SELECT \"t0\".\"id\", \"t0\".\"workspace_id\" AS \"workspace\", \"t0\".\"project_id\" AS \"project\", \"t0\".\"number\", \"t0\".\"key\", \"t0\".\"title\", \"t0\".\"description\", \"t0\".\"acceptance_criteria\" AS \"acceptanceCriteria\", \"t0\".\"status\"::text, \"t0\".\"priority\"::text, \"t0\".\"assignee_id\" AS \"assignee\", \"t0\".\"creator_id\" AS \"creator\", \"t0\".\"dueDate\", \"t0\".\"plannedStartDate\", \"t0\".\"actualStartDate\", \"t0\".\"actualEndDate\", \"t0\".\"estimateHours\", \"t0\".\"spentHours\", \"t0\".\"legacySpentHours\", \"t0\".\"workType\", \"t0\".\"progressPct\", \"t0\".\"remainingHours\", \"t0\".\"deleted_at\" AS \"deletedAt\", \"t0\".\"labels\", \"t0\".\"sprint\", \"t0\".\"parent_t…",
+      "calls": 300,
+      "totalMs": 1102,
+      "avgMs": 3.7,
+      "maxMs": 12,
+      "executionMs": 1.4,
+      "scans": [
+        "Bitmap Heap Scan on tasks",
+        "Bitmap Index Scan (tasks_project_id_aiDraftItem_key)",
+        "Seq Scan on task_contributors",
+        "Seq Scan on task_contributors",
+        "Index Scan (tasks_parent_task_id_idx) on tasks"
+      ],
+      "seqScanRows": 0
+    },
+    {
+      "sql": "SELECT \"t0\".\"id\", \"t0\".\"status\"::text, \"t0\".\"dueDate\", \"t0\".\"completedAt\" FROM \"public\".\"tasks\" AS \"t0\" LEFT JOIN \"public\".\"projects\" AS \"j1\" ON (\"j1\".\"id\") = (\"t0\".\"project_id\") WHERE (\"t0\".\"deleted_at\" IS NULL AND \"t0\".\"workspace_id\" = $1 AND (EXISTS(SELECT \"t2\".\"project_id\" FROM \"public\".\"project_members\" AS \"t2\" WHERE (\"t2\".\"user_id\" = $2 AND (\"j1\".\"id\") = (\"t2\".\"project_id\") AND \"t2\".\"project_id\" IS NOT NULL)) AND (\"j1\".\"id\" IS NOT NULL)) AND (\"t0\".\"assignee_id\" = $3 OR EXISTS(SELECT \"t3\".\"task\" FROM \"public\".\"task_contributors\" AS \"t3\" WHERE (\"t3\".\"user\" = $4 AND (\"t0\".\"id\") = (\"t3\".\"tas…",
+      "calls": 300,
+      "totalMs": 1049,
+      "avgMs": 3.5,
+      "maxMs": 26,
+      "executionMs": 2.2,
+      "scans": [
+        "Seq Scan on projects",
+        "Seq Scan on project_members",
+        "Bitmap Heap Scan on tasks",
+        "Bitmap Index Scan (tasks_project_id_aiDraftItem_key)",
+        "Seq Scan on task_contributors"
+      ],
+      "seqScanRows": 171
+    },
+    {
+      "sql": "SELECT \"t0\".\"id\", \"t0\".\"workspace_id\" AS \"workspace\", \"t0\".\"project_id\" AS \"project\", \"t0\".\"number\", \"t0\".\"key\", \"t0\".\"title\", \"t0\".\"description\", \"t0\".\"acceptance_criteria\" AS \"acceptanceCriteria\", \"t0\".\"status\"::text, \"t0\".\"priority\"::text, \"t0\".\"assignee_id\" AS \"assignee\", \"t0\".\"creator_id\" AS \"creator\", \"t0\".\"dueDate\", \"t0\".\"plannedStartDate\", \"t0\".\"actualStartDate\", \"t0\".\"actualEndDate\", \"t0\".\"estimateHours\", \"t0\".\"spentHours\", \"t0\".\"legacySpentHours\", \"t0\".\"workType\", \"t0\".\"progressPct\", \"t0\".\"remainingHours\", \"t0\".\"deleted_at\" AS \"deletedAt\", \"t0\".\"labels\", \"t0\".\"sprint\", \"t0\".\"parent_t…",
+      "calls": 300,
+      "totalMs": 314,
+      "avgMs": 1,
+      "maxMs": 10,
+      "executionMs": 0.3,
+      "scans": [
+        "Index Scan (tasks_pkey) on tasks",
+        "Seq Scan on task_contributors",
+        "Seq Scan on users",
+        "Seq Scan on users",
+        "Seq Scan on users",
+        "Seq Scan on checklist_items",
+        "Index Scan (tasks_parent_task_id_idx) on tasks",
+        "Seq Scan on users",
+        "Seq Scan on documents",
+        "Seq Scan on users",
+        "Seq Scan on projects",
+        "Seq Scan on workspaces",
+        "Seq Scan on memberships",
+        "Seq Scan on project_members",
+        "Index Scan (comments_task_id_idx) on comments",
+        "Seq Scan on task_daily_updates"
+      ],
+      "seqScanRows": 189
+    }
+  ],
+  "backup": {
+    "durationMs": 481,
+    "dumpBytes": 916479,
+    "files": 42,
+    "tables": 39,
+    "rows": 15864,
+    "migrations": 27
+  },
+  "restore": {
+    "durationMs": 713,
+    "files": 42,
+    "mismatchedTables": [],
+    "target": "database mới trong cùng cluster + thư mục tệp mới"
+  },
+  "backupHash": "a3e17a0ffba9f97c1a5b1632e4a9491d4f0f8eed3e000f28f2dc511ecae59697",
+  "restoreVerified": true
+}

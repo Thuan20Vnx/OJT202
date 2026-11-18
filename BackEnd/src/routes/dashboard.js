@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { USER, populate, prisma } from '../db.js';
+import { USER, prisma } from '../db.js';
 import { assertActiveSession, requireAuth } from '../middleware/auth.js';
 import { assertWrite, middlewareProject, projectAccess } from '../middleware/access.js';
 import { logActivityIn } from '../services/activity.js';
@@ -22,13 +22,15 @@ router.get('/projects/:projectId/overview', middlewareProject(), async (req, res
   const id = project.id;
   // Tải tuần dùng chung cho thẻ "Khối lượng" và quy tắc quá tải của cảnh báo rủi ro
   const loadP = workload(id, project);
+  // Mọi việc của dự án tải một lần cho cả số liệu tổng quan và cảnh báo rủi ro (trước đây 3 lần).
+  const tasksP = prisma.task.findMany({ where: { deletedAt: null, project: id }, orderBy: { number: 'asc' } });
   const [ov, load, risks, recent] = await Promise.all([
-    projectOverview(id, { project }),
+    projectOverview(id, { project, withAssignee: true, tasks: tasksP }),
     loadP,
-    riskAlerts(id, { project, load: loadP }),
-    prisma.activity.findMany({ where: { project: id }, orderBy: { createdAt: 'desc' }, take: 6 }).then((r) => populate(r, 'actor', 'user', USER)),
+    riskAlerts(id, { project, load: loadP, tasks: tasksP }),
+    prisma.activity.findMany({ where: { project: id }, orderBy: { createdAt: 'desc' }, take: 6, include: { actorRef: { select: USER } } })
+      .then((rows) => rows.map(({ actorRef, ...a }) => ({ ...a, actor: actorRef ?? null }))),
   ]);
-  await populate(ov.overdue, 'assignee', 'user', { name: true, title: true });
   res.json({
     kpis: {
       total: ov.total,

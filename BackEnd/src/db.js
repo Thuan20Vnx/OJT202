@@ -125,6 +125,12 @@ export async function connectDb({ ephemeral = false } = {}) {
   return prisma;
 }
 
+/** Readiness: ném lỗi khi chưa kết nối hoặc database không trả lời. */
+export async function pingDb() {
+  if (!prisma) throw new Error('Chưa kết nối database');
+  await prisma.$queryRaw`SELECT 1`;
+}
+
 export async function disconnectDb() {
   await prisma?.$disconnect();
   if (embedded) {

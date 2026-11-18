@@ -11,7 +11,9 @@
     "test": "node --test --test-concurrency=1 \"test/**/*.test.js\"",
     "postinstall": "prisma generate",
     "db:migrate": "prisma migrate deploy",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "db:backup": "node scripts/backup.js",
+    "db:restore": "node scripts/restore.js"
   },
   "dependencies": {
     "@date-fns/tz": "^1.5.0",
