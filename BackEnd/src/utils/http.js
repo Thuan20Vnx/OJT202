@@ -39,6 +39,11 @@ export function parse(schema, data) {
         const message = 'Văn bản không được chứa ký tự NUL';
         throw badRequest(message, { fields: { [path || '_']: message } });
       }
+      // Nửa cặp UTF-16 đứng một mình không mã hóa được sang UTF-8: PostgreSQL từ chối (trước đây thành 500).
+      if (typeof value === 'string' && !value.isWellFormed()) {
+        const message = 'Văn bản chứa ký tự không hợp lệ';
+        throw badRequest(message, { fields: { [path || '_']: message } });
+      }
       if (value && typeof value === 'object') {
         for (const [key, child] of Object.entries(value)) pending.push([child, path ? `${path}.${key}` : key]);
       }
@@ -84,6 +89,10 @@ export function errorHandler(err, req, res, _next) {
   if (err?.type === 'entity.parse.failed') return res.status(400).json({ error: 'Dữ liệu JSON không hợp lệ' });
   // Prisma: id sai định dạng uuid (P2023) hoặc bản ghi không còn (P2025) => 404; vi phạm UNIQUE => 409
   if (err?.code === 'P2023' || err?.code === 'P2025') return res.status(404).json({ error: 'Không tìm thấy' });
+  // Hết kết nối/không mở được transaction khi quá tải: báo bận để client thử lại, không phải 500.
+  if (err?.code === 'P2024' || err?.code === 'P2028') return res.status(503).set('Retry-After', '2').json({ error: 'Hệ thống đang bận, vui lòng thử lại sau giây lát' });
+  // Xung đột tuần tự hóa giữa hai transaction
+  if (err?.code === 'P2034') return res.status(409).json({ error: 'Dữ liệu vừa được người khác cập nhật, vui lòng thử lại' });
   if (err?.code === 'P2002') return res.status(409).json({ error: 'Dữ liệu bị trùng', details: { fields: err.meta?.target } });
   const status = err.status || 500;
   if (status >= 500) console.error('[error]', err);

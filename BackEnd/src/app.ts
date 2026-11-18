@@ -75,6 +75,9 @@ export function createApp(options: { staticDir?: string } = {}): express.Express
   });
   // PostgreSQL không nhận ký tự NUL trong chuỗi: chặn sớm %00 trong đường dẫn để trả 400 thay vì 500.
   api.use((req, res, next) => (/%00/.test(req.path) ? res.status(400).json({ error: 'Đường dẫn không được chứa ký tự NUL' }) : next()));
+  // Tham số query (kể cả dạng mảng/đối tượng) cũng không được có NUL hay ký tự UTF-16 lẻ: PostgreSQL từ chối → 500.
+  const badText = (v: unknown): boolean => (typeof v === 'string' ? v.includes('\u0000') || !(v as unknown as { isWellFormed(): boolean }).isWellFormed() : Array.isArray(v) ? v.some(badText) : !!v && typeof v === 'object' && Object.values(v).some(badText));
+  api.use((req, res, next) => (badText(req.query) ? res.status(400).json({ error: 'Tham số không được chứa ký tự NUL hoặc ký tự không hợp lệ' }) : next()));
   api.use(csrfGuard);
   api.get(['/tasks', '/me/tasks'], requireAuth, myTasksFromQuery);
   api.use('/auth', authRoutes);

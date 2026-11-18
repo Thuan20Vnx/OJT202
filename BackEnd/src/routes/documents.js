@@ -168,7 +168,9 @@ router.get('/projects/:projectId/documents', middlewareProject(), async (req, re
   if (req.query.mine === 'true') and.push({ uploadedBy: req.user.id });
   if (isId(req.query.task)) and.push({ task: req.query.task });
   if (isId(req.query.uploadedBy)) and.push({ uploadedBy: req.query.uploadedBy });
-  const exts = TYPE_EXT[String(req.query.type || '').toLowerCase()];
+  const typeKey = String(req.query.type || '').toLowerCase();
+  // Object.hasOwn: ?type=__proto__ không được trỏ vào thuộc tính kế thừa.
+  const exts = Object.hasOwn(TYPE_EXT, typeKey) ? TYPE_EXT[typeKey] : null;
   if (exts) and.push({ OR: exts.map((e) => ({ name: { endsWith: e, mode: 'insensitive' } })) });
   if (req.query.search) and.push({ name: ilike(req.query.search) });
   const where = { AND: and };
