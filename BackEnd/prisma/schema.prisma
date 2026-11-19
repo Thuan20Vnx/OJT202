@@ -469,7 +469,7 @@ model Task {
   @@unique([project, number])
   // NULL không trùng nhau trong UNIQUE của PostgreSQL => chỉ ràng buộc việc tạo từ AI
   @@unique([project, aiDraftItem])
-  @@index([project, status])
+  // (project, status, dueDate) đã phục vụ mọi truy vấn lọc theo (project) hoặc (project, status)
   @@index([project, status, dueDate], map: "tasks_project_status_due_idx")
   @@index([workspace, assignee, dueDate], map: "tasks_workspace_assignee_due_idx")
   @@index([project, deletedAt])
