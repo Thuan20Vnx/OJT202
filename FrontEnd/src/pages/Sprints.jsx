@@ -38,8 +38,14 @@ function TaskRows({ tasks, selected, onToggle, canManage }) {
 export default function Sprints() {
   useI18n();
   const { project } = useApp();
+  if (!project) return <Empty icon="folder_off" title={tr('Chọn dự án để xem Sprint')} />;
+  return <ProjectSprints key={project._id} project={project} />;
+}
+
+function ProjectSprints({ project }) {
   const toast = useToast();
-  const { data, error, loading, reload } = useLoad(() => (project ? api.get(`/projects/${project._id}/sprints`) : Promise.resolve(null)), [project?._id]);
+  const base = `/projects/${project._id}/sprints`;
+  const { data, error, loading, reload } = useLoad(() => api.get(base), [base]);
   useSocketEvent('sprints:changed', () => reload(), [reload]);
   useSocketEvent('board:refresh', () => reload(), [reload]);
   const [form, setForm] = useState(null);
@@ -51,7 +57,6 @@ export default function Sprints() {
   const [open, setOpen] = useState({});
   const [busy, setBusy] = useState(false);
 
-  if (!project) return <Empty icon="folder_off" title={tr('Chọn dự án để xem Sprint')} />;
   if (loading && !data) return <PageLoader />;
   if (error) return <div className="p-6"><ErrorBox error={error} onRetry={reload} /></div>;
 
@@ -71,7 +76,6 @@ export default function Sprints() {
       setBusy(false);
     }
   };
-  const base = `/projects/${project._id}/sprints`;
   const toggle = (id) => setSelected((s) => {
     const next = new Set(s);
     if (next.has(id)) next.delete(id); else next.add(id);
