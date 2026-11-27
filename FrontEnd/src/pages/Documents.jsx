@@ -26,6 +26,8 @@ function DocumentsPage() {
   const [f, setF] = useState({ search: '', type: '', uploadedBy: '' });
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState(searchParams.get('document'));
+  // Tài liệu vừa xóa: danh sách cũ còn chứa nó cho tới khi tải lại, không được tự chọn lại (gây 404).
+  const gone = useRef(new Set());
   const [rejected, setRejected] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [newDoc, setNewDoc] = useState(false);
@@ -41,7 +43,8 @@ function DocumentsPage() {
   }, [searchParams]);
 
   useEffect(() => {
-    if (data?.documents?.length && !selected) setSelected(data.documents[0]._id);
+    const first = data?.documents?.find((x) => !gone.current.has(x._id));
+    if (first && !selected) setSelected(first._id);
   }, [data, selected]);
 
   if (!project) return <Empty icon="folder_off" title={tr("Chưa có dự án")} />;
@@ -204,7 +207,7 @@ function DocumentsPage() {
           <p className="flex items-center gap-1.5 border-t border-slate-100 px-4 py-2.5 text-label-md font-normal text-slate-500">
             <Icon name="lock" size={14} />{tr(" Chỉ thành viên dự án mới tải xuống được tệp.")}</p>
         </div>
-        {selected && <Preview key={selected} id={selected} onDeleted={() => (setSelected(null), reload())} me={me} />}
+        {selected && <Preview key={selected} id={selected} onDeleted={() => (gone.current.add(selected), setSelected(null), reload())} me={me} />}
       </div>
       <NewDocModal open={newDoc} onClose={() => setNewDoc(false)} projectId={project._id} onCreated={(d) => (setSelected(d._id), reload())} />
     </div>

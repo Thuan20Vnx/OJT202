@@ -1,0 +1,87 @@
+[seed] Tạo dữ liệu demo Nhóm 24…
+[seed] Xong. Đăng nhập: mai.anh@nhom24.edu.vn / TaskFlow@2026  (System Admin: admin@taskflow.local)
+PASS DEV-A01
+PASS DEV-A02
+PASS DEV-A03
+PASS DEV-A04
+PASS DEV-A05
+FAIL DEV-A06
+FAIL DEV-A07
+FAIL DEV-A08
+FAIL DEV-A09
+FAIL DEV-A10
+FAIL DEV-A11
+FAIL DEV-A12
+FAIL DEV-A13
+FAIL DEV-A14
+FAIL DEV-A15
+FAIL DEV-A16
+FAIL DEV-A17
+FAIL DEV-A18
+FAIL DEV-A19
+FAIL DEV-A20
+FAIL DEV-A21
+FAIL DEV-A22
+FAIL DEV-A23
+FAIL DEV-A24
+PASS DEV-A25
+FAIL DEV-A26
+PASS DEV-A27
+PASS DEV-A28
+PASS DEV-A29
+PASS DEV-A30
+PASS DEV-A31
+FAIL DEV-A32
+FAIL DEV-A33
+PASS DEV-A34
+FAIL DEV-A35
+FAIL DEV-A36
+FAIL DEV-A37
+FAIL DEV-A38
+FAIL DEV-A39
+FAIL DEV-A40
+FAIL DEV-O01
+FAIL DEV-O02
+FAIL DEV-O03
+FAIL DEV-O04
+FAIL DEV-O05
+FAIL DEV-O06
+FAIL DEV-O07
+FAIL DEV-O08
+PASS DEV-O09
+FAIL DEV-O10
+PASS DEV-S01
+PASS DEV-S02
+PASS DEV-S03
+PASS DEV-S04
+PASS DEV-S05
+PASS DEV-S06
+PASS DEV-S07
+PASS DEV-S08
+[ai] qa lỗi: AI_UPSTREAM_HTTP_500
+[error] HttpError: AI đang bận, vui lòng thử lại sau. Các chức năng khác vẫn hoạt động bình thường.
+    at runAi (file:///D:/Desktop/Nhom24/OJT202/BackEnd/src/services/ai/gateway.js:113:13)
+    at async file:///D:/Desktop/Nhom24/OJT202/BackEnd/src/routes/ai.js:499:15 {
+  status: 503,
+  details: { code: 'AI_UNAVAILABLE' }
+}
+FAIL DEV-S09
+PASS DEV-S10
+FAIL DEV-S11
+PASS DEV-S12
+PASS DEV-S13
+PASS DEV-S14
+PASS DEV-S15
+FAIL DEV-S16
+FAIL DEV-S17
+PASS DEV-S18
+PASS DEV-S19
+[error] Error: U025 simulated retrieval failure
+    at db.task.findMany (file:///D:/Desktop/Nhom24/OJT202/scripts/validation/u025-run.mjs:160:126)
+    at collectSources (file:///D:/Desktop/Nhom24/OJT202/BackEnd/src/services/ai/qa.js:39:17)
+    at file:///D:/Desktop/Nhom24/OJT202/BackEnd/src/routes/ai.js:498:25
+    at Layer.handleRequest (D:\Desktop\Nhom24\OJT202\BackEnd\node_modules\router\lib\layer.js:152:17)
+    at next (D:\Desktop\Nhom24\OJT202\BackEnd\node_modules\router\lib\route.js:157:13)
+    at file:///D:/Desktop/Nhom24/OJT202/BackEnd/src/middleware/access.js:108:5
+PASS DEV-S20
+{"executed":70,"passed":29,"failed":41,"humanQuality":"pending-independent-grading","acceptance":"pending-private-custodian-pack"}

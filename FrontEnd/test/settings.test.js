@@ -5,7 +5,7 @@ import { act, create } from 'react-test-renderer';
 import { MemoryRouter } from 'react-router-dom';
 import { AppCtx } from '../src/lib/app.jsx';
 import { api, ApiError } from '../src/lib/api.js';
-import { ErrorBox, Tabs, Toggle } from '../src/components/ui.jsx';
+import { Confirm, ErrorBox, Tabs, Toggle } from '../src/components/ui.jsx';
 import AiSettings from '../src/pages/settings/AiSettings.jsx';
 import Invites from '../src/pages/settings/Invites.jsx';
 import Profile from '../src/pages/Profile.jsx';
@@ -116,6 +116,8 @@ test('Lời mời: gửi lại và hủy lỗi được xử lý, giữ mục đ
   await act(async () => button(tree, 'Gửi lại').props.onClick());
   assert.match(label(tree.root), /Gửi lại thất bại/);
   await act(async () => button(tree, 'Hủy lời mời').props.onClick());
+  assert.match(label(tree.root), /Liên kết mời đã gửi sẽ hết hiệu lực/, 'hỏi xác nhận trước khi hủy');
+  await act(async () => tree.root.findByType(Confirm).props.onConfirm());
   assert.match(label(tree.root), /Hủy thất bại/);
   assert.match(label(tree.root), /invite@example.test/);
 });

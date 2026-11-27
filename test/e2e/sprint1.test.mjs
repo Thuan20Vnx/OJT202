@@ -13,7 +13,7 @@ process.env.MAIL_MODE = 'outbox';
 process.env.DATABASE_URL = '';
 const uploads = await fs.mkdtemp(path.join(os.tmpdir(), 'taskflow-sprint1-'));
 process.env.UPLOAD_DIR = uploads;
-process.env.ANTHROPIC_API_KEY = '';
+process.env.GEMINI_API_KEY = '';
 const { createApp: createAiApp } = await import('../../AIService/src/app.js');
 const aiServer = http.createServer(createAiApp());
 await new Promise((resolve) => aiServer.listen(0, '127.0.0.1', resolve));
@@ -68,7 +68,7 @@ async function login(page, email) {
 
 async function status(page, name) {
   await page.getByRole('button', { name: 'Đổi trạng thái công việc' }).click();
-  await page.getByRole('button', { name, exact: true }).click();
+  await page.getByRole('menuitem', { name, exact: true }).click();
   await expect(page.getByRole('button', { name: 'Đổi trạng thái công việc' })).toContainText(name);
 }
 
@@ -214,7 +214,7 @@ test('Lộc Sprint 3: báo cáo mở nguồn thật; quản trị lỗi/thử l�
     await system.page.getByPlaceholder('Tìm theo tên hoặc email').fill('nhu@nhom24.edu.vn');
     const row = system.page.getByRole('row').filter({ hasText: 'nhu@nhom24.edu.vn' });
     await row.getByRole('button').click();
-    await system.page.getByRole('button', { name: 'Khóa tài khoản', exact: true }).click();
+    await system.page.getByRole('menuitem', { name: 'Khóa tài khoản', exact: true }).click();
     const modal = system.page.getByRole('dialog');
     await modal.getByRole('combobox').click();
     await system.page.getByRole('option', { name: 'Khác', exact: true }).click();
@@ -224,7 +224,7 @@ test('Lộc Sprint 3: báo cáo mở nguồn thật; quản trị lỗi/thử l�
     assert.equal((await member.ctx.request.get('/api/v1/me')).status(), 401);
     await system.page.screenshot({ path: path.join(artifacts, 'loc-sprint3-admin-lock.png'), fullPage: true, animations: 'disabled' });
     await row.getByRole('button').click();
-    await system.page.getByRole('button', { name: 'Mở khóa', exact: true }).click();
+    await system.page.getByRole('menuitem', { name: 'Mở khóa', exact: true }).click();
     await expect(row).toContainText('Đang hoạt động');
     assert.equal((await member.ctx.request.get('/api/v1/me')).status(), 401, 'unlock must not resurrect a revoked session');
     await system.page.getByRole('button', { name: 'Nhật ký quản trị', exact: false }).click();
@@ -386,10 +386,15 @@ test('Như Sprint 2–4: My Tasks, comment retry/mention, nguồn tài liệu AI
     const docRes = await ctx.request.post(`/api/projects/${project._id}/documents`, { headers, data: { name: 'Quy trình Sao Bắc', content: 'Mã nghiệm thu Sao Bắc là ORION742. Nhóm Sao Bắc chốt nghiệm thu vào thứ Sáu.' } });
     assert.equal(docRes.status(), 201);
     const doc = (await docRes.json()).document;
+    // Hỏi đáp trên web chỉ giao cho agent trên máy (CI không có agent): tạo câu trả lời qua API rồi mở từ Lịch sử
+    // để vẫn kiểm trích dẫn bấm được và mở đúng nguồn.
+    const askRes = await ctx.request.post(`/api/projects/${project._id}/ai/ask`, { headers, data: { question: 'Mã nghiệm thu Sao Bắc là gì?' } });
+    assert.equal(askRes.status(), 200);
     await page.goto('/ai/qa');
-    await expect(page.getByText('Nguồn được đọc trực tiếp khi hỏi; chưa có chỉ mục tìm kiếm nền.')).toBeVisible();
-    await page.getByRole('textbox', { name: 'Câu hỏi về dự án' }).fill('Mã nghiệm thu Sao Bắc là gì?');
-    await page.getByRole('button', { name: 'Gửi', exact: true }).click();
+    await page.getByRole('button', { name: 'Giải thích', exact: true }).first().click();
+    await expect(page.getByText(/Nguồn được đọc trực tiếp khi hỏi; chưa có chỉ mục tìm kiếm nền\./)).toBeVisible();
+    await expect(page.getByRole('textbox', { name: 'Câu hỏi về dự án' })).toBeVisible();
+    await page.getByRole('button').filter({ hasText: 'Mã nghiệm thu Sao Bắc là gì?' }).first().click();
     await expect(page.getByRole('button').filter({ hasText: `${doc.name} · đoạn 1` })).toBeVisible();
     await page.screenshot({ path: path.join(artifacts, 'nhu-qa-citation.png'), fullPage: true });
     await page.getByRole('button').filter({ hasText: `${doc.name} · đoạn 1` }).click();
@@ -630,7 +635,7 @@ test('U003/U007/U009: SMTP register/invite → task → remaining hours → Revi
     const disposable = (await disposableResponse.json()).task;
     await page.goto(`/board?task=${disposable._id}`);
     await page.getByRole('button', { name: 'Thao tác công việc', exact: true }).click();
-    await page.getByRole('button', { name: 'Xóa công việc', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'Xóa công việc', exact: true }).click();
     await page.getByRole('button', { name: 'Xóa tất cả', exact: true }).click();
     await expect(page.getByRole('dialog', { name: 'Chi tiết công việc' })).not.toBeVisible();
     assert.ok((await db.prisma.task.findUnique({ where: { id: disposable._id } })).deletedAt);
@@ -638,7 +643,7 @@ test('U003/U007/U009: SMTP register/invite → task → remaining hours → Revi
     await expect(page.getByText('Xóa mềm qua giao diện', { exact: true })).toHaveCount(0);
     await page.goto('/projects');
     await page.getByRole('button', { name: 'Thao tác dự án Review mentor Sprint 1' }).click();
-    await page.getByRole('button', { name: 'Sửa dự án', exact: true }).click();
+    await page.getByRole('menuitem', { name: 'Sửa dự án', exact: true }).click();
     await page.getByLabel('Chuyển giao PM').selectOption(seed.users.nhu.id);
     await page.getByRole('button', { name: 'Lưu thay đổi', exact: true }).click();
     await expect.poll(async () => (await db.prisma.project.findUnique({ where: { id: project.id } })).manager).toBe(seed.users.nhu.id);
@@ -784,7 +789,7 @@ test('Hoàng Anh Sprint 2: thông báo hai tab, mất mạng, capacity tuần, p
 
     await owner.page.goto(`/board?task=${parent._id}`);
     await owner.page.getByRole('button', { name: 'Thao tác công việc', exact: true }).click();
-    await owner.page.getByRole('button', { name: 'Xóa công việc', exact: true }).click();
+    await owner.page.getByRole('menuitem', { name: 'Xóa công việc', exact: true }).click();
     const preview = owner.page.getByRole('dialog').last();
     await expect(preview.getByText(/Xóa 2 công việc/)).toBeVisible();
     const late = await make({ title: 'Task con vừa được thêm', parent: parent._id });
@@ -824,13 +829,14 @@ test('Hoàng Anh Sprint 3: planner hai tab, duyệt một lần, lý do xử lý
     const projectResponse = await ctx.request.post(`/api/workspaces/${ws}/projects`, { headers, data: { name: 'Hoàng Anh AI có duyệt', keyPrefix: 'HAAI' } });
     assert.equal(projectResponse.status(), 201);
     const project = (await projectResponse.json()).project;
-    await page.evaluate(({ ws, pid }) => { localStorage.setItem('tf_ws', ws); localStorage.setItem('tf_project', pid); }, { ws, pid: project._id });
+    // Nút chính chạy theo lựa chọn đã lưu: chọn "AI của nhóm" (CI không có agent trên máy).
+    await page.evaluate(({ ws, pid }) => { localStorage.setItem('tf_ws', ws); localStorage.setItem('tf_project', pid); localStorage.setItem('taskflow.engine', 'team'); }, { ws, pid: project._id });
     await page.goto('/ai/planner');
     const goal = 'Xây dựng quản lý công việc Sprint 3';
     await page.getByRole('textbox', { name: 'Mục tiêu kế hoạch', exact: true }).fill(goal);
     const [generated] = await Promise.all([
       page.waitForResponse((r) => r.url().endsWith(`/projects/${project._id}/ai/plan`) && r.request().method() === 'POST'),
-      page.getByRole('button', { name: 'Tạo kế hoạch nháp', exact: true }).click(),
+      page.getByRole('button', { name: 'Lập kế hoạch', exact: true }).last().click(),
     ]);
     assert.equal(generated.status(), 201);
     const draft = (await generated.json()).draft;
@@ -840,6 +846,7 @@ test('Hoàng Anh Sprint 3: planner hai tab, duyệt một lần, lý do xử lý
     const second = await ctx.newPage();
     second.on('pageerror', (e) => errors.push(e.message));
     await second.goto('/ai/planner');
+    await second.getByRole('button', { name: /Lịch sử \(/ }).click();
     await second.getByRole('button').filter({ hasText: goal }).click();
     await second.getByTitle('Sửa', { exact: true }).first().click();
     await second.getByLabel('Tên công việc', { exact: true }).fill('Đã sửa từ tab hai');
@@ -896,7 +903,7 @@ test('Hoàng Anh Sprint 3: planner hai tab, duyệt một lần, lý do xử lý
     await page.goto('/ai/meeting');
     await page.getByLabel('Tên cuộc họp', { exact: true }).fill('Hoàng Anh kiểm tra action items');
     await page.getByLabel('Biên bản / ghi chú họp (dán văn bản)', { exact: true }).fill('Cần ai đó kiểm thử API.\nMai Anh: mình sẽ viết tài liệu ngày 2099-02-15\nMai Anh: Không cần triển khai thanh toán nữa, hủy công việc này.');
-    await page.getByRole('button', { name: 'Trích action items', exact: true }).click();
+    await page.getByRole('button', { name: 'Tách việc', exact: true }).click();
     await expect(page.getByRole('heading', { name: /Action items nháp.*2/ })).toBeVisible();
     const notes = page.getByLabel('Biên bản / ghi chú họp (dán văn bản)', { exact: true });
     const originalNotes = await notes.inputValue();

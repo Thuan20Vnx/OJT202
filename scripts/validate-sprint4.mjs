@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
+import { createRequire } from 'node:module';
 import { ROOT, buildIdentity, hash, parseArgs, readJson, requireValue, sameBuild, writeJson } from './validation/core.mjs';
 import { evaluate, validatePack } from './validation/evaluation.mjs';
 import { assessGrades } from './validation/grading.mjs';
@@ -13,8 +14,8 @@ import { developmentPack } from '../validation/development-pack.mjs';
 async function main() {
   const [command, ...rest] = process.argv.slice(2);
   const runOptions = ['out', 'pack', 'expected-pack-hash', 'samples', 'provider', 'max-paid-requests'];
-  const options = { identity: [], 'clean-install': ['out'], uat: ['input', 'out'], grade: ['input', 'run', 'uat', 'out'], release: ['input', 'out'], smoke: ['url', 'out'], evaluate: runOptions, local: runOptions, demo: ['out', 'failure'] };
-  requireValue(Object.hasOwn(options, command), 'Command: identity | evaluate | uat | grade | smoke | release | demo | clean-install');
+  const options = { identity: [], 'clean-install': ['out'], uat: ['input', 'out'], grade: ['input', 'run', 'uat', 'out'], release: ['input', 'out'], smoke: ['url', 'out'], evaluate: runOptions, local: runOptions, demo: ['out', 'failure'], performance: ['out', 'users', 'tasks', 'iterations', 'think', 'target'], 'ui-roles': ['out'], queries: ['out', 'target'] };
+  requireValue(Object.hasOwn(options, command), 'Command: identity | evaluate | uat | grade | smoke | release | demo | clean-install | performance | ui-roles | queries');
   const args = parseArgs(rest, options[command]);
   const build = await buildIdentity();
   const out = path.resolve(args.out ?? path.join(ROOT, '.data/validation', `${command}-${randomUUID()}`));
@@ -27,6 +28,58 @@ async function main() {
     await save('clean-install', result);
     console.log(JSON.stringify({ out, status: result.status, acceptanceStatus: result.acceptanceStatus }));
     if (result.status === 'failed') process.exitCode = 1;
+  } else if (command === 'ui-roles') {
+    const { startFixture } = await import('./validation/fixture.mjs');
+    const { uiRoleMatrix } = await import('./validation/ui-role-matrix.mjs');
+    const fixture = await startFixture({ build });
+    let result;
+    try {
+      await fs.mkdir(out, { recursive: true });
+      result = await uiRoleMatrix({ ...fixture, build }, out);
+    } finally { await fixture.close(); }
+    await save('ui-role-matrix', result);
+    console.log(JSON.stringify({ out, passed: result.passed, checks: result.records.length, failed: result.records.filter((r) => !r.passed) }));
+    if (!result.passed) process.exitCode = 1;
+  } else if (command === 'queries') {
+    // Đếm số câu SQL và số lượt đi-về của từng thao tác (1 người dùng). --target supabase: schema riêng perf_u031_queries, xóa khi xong.
+    const { queryProfile } = await import('./validation/query-profile.mjs');
+    let databaseUrl = '', base = '';
+    if (args.target === 'supabase') {
+      const req = createRequire(new URL('../BackEnd/package.json', import.meta.url));
+      base = req('dotenv').parse(await fs.readFile(path.join(ROOT, 'BackEnd/.env'), 'utf8')).DATABASE_URL || '';
+      requireValue(base, 'BackEnd/.env không có DATABASE_URL');
+      const u = new URL(base); u.searchParams.set('schema', 'perf_u031_queries'); databaseUrl = u.toString();
+    } else requireValue((args.target ?? 'local') === 'local', '--target must be local or supabase');
+    let result;
+    try { result = await queryProfile({ build, databaseUrl, log: (m) => console.error(m) }); }
+    finally {
+      if (base) {
+        const { PrismaClient } = createRequire(new URL('../BackEnd/package.json', import.meta.url))('@prisma/client');
+        const u = new URL(base); u.searchParams.set('connection_limit', '1');
+        const admin = new PrismaClient({ datasourceUrl: u.toString() });
+        try { await admin.$executeRawUnsafe('DROP SCHEMA IF EXISTS "perf_u031_queries" CASCADE'); } finally { await admin.$disconnect(); }
+      }
+    }
+    await save('query-profile', { schemaVersion: 1, kind: 'query-profile', build, target: args.target ?? 'local', ...result });
+    console.log(JSON.stringify({ out, rttMs: result.rttMs }));
+  } else if (command === 'performance') {
+    const { performanceRun } = await import('./validation/performance.mjs');
+    // --think 1000-3000: thời gian người dùng đọc màn hình giữa hai thao tác (ms).
+    const think = (v) => { const m = /^(\d+)-(\d+)$/.exec(v); requireValue(m && Number(m[1]) <= Number(m[2]), '--think must look like 1000-3000'); return [Number(m[1]), Number(m[2])]; };
+    const num = (key, fallback, min) => { const n = Number(args[key] ?? fallback); requireValue(Number.isInteger(n) && n >= min, `--${key} must be an integer >= ${min}`); return n; };
+    // --target supabase: dùng DATABASE_URL trong BackEnd/.env nhưng chỉ trong schema riêng perf_u031 (xóa khi xong).
+    requireValue(['local', 'supabase'].includes(args.target ?? 'local'), '--target must be local or supabase');
+    let remoteUrl = '';
+    if (args.target === 'supabase') {
+      const { parse } = createRequire(new URL('../BackEnd/package.json', import.meta.url))('dotenv');
+      remoteUrl = parse(await fs.readFile(path.join(ROOT, 'BackEnd/.env'), 'utf8')).DATABASE_URL || '';
+      requireValue(remoteUrl, 'BackEnd/.env không có DATABASE_URL');
+    }
+    const result = await performanceRun({ build, remoteUrl, users: num('users', 50, 1), tasks: num('tasks', 10000, 20), iterations: num('iterations', 6, 1), thinkMs: think(args.think ?? '1000-3000'), log: (m) => console.error(`[U031] ${m}`) });
+    await save('performance-restore', result);
+    const passed = result.virtualUsers >= 50 && result.taskCount >= 10000 && result.readRequests >= 30 && result.p95Ms < 800 && result.restoreVerified && result.reads.errors === 0 && result.writes.errors === 0;
+    console.log(JSON.stringify({ out, status: passed ? 'passed' : 'failed', p95Ms: result.p95Ms, reads: result.reads, writes: result.writes, restoreVerified: result.restoreVerified, backupHash: result.backupHash }));
+    if (!passed) process.exitCode = 1;
   } else if (command === 'uat') {
     requireValue(args.input, '--input is required');
     const result = assessUat(await readJson(args.input));

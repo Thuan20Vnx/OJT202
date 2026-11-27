@@ -1,0 +1,37 @@
+{
+  "schemaVersion": 1,
+  "version": "u025-dev-v1",
+  "split": "development",
+  "createdAt": "2026-11-08T04:08:44.940Z",
+  "build": {
+    "revision": "ec87c7a93a37cd3462ce926a570277cdc35038e8",
+    "sourceHash": "8d6cf65b2b0db6024874cf8b1949378bdc0dd71ea43f67c3e8b7d95f5c1bbf72",
+    "sourceHashAlgorithm": "sha256-lf-v1",
+    "promptHash": "5ed987e127f9b3fdc2c72817903cee4e407a0cebf7e08a9bb6beecf916ffce29",
+    "dirty": true,
+    "node": "v24.15.0"
+  },
+  "counts": {
+    "qa-answer": 40,
+    "qa-refusal": 10,
+    "qa-security": 20
+  },
+  "packCanonicalSha256": "b1120954e430c97632e1186c33743bd99e0b19979b155612bd913d38a7da2502",
+  "datasetCanonicalSha256": "e33a7e834b7bd18f3c3fc0bcfc9ae1c7fae786a4cc50927e934b31243e582c86",
+  "fileHashAlgorithm": "sha256-raw-bytes",
+  "objectHashAlgorithm": "scripts/validation/core.mjs hash (sorted object keys, array order preserved)",
+  "acceptanceStatus": "pending",
+  "frozenBeforeTuning": null,
+  "files": {
+    "development-dataset.json": "68067a21d5633395c83852ea9d586c7ab39a292286f8c25772ac9ca12bfbace9",
+    "development-cases.json": "bf95acea3c1429fa32912f253f150879942ee968fe12019fd6812264526df307",
+    "development-observations.template.json": "a1533476114e76e76af3c88f3f0997a8286b46e6a89940105f3d2f676ad5d20c",
+    "grader-1.template.json": "bb4185c32787d8293c39b65045cb2539fbfd51da695d6eeb7be06a3b92d047cb",
+    "grader-2.template.json": "bb4185c32787d8293c39b65045cb2539fbfd51da695d6eeb7be06a3b92d047cb",
+    "adjudication.template.json": "ae27f35746f4b8d84bea1dee7f24942dafa92e6b15c8a95533e0071aad9bc5a1",
+    "acceptance-handoff.template.json": "e192d1b485c60cdd1970fbb85ec937b35d09f7ecc4e7c9992aa0ea678e0fd7a9",
+    "README.md": "8de6a11c40947e339090e512dc776a22596f7c479f0d8bb329a73da3a4356994",
+    "RUBRIC.md": "2a768e709354dbddf61781bf9aa6e4c1b994808392c884c9b7e727a07d91fecf",
+    "CUSTODIAN_HANDOFF.md": "5d693537e6fac46291facfebd00d603eda19c8f10ccd75a74592d66c12eeadc9"
+  }
+}

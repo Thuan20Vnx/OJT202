@@ -2,13 +2,15 @@ import { t as tr, getLanguage, useI18n } from '../lib/i18n.js';
 import { useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import CreateTaskModal from '../components/CreateTaskModal.jsx';
-import { Avatar, AvatarStack, Empty, ErrorBox, Icon, PageLoader, PriorityChip, Progress, Select } from '../components/ui.jsx';
+import { Avatar, AvatarStack, Confirm, Empty, ErrorBox, Icon, PageLoader, PriorityChip, Progress, Select } from '../components/ui.jsx';
 import { api } from '../lib/api.js';
 import { useApp, useLoad, useToast } from '../lib/app.jsx';
 import { STATUS, STATUS_ORDER, dueInfo, fmtDate } from '../lib/format.js';
 import { useProjectInfo, useSocketEvent } from '../lib/hooks.js';
 import { taskActions } from '../lib/task-permissions.js';
 import { PRIORITY_RANK, WORK_TYPES } from '../lib/delivery.js';
+import NoProject from '../components/NoProject.jsx';
+import { unfinishedText, unfinishedWork } from '../lib/task-done.js';
 
 export function TaskCard({ task, draggable, onDragStart, onOpen, statuses = [], onMove, busy }) {
   useI18n();
@@ -24,11 +26,11 @@ export function TaskCard({ task, draggable, onDragStart, onOpen, statuses = [], 
       className={`group cursor-pointer rounded-lg border bg-white p-3 transition-all hover:border-slate-300 hover:shadow-card ${task.isBlocked ? 'border-rose-200' : 'border-slate-200'} ${draggable ? 'active:rotate-1 active:shadow-drag' : ''}`}
     >
       <div className="mb-1.5 flex items-center justify-between gap-2">
-        <span className="flex items-center gap-1 font-mono text-label-sm text-slate-400">
+        <span className="flex shrink-0 items-center gap-1 whitespace-nowrap font-mono text-label-sm text-slate-400">
           {done && <Icon name="check_circle" size={14} fill className="text-emerald-500" />}
           {task.key}
         </span>
-        <div className="flex items-center gap-1">
+        <div className="flex min-w-0 flex-wrap items-center justify-end gap-1">
           {task.isBlocked && (
             <span className="chip border-rose-200 bg-rose-50 text-rose-700">
               <Icon name="block" size={12} />{tr(" Đang bị chặn")}</span>
@@ -42,7 +44,7 @@ export function TaskCard({ task, draggable, onDragStart, onOpen, statuses = [], 
           <Icon name="warning" size={14} className="mt-px" />{tr("Chờ ")}{task.blockedBy.filter((b) => b && b.status !== 'done').map((b) => b.key).join(', ')}
         </p>
       )}
-      {task.workType && <p className="mt-2 text-label-md text-slate-500">{WORK_TYPES[task.workType]}{task.contributors?.length > 1 ? ` · ${task.contributors.length} người thực hiện` : ''}</p>}
+      {task.workType && <p className="mt-2 text-label-md text-slate-500">{tr(WORK_TYPES[task.workType])}{task.contributors?.length > 1 ? ` · ${tr('{0} người thực hiện', [task.contributors.length])}` : ''}</p>}
       {task.labels?.length > 0 && (
         <div className="mt-2 flex flex-wrap gap-1">
           {task.labels.slice(0, 2).map((l) => (
@@ -95,7 +97,7 @@ export function TaskCard({ task, draggable, onDragStart, onOpen, statuses = [], 
 
 export default function Board() {
   useI18n();
-  const { project, canWriteProject, canManageProject, role, me } = useApp();
+  const { project, canWriteProject, canManageProject, role, me, pendingDeletion } = useApp();
   const info = useProjectInfo(project?._id);
   const toast = useToast();
   const navigate = useNavigate();
@@ -106,6 +108,7 @@ export default function Board() {
   const [creating, setCreating] = useState(null);
   const pendingMoves = useRef(new Set());
   const [moving, setMoving] = useState(new Set());
+  const [doneAsk, setDoneAsk] = useState(null);
   const { data, error, loading, reload, setData } = useLoad(() => (project ? api.get(`/projects/${project._id}/tasks`) : Promise.resolve({ tasks: [] })), [project?._id]);
 
   // Realtime đồng bộ giữa các thành viên
@@ -136,7 +139,7 @@ export default function Board() {
     return list;
   }, [data, filter, getLanguage()]);
 
-  if (!project) return <Empty icon="folder_off" title={tr("Chưa có dự án")} action={<button className="btn-primary" onClick={() => navigate('/projects?new=1')}>{tr("Tạo dự án")}</button>} />;
+  if (!project) return <NoProject role={role} />;
 
   const canDrag = canWriteProject && role !== 'viewer';
   const cols = STATUS_ORDER.map((s) => ({ status: s, tasks: tasks.filter((t) => t.status === s).sort((a, b) => (sort === 'priority' ? (PRIORITY_RANK[a.priority] ?? 1) - (PRIORITY_RANK[b.priority] ?? 1) : 0) || a.order - b.order) }));
@@ -145,11 +148,15 @@ export default function Board() {
   const sprint = info?.project?.sprint;
   const daysLeft = sprint?.end ? Math.max(0, Math.ceil((new Date(sprint.end) - Date.now()) / 86400000)) : null;
 
-  const moveTask = async (taskId, status, index) => {
+  const moveTask = async (taskId, status, index, confirmed = false) => {
     setOver(null);
     const task = all.find((t) => t._id === taskId);
     setDrag(null);
     if (!task || pendingMoves.current.has(taskId)) return;
+    if (status === 'done' && task.status !== 'done' && !confirmed && !task.isBlocked && unfinishedWork(task).any) {
+      setDoneAsk({ task, run: () => moveTask(taskId, status, index, true) });
+      return;
+    }
     if (task.status === status && sort === 'priority') { toast('Đổi sang thứ tự thủ công để sắp xếp trong cùng cột.', 'info'); return; }
     if (!taskActions(task, project, me).allowedStatuses.includes(status)) {
       toast(tr("Bạn chỉ chuyển được việc mình nhận đến Review. PM duyệt Done hoặc mở lại."), 'error');
@@ -224,7 +231,7 @@ export default function Board() {
             <Icon name="search" size={16} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
             <input className="input h-8 w-48 pl-8 text-body-sm" placeholder={tr("Lọc theo tên, mã...")} value={filter.search} onChange={(e) => setFilter({ ...filter, search: e.target.value })} />
           </div>
-          <Select aria-label="Sắp xếp công việc" className="input h-8 w-auto py-0 text-body-sm" value={sort} onChange={(e) => setSort(e.target.value)}><option value="priority">Ưu tiên cao trước</option><option value="manual">Thứ tự thủ công</option></Select>
+          <Select aria-label={tr("Sắp xếp công việc")} className="input h-8 w-auto py-0 text-body-sm" value={sort} onChange={(e) => setSort(e.target.value)}><option value="priority">{tr("Ưu tiên cao trước")}</option><option value="manual">{tr("Thứ tự thủ công")}</option></Select>
           <Select className="input h-8 w-auto py-0 text-body-sm" value={filter.assignee} onChange={(e) => setFilter({ ...filter, assignee: e.target.value })}>
             <option value="">{tr("Mọi người nhận")}</option>
             <option value="none">{tr("Chưa giao")}</option>
@@ -245,7 +252,7 @@ export default function Board() {
           )}
           <div className="ml-auto flex items-center gap-2">
             <AvatarStack users={info?.project?.members || []} />
-            {!canDrag && <span className="text-label-md font-normal text-slate-400">{role === 'viewer' ? tr("Viewer chỉ xem, không kéo thả") : tr("Chỉ đọc")}</span>}
+            {!canDrag && <span className="text-label-md font-normal text-slate-400">{pendingDeletion ? tr("Workspace đang chờ xóa – chỉ xem") : role === 'viewer' ? tr("Viewer chỉ xem, không kéo thả") : tr("Chỉ đọc")}</span>}
           </div>
         </div>
       </div>
@@ -315,6 +322,15 @@ export default function Board() {
         </div>
       )}
       <CreateTaskModal open={!!creating} defaultStatus={creating || 'todo'} onClose={() => setCreating(null)} onCreated={() => reload()} />
+      <Confirm
+        open={!!doneAsk}
+        title={tr("Vẫn chuyển sang Hoàn thành?")}
+        confirmText={tr("Vẫn hoàn thành")}
+        onClose={() => setDoneAsk(null)}
+        onConfirm={() => { const a = doneAsk; setDoneAsk(null); a.run(); }}
+      >
+        <p>{doneAsk && tr("{0} còn {1}.", [doneAsk.task.key, unfinishedText(unfinishedWork(doneAsk.task))])}</p>
+      </Confirm>
     </div>
   );
 }

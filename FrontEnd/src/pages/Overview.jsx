@@ -7,6 +7,7 @@ import { useApp, useLoad } from '../lib/app.jsx';
 import { fmtProjectDate as fmtDate, timeAgo } from '../lib/format.js';
 import { useSocketEvent } from '../lib/hooks.js';
 import CapacityEditor from '../components/CapacityEditor.jsx';
+import NoProject from '../components/NoProject.jsx';
 
 export const SEVERITY = {
   critical: { get label() { return tr("Nghiêm trọng"); }, chip: 'border-rose-200 bg-rose-50 text-rose-700', icon: 'error', card: 'border-rose-200 bg-rose-50/40' },
@@ -22,16 +23,7 @@ export default function Overview() {
   useSocketEvent('risks:changed', () => reload(), [reload]);
   useSocketEvent('board:refresh', () => reload(), [reload]);
 
-  if (!project)
-    return (
-      <Empty
-        icon="folder_off"
-        title={tr("Chưa có dự án")}
-        action={
-          <button className="btn-primary" onClick={() => navigate('/projects?new=1')}>{tr("Tạo dự án")}</button>
-        }
-      />
-    );
+  if (!project) return <NoProject role={role} />;
   if (loading && !data) return <PageLoader />;
   if (error)
     return (
@@ -126,7 +118,7 @@ export default function Overview() {
           <h2 className="text-headline-sm text-slate-900">{tr("Tiến độ thực tế so với kế hoạch")}</h2>
           <p className="mb-4 text-label-md font-normal text-slate-500">{tr("Tính theo % báo cáo ở nhật ký và giờ ước lượng, không chỉ đếm số việc xong.")}</p>
           {[
-            [tr("Thực tế"), data.schedule.actualPct, ''],
+            [data.schedule.plannedPct != null && data.schedule.unscheduled > 0 ? tr("Thực tế (việc có hạn)") : tr("Thực tế"), data.schedule.scheduledActualPct ?? data.schedule.actualPct, ''],
             [tr("Theo kế hoạch"), data.schedule.plannedPct, 'opacity-50'],
           ].map(([label, value, tone]) => (
             <div key={label} className="mb-3">
@@ -139,7 +131,7 @@ export default function Overview() {
               {data.schedule.deltaPct === 0 ? tr("Đúng kế hoạch") : data.schedule.deltaPct < 0 ? tr("Chậm {0}% so với kế hoạch", [-data.schedule.deltaPct]) : tr("Nhanh {0}% so với kế hoạch", [data.schedule.deltaPct])}
             </p>
           )}
-          {data.schedule.unscheduled > 0 && <p className="mt-1 text-label-md font-normal text-amber-700">{tr("{0} việc chưa có hạn nên chưa có mốc kế hoạch.", [data.schedule.unscheduled])}</p>}
+          {data.schedule.unscheduled > 0 && <p className="mt-1 text-label-md font-normal text-amber-700">{tr("{0} việc chưa có hạn nên chưa có mốc kế hoạch.", [data.schedule.unscheduled])}{data.schedule.plannedPct != null && tr(" Tính cả các việc này, thực tế là {0}%.", [data.schedule.actualPct])}</p>}
         </section>
         <section className="card p-5">
           <h2 className="text-headline-sm text-slate-900">{tr("Thống kê theo nhãn")}</h2>
@@ -293,9 +285,9 @@ export default function Overview() {
           {data.recent.map((a) => (
             <div key={a._id} className="flex items-center gap-3 py-2.5 text-body-sm">
               <Avatar user={a.actor} size={26} />
-              <p className="flex-1 text-slate-600">
+              <p className="min-w-0 flex-1 break-words text-slate-600">
                 <b className="text-slate-800">{a.actor?.name}</b> {tr(a.action).toLowerCase()} <span className="text-slate-800">{a.entityLabel}</span>
-                {a.after != null && typeof a.after !== 'object' && <span className="text-slate-500"> → {['Đổi trạng thái', 'Đổi ưu tiên', 'Phân quyền'].includes(a.action) ? tr(String(a.after)) : String(a.after)}</span>}
+                {a.after != null && typeof a.after !== 'object' && <span className="text-slate-500"> → {['Đổi trạng thái', 'Đổi ưu tiên', 'Phân quyền'].includes(a.action) ? tr(String(a.after)) : String(a.after).slice(0, 120)}</span>}
               </p>
               <span className="whitespace-nowrap text-label-md font-normal text-slate-400">{timeAgo(a.createdAt)}</span>
             </div>

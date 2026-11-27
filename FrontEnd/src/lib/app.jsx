@@ -6,6 +6,19 @@ import { setTimeZone } from './dates.js';
 import { setLanguage } from './i18n.js';
 
 import { AppCtx } from './app-context.ts';
+// Phiên mất giữa chừng (bị khóa, buộc đăng xuất, đổi mật khẩu nơi khác): trang đăng nhập cần nói rõ lý do.
+// Chỉ dùng cho thông báo; lỗi storage (chế độ riêng tư) thì bỏ qua.
+export function sessionMark(kind) {
+  try {
+    if (kind === 'set') localStorage.setItem('taskflow.hadSession', '1');
+    else if (kind === 'clear') localStorage.removeItem('taskflow.hadSession');
+    else if (localStorage.getItem('taskflow.hadSession')) {
+      localStorage.removeItem('taskflow.hadSession');
+      sessionStorage.setItem('taskflow.sessionEnded', '1');
+    }
+  } catch { /* storage bị chặn */ }
+}
+
 export { AppCtx, useApp } from './app-context.ts';
 /** @type {import('react').Context<(message: string, tone?: string) => void>} */
 const ToastCtx = createContext(() => {});
@@ -58,6 +71,15 @@ export function ToastProvider({ children }) {
 }
 export const useToast = () => useContext(ToastCtx);
 
+/**
+ * Workspace đang chờ xóa: mọi người chỉ xem (server cũng chặn mọi thao tác ghi). Giao diện coi như Viewer để ẩn nút sửa;
+ * realRole giữ vai trò thật (Owner vẫn thấy nút Hủy xóa).
+ */
+function readOnlyWhilePendingDeletion(data) {
+  if (!data?.workspace?.deletionScheduledAt) return { ...data, realRole: data?.role };
+  return { ...data, realRole: data.role, role: 'viewer', projects: (data.projects || []).map((p) => ({ ...p, projectRole: 'viewer' })) };
+}
+
 export function AppProvider({ children }) {
   useI18n();
   const [me, setMeState] = useState(undefined); // undefined = đang tải, null = chưa đăng nhập
@@ -94,11 +116,13 @@ export function AppProvider({ children }) {
       if (requestId !== identityRequest.current) return null;
       setOffline(false);
       setMe(data.user);
+      sessionMark('set');
       setWorkspaces(data.workspaces);
       return data;
     } catch (e) {
       if (requestId !== identityRequest.current) return null;
       if (e.status === 401) {
+        sessionMark('ended');
         setOffline(false);
         setMe(null);
         setWorkspaces([]);
@@ -118,6 +142,7 @@ export function AppProvider({ children }) {
     const unsubscribe = onUnauthorized(() => {
       identityRequest.current++;
       clearTimeout(retryTimer.current);
+      sessionMark('ended');
       setOffline(false);
       setMe(null);
       setWorkspaces([]);
@@ -144,7 +169,7 @@ export function AppProvider({ children }) {
     const req = api.get(`/workspaces/${activeWsId}`);
     loadingWs.current = req;
     const data = await req;
-    if (loadingWs.current === req && currentWsScope.current === wsScope) setWs({ ...data, userId: me._id });
+    if (loadingWs.current === req && currentWsScope.current === wsScope) setWs({ ...readOnlyWhilePendingDeletion(data), userId: me._id });
     return data;
   }, [activeWsId, me?._id, wsScope]);
 
@@ -227,6 +252,7 @@ export function AppProvider({ children }) {
   const logout = useCallback(async () => {
     identityRequest.current++;
     clearTimeout(retryTimer.current);
+    sessionMark('clear');
     await api.post('/auth/logout').catch(() => {});
     identityRequest.current++;
     clearTimeout(retryTimer.current);
@@ -253,6 +279,8 @@ export function AppProvider({ children }) {
     setWsId: setWorkspaceId,
     ws,
     role: ws?.role,
+    realRole: ws?.realRole,
+    pendingDeletion: ws?.workspace?.deletionScheduledAt || null,
     projects,
     activeProjects,
     project,

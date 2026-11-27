@@ -7,6 +7,7 @@ import Planner from './ai/Planner.jsx';
 import Report from './ai/Report.jsx';
 import Qa from './ai/Qa.jsx';
 import Meeting from './ai/Meeting.jsx';
+import Agent from './ai/Agent.jsx';
 
 export default function Ai() {
   useI18n();
@@ -27,8 +28,9 @@ export default function Ai() {
             <Icon name={reportOnly ? 'bar_chart' : 'auto_awesome'} className="text-purple-500" size={26} />{reportOnly ? tr('Báo cáo tiến độ') : tr(" Trợ lý AI")}</h1>
           <p className="text-body-sm text-slate-500">{tr("Gợi ý của AI luôn ở dạng nháp – chỉ được tạo khi bạn duyệt.")}</p>
         </div>
-        {u && (
-          <div className="card flex items-center gap-3 px-4 py-2.5">
+        {/* Lượt AI chỉ tính khi gọi API (Gemini...). Hỏi đáp chạy bằng agent trên máy nên không hiện. */}
+        {u && tab !== 'qa' && (
+          <div className="card flex items-center gap-3 px-4 py-2.5" title={tr("Chỉ tính các lần dùng AI của nhóm (API). Việc giao cho agent trên máy không tính lượt.")}>
             <span className="text-body-sm text-slate-600">{tr("Đã dùng ")}<b className="text-slate-900">{u.used}/{u.limit}</b>{tr(" lượt hôm nay")}</span>
             <span className="h-1.5 w-24 overflow-hidden rounded-full bg-slate-100">
               <span className={`block h-full rounded-full ${pct >= 90 ? 'bg-rose-500' : 'bg-purple-500'}`} style={{ width: `${pct}%` }} />
@@ -44,6 +46,7 @@ export default function Ai() {
           { value: 'planner', label: tr("Lập kế hoạch"), icon: 'flag' },
           { value: 'qa', label: tr("Hỏi đáp dự án"), icon: 'forum' },
           { value: 'meeting', label: tr("Ghi chú họp"), icon: 'groups' },
+          { value: 'agent', label: tr("Agent dự án"), icon: 'robot_2' },
         ]}
       />}
       {u && !u.enabled && (
@@ -53,6 +56,7 @@ export default function Ai() {
       {tab === 'report' && <Report key={project._id} {...props} />}
       {tab === 'qa' && <Qa key={project._id} {...props} />}
       {tab === 'meeting' && <Meeting key={project._id} {...props} />}
+      {tab === 'agent' && <Agent key={project._id} {...props} />}
     </div>
   );
 }

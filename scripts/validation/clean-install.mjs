@@ -19,10 +19,12 @@ export async function cleanInstall() {
       await fs.mkdir(path.dirname(destination), { recursive: true });
       await fs.copyFile(path.join(ROOT, file), destination);
     }
-    for (const args of [['ci'], ['--prefix', 'BackEnd', 'ci'], ['--prefix', 'AIService', 'ci'], ['--prefix', 'FrontEnd', 'ci'], ['run', 'build'], ['run', 'test:validation']]) {
+    // Gói mcp (agent trên máy) là package thứ năm từ khi có Agent MCP: cài và chạy test riêng của nó.
+    const plan = [['ci'], ['--prefix', 'BackEnd', 'ci'], ['--prefix', 'AIService', 'ci'], ['--prefix', 'FrontEnd', 'ci'], ['--prefix', 'mcp', 'ci'], ['run', 'build'], ['run', 'test:validation'], ['--prefix', 'mcp', 'test']];
+    for (const args of plan) {
       const started = performance.now();
       try {
-        const result = await promisify(execFile)(process.execPath, [npmCli, ...args], { cwd: directory, windowsHide: true, timeout: 180000, maxBuffer: 5 * 1024 * 1024, env: { ...process.env, DATABASE_URL: '', ANTHROPIC_API_KEY: '', NODE_ENV: 'test' } });
+        const result = await promisify(execFile)(process.execPath, [npmCli, ...args], { cwd: directory, windowsHide: true, timeout: 180000, maxBuffer: 5 * 1024 * 1024, env: { ...process.env, DATABASE_URL: '', GEMINI_API_KEY: '', NODE_ENV: 'test' } });
         steps.push({ command: `npm ${args.join(' ')}`, status: 'passed', elapsedMs: performance.now() - started, log: result.stdout + result.stderr });
       } catch (error) {
         steps.push({ command: `npm ${args.join(' ')}`, status: 'failed', elapsedMs: performance.now() - started, log: `${error.stdout ?? ''}${error.stderr ?? ''}`, code: error.code });
@@ -31,7 +33,7 @@ export async function cleanInstall() {
     }
     const after = await buildIdentity();
     requireValue(after.sourceHash === build.sourceHash, 'Source changed while clean-install was running; rerun on a frozen build');
-    return { schemaVersion: 1, kind: 'automated-clean-install', build, status: steps.length === 6 && steps.every((step) => step.status === 'passed') ? 'passed' : 'failed', fileCount: files.length, steps, logHash: hash(steps), independentInstaller: null, acceptanceStatus: 'pending', reason: 'Automated clean install does not replace installation by another team member' };
+    return { schemaVersion: 1, kind: 'automated-clean-install', build, status: steps.length === plan.length && steps.every((step) => step.status === 'passed') ? 'passed' : 'failed', fileCount: files.length, steps, logHash: hash(steps), independentInstaller: null, acceptanceStatus: 'pending', reason: 'Automated clean install does not replace installation by another team member' };
   } finally {
     if (path.dirname(directory) === os.tmpdir() && path.basename(directory).startsWith('taskflow-clean-install-')) await fs.rm(directory, { recursive: true, force: true });
   }

@@ -4,19 +4,21 @@ import rateLimit from 'express-rate-limit';
 import { z } from 'zod';
 import { config } from '../config.js';
 import { prisma } from '../db.js';
-import { REFRESH_COOKIE, clearAuthCookies, setAuthCookies, signAccess, startSession } from '../middleware/auth.js';
+import { ACCESS_COOKIE, REFRESH_COOKIE, authenticate, clearAuthCookies, setAuthCookies, signAccess, startSession } from '../middleware/auth.js';
 import { verifyGoogleCredential } from '../services/google.js';
 import { sendMail, privateMailAttempt } from '../services/mailer.js';
 import { consumeOtp, issueOtp } from '../services/otp.js';
 import { assertLoginAllowed, clearLoginFailures, enforce, lockedMessage, mailAllowed, recordLoginFailure } from '../services/throttle.js';
 import { disconnectUser } from '../services/realtime.js';
 import { withUserLock } from '../services/sessions.js';
+import { revokeAllAgentTokens } from '../services/agent-tokens.js';
 import { HttpError, badRequest, forbidden, parse, unauthorized } from '../utils/http.js';
 import { passwordIssues, randomToken, sha256 } from '../utils/security.js';
 
 const router = Router();
 
-const limiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: config.isProd ? 30 : 1000, standardHeaders: true, legacyHeaders: false });
+// Bộ test API đăng nhập hơn 1000 lần từ một IP trong một cửa sổ; ngưỡng production vẫn kiểm ở test/auth-limit.test.js.
+const limiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: config.isProd ? 30 : config.isTest ? 100000 : 1000, standardHeaders: true, legacyHeaders: false });
 router.use(limiter);
 
 const email = z.string({ error: 'Vui lòng nhập email' }).trim().toLowerCase().email('Email không hợp lệ');
@@ -44,9 +46,11 @@ const enforceMailIp = (req) => enforce(`mail:ip:${req.ip}`, { limit: config.secu
 router.post('/register', async (req, res) => {
   const body = parse(
     z.object({
-      name: z.string({ error: 'Vui lòng nhập họ tên' }).trim().min(1, 'Vui lòng nhập họ tên').max(80),
+      name: z.string({ error: 'Vui lòng nhập họ tên' }).trim().min(1, 'Vui lòng nhập họ tên').max(80, 'Họ tên tối đa 80 ký tự'),
       email,
       password: strongPassword,
+      // Ngôn ngữ đang chọn trên giao diện lúc đăng ký (không gửi thì mặc định tiếng Việt).
+      language: z.enum(['vi', 'en']).optional(),
       acceptTerms: z.literal(true, { error: 'Bạn cần đồng ý điều khoản' }),
       // Bẫy bot: trường ẩn trên form, người thật không bao giờ điền.
       website: z.string().max(200).optional(),
@@ -57,7 +61,7 @@ router.post('/register', async (req, res) => {
   await enforce(`register:ip:${req.ip}`, { limit: config.security.registerPerIpPerHour, windowMs: HOUR }, 'Đã tạo quá nhiều tài khoản từ mạng này. Vui lòng thử lại sau 1 giờ.');
   const exists = await prisma.user.findUnique({ where: { email: body.email }, select: { id: true } });
   if (exists) throw badRequest('Email đã được sử dụng', { fields: { email: 'Email đã được sử dụng' } });
-  const user = await prisma.user.create({ data: { name: body.name, email: body.email, passwordHash: await bcrypt.hash(body.password, 12) } });
+  const user = await prisma.user.create({ data: { name: body.name, email: body.email, passwordHash: await bcrypt.hash(body.password, 12), ...(body.language && { language: body.language }) } });
   await sendVerification(user);
   res.status(201).json({ ok: true, email: user.email });
 });
@@ -174,17 +178,18 @@ router.post('/refresh', async (req, res) => {
 
 router.post('/logout', async (req, res) => {
   const raw = req.cookies?.[REFRESH_COOKIE];
-  if (raw) {
-    const s = await prisma.session.findFirst({ where: { refreshHash: sha256(raw) } });
-    if (s) {
-      await prisma.$transaction(async (tx) => {
-        await tx.$queryRaw`SELECT id FROM users WHERE id = ${s.user}::uuid FOR UPDATE`;
-        await tx.session.updateMany({ where: { family: s.family, revokedAt: null }, data: { revokedAt: new Date() } });
-      });
-      await disconnectUser(s.user);
-    }
+  // Cookie refresh chỉ được gửi tới đúng alias đã đăng nhập (/api/auth hoặc /api/v1/auth). Đăng xuất qua alias kia
+  // vẫn phải thu hồi phiên: lấy phiên từ access token khi không có cookie refresh.
+  const s = (raw && (await prisma.session.findFirst({ where: { refreshHash: sha256(raw) } })))
+    || (await authenticate(req.cookies?.[ACCESS_COOKIE]))?.session;
+  if (s) {
+    await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM users WHERE id = ${s.user}::uuid FOR UPDATE`;
+      await tx.session.updateMany({ where: { family: s.family, revokedAt: null }, data: { revokedAt: new Date() } });
+    });
+    await disconnectUser(s.user);
   }
-  clearAuthCookies(res, req.baseUrl);
+  for (const authPath of new Set([req.baseUrl, '/api/auth', '/api/v1/auth'])) clearAuthCookies(res, authPath);
   res.json({ ok: true });
 });
 
@@ -206,7 +211,7 @@ router.post('/forgot-password', async (req, res) => {
 });
 
 router.get('/reset-password/check', async (req, res) => {
-  const t = await prisma.token.findFirst({ where: { hash: sha256(String(req.query.token || '')), type: 'reset', usedAt: null, expiresAt: { gt: new Date() } } });
+  const t = await prisma.token.findFirst({ where: { hash: sha256(String(req.query.token || '')), type: 'reset', usedAt: null, expiresAt: { gt: new Date() }, userRef: { isLocked: false } } });
   res.json({ valid: !!t });
 });
 
@@ -216,11 +221,15 @@ router.post('/reset-password', async (req, res) => {
   if (!token) throw badRequest('Liên kết đã hết hạn hoặc đã được sử dụng', { code: 'TOKEN_INVALID' });
   const passwordHash = await bcrypt.hash(body.password, 12);
   await withUserLock(token.user, async (tx) => {
+    // Như nhánh OTP: tài khoản đang bị khóa không đổi được mật khẩu bằng liên kết đã gửi trước lúc khóa.
+    const current = await tx.user.findUnique({ where: { id: token.user }, select: { isLocked: true } });
+    if (!current || current.isLocked) throw badRequest('Liên kết đã hết hạn hoặc đã được sử dụng', { code: 'TOKEN_INVALID' });
     const { count } = await tx.token.updateMany({ where: { id: token.id, type: 'reset', usedAt: null, expiresAt: { gt: new Date() } }, data: { usedAt: new Date() } });
     if (!count) throw badRequest('Liên kết đã hết hạn hoặc đã được sử dụng', { code: 'TOKEN_INVALID' });
     await tx.user.update({ where: { id: token.user }, data: { passwordHash, emailVerified: true } });
     await tx.token.updateMany({ where: { user: token.user, type: { in: ['reset', 'verify'] }, usedAt: null }, data: { usedAt: new Date() } });
     await tx.session.updateMany({ where: { user: token.user, revokedAt: null }, data: { revokedAt: new Date() } });
+    await revokeAllAgentTokens(tx, token.user);
   });
   const owner = await prisma.user.findUnique({ where: { id: token.user }, select: { email: true } });
   if (owner) await clearLoginFailures(owner.email);
@@ -242,6 +251,7 @@ router.post('/reset-password-otp', async (req, res) => {
         await tx.user.update({ where: { id: user.id }, data: { passwordHash, emailVerified: true } });
         await tx.token.updateMany({ where: { user: user.id, type: { in: ['reset', 'verify'] }, usedAt: null }, data: { usedAt: new Date() } });
         await tx.session.updateMany({ where: { user: user.id, revokedAt: null }, data: { revokedAt: new Date() } });
+        await revokeAllAgentTokens(tx, user.id);
         return true;
       })
     : false;
@@ -255,7 +265,11 @@ router.post('/reset-password-otp', async (req, res) => {
 /** Đăng nhập bằng Google: nhận ID token từ Google Identity Services ở FrontEnd. */
 router.post('/google', async (req, res) => {
   if (!config.google.clientId) throw new HttpError(503, 'Đăng nhập Google chưa được cấu hình', { code: 'GOOGLE_NOT_CONFIGURED' });
-  const body = parse(z.object({ credential: z.string().min(20).max(4096), remember: z.boolean().optional() }), req.body);
+  const body = parse(z.object({
+    credential: z.string().min(20).max(4096),
+    remember: z.boolean().optional(),
+    acceptTerms: z.boolean().optional(),
+  }), req.body);
   const g = await verifyGoogleCredential(body.credential);
   let account = await prisma.user.findUnique({ where: { googleId: g.sub }, omit: { passwordHash: false } });
   if (!account) {
@@ -265,6 +279,7 @@ router.post('/google', async (req, res) => {
       if (byEmail.isLocked) throw forbidden('Tài khoản đã bị khóa. Vui lòng liên hệ quản trị viên.');
       account = await prisma.user.update({ where: { id: byEmail.id }, data: { googleId: g.sub, emailVerified: true }, omit: { passwordHash: false } });
     } else {
+      if (body.acceptTerms !== true) throw badRequest('Bạn cần đồng ý điều khoản để tạo tài khoản mới');
       // Tài khoản Google không có mật khẩu: lưu hash của chuỗi ngẫu nhiên không ai biết.
       account = await prisma.user.create({
         data: { name: (g.name || g.email.split('@')[0]).slice(0, 80), email: g.email, googleId: g.sub, emailVerified: true, passwordHash: await bcrypt.hash(randomToken(32), 12) },
@@ -282,8 +297,15 @@ router.post('/google', async (req, res) => {
 router.get('/invite/:token', async (req, res) => {
   const inv = await prisma.invite.findUnique({ where: { tokenHash: sha256(req.params.token) } });
   if (!inv || inv.revokedAt || inv.acceptedAt || inv.expiresAt < new Date()) return res.json({ valid: false });
-  const ws = await prisma.workspace.findUnique({ where: { id: inv.workspace }, select: { id: true, name: true } });
-  res.json({ valid: true, email: inv.email, role: inv.role, mentor: inv.mentor, workspace: ws });
+  // Cùng điều kiện với lúc nhận: người mời phải còn là Owner/Admin của workspace.
+  const inviterRole = await prisma.membership.findUnique({ where: { workspace_user: { workspace: inv.workspace, user: inv.invitedBy } }, select: { role: true } });
+  if (!['owner', 'admin'].includes(inviterRole?.role)) return res.json({ valid: false });
+  const [ws, inviter, projects] = await Promise.all([
+    prisma.workspace.findUnique({ where: { id: inv.workspace }, select: { id: true, name: true } }),
+    prisma.user.findUnique({ where: { id: inv.invitedBy }, select: { name: true } }),
+    prisma.project.findMany({ where: { id: { in: inv.projects }, workspace: inv.workspace, status: 'active' }, select: { name: true }, orderBy: { name: 'asc' } }),
+  ]);
+  res.json({ valid: true, email: inv.email, role: inv.role, mentor: inv.mentor, workspace: ws, invitedBy: inviter?.name ?? null, projects: projects.map((p) => p.name) });
 });
 
 export default router;

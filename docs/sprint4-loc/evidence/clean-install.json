@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "kind": "automated-clean-install",
+  "build": {
+    "revision": "ec87c7a93a37cd3462ce926a570277cdc35038e8",
+    "sourceHash": "9a389c62a102eb420e5c3d4567bcb9205efc023af4d750ef41bc4c1b37ff7b2f",
+    "sourceHashAlgorithm": "sha256-lf-v1",
+    "promptHash": "5ed987e127f9b3fdc2c72817903cee4e407a0cebf7e08a9bb6beecf916ffce29",
+    "dirty": true,
+    "node": "v24.15.0"
+  },
+  "status": "passed",
+  "fileCount": 535,
+  "steps": [
+    {
+      "command": "npm ci",
+      "status": "passed",
+      "elapsedMs": 1851.7502,
+      "log": "\nadded 22 packages, and audited 23 packages in 2s\n\nfound 0 vulnerabilities\n"
+    },
+    {
+      "command": "npm --prefix BackEnd ci",
+      "status": "passed",
+      "elapsedMs": 18300.2116,
+      "log": "\n> taskflow-server@1.0.0 postinstall\n> prisma generate\n\nPrisma schema loaded from prisma\\schema.prisma\n\n✔ Generated Prisma Client (v6.19.3) to .\\node_modules\\@prisma\\client in 324ms\n\nStart by importing your Prisma Client (See: https://pris.ly/d/importing-client)\n\nTip: Interested in query caching in just a few lines of code? Try Accelerate today! https://pris.ly/tip-3-accelerate\n\n\nadded 196 packages, and audited 197 packages in 18s\n\n46 packages are looking for funding\n  run `npm fund` for details\n\nfound 0 vulnerabilities\nnpm warn deprecated node-domexception@1.0.0: Use your platform's native DOMException instead\n"
+    },
+    {
+      "command": "npm --prefix AIService ci",
+      "status": "passed",
+      "elapsedMs": 6797.6499,
+      "log": "\nadded 76 packages, and audited 77 packages in 7s\n\n30 packages are looking for funding\n  run `npm fund` for details\n\nfound 0 vulnerabilities\n"
+    },
+    {
+      "command": "npm --prefix FrontEnd ci",
+      "status": "passed",
+      "elapsedMs": 4785.130400000002,
+      "log": "\nadded 190 packages, and audited 191 packages in 5s\n\n36 packages are looking for funding\n  run `npm fund` for details\n\nfound 0 vulnerabilities\n"
+    },
+    {
+      "command": "npm run build",
+      "status": "passed",
+      "elapsedMs": 5784.5947000000015,
+      "log": "\n> build\n> npm run typecheck && npm --prefix FrontEnd run build\n\n\n> typecheck\n> tsc -p BackEnd/tsconfig.json && tsc -p FrontEnd/tsconfig.json\n\n\n> taskflow-client@1.0.0 build\n> vite build\n\nvite v6.4.5 building for production...\ntransforming...\n✓ 149 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/index.html                                                          1.12 kB │ gzip:   0.66 kB\ndist/assets/inter-vietnamese-wght-normal-CBcvBZtf.woff2                 10.25 kB\ndist/assets/inter-greek-ext-wght-normal-DlzME5K_.woff2                  11.23 kB\ndist/assets/inter-cyrillic-wght-normal-DqGufNeO.woff2                   18.75 kB\ndist/assets/inter-greek-wght-normal-CkhJZR-_.woff2                      19.00 kB\ndist/assets/inter-cyrillic-ext-wght-normal-BOeWTOD4.woff2               25.96 kB\ndist/assets/inter-latin-wght-normal-Dx4kXJAl.woff2                      48.26 kB\ndist/assets/inter-latin-ext-wght-normal-DO1Apj_S.woff2                  85.07 kB\ndist/assets/material-symbols-outlined-latin-400-normal-BhEvR8fk.woff2  323.33 kB\ndist/assets/material-symbols-outlined-latin-400-normal-QdgSk6Ss.woff   379.56 kB\ndist/assets/index-BgKuljxS.css                                          79.10 kB │ gzip:  14.07 kB\ndist/assets/Timeline-B9UJfnWl.js                                         5.82 kB │ gzip:   1.56 kB\ndist/assets/Mentoring-BG5sylnf.js                                        8.04 kB │ gzip:   1.58 kB\ndist/assets/Contributions-DPdP9qRj.js                                    8.30 kB │ gzip:   2.01 kB\ndist/assets/TeamWorkload-eSXcBlOx.js                                     8.88 kB │ gzip:   2.19 kB\ndist/assets/Meetings-j2AqFFMy.js                                        11.78 kB │ gzip:   2.74 kB\ndist/assets/Sprints-w0nIcUq_.js                                         18.69 kB │ gzip:   3.72 kB\ndist/assets/Issues-DUbrlNcW.js                                          19.56 kB │ gzip:   3.55 kB\ndist/assets/Notifications-DmrJa6DS.js                                   21.03 kB │ gzip:   4.37 kB\ndist/assets/Calendar-DRdOgCe_.js                                        25.91 kB │ gzip:   4.88 kB\ndist/assets/Projects-BXBvn3Ii.js                                        25.95 kB │ gzip:   5.07 kB\ndist/assets/Admin-BUswuuZu.js                                           27.29 kB │ gzip:   4.49 kB\ndist/assets/Documents-DetZ87Ol.js                                       33.92 kB │ gzip:   6.02 kB\ndist/assets/Ai-D2lF_1Nw.js                                              93.24 kB │ gzip:  14.51 kB\ndist/assets/Settings-2u759kBS.js                                       101.39 kB │ gzip:  15.23 kB\ndist/assets/index-CXB4jWUH.js                                          979.92 kB │ gzip: 235.60 kB\n✓ built in 3.12s\n\n(!) Some chunks are larger than 500 kB after minification. Consider:\n- Using dynamic import() to code-split the application\n- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks\n- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.\n"
+    },
+    {
+      "command": "npm run test:validation",
+      "status": "passed",
+      "elapsedMs": 522.5809000000008,
+      "log": "\n> test:validation\n> node --test scripts/validation/test/*.test.mjs\n\n✔ statistics: p95 keeps slow failures; even-sample median and missing values are explicit (1.7825ms)\n✔ packs: duplicate cases, prototype paths, missing assertions and external routes fail closed (3.7898ms)\n✔ CLI rejects duplicate/missing options instead of overwriting run inputs (0.2368ms)\n✔ build identity survives Windows/Linux line endings without normalizing binary fixtures (0.5734ms)\n✔ UAT: absent humans stay pending with denominator 30 and no invented completion rate (0.5263ms)\n✔ UAT: assisted success does not count; duplicate trials and mixed builds are rejected (0.8747ms)\n✔ UAT: 26/30 fails; baseline needs balanced crossover and preserved quality (0.4639ms)\n✔ UAT: latest independent retest controls blocking issue, older pass cannot hide a new failure (0.4156ms)\n✔ AI scores: missing judges have unknown quality; developer pack cannot become acceptance (8.1891ms)\n✔ AI scores: both independent grades persist; disagreement needs a third adjudicator (15.1577ms)\n✔ AI scores: one wrong report metric or any leakage fails even if prose/refusal averages pass (8.4408ms)\n✔ AI scores reject altered outputs even when run ID, pack and revision remain unchanged (1.0045ms)\n✔ release: missing gates, wrong build, empty AI rubric and localhost smoke cannot permit final tag (0.7317ms)\n✔ release permits final only when every required gate passes on the same clean build (3.775ms)\n✔ production smoke refuses plaintext remote URL and credentials embedded in URL (0.5756ms)\n✔ UAT preparation cannot pass human acceptance without observations (1.6285ms)\nℹ tests 16\nℹ suites 0\nℹ pass 16\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 150.5018\n"
+    }
+  ],
+  "logHash": "e0177ed5de3947a6da0b034fdf033d5381795a3b7ef2199b37bebb4a6bfdbc2f",
+  "independentInstaller": null,
+  "acceptanceStatus": "pending",
+  "reason": "Automated clean install does not replace installation by another team member"
+}

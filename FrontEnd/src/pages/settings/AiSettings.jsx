@@ -11,6 +11,7 @@ const getFeatures = () => [
   ['qa', tr("Hỏi đáp dự án")],
   ['risk', tr("Diễn giải cảnh báo rủi ro")],
   ['meeting', tr("Ghi chú họp → action items")],
+  ['suggest', tr("Agent: gợi ý skill và plugin hằng ngày")],
 ];
 const STATUS = {
   get pending() { return [tr("Đang xử lý"), 'border-sky-200 bg-sky-50 text-sky-700', tr("Đã tính vào hạn mức hôm nay")]; },
@@ -22,6 +23,8 @@ const STATUS = {
   get disabled() { return [tr("Đang tắt"), 'border-slate-200 bg-slate-100 text-slate-600']; },
 };
 const featureLabels = () => Object.fromEntries(getFeatures());
+
+const PROVIDER_NAMES = { gemini: 'Google Gemini', groq: 'Groq', openrouter: 'OpenRouter', ollama: 'Ollama (trên máy)' };
 
 export default function AiSettings() {
   useI18n();
@@ -98,18 +101,23 @@ export default function AiSettings() {
     <div className="space-y-5">
       <ErrorBox error={actionError} />
       <div className="card flex flex-wrap items-center gap-3 p-4">
-        <span className={`chip ${s.enabled ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-slate-100 text-slate-600'}`}>
-          <span className={`h-1.5 w-1.5 rounded-full ${s.enabled ? 'bg-emerald-500' : 'bg-slate-400'}`} />
-          {s.enabled ? tr("Đang hoạt động") : tr("Đang tắt")}
+        <span className={`chip ${!s.enabled ? 'border-slate-200 bg-slate-100 text-slate-600' : data.provider.type === 'unavailable' ? 'border-amber-200 bg-amber-50 text-amber-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}>
+          <span className={`h-1.5 w-1.5 rounded-full ${!s.enabled ? 'bg-slate-400' : data.provider.type === 'unavailable' ? 'bg-amber-500' : 'bg-emerald-500'}`} />
+          {!s.enabled ? tr("Đang tắt") : data.provider.type === 'unavailable' ? tr("Đã bật nhưng dịch vụ AI chưa sẵn sàng") : tr("Đang hoạt động")}
         </span>
         <span className="text-body-sm text-slate-600">{tr("Nhà cung cấp:")}{' '}
           <b>
-            {data.provider.type === 'anthropic'
-              ? `Anthropic · ${data.provider.model}`
+            {PROVIDER_NAMES[data.provider.type]
+              ? `${PROVIDER_NAMES[data.provider.type]} · ${data.provider.model}`
               : data.provider.type === 'local'
                 ? tr("Bộ AI nội bộ (quy tắc, không gọi mạng)")
-                : tr("Không kết nối được AIService – kiểm tra dịch vụ AI đã chạy chưa")}
+                : tr("Chưa kết nối được dịch vụ AI. Các nút AI sẽ báo bận; nhờ người quản trị kiểm tra dịch vụ AI.")}
           </b>
+          {data.provider.chain?.length > 1 && (
+            <span className="text-slate-500" title={tr("Khi nhà cung cấp chính lỗi hoặc hết hạn mức, AI tự chuyển sang nhà cung cấp kế tiếp. Nội dung gửi AI có thể tới các nhà cung cấp này.")}>
+              {tr(" · dự phòng: {0}", [data.provider.chain.slice(1).map((p) => PROVIDER_NAMES[p.type] || p.type).join(', ')])}
+            </span>
+          )}
         </span>
         <div className="ml-auto flex items-center gap-2 text-body-sm">
           <span className="text-slate-600">{tr("Trợ lý AI toàn nhóm")}</span>

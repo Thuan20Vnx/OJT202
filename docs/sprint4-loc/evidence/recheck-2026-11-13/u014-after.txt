@@ -1,0 +1,30 @@
+[seed] Tạo dữ liệu demo Nhóm 24…
+[seed] Xong. Đăng nhập: mai.anh@nhom24.edu.vn / TaskFlow@2026  (System Admin: admin@taskflow.local)
+▶ Công việc & Kanban (U009, U010, U013, U018)
+  ✔ bình luận: nội dung HTML bị loại bỏ, chỉ sửa được của mình (350.4089ms)
+✔ Công việc & Kanban (U009, U010, U013, U018) (45026.5951ms)
+▶ Rà soát vòng 2: thông báo và dữ liệu đầu vào
+  ✔ chưa mở cài đặt vẫn áp dụng mặc định không nhận bình luận (423.4231ms)
+✔ Rà soát vòng 2: thông báo và dữ liệu đầu vào (424.0286ms)
+▶ Lộc: phân quyền và nghiệp vụ bổ sung
+  ✔ Viewer không tạo/sửa/xóa bình luận; archived chặn cả tác giả; nội dung rỗng bị từ chối (669.8884ms)
+✔ Lộc: phân quyền và nghiệp vụ bổ sung (670.6373ms)
+▶ Lộc Sprint 2
+  ✔ U014-T3/T1: XSS, sửa/xóa người khác, mention ngoài project và PM ẩn có audit (662.5883ms)
+  ✔ U014-T3: mention lấy tên dài nhất và dừng ở ranh giới từ, không nhắc nhầm người trùng tiền tố (525.5322ms)
+[error] Error: Sprint2 simulated moderation audit failure
+    at tx.activity.createMany (file:///D:/Desktop/Nhom24/OJT202/BackEnd/test/api.test.js:3117:87)
+    at logActivityIn (file:///D:/Desktop/Nhom24/OJT202/BackEnd/src/services/activity.js:7:41)
+    at file:///D:/Desktop/Nhom24/OJT202/BackEnd/src/routes/tasks.js:694:11
+    at async Proxy._transactionWithCallback (D:\Desktop\Nhom24\OJT202\BackEnd\node_modules\@prisma\client\runtime\library.js:130:8120)
+    at async file:///D:/Desktop/Nhom24/OJT202/BackEnd/src/routes/tasks.js:689:3
+  ✔ U014-T3: tài khoản khóa không được mention; lỗi audit không ẩn dở bình luận (483.7693ms)
+✔ Lộc Sprint 2 (1672.8189ms)
+ℹ tests 6
+ℹ suites 4
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 49842.5588

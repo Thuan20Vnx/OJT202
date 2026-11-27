@@ -113,7 +113,7 @@ export default function ForgotPassword() {
     <AuthLayout>
       <div className="card p-6 shadow-card">
         <Steps step={done ? 4 : step} />
-        {error && <div role="alert" className="mb-4"><Notice tone="danger">{error}</Notice></div>}
+        {error && step !== 2 && <div role="alert" className="mb-4"><Notice tone="danger">{error}</Notice></div>}
         {step === 1 && (
           <form onSubmit={request} className="space-y-4">
             <Link to="/login" className="inline-flex items-center gap-1 text-body-sm text-slate-500 hover:text-slate-800">
@@ -147,7 +147,7 @@ export default function ForgotPassword() {
               <p className="mt-1 text-body-sm text-slate-500">{tr("Nếu email tồn tại trong hệ thống, mã OTP 6 số (hiệu lực 10 phút) và liên kết đặt lại đã được gửi tới ")}<b>{mask(email)}</b>{tr(". Nhập mã bên dưới hoặc bấm liên kết trong email.")}</p>
             </div>
             <form onSubmit={resetWithCode} className="space-y-3 text-left">
-              {error && <Notice tone="danger">{error}</Notice>}
+              {error && <div role="alert"><Notice tone="danger">{error}</Notice></div>}
               <Field label={tr("Mã OTP 6 số")} required>
                 <OtpInput value={code} onChange={setCode} autoFocus />
               </Field>

@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "kind": "query-profile",
+  "build": {
+    "revision": "d3c45a67773d40793c548d2ade0049b39d53fa15",
+    "sourceHash": "21df6480d96f769cc389c841984887c1fd2bbfd001699942d70b9d0092329512",
+    "sourceHashAlgorithm": "sha256-lf-v1",
+    "promptHash": "533c2c256becc980797bb51826a44b4399e82a829895af6c7a668f2bc6ed05ac",
+    "dirty": true,
+    "node": "v24.21.0"
+  },
+  "target": "local",
+  "rttMs": 0.3,
+  "endpoints": {
+    "GET /me": {
+      "queries": 2,
+      "medianMs": 4,
+      "roundTrips": 16
+    },
+    "GET my-tasks": {
+      "queries": 5,
+      "medianMs": 11,
+      "roundTrips": 44
+    },
+    "GET projects": {
+      "queries": 7,
+      "medianMs": 6,
+      "roundTrips": 25
+    },
+    "GET board": {
+      "queries": 4,
+      "medianMs": 9,
+      "roundTrips": 35
+    },
+    "GET overview": {
+      "queries": 10,
+      "medianMs": 9,
+      "roundTrips": 36
+    },
+    "GET task": {
+      "queries": 4,
+      "medianMs": 10,
+      "roundTrips": 39
+    },
+    "GET comments": {
+      "queries": 3,
+      "medianMs": 5,
+      "roundTrips": 21
+    },
+    "GET search": {
+      "queries": 4,
+      "medianMs": 9,
+      "roundTrips": 34
+    },
+    "GET notifications": {
+      "queries": 3,
+      "medianMs": 5,
+      "roundTrips": 20
+    },
+    "POST comment": {
+      "queries": 8,
+      "medianMs": 10,
+      "roundTrips": 38
+    }
+  }
+}

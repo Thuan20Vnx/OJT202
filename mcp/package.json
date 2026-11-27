@@ -1,0 +1,24 @@
+{
+  "name": "taskflow-mcp",
+  "version": "1.0.0",
+  "private": true,
+  "description": "MCP server chạy trên máy: cho Claude Code, Codex, Antigravity đọc công việc TaskFlow và gửi báo cáo về",
+  "type": "module",
+  "bin": {
+    "taskflow-mcp": "src/index.js",
+    "taskflow-runner": "src/runner.js"
+  },
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "runner": "node src/runner.js",
+    "test": "node --test --test-concurrency=1 \"test/**/*.test.js\""
+  },
+  "engines": {
+    "node": ">=24.15.0"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "zod": "^4.6.7"
+  }
+}

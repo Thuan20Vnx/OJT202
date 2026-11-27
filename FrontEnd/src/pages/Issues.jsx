@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Avatar, Empty, ErrorBox, Field, Icon, Modal, PageHeader, PageLoader, Select } from '../components/ui.jsx';
+import { Avatar, Confirm, Empty, ErrorBox, Field, Icon, Modal, PageHeader, PageLoader, Select } from '../components/ui.jsx';
 import { api } from '../lib/api.js';
 import { useApp, useLoad, useToast } from '../lib/app.jsx';
 import { fmtProjectDate as fmtDate, timeAgo } from '../lib/format.js';
@@ -13,7 +13,7 @@ export const ISSUE_TYPE = {
   external: { get label() { return tr('Phụ thuộc bên ngoài'); }, icon: 'link' },
   other: { get label() { return tr('Khác'); }, icon: 'more_horiz' },
 };
-const SEVERITY = {
+export const SEVERITY = {
   low: { get label() { return tr('Thấp'); }, chip: 'border-slate-200 bg-slate-50 text-slate-600' },
   medium: { get label() { return tr('Trung bình'); }, chip: 'border-blue-200 bg-blue-50 text-blue-700' },
   high: { get label() { return tr('Cao'); }, chip: 'border-amber-200 bg-amber-50 text-amber-700' },
@@ -33,6 +33,7 @@ export default function Issues() {
   useSocketEvent('issues:changed', () => reload(), [reload]);
   const [form, setForm] = useState(null);
   const [resolving, setResolving] = useState(null);
+  const [removing, setRemoving] = useState(null);
   const [busy, setBusy] = useState(false);
   if (!project) return <Empty icon="folder_off" title={tr('Chọn dự án để xem vấn đề')} />;
   if (loading && !data) return <PageLoader />;
@@ -55,18 +56,24 @@ export default function Issues() {
       setBusy(false);
     }
   };
-  const create = (e) => {
+  const save = (e) => {
     e.preventDefault();
     const absent = form.type === 'absence';
-    run(() => api.post(base, {
+    const body = {
       title: form.title, type: form.type, severity: form.severity, cause: form.cause, action: form.action,
       owner: form.owner || null,
       affectedUser: absent ? form.affectedUser || null : null,
       startDate: absent ? form.startDate || null : null,
       endDate: absent ? form.endDate || null : null,
-    }), tr('Đã ghi nhận vấn đề'), () => setForm(null));
+    };
+    if (form._id) run(() => api.put(`${base}/${form._id}`, { ...body, version: form.version }), tr('Đã lưu vấn đề'), () => setForm(null));
+    else run(() => api.post(base, body), tr('Đã ghi nhận vấn đề'), () => setForm(null));
   };
   const canUpdate = (i) => data.access.canManage || i.owner === me._id || i.reporter === me._id;
+  // Sửa nội dung hoặc xóa: người báo hoặc PM (người xử lý chỉ cập nhật kết quả).
+  const canEdit = (i) => data.access.canManage || i.reporter === me._id;
+  const day = (d) => (d ? new Date(d).toISOString().slice(0, 10) : '');
+  const edit = (i) => setForm({ _id: i._id, version: i.version, title: i.title, type: i.type, severity: i.severity, cause: i.cause, action: i.action, owner: i.owner || '', affectedUser: i.affectedUser || '', startDate: day(i.startDate), endDate: day(i.endDate) });
 
   return (
     <div className="mx-auto max-w-5xl space-y-5 p-4 lg:p-6">
@@ -108,17 +115,21 @@ export default function Issues() {
           <p className="whitespace-pre-wrap text-body-sm text-slate-700"><b>{tr('Hướng xử lý: ')}</b>{i.action}</p>
           {i.ownerRef && <p className="text-body-sm text-slate-500">{tr('Người xử lý: ')}{i.ownerRef.name}</p>}
           {i.resolution && <p className="whitespace-pre-wrap rounded-lg bg-emerald-50 px-3 py-2 text-body-sm text-emerald-900"><b>{tr('Kết quả: ')}</b>{i.resolution}</p>}
-          {data.access.canWrite && canUpdate(i) && (
-            i.status === 'open'
-              ? <button className="btn-outline btn-sm" onClick={() => setResolving({ ...i, resolution: '' })}>{tr('Đánh dấu đã xử lý')}</button>
-              : <button className="btn-outline btn-sm" disabled={busy} onClick={() => run(() => api.patch(`${base}/${i._id}`, { version: i.version, status: 'open', resolution: i.resolution }), tr('Đã mở lại vấn đề'), () => {})}>{tr('Mở lại')}</button>
+          {data.access.canWrite && (canUpdate(i) || canEdit(i)) && (
+            <div className="flex flex-wrap gap-2">
+              {canUpdate(i) && (i.status === 'open'
+                ? <button className="btn-outline btn-sm" onClick={() => setResolving({ ...i, resolution: '' })}>{tr('Đánh dấu đã xử lý')}</button>
+                : <button className="btn-outline btn-sm" disabled={busy} onClick={() => run(() => api.patch(`${base}/${i._id}`, { version: i.version, status: 'open', resolution: i.resolution }), tr('Đã mở lại vấn đề'), () => {})}>{tr('Mở lại')}</button>)}
+              {canEdit(i) && <button className="btn-outline btn-sm" onClick={() => edit(i)}><Icon name="edit" size={14} />{tr(' Sửa')}</button>}
+              {canEdit(i) && <button className="btn-outline btn-sm text-rose-700" onClick={() => setRemoving(i)}><Icon name="delete" size={14} />{tr(' Xóa')}</button>}
+            </div>
           )}
         </article>
       ))}
 
-      <Modal open={!!form} title={tr('Báo vấn đề')} onClose={() => setForm(null)}>
+      <Modal open={!!form} title={form?._id ? tr('Sửa vấn đề') : tr('Báo vấn đề')} onClose={() => setForm(null)}>
         {form && (
-          <form className="space-y-4" onSubmit={create}>
+          <form className="space-y-4" onSubmit={save}>
             <Field label={tr('Tiêu đề')} required><input required maxLength={200} className="input" value={form.title} onChange={set('title')} placeholder={tr('vd: Bạn An bị ốm 3 ngày')} /></Field>
             <div className="grid grid-cols-2 gap-3">
               <Field label={tr('Loại')}><Select className="input" value={form.type} onChange={set('type')}>{Object.entries(ISSUE_TYPE).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}</Select></Field>
@@ -144,10 +155,13 @@ export default function Issues() {
                 {members.map((m) => <option key={m._id} value={m._id}>{m.name}</option>)}
               </Select>
             </Field>
-            <button className="btn-primary" disabled={busy}>{tr('Ghi nhận')}</button>
+            <button className="btn-primary" disabled={busy}>{form._id ? tr('Lưu thay đổi') : tr('Ghi nhận')}</button>
           </form>
         )}
       </Modal>
+      <Confirm open={!!removing} danger title={tr('Xóa vấn đề "{0}"?', [removing?.title])} confirmText={tr('Xóa')} busy={busy} onClose={() => setRemoving(null)} onConfirm={() => run(() => api.del(`${base}/${removing._id}`), tr('Đã xóa vấn đề'), () => setRemoving(null))}>
+        <p>{tr('Vấn đề sẽ bị xóa khỏi dự án và lịch vắng (nếu có). Không khôi phục được.')}</p>
+      </Confirm>
       <Modal open={!!resolving} title={tr('Kết quả xử lý')} onClose={() => setResolving(null)}>
         {resolving && (
           <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); run(() => api.patch(`${base}/${resolving._id}`, { version: resolving.version, status: 'resolved', resolution: resolving.resolution }), tr('Đã đóng vấn đề'), () => setResolving(null)); }}>

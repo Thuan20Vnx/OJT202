@@ -10,11 +10,13 @@ import { useSocketEvent } from '../lib/hooks.js';
 const TYPE = {
   assigned: { icon: 'assignment_ind', tone: 'bg-blue-50 text-blue-600' },
   mentioned: { icon: 'alternate_email', tone: 'bg-purple-50 text-purple-600' },
+  agent: { icon: 'robot_2', tone: 'bg-purple-50 text-purple-600' },
   due_soon: { icon: 'alarm', tone: 'bg-amber-50 text-amber-600' },
   overdue: { icon: 'error', tone: 'bg-rose-50 text-rose-600' },
   status: { icon: 'swap_horiz', tone: 'bg-emerald-50 text-emerald-600' },
   comment: { icon: 'chat_bubble', tone: 'bg-slate-100 text-slate-600' },
   invite: { icon: 'group_add', tone: 'bg-cyan-50 text-cyan-600' },
+  workspace: { icon: 'delete_forever', tone: 'bg-rose-50 text-rose-600' },
 };
 
 export default function Notifications() {

@@ -1,0 +1,1197 @@
+{
+  "schemaVersion": 1,
+  "kind": "security-matrix",
+  "build": {
+    "revision": "9d327ba234956f258b0bf258f8c8775377cfb5da",
+    "sourceHash": "307055741112bdf7b228d1872132678ba2082483fc0645e742b18847b66c4062",
+    "sourceHashAlgorithm": "sha256-lf-v1",
+    "promptHash": "533c2c256becc980797bb51826a44b4399e82a829895af6c7a668f2bc6ed05ac",
+    "dirty": true,
+    "node": "v24.15.0"
+  },
+  "datasetHash": "23e591625c1c7ee585bb5d2c1ecc2dd106567fa96f5c15204934b252fd6cca48",
+  "provider": "local",
+  "testedAt": "2026-11-13T12:36:06.101Z",
+  "records": [
+    {
+      "id": "uat-slot-isolation",
+      "surface": "dataset",
+      "role": "operator",
+      "expected": 12,
+      "actual": 12,
+      "passed": true
+    },
+    {
+      "id": "uat-counterbalance",
+      "surface": "dataset",
+      "role": "operator",
+      "expected": 3,
+      "actual": 3,
+      "passed": true
+    },
+    {
+      "id": "uat-task-count",
+      "surface": "dataset",
+      "role": "operator",
+      "expected": 120,
+      "actual": 120,
+      "passed": true
+    },
+    {
+      "id": "login-owner",
+      "surface": "session",
+      "role": "owner",
+      "expected": 200,
+      "actual": 200,
+      "passed": true
+    },
+    {
+      "id": "login-pm",
+      "surface": "session",
+      "role": "pm",
+      "expected": 200,
+      "actual": 200,
+      "passed": true
+    },
+    {
+      "id": "login-member",
+      "surface": "session",
+      "role": "member",
+      "expected": 200,
+      "actual": 200,
+      "passed": true
+    },
+    {
+      "id": "login-viewer",
+      "surface": "session",
+      "role": "viewer",
+      "expected": 200,
+      "actual": 200,
+      "passed": true
+    },
+    {
+      "id": "login-outsider",
+      "surface": "session",
+      "role": "outsider",
+      "expected": 200,
+      "actual": 200,
+      "passed": true
+    },
+    {
+      "id": "login-admin",
+      "surface": "session",
+      "role": "admin",
+      "expected": 200,
+      "actual": 200,
+      "passed": true
+    },
+    {
+      "id": "project-read-owner",
+      "surface": "project",
+      "role": "owner",
+      "expected": 404,
+      "actual": 404,
+      "passed": true
+    },
+    {
+      "id": "task-read-owner",
+      "surface": "task",
+      "role": "owner",
+      "expected": 404,
+      "actual": 404,
+      "passed": true
+    },
+    {
+      "id": "document-read-owner",
+      "surface": "document",
+      "role": "owner",
+      "expected": 404,
+      "actual": 404,
+      "passed": true
+    },
+    {
+      "id": "file-read-owner",
+      "surface": "file",
+      "role": "owner",
+      "expected": 404,
+      "actual": 404,
+      "passed": true
+    },
+    {
+      "id": "rag-read-owner",
+      "surface": "rag",
+      "role": "owner",
+      "expected": 404,
+      "actual": 404,
+      "passed": true
+    },
+    {
+      "id": "task-create-owner",
+      "surface": "task",
+      "role": "owner",
+      "expected": 404,
+      "actual": 404,
+      "passed": true
+    },
+    {
+      "id": "ai-ask-owner",
+      "surface": "rag",
+      "role": "owner",
+      "expected": 404,
+      "actual": 404,
+      "passed": true
+    },
+    {
+      "id": "socket-join-owner",
+      "surface": "socket",
+      "role": "owner",
+      "expected": false,
+      "actual": false,
+      "passed": true
+    },
+    {
+      "id": "project-read-pm",
+      "surface": "project",
+      "role": "pm",
+      "expected": 200,
+      "actual": 200,
+      "passed": true
+    },
+    {
+      "id": "task-read-pm",
+      "surface": "task",
+      "role": "pm",
+      "expected": 200,
+      "actual": 200,
+      "passed": true
+    },
+    {
+      "id": "document-read-pm",
+      "surface": "document",
+      "role": "pm",
+      "expected": 200,
+      "actual": 200,
+      "passed": true
+    },
+    {
+      "id": "file-read-pm",
+      "surface": "file",
+      "role": "pm",
+      "expected": 200,
+      "actual": 200,
+      "passed": true
+    },
+    {
+      "id": "rag-read-pm",
+      "surface": "rag",
+      "role": "pm",
+      "expected": 200,
+      "actual": 200,
+      "passed": true
+    },
+    {
+      "id": "task-create-pm",
+      "surface": "task",
+      "role": "pm",
+      "expected": 201,
+      "actual": 201,
+      "passed": true
+    },
+    {
+      "id": "ai-ask-pm",
+      "surface": "rag",
+      "role": "pm",
+      "expected": 200,
+      "actual": 200,
+      "passed": true
+    },
+    {
+      "id": "rag-citations-pm",
+      "surface": "rag",
+      "role": "pm",
+      "expected": true,
+      "actual": true,
+      "passed": true
+    },
+    {
+      "id": "socket-join-pm",
+      "surface": "socket",
+      "role": "pm",
+      "expected": true,
+      "actual": true,
+      "passed": true
+    },
+    {
+      "id": "project-read-member",
+      "surface": "project",
+      "role": "member",
+      "expected": 200,
+      "actual": 200,
+      "passed": true
+    },
+    {
+      "id": "task-read-member",
+      "surface": "task",
+      "role": "member",
+      "expected": 200,
+      "actual": 200,
+      "passed": true
+    },
+    {
+      "id": "document-read-member",
+      "surface": "document",
+      "role": "member",
+      "expected": 200,
+      "actual": 200,
+      "passed": true
+    },
+    {
+      "id": "file-read-member",
+      "surface": "file",
+      "role": "member",
+      "expected": 200,
+      "actual": 200,
+      "passed": true
+    },
+    {
+      "id": "rag-read-member",
+      "surface": "rag",
+      "role": "member",
+      "expected": 200,
+      "actual": 200,
+      "passed": true
+    },
+    {
+      "id": "task-create-member",
+      "surface": "task",
+      "role": "member",
+      "expected": 403,
+      "actual": 403,
+      "passed": true
+    },
+    {
+      "id": "ai-ask-member",
+      "surface": "rag",
+      "role": "member",
+      "expected": 200,
+      "actual": 200,
+      "passed": true
+    },
+    {
+      "id": "rag-citations-member",
+      "surface": "rag",
+      "role": "member",
+      "expected": true,
+      "actual": true,
+      "passed": true
+    },
+    {
+      "id": "socket-join-member",
+      "surface": "socket",
+      "role": "member",
+      "expected": true,
+      "actual": true,
+      "passed": true
+    },
+    {
+      "id": "project-read-viewer",
+      "surface": "project",
+      "role": "viewer",
+      "expected": 200,
+      "actual": 200,
+      "passed": true
+    },
+    {
+      "id": "task-read-viewer",
+      "surface": "task",
+      "role": "viewer",
+      "expected": 200,
+      "actual": 200,
+      "passed": true
+    },
+    {
+      "id": "document-read-viewer",
+      "surface": "document",
+      "role": "viewer",
+      "expected": 200,
+      "actual": 200,
+      "passed": true
+    },
+    {
+      "id": "file-read-viewer",
+      "surface": "file",
+      "role": "viewer",
+      "expected": 200,
+      "actual": 200,
+      "passed": true
+    },
+    {
+      "id": "rag-read-viewer",
+      "surface": "rag",
+      "role": "viewer",
+      "expected": 200,
+      "actual": 200,
+      "passed": true
+    },
+    {
+      "id": "task-create-viewer",
+      "surface": "task",
+      "role": "viewer",
+      "expected": 403,
+      "actual": 403,
+      "passed": true
+    },
+    {
+      "id": "ai-ask-viewer",
+      "surface": "rag",
+      "role": "viewer",
+      "expected": 403,
+      "actual": 403,
+      "passed": true
+    },
+    {
+      "id": "socket-join-viewer",
+      "surface": "socket",
+      "role": "viewer",
+      "expected": true,
+      "actual": true,
+      "passed": true
+    },
+    {
+      "id": "project-read-outsider",
+      "surface": "project",
+      "role": "outsider",
+      "expected": 404,
+      "actual": 404,
+      "passed": true
+    },
+    {
+      "id": "task-read-outsider",
+      "surface": "task",
+      "role": "outsider",
+      "expected": 404,
+      "actual": 404,
+      "passed": true
+    },
+    {
+      "id": "document-read-outsider",
+      "surface": "document",
+      "role": "outsider",
+      "expected": 404,
+      "actual": 404,
+      "passed": true
+    },
+    {
+      "id": "file-read-outsider",
+      "surface": "file",
+      "role": "outsider",
+      "expected": 404,
+      "actual": 404,
+      "passed": true
+    },
+    {
+      "id": "rag-read-outsider",
+      "surface": "rag",
+      "role": "outsider",
+      "expected": 404,
+      "actual": 404,
+      "passed": true
+    },
+    {
+      "id": "task-create-outsider",
+      "surface": "task",
+      "role": "outsider",
+      "expected": 404,
+      "actual": 404,
+      "passed": true
+    },
+    {
+      "id": "ai-ask-outsider",
+      "surface": "rag",
+      "role": "outsider",
+      "expected": 404,
+      "actual": 404,
+      "passed": true
+    },
+    {
+      "id": "socket-join-outsider",
+      "surface": "socket",
+      "role": "outsider",
+      "expected": false,
+      "actual": false,
+      "passed": true
+    },
+    {
+      "id": "project-read-admin",
+      "surface": "project",
+      "role": "admin",
+      "expected": 404,
+      "actual": 404,
+      "passed": true
+    },
+    {
+      "id": "task-read-admin",
+      "surface": "task",
+      "role": "admin",
+      "expected": 404,
+      "actual": 404,
+      "passed": true
+    },
+    {
+      "id": "document-read-admin",
+      "surface": "document",
+      "role": "admin",
+      "expected": 404,
+      "actual": 404,
+      "passed": true
+    },
+    {
+      "id": "file-read-admin",
+      "surface": "file",
+      "role": "admin",
+      "expected": 404,
+      "actual": 404,
+      "passed": true
+    },
+    {
+      "id": "rag-read-admin",
+      "surface": "rag",
+      "role": "admin",
+      "expected": 404,
+      "actual": 404,
+      "passed": true
+    },
+    {
+      "id": "task-create-admin",
+      "surface": "task",
+      "role": "admin",
+      "expected": 404,
+      "actual": 404,
+      "passed": true
+    },
+    {
+      "id": "ai-ask-admin",
+      "surface": "rag",
+      "role": "admin",
+      "expected": 404,
+      "actual": 404,
+      "passed": true
+    },
+    {
+      "id": "socket-join-admin",
+      "surface": "socket",
+      "role": "admin",
+      "expected": false,
+      "actual": false,
+      "passed": true
+    },
+    {
+      "id": "project-read-anonymous",
+      "surface": "project",
+      "role": "anonymous",
+      "expected": 401,
+      "actual": 401,
+      "passed": true
+    },
+    {
+      "id": "task-read-anonymous",
+      "surface": "task",
+      "role": "anonymous",
+      "expected": 401,
+      "actual": 401,
+      "passed": true
+    },
+    {
+      "id": "document-read-anonymous",
+      "surface": "document",
+      "role": "anonymous",
+      "expected": 401,
+      "actual": 401,
+      "passed": true
+    },
+    {
+      "id": "file-read-anonymous",
+      "surface": "file",
+      "role": "anonymous",
+      "expected": 401,
+      "actual": 401,
+      "passed": true
+    },
+    {
+      "id": "rag-read-anonymous",
+      "surface": "rag",
+      "role": "anonymous",
+      "expected": 401,
+      "actual": 401,
+      "passed": true
+    },
+    {
+      "id": "task-create-anonymous",
+      "surface": "task",
+      "role": "anonymous",
+      "expected": 401,
+      "actual": 401,
+      "passed": true
+    },
+    {
+      "id": "ai-ask-anonymous",
+      "surface": "rag",
+      "role": "anonymous",
+      "expected": 401,
+      "actual": 401,
+      "passed": true
+    },
+    {
+      "id": "socket-join-anonymous",
+      "surface": "socket",
+      "role": "anonymous",
+      "expected": "unauthorized",
+      "actual": "unauthorized",
+      "passed": true
+    },
+    {
+      "id": "csrf-missing-header",
+      "surface": "csrf",
+      "role": "pm",
+      "expected": 403,
+      "actual": 403,
+      "passed": true
+    },
+    {
+      "id": "csrf-foreign-origin",
+      "surface": "csrf",
+      "role": "pm",
+      "expected": 403,
+      "actual": 403,
+      "passed": true
+    },
+    {
+      "id": "upload-valid",
+      "surface": "upload",
+      "role": "member",
+      "expected": 201,
+      "actual": 201,
+      "passed": true
+    },
+    {
+      "id": "file-byte-integrity",
+      "surface": "file",
+      "role": "viewer",
+      "expected": "S4_FILE_EXACT_BYTES",
+      "actual": "S4_FILE_EXACT_BYTES",
+      "passed": true
+    },
+    {
+      "id": "file-nosniff",
+      "surface": "file",
+      "role": "viewer",
+      "expected": "nosniff",
+      "actual": "nosniff",
+      "passed": true
+    },
+    {
+      "id": "file-attachment",
+      "surface": "file",
+      "role": "viewer",
+      "expected": true,
+      "actual": true,
+      "passed": true
+    },
+    {
+      "id": "upload-forged",
+      "surface": "upload",
+      "role": "member",
+      "expected": 400,
+      "actual": 400,
+      "passed": true
+    },
+    {
+      "id": "upload-executable",
+      "surface": "upload",
+      "role": "member",
+      "expected": 400,
+      "actual": 400,
+      "passed": true
+    },
+    {
+      "id": "upload-viewer",
+      "surface": "upload",
+      "role": "viewer",
+      "expected": 403,
+      "actual": 403,
+      "passed": true
+    },
+    {
+      "id": "viewer-no-ai-charge",
+      "surface": "rag",
+      "role": "viewer",
+      "expected": 7,
+      "actual": 7,
+      "passed": true
+    },
+    {
+      "id": "injection-refusal",
+      "surface": "rag",
+      "role": "member",
+      "expected": true,
+      "actual": true,
+      "passed": true
+    },
+    {
+      "id": "cross-tenant-no-secret",
+      "surface": "rag",
+      "role": "member",
+      "expected": false,
+      "actual": false,
+      "passed": true
+    },
+    {
+      "id": "rag-suggestions-scope",
+      "surface": "rag",
+      "role": "member",
+      "expected": true,
+      "actual": true,
+      "passed": true
+    },
+    {
+      "id": "mcp-token-create-owner",
+      "surface": "mcp",
+      "role": "owner",
+      "expected": 201,
+      "actual": 201,
+      "passed": true
+    },
+    {
+      "id": "mcp-token-create-pm",
+      "surface": "mcp",
+      "role": "pm",
+      "expected": 201,
+      "actual": 201,
+      "passed": true
+    },
+    {
+      "id": "mcp-token-create-member",
+      "surface": "mcp",
+      "role": "member",
+      "expected": 201,
+      "actual": 201,
+      "passed": true
+    },
+    {
+      "id": "mcp-token-create-viewer",
+      "surface": "mcp",
+      "role": "viewer",
+      "expected": 201,
+      "actual": 201,
+      "passed": true
+    },
+    {
+      "id": "mcp-token-create-outsider",
+      "surface": "mcp",
+      "role": "outsider",
+      "expected": 201,
+      "actual": 201,
+      "passed": true
+    },
+    {
+      "id": "mcp-tasks-owner",
+      "surface": "mcp",
+      "role": "owner",
+      "expected": 404,
+      "actual": 404,
+      "passed": true
+    },
+    {
+      "id": "mcp-search-owner",
+      "surface": "mcp",
+      "role": "owner",
+      "expected": 404,
+      "actual": 404,
+      "passed": true
+    },
+    {
+      "id": "mcp-answer-owner",
+      "surface": "mcp",
+      "role": "owner",
+      "expected": 404,
+      "actual": 404,
+      "passed": true
+    },
+    {
+      "id": "mcp-plan-owner",
+      "surface": "mcp",
+      "role": "owner",
+      "expected": 404,
+      "actual": 404,
+      "passed": true
+    },
+    {
+      "id": "mcp-complete-owner",
+      "surface": "mcp",
+      "role": "owner",
+      "expected": 404,
+      "actual": 404,
+      "passed": true
+    },
+    {
+      "id": "mcp-tasks-pm",
+      "surface": "mcp",
+      "role": "pm",
+      "expected": 200,
+      "actual": 200,
+      "passed": true
+    },
+    {
+      "id": "mcp-search-pm",
+      "surface": "mcp",
+      "role": "pm",
+      "expected": 200,
+      "actual": 200,
+      "passed": true
+    },
+    {
+      "id": "mcp-search-scope-pm",
+      "surface": "mcp",
+      "role": "pm",
+      "expected": {
+        "results": true,
+        "sameProject": true,
+        "foreignSecret": false
+      },
+      "actual": {
+        "results": true,
+        "sameProject": true,
+        "foreignSecret": false
+      },
+      "passed": true
+    },
+    {
+      "id": "mcp-answer-pm",
+      "surface": "mcp",
+      "role": "pm",
+      "expected": 201,
+      "actual": 201,
+      "passed": true
+    },
+    {
+      "id": "mcp-answer-foreign-citation-dropped-pm",
+      "surface": "mcp",
+      "role": "pm",
+      "expected": {
+        "citations": 0,
+        "dropped": 1
+      },
+      "actual": {
+        "citations": 0,
+        "dropped": 1
+      },
+      "passed": true
+    },
+    {
+      "id": "mcp-plan-pm",
+      "surface": "mcp",
+      "role": "pm",
+      "expected": 400,
+      "actual": 400,
+      "passed": true
+    },
+    {
+      "id": "mcp-complete-pm",
+      "surface": "mcp",
+      "role": "pm",
+      "expected": 200,
+      "actual": 200,
+      "passed": true
+    },
+    {
+      "id": "mcp-tasks-member",
+      "surface": "mcp",
+      "role": "member",
+      "expected": 200,
+      "actual": 200,
+      "passed": true
+    },
+    {
+      "id": "mcp-search-member",
+      "surface": "mcp",
+      "role": "member",
+      "expected": 200,
+      "actual": 200,
+      "passed": true
+    },
+    {
+      "id": "mcp-search-scope-member",
+      "surface": "mcp",
+      "role": "member",
+      "expected": {
+        "results": true,
+        "sameProject": true,
+        "foreignSecret": false
+      },
+      "actual": {
+        "results": true,
+        "sameProject": true,
+        "foreignSecret": false
+      },
+      "passed": true
+    },
+    {
+      "id": "mcp-answer-member",
+      "surface": "mcp",
+      "role": "member",
+      "expected": 201,
+      "actual": 201,
+      "passed": true
+    },
+    {
+      "id": "mcp-answer-foreign-citation-dropped-member",
+      "surface": "mcp",
+      "role": "member",
+      "expected": {
+        "citations": 0,
+        "dropped": 1
+      },
+      "actual": {
+        "citations": 0,
+        "dropped": 1
+      },
+      "passed": true
+    },
+    {
+      "id": "mcp-plan-member",
+      "surface": "mcp",
+      "role": "member",
+      "expected": 403,
+      "actual": 403,
+      "passed": true
+    },
+    {
+      "id": "mcp-complete-member",
+      "surface": "mcp",
+      "role": "member",
+      "expected": 200,
+      "actual": 200,
+      "passed": true
+    },
+    {
+      "id": "mcp-tasks-viewer",
+      "surface": "mcp",
+      "role": "viewer",
+      "expected": 200,
+      "actual": 200,
+      "passed": true
+    },
+    {
+      "id": "mcp-search-viewer",
+      "surface": "mcp",
+      "role": "viewer",
+      "expected": 200,
+      "actual": 200,
+      "passed": true
+    },
+    {
+      "id": "mcp-search-scope-viewer",
+      "surface": "mcp",
+      "role": "viewer",
+      "expected": {
+        "results": true,
+        "sameProject": true,
+        "foreignSecret": false
+      },
+      "actual": {
+        "results": true,
+        "sameProject": true,
+        "foreignSecret": false
+      },
+      "passed": true
+    },
+    {
+      "id": "mcp-answer-viewer",
+      "surface": "mcp",
+      "role": "viewer",
+      "expected": 403,
+      "actual": 403,
+      "passed": true
+    },
+    {
+      "id": "mcp-plan-viewer",
+      "surface": "mcp",
+      "role": "viewer",
+      "expected": 403,
+      "actual": 403,
+      "passed": true
+    },
+    {
+      "id": "mcp-complete-viewer",
+      "surface": "mcp",
+      "role": "viewer",
+      "expected": 403,
+      "actual": 403,
+      "passed": true
+    },
+    {
+      "id": "mcp-tasks-outsider",
+      "surface": "mcp",
+      "role": "outsider",
+      "expected": 404,
+      "actual": 404,
+      "passed": true
+    },
+    {
+      "id": "mcp-search-outsider",
+      "surface": "mcp",
+      "role": "outsider",
+      "expected": 404,
+      "actual": 404,
+      "passed": true
+    },
+    {
+      "id": "mcp-answer-outsider",
+      "surface": "mcp",
+      "role": "outsider",
+      "expected": 404,
+      "actual": 404,
+      "passed": true
+    },
+    {
+      "id": "mcp-plan-outsider",
+      "surface": "mcp",
+      "role": "outsider",
+      "expected": 404,
+      "actual": 404,
+      "passed": true
+    },
+    {
+      "id": "mcp-complete-outsider",
+      "surface": "mcp",
+      "role": "outsider",
+      "expected": 404,
+      "actual": 404,
+      "passed": true
+    },
+    {
+      "id": "mcp-token-not-session",
+      "surface": "mcp",
+      "role": "pm",
+      "expected": 401,
+      "actual": 401,
+      "passed": true
+    },
+    {
+      "id": "mcp-session-not-token",
+      "surface": "mcp",
+      "role": "pm",
+      "expected": 401,
+      "actual": 401,
+      "passed": true
+    },
+    {
+      "id": "mcp-csrf-header",
+      "surface": "mcp",
+      "role": "pm",
+      "expected": 403,
+      "actual": 403,
+      "passed": true
+    },
+    {
+      "id": "mcp-forged-token",
+      "surface": "mcp",
+      "role": "anonymous",
+      "expected": 401,
+      "actual": 401,
+      "passed": true
+    },
+    {
+      "id": "mcp-foreign-job",
+      "surface": "mcp",
+      "role": "member",
+      "expected": {
+        "status": 404,
+        "leaked": false
+      },
+      "actual": {
+        "status": 404,
+        "leaked": false
+      },
+      "passed": true
+    },
+    {
+      "id": "mcp-foreign-job-answer",
+      "surface": "mcp",
+      "role": "member",
+      "expected": 404,
+      "actual": 404,
+      "passed": true
+    },
+    {
+      "id": "admin-lock-owner",
+      "surface": "session",
+      "role": "admin",
+      "expected": 200,
+      "actual": 200,
+      "passed": true
+    },
+    {
+      "id": "mcp-token-locked",
+      "surface": "mcp",
+      "role": "owner",
+      "expected": 401,
+      "actual": 401,
+      "passed": true
+    },
+    {
+      "id": "admin-unlock-owner",
+      "surface": "session",
+      "role": "admin",
+      "expected": 200,
+      "actual": 200,
+      "passed": true
+    },
+    {
+      "id": "mcp-token-after-unlock",
+      "surface": "mcp",
+      "role": "owner",
+      "expected": 401,
+      "actual": 401,
+      "passed": true
+    },
+    {
+      "id": "session-after-unlock",
+      "surface": "session",
+      "role": "owner",
+      "expected": 401,
+      "actual": 401,
+      "passed": true
+    },
+    {
+      "id": "admin-force-logout-pm",
+      "surface": "session",
+      "role": "admin",
+      "expected": 200,
+      "actual": 200,
+      "passed": true
+    },
+    {
+      "id": "mcp-token-force-logout",
+      "surface": "mcp",
+      "role": "pm",
+      "expected": 401,
+      "actual": 401,
+      "passed": true
+    },
+    {
+      "id": "mcp-token-other-user-kept",
+      "surface": "mcp",
+      "role": "member",
+      "expected": 200,
+      "actual": 200,
+      "passed": true
+    },
+    {
+      "id": "refresh-rotation",
+      "surface": "session",
+      "role": "member",
+      "expected": 200,
+      "actual": 200,
+      "passed": true
+    },
+    {
+      "id": "refresh-reuse",
+      "surface": "session",
+      "role": "member",
+      "expected": 401,
+      "actual": 401,
+      "passed": true
+    },
+    {
+      "id": "refresh-reuse-revokes-family",
+      "surface": "session",
+      "role": "member",
+      "expected": 401,
+      "actual": 401,
+      "passed": true
+    },
+    {
+      "id": "ui-errors-owner",
+      "surface": "ui",
+      "role": "owner",
+      "expected": [],
+      "actual": [],
+      "passed": true
+    },
+    {
+      "id": "ui-status-pm",
+      "surface": "ui",
+      "role": "pm",
+      "expected": false,
+      "actual": false,
+      "passed": true
+    },
+    {
+      "id": "xss-pm",
+      "surface": "xss",
+      "role": "pm",
+      "expected": false,
+      "actual": false,
+      "passed": true
+    },
+    {
+      "id": "ui-errors-pm",
+      "surface": "ui",
+      "role": "pm",
+      "expected": [],
+      "actual": [],
+      "passed": true
+    },
+    {
+      "id": "ui-status-member",
+      "surface": "ui",
+      "role": "member",
+      "expected": false,
+      "actual": false,
+      "passed": true
+    },
+    {
+      "id": "xss-member",
+      "surface": "xss",
+      "role": "member",
+      "expected": false,
+      "actual": false,
+      "passed": true
+    },
+    {
+      "id": "ui-errors-member",
+      "surface": "ui",
+      "role": "member",
+      "expected": [],
+      "actual": [],
+      "passed": true
+    },
+    {
+      "id": "ui-status-viewer",
+      "surface": "ui",
+      "role": "viewer",
+      "expected": true,
+      "actual": true,
+      "passed": true
+    },
+    {
+      "id": "xss-viewer",
+      "surface": "xss",
+      "role": "viewer",
+      "expected": false,
+      "actual": false,
+      "passed": true
+    },
+    {
+      "id": "ui-errors-viewer",
+      "surface": "ui",
+      "role": "viewer",
+      "expected": [],
+      "actual": [],
+      "passed": true
+    }
+  ],
+  "status": "passed",
+  "limitations": "Automated isolated checks. Human UAT, independent review, hosted HTTPS and paid-provider quality remain separate gates."
+}

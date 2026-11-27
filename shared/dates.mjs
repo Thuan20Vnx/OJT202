@@ -1,10 +1,15 @@
 // Calendar policy shared by API and UI. Project reports/quota use one team zone;
 // personal deadlines and calendar views use the user's validated profile zone.
 export const BUSINESS_TIMEZONE = 'Asia/Ho_Chi_Minh';
+// Dựng Intl.DateTimeFormat rất tốn CPU và hàm này chạy ở mọi request đã đăng nhập (U031: ~5% CPU API).
+// Chỉ nhớ múi giờ HỢP LỆ – tập IANA hữu hạn – nên chuỗi rác không làm cache phình ra.
+const validZones = new Set();
 export const isTimeZone = (zone) => {
+  if (typeof zone !== 'string' || !zone || /^[+-]/.test(zone)) return false;
+  if (validZones.has(zone)) return true;
   try {
-    if (typeof zone !== 'string' || !zone || /^[+-]/.test(zone)) return false;
     new Intl.DateTimeFormat('en', { timeZone: zone }).format(0);
+    validZones.add(zone);
     return true;
   } catch {
     return false;

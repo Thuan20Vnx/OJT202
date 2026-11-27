@@ -1,0 +1,87 @@
+
+> test:e2e
+> npm run build && node --test --test-concurrency=1 test/e2e/sprint1.test.mjs
+
+
+> build
+> npm run typecheck && npm --prefix FrontEnd run build
+
+
+> typecheck
+> tsc -p BackEnd/tsconfig.json && tsc -p FrontEnd/tsconfig.json
+
+
+> taskflow-client@1.0.0 build
+> vite build
+
+vite v6.4.5 building for production...
+transforming...
+✓ 144 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                                          1.12 kB │ gzip:   0.66 kB
+dist/assets/inter-vietnamese-wght-normal-CBcvBZtf.woff2                 10.25 kB
+dist/assets/inter-greek-ext-wght-normal-DlzME5K_.woff2                  11.23 kB
+dist/assets/inter-cyrillic-wght-normal-DqGufNeO.woff2                   18.75 kB
+dist/assets/inter-greek-wght-normal-CkhJZR-_.woff2                      19.00 kB
+dist/assets/inter-cyrillic-ext-wght-normal-BOeWTOD4.woff2               25.96 kB
+dist/assets/inter-latin-wght-normal-Dx4kXJAl.woff2                      48.26 kB
+dist/assets/inter-latin-ext-wght-normal-DO1Apj_S.woff2                  85.07 kB
+dist/assets/material-symbols-outlined-latin-400-normal-BhEvR8fk.woff2  323.33 kB
+dist/assets/material-symbols-outlined-latin-400-normal-QdgSk6Ss.woff   379.56 kB
+dist/assets/index-DKYPFMdW.css                                          76.55 kB │ gzip:  13.68 kB
+dist/assets/Timeline-DJ__Vjc_.js                                         2.37 kB │ gzip:   1.30 kB
+dist/assets/Mentoring-DYLtXAhL.js                                        2.97 kB │ gzip:   1.24 kB
+dist/assets/Contributions-BOM0m70m.js                                    3.46 kB │ gzip:   1.68 kB
+dist/assets/TeamWorkload-BkjoJu1C.js                                     3.90 kB │ gzip:   1.85 kB
+dist/assets/Meetings-BGjnsauo.js                                         5.50 kB │ gzip:   2.33 kB
+dist/assets/Sprints-ty-e5BtZ.js                                          8.34 kB │ gzip:   3.12 kB
+dist/assets/Issues-CHgQ7Ng9.js                                           8.51 kB │ gzip:   2.94 kB
+dist/assets/Notifications-BYiNh2TE.js                                    9.81 kB │ gzip:   3.72 kB
+dist/assets/Admin-BLsklJoV.js                                           10.74 kB │ gzip:   3.62 kB
+dist/assets/Projects-CNzv8ADH.js                                        11.42 kB │ gzip:   4.26 kB
+dist/assets/Calendar-CqSIFI2Q.js                                        11.71 kB │ gzip:   4.10 kB
+dist/assets/Documents-Cfg0b-F-.js                                       14.38 kB │ gzip:   5.00 kB
+dist/assets/Ai-zUqOE4N3.js                                              41.70 kB │ gzip:  11.31 kB
+dist/assets/Settings-SWKqRQ0J.js                                        42.12 kB │ gzip:  11.63 kB
+dist/assets/index-CsWM02k-.js                                          532.83 kB │ gzip: 162.68 kB
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 1.66s
+[seed] Tạo dữ liệu demo Nhóm 24…
+[seed] Xong. Đăng nhập: mai.anh@nhom24.edu.vn / TaskFlow@2026  (System Admin: admin@taskflow.local)
+✔ Lộc Sprint 3: báo cáo mở nguồn thật; quản trị lỗi/thử lại, khóa và mở tài khoản (54137.8987ms)
+✔ Nhóm phát triển: nhật ký, phân bổ, issue, timeline, tải thành viên và lịch họp (6029.9044ms)
+✔ Bốn ngày task: tạo, sửa, reload giữ đúng kế hoạch và thực tế (3751.4629ms)
+✔ Như Sprint 2–4: My Tasks, comment retry/mention, nguồn tài liệu AI, capacity và responsive (4600.5848ms)
+✔ Lộc Sprint 2: tìm mô tả, checklist, PM ẩn bình luận và phụ thuộc thử lại khi lỗi (4225.7507ms)
+ℹ LSP2 -> HTTP 400: Mã dự án gồm 2–5 chữ cái
+ℹ LSP -> HTTP 201 with the same seeded owner and member
+✔ Như U031: My Tasks phân trang trên dataset 10.000 task (5151.8955ms)
+✔ U003/U007/U009: SMTP register/invite → task → remaining hours → Review/Done → realtime draft (13680.4925ms)
+✔ Như U009/U010: keyboard, API rollback, hai tab xung đột giữ draft và logout (10003.9337ms)
+✔ Hoàng Anh Sprint 2: thông báo hai tab, mất mạng, capacity tuần, preview xóa và CSV (9793.2404ms)
+✔ Hoàng Anh Sprint 3: planner hai tab, duyệt một lần, lý do xử lý rủi ro và biên bản có nguồn (26685.2304ms)
+[error] HttpError: Chưa gửi được email. Vui lòng thử gửi lại sau.
+    at mailUnavailable (file:///D:/Desktop/Nhom24/OJT202/BackEnd/src/services/mailer.js:27:31)
+    at sendMail (file:///D:/Desktop/Nhom24/OJT202/BackEnd/src/services/mailer.js:95:11)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async sendVerification (file:///D:/Desktop/Nhom24/OJT202/BackEnd/src/routes/auth.js:38:3)
+    at async file:///D:/Desktop/Nhom24/OJT202/BackEnd/src/routes/auth.js:61:3 {
+  status: 503,
+  details: { code: 'MAIL_UNAVAILABLE' }
+}
+✔ SMTP bị từ chối: màn hình cho gửi lại, không báo thư đã gửi thành công (3581.0913ms)
+✔ Hoàng Anh Sprint 4: telemetry AI rõ token chưa biết, CSV và mobile (3237.7309ms)
+✔ API v1: browser giữ refresh cookie đúng path, tự refresh và logout thu hồi phiên (2480.7478ms)
+ℹ tests 13
+ℹ suites 0
+ℹ pass 13
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 166853.7403

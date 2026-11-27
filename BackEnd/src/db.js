@@ -41,7 +41,7 @@ async function canConnect(pg) {
 
 /**
  * PostgreSQL nhúng (gói embedded-postgres – binary PostgreSQL thật) cho môi trường phát triển/test.
- * Dữ liệu dev lưu ở server/.data/pg; bản ephemeral dùng thư mục tạm và bị xóa khi dừng.
+ * Dữ liệu dev lưu ở BackEnd/.data/pg; bản ephemeral dùng thư mục tạm và bị xóa khi dừng.
  */
 async function startEmbedded(ephemeral) {
   const { default: EmbeddedPostgres } = await import('embedded-postgres');
@@ -135,6 +135,12 @@ export async function connectDb({ ephemeral = false } = {}) {
     console.log('[db] Đã kết nối PostgreSQL');
   }
   return prisma;
+}
+
+/** Readiness: ném lỗi khi chưa kết nối hoặc database không trả lời. */
+export async function pingDb() {
+  if (!prisma) throw new Error('Chưa kết nối database');
+  await prisma.$queryRaw`SELECT 1`;
 }
 
 export async function disconnectDb() {

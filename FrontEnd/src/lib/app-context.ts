@@ -11,7 +11,7 @@ export interface UserSummary {
   avatar?: string;
   isSystemAdmin?: boolean;
 }
-export interface WorkspaceSummary { _id: string; name: string; plan?: string; isMentor?: boolean; role: WorkspaceRole }
+export interface WorkspaceSummary { _id: string; name: string; plan?: string; isMentor?: boolean; role: WorkspaceRole; deletionScheduledAt?: string | null }
 export interface ProjectSummary {
   _id: string;
   name: string;
@@ -19,7 +19,7 @@ export interface ProjectSummary {
   status: 'active' | 'archived';
   projectRole: 'pm' | 'member' | 'viewer';
 }
-export interface WorkspaceSnapshot { workspace: WorkspaceSummary; role: WorkspaceRole; projects: ProjectSummary[] }
+export interface WorkspaceSnapshot { workspace: WorkspaceSummary; role: WorkspaceRole; realRole?: WorkspaceRole; projects: ProjectSummary[] }
 export interface AppContextValue {
   me: UserSummary | null | undefined;
   setMe: (user: UserSummary | null) => void;
@@ -30,6 +30,9 @@ export interface AppContextValue {
   setWsId: (id: string) => void;
   ws: WorkspaceSnapshot | null;
   role: WorkspaceRole | undefined;
+  /** Vai trò thật; role bị coi như viewer khi workspace đang chờ xóa. */
+  realRole: WorkspaceRole | undefined;
+  pendingDeletion: string | null;
   projects: ProjectSummary[];
   activeProjects: ProjectSummary[];
   project: ProjectSummary | null | undefined;

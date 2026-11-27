@@ -25,7 +25,7 @@ router.get('/', async (req, res) => {
   if (workspace) where.workspace = workspace;
   if (scope.project) where.project = scope.project;
   if (req.query.tab === 'unread') where.readAt = null;
-  else if (TAB_TYPES[req.query.tab]) where.type = { in: TAB_TYPES[req.query.tab] };
+  else if (typeof req.query.tab === 'string' && Object.hasOwn(TAB_TYPES, req.query.tab)) where.type = { in: TAB_TYPES[req.query.tab] };
   const { limit } = pagination(req.query, 30);
   if (req.query.cursor !== undefined) {
     try {

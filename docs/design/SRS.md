@@ -1,6 +1,6 @@
 # TaskFlow — đặc tả sản phẩm đang triển khai
 
-Version 2026-10-30. Phạm vi: mã nguồn local và baseline `DN26_CPL_Mock_Project_Nhom24 (2).xlsx`; bổ sung phần Hoàng Anh Sprint 2 theo `TaskFlow_Nhom24_SuaLoiNgay.xlsx`. Đây không phải biên bản nghiệm thu release. Hash source frontend/backend/AI/shared và Prisma: [manifest](source-manifest.json); tái sinh bằng `node scripts/generate-contract-docs.mjs`.
+Version nền 2026-10-30; review storage/quyền và ERD ngày 07/11/2026 theo Sprint 4 của Lộc. Phạm vi: mã nguồn local và baseline `DN26_CPL_Mock_Project_Nhom24 (2).xlsx`; bổ sung phần Hoàng Anh Sprint 2 theo `TaskFlow_Nhom24_SuaLoiNgay.xlsx`. Đây không phải biên bản nghiệm thu release. Hash source frontend/backend/AI/shared và Prisma: [manifest](source-manifest.json); tái sinh bằng `node scripts/generate-contract-docs.mjs`.
 
 ## Người dùng và quy trình
 
@@ -24,7 +24,7 @@ Phần bổ sung 03/11/2026: [phạm vi, công thức effort/workload, tiêu ch�
 | U016/U017 | Notification dedupe, Socket.io room theo quyền | Khởi tạo prefs đồng thời không xung đột; đọc đồng bộ nhiều tab; badge theo workspace và quyền hiện tại; reconnect resync; offline báo ngay, có refresh 30 giây khi tab hiện |
 | U018/U019 | Calendar/dependencies, overview và workload | Không self-link/cross-project/chu trình kể cả hai request đồng thời; dependency lặp không tăng version; Blocked suy ra và realtime cập nhật. Workload chỉ cộng task lá chưa Done/xóa đến hạn trước cuối tuần, gồm overdue; tách thiếu estimate/deadline; capacity workspace/user/week, 0 hợp lệ, CAS và audit |
 | U020 | Activity và CSV | Cùng ACL/bộ lọc ngày; phân trang ổn định; whitelist cột và chống ô công thức; vượt 10.000 dòng yêu cầu thu hẹp bộ lọc, không cắt dữ liệu âm thầm; audit chỉ đọc |
-| U021/U022 | AI preview/edit/approve, report draft/source/history | Không tạo task trước duyệt; approve lặp không trùng; số liệu report từ DB; nguồn đổi báo stale; lỗi lịch sử có Thử lại |
+| U021/U022 | AI preview/edit/approve, report draft/source/history | Không tạo task trước duyệt; approve lặp không trùng; số liệu report từ DB; nguồn đổi báo stale; báo cáo đã chia sẻ không sửa được; lỗi lịch sử có Thử lại |
 | U023/U025 | Quota, Q&A một project có citations | ACL trước/sau AI; Viewer không gọi ask; retrieval lỗi báo lỗi; không chứng cứ từ chối; không giả index nền |
 | U026 | Rủi ro theo quy tắc | Quá hạn/blocked/overload từ DB; nguồn overload chỉ gồm phần việc còn giờ của người đang được cảnh báo. AI chỉ diễn giải; PM/Member của dự án active mới được gọi, kiểm lại quyền sau AI; Viewer/archive vẫn đọc giải thích theo luật |
 | U028 (Should) | Admin account lock/audit đã có code | Không tự cấp admin; phiên đang mở bị chặn; không API đọc project của người khác |
@@ -70,11 +70,12 @@ PM có thể đưa task về todo/in_progress/review; chỉ thêm Done từ Revi
 ## Kiến trúc và quyết định kỹ thuật
 
 - FrontEnd React 18/Vite; TypeScript entry, component JS/JSX vẫn tồn tại, `checkJs=false`. Chưa coi là toàn bộ ứng dụng TypeScript.
-- Backend Express/Prisma/PostgreSQL; UUID nội bộ `id` serialize thành `_id` cho UI. Socket.io theo user/project room. Xem [ERD](ERD.md) cho 23 model và FK thật.
-- Upload lưu filesystem private trong UPLOAD_DIR, tải qua proxy có quyền; chưa phải object storage cloud. Backup phải bao gồm DB và UPLOAD_DIR.
+- Backend Express/Prisma/PostgreSQL; UUID nội bộ `id` serialize thành `_id` cho UI. Socket.io theo user/project room. Xem [ERD](ERD.md) cho 38 model và FK thật (tái sinh ngày 12/11/2026, gồm 4 bảng Agent MCP).
+- Upload lưu filesystem private trong UPLOAD_DIR hoặc Supabase Storage private khi cấu hình SUPABASE_URL/SUPABASE_SERVICE_KEY. Tải qua API kiểm quyền; sau khi chờ storage phải kiểm lại phiên và quyền trước khi trả byte/nội dung. Upload kiểm lại phiên/quyền trong transaction, xóa object vừa ghi nếu transaction bị từ chối. Backup phải gồm DB và nơi lưu object đang dùng.
 - Hook useLoad cô lập state theo dependency scope, bỏ response cũ, resync khi quyền đổi/kết nối lại. Chưa dùng thư viện query cache tập trung; không tuyên bố đã có distributed cache.
 - Q&A thu nguồn trực tiếp từ task/comment/text document, so fingerprint trước/sau AI; chưa có embeddings/chunks/vector index hay SQL intent chuyên dụng. `/ai/sources` là thống kê nhỏ để UI không tải hết task chỉ để đếm.
-- Có Claude tùy cấu hình; không khóa API thì AI nội bộ theo quy tắc. Kết quả offline không chứng minh chất lượng hoặc chi phí Claude thật.
+- AIService dùng chuỗi nhà cung cấp theo `AI_PROVIDER_ORDER` (mặc định Gemini → Groq → OpenRouter → Ollama), chỉ những cái có khóa/model mới được bật; lỗi hoặc hết hạn mức thì chuyển sang cái kế. Không cấu hình gì thì dùng AI nội bộ theo quy tắc. Nội dung dự án đã lọc quyền được gửi tới mọi nhà cung cấp có khóa. Kết quả offline không chứng minh chất lượng, độ trễ hay chi phí của nhà cung cấp thật.
+- Agent MCP (gói `mcp/`): người dùng chạy runner trên máy, web giao ba loại việc cố định (lập kế hoạch, hỏi đáp, biên bản họp) cho Claude Code/Codex/Antigravity của chính họ. Hỏi đáp trên web hiện chỉ chạy qua agent này; API `/ai/ask` vẫn còn cho client cũ và kiểm thử. Agent đọc và ghi qua `/api/mcp` bằng token `tfp_…` chỉ lưu hash, mang đúng quyền project của người tạo, không thay được cookie và ngược lại. Agent chỉ gửi bản nháp, báo cáo, câu trả lời và chuyển trạng thái theo luật như trên web; tạo việc vẫn do PM duyệt. Token bị thu hồi khi hết hạn, khi người dùng thu hồi, khi đặt lại hoặc đổi mật khẩu, khi System Admin khóa hoặc buộc đăng xuất; mở khóa không làm token cũ có hiệu lực lại. Đăng xuất thường không thu hồi token.
 - Health `/api/health` xác nhận HTTP process; chưa phải health/live + health/ready như bản kế hoạch đề xuất.
 
 ## Yêu cầu phi chức năng và giới hạn
@@ -86,8 +87,10 @@ Danh sách My Tasks/documents phân trang; lịch sử AI giới hạn 10/20. Ka
 Mục tiêu UAT ≥27/30, AI đúng ≥32/40, refusal ≥9/10, citation ≥90%, không rò rỉ trong 20 ca là ngưỡng của kế hoạch; xem [protocol](../validation/NHU_EVALUATION_UAT.md). Không công bố đạt trước khi chạy đúng bộ đề và chấm độc lập.
 ## Bổ sung hợp đồng Sprint 3 ngày 06/11/2026
 
-U022 lưu kỳ báo cáo mới dưới dạng `[period_start, period_end)`, UTC, theo `project.timezone` (mặc định `Asia/Ho_Chi_Minh`, PM có thể sửa bằng IANA timezone hợp lệ). UI chọn đến hết ngày và chuyển thành nửa đêm ngày tiếp theo theo lịch địa phương, kể cả ngày DST 23/25 giờ. Alias `from/to` với ngày thuần giữ trải nghiệm bao gồm ngày cuối; `to` timestamp là exclusive. Không trộn hai cặp trường. Báo cáo cũ được migration đánh dấu `legacy-inclusive`, không thay stats/from/to/generatedAt. Mỗi báo cáo mới giữ timezone riêng trong snapshot.
+U022 lưu kỳ báo cáo mới dưới dạng `[period_start, period_end)`, UTC, theo `project.timezone` (mặc định `Asia/Ho_Chi_Minh`, PM có thể sửa bằng IANA timezone hợp lệ). UI chọn đến hết ngày và chuyển thành nửa đêm ngày tiếp theo theo lịch địa phương, kể cả ngày DST 23/25 giờ. Alias `from/to` với ngày thuần giữ trải nghiệm bao gồm ngày cuối; `to` timestamp là exclusive. Không trộn hai cặp trường. Báo cáo cũ được migration đánh dấu `legacy-inclusive`, không thay stats/from/to/generatedAt. Mỗi báo cáo mới giữ timezone riêng trong snapshot. PM chỉ sửa tiêu đề/nội dung khi báo cáo còn nháp; **Lưu & chia sẻ** là bước publish, sau đó báo cáo là snapshot bất biến (API trả 409 `REPORT_SHARED` khi sửa). Cần cập nhật thì tạo báo cáo mới.
 
 U026 dùng capacity tuần nếu có, nếu thiếu thì dùng `membership.weeklyHours` đã cấu hình (schema mặc định công khai 20 giờ). UI nêu rõ nguồn mặc định. Không có cả hai dữ kiện thì capacity là `null`, tỷ lệ chưa xác định và không kết luận quá tải từ mẫu số giả. Số 0 được giữ nguyên. Đây là quy tắc dữ liệu mặc định, không phải khẳng định đã đo được 20 giờ khả dụng thực tế.
+
+Mỗi luật U026 có công tắc riêng: quá hạn (`overdue`, `overdueDays`), bị chặn bởi việc quá hạn (`blockedByOverdue`), quá tải (`overload`, `overloadPct`), đến hạn trong 24 giờ (`dueSoon`, `dueSoonProgressPct`) và chờ kiểm duyệt lâu (`reviewStale`, `reviewStaleDays`). Thiếu khóa trong cấu hình cũ nghĩa là luật đang bật. Tắt một luật không được làm mất cảnh báo của luật khác.
 
 U027 phân biệt phủ định hành động chính với yêu cầu âm trong mục đích/tiêu chí; giữ tên/hạn chưa chắc chắn ở trạng thái trống. Ngày “tuần sau” tính theo tuần lịch bắt đầu thứ Hai. Bộ hồi quy phát triển không thay thế đánh giá precision của hai người chấm.

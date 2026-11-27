@@ -5,13 +5,15 @@ import { isId, prisma } from '../db.js';
 import { requireAuth } from '../middleware/auth.js';
 import { logActivity } from '../services/activity.js';
 import { meUser } from '../services/serialize.js';
-import { badRequest, forbidden, notFound, parse } from '../utils/http.js';
+import { HttpError, badRequest, forbidden, notFound, parse } from '../utils/http.js';
 import { passwordIssues, sha256 } from '../utils/security.js';
 import { withWorkspaceLock } from '../services/membership.js';
 import { addMentorToProjects } from './workspaces.js';
 import { disconnectUser, refreshUserAccess } from '../services/realtime.js';
 import { withUserLock } from '../services/sessions.js';
+import { revokeAllAgentTokens } from '../services/agent-tokens.js';
 import { isTimeZone } from '../utils/dates.js';
+import { assertLoginAllowed, lockedMessage, recordLoginFailure } from '../services/throttle.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -85,7 +87,10 @@ router.post('/password', async (req, res) => {
   if (issues.length) throw badRequest(`Mật khẩu cần ${issues.join(', ')}`, { fields: { newPassword: issues.join(', ') } });
   if (Buffer.byteLength(body.currentPassword, 'utf8') > 72) throw badRequest('Mật khẩu hiện tại không đúng');
   const user = await prisma.user.findUnique({ where: { id: req.user.id }, omit: { passwordHash: false } });
+  // Dùng chung bộ đếm sai với đăng nhập: người cầm phiên của người khác không đoán mật khẩu vô hạn được.
+  await assertLoginAllowed(user.email);
   if (!(await bcrypt.compare(body.currentPassword, user.passwordHash))) {
+    if (!(await recordLoginFailure(user.email))) throw new HttpError(429, lockedMessage(), { code: 'LOGIN_LOCKED' });
     throw badRequest('Mật khẩu hiện tại không đúng', { fields: { currentPassword: 'Mật khẩu hiện tại không đúng' } });
   }
   const passwordHash = await bcrypt.hash(body.newPassword, 12);
@@ -95,6 +100,8 @@ router.post('/password', async (req, res) => {
     if (current.passwordHash !== user.passwordHash || !session || session.revokedAt || current.isLocked) throw forbidden('Thông tin đăng nhập đã thay đổi, vui lòng đăng nhập lại');
     await tx.user.update({ where: { id: user.id }, data: { passwordHash } });
     await tx.token.updateMany({ where: { user: user.id, type: { in: ['reset', 'verify'] }, usedAt: null }, data: { usedAt: new Date() } });
+    // Token agent có thể do người lấy được mật khẩu cũ tạo ra: đổi mật khẩu thì thu hồi, người dùng tạo lại token mới.
+    await revokeAllAgentTokens(tx, user.id);
     return revokeOthers(req, tx);
   });
   await disconnectUser(req.user.id);
@@ -153,7 +160,12 @@ router.post('/invites/:token/accept', async (req, res) => {
   if (!inv || inv.revokedAt || inv.acceptedAt || inv.expiresAt < new Date()) throw badRequest('Lời mời đã hết hạn hoặc không còn hiệu lực');
   if (inv.email !== req.user.email) throw forbidden(`Lời mời này dành cho ${inv.email}`);
   const userId = req.user.id;
+  const target = await prisma.workspace.findUnique({ where: { id: inv.workspace }, select: { deletionScheduledAt: true } });
+  if (target?.deletionScheduledAt) throw badRequest('Workspace này đang chờ xóa nên không nhận thành viên mới');
   await withWorkspaceLock(inv.workspace, async (tx) => {
+    // Người mời đã bị xóa khỏi workspace hoặc hạ xuống dưới Admin thì lời mời của họ không còn giá trị.
+    const inviter = inv.invitedBy && (await tx.membership.findUnique({ where: { workspace_user: { workspace: inv.workspace, user: inv.invitedBy } }, select: { role: true } }));
+    if (!inviter || !['owner', 'admin'].includes(inviter.role)) throw badRequest('Người mời không còn quyền quản trị workspace này nên lời mời đã hết hiệu lực. Hãy nhờ Owner/Admin mời lại.');
     const { count } = await tx.invite.updateMany({
       where: { id: inv.id, tokenHash: sha256(req.params.token), acceptedAt: null, revokedAt: null, expiresAt: { gt: new Date() } },
       data: { acceptedAt: new Date() },

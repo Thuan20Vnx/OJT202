@@ -20,7 +20,7 @@ const dateStr = z
 
 const projectBase = z
   .object({
-    name: z.string({ error: 'Vui lòng nhập tên dự án' }).trim().min(1, 'Vui lòng nhập tên dự án').max(100),
+    name: z.string({ error: 'Vui lòng nhập tên dự án' }).trim().min(1, 'Vui lòng nhập tên dự án').max(100, 'Tên dự án tối đa 100 ký tự'),
     description: z.string().trim().max(2000),
     color: z.enum(COLORS),
     timezone: z.string().refine(isTimeZone, 'Múi giờ dự án không hợp lệ'),
@@ -84,7 +84,8 @@ async function projectStats(projectIds) {
     SELECT project_id AS id,
            COUNT(*)::int AS total,
            COUNT(*) FILTER (WHERE status = 'done')::int AS done,
-           COUNT(*) FILTER (WHERE status <> 'done' AND "dueDate" IS NOT NULL AND "dueDate" < now())::int AS overdue
+           -- Cột thời gian không múi giờ, Prisma lưu theo UTC: so với giờ UTC, không phải giờ theo múi của phiên DB.
+           COUNT(*) FILTER (WHERE status <> 'done' AND "dueDate" IS NOT NULL AND "dueDate" < (now() AT TIME ZONE 'UTC'))::int AS overdue
     FROM tasks
     WHERE project_id = ANY(${projectIds}::uuid[]) AND parent_task_id IS NULL AND deleted_at IS NULL
     GROUP BY project_id`;
@@ -158,7 +159,7 @@ router.get('/projects/:projectId', middlewareProject(), async (req, res) => {
       ...project,
       members: project.members.map((m) => ({ ...m, role: roleOf[m.id]?.role, projectRole: projectMemberships.find((pm) => pm.user === m.id)?.role, weeklyHours: roleOf[m.id]?.weeklyHours ?? 20, jobTitle: roleOf[m.id]?.title })),
     },
-    access: { role: req.pa.role, projectRole: req.pa.projectRole, canWrite: req.pa.canWrite, canManage: req.pa.canManage },
+    access: { role: req.pa.role, projectRole: req.pa.projectRole, canWrite: req.pa.canWrite, canManage: req.pa.canManage, canComment: req.pa.canComment, canAsk: req.pa.canAsk, pendingDeletion: req.pa.pendingDeletion },
   });
 });
 
@@ -213,6 +214,7 @@ router.put('/projects/:projectId/risk-rules', middlewareProject(), async (req, r
         overloadPct: z.number().int().min(50).max(300),
         dueSoon: z.boolean(),
         dueSoonProgressPct: z.number().int().min(0).max(100),
+        reviewStale: z.boolean(),
         reviewStaleDays: z.number().int().min(1).max(30),
       })
       .partial(),
@@ -280,6 +282,23 @@ router.patch('/projects/:projectId/members/:userId', middlewareProject(), async 
 
 router.delete('/projects/:projectId/members/:userId', middlewareProject(), async (req, res) => {
   await changeMembers(req, res, (p) => ({ roster: p.memberships.filter((m) => m.user !== req.params.userId).map(({ user, role }) => ({ user, role })) }));
+});
+
+// Thành viên tự rời dự án. PM cuối cùng phải chuyển giao PM trước (saveProjectMembers chặn); việc đang giao cho người rời được gỡ người nhận.
+router.post('/projects/:projectId/leave', middlewareProject(), async (req, res) => {
+  const me = req.user.id;
+  await withWorkspaceLock(req.pa.project.workspace, async (tx) => {
+    await tx.$queryRaw`SELECT id FROM projects WHERE id = ${req.pa.project.id}::uuid FOR UPDATE`;
+    const cur = await tx.project.findUnique({ where: { id: req.pa.project.id }, include: { memberships: true } });
+    if (!cur?.memberships.some((m) => m.user === me)) throw badRequest('Bạn không còn là thành viên dự án');
+    const roster = cur.memberships.filter((m) => m.user !== me).map(({ user, role }) => ({ user, role }));
+    if (!roster.some((m) => m.role === 'pm')) throw badRequest('Bạn là PM duy nhất. Hãy chuyển giao PM cho người khác trước khi rời dự án');
+    const result = await saveProjectMembers(tx, cur, roster, cur.manager === me ? undefined : cur.manager, me);
+    await projectAudit(tx, result, me, 'Rời dự án', { members: cur.memberships }, { members: roster });
+  });
+  await refreshUserAccess(me);
+  await emitProject(req.pa.project.id, 'board:refresh', {});
+  res.json({ ok: true });
 });
 
 router.post('/projects/:projectId/transfer-manager', middlewareProject(), async (req, res) => {

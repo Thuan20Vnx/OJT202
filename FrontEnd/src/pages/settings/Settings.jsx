@@ -1,5 +1,5 @@
 import { t as tr, useI18n } from '../../lib/i18n.js';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { Icon, Tabs } from '../../components/ui.jsx';
 import { useApp } from '../../lib/app.jsx';
 import Members from './Members.jsx';
@@ -22,7 +22,8 @@ export default function Settings() {
   const navigate = useNavigate();
   const { role, ws } = useApp();
   const isAdmin = ['owner', 'admin'].includes(role);
-  const [title, sub] = HEAD[tab] || HEAD.members;
+  if (!['general', 'members', 'ai', 'activity', ...(isAdmin ? ['invites'] : [])].includes(tab)) return <Navigate to="/settings/members" replace />;
+  const [title, sub] = HEAD[tab];
   return (
     <div className="mx-auto max-w-7xl p-6">
       <div className="mb-4">

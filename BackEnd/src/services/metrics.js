@@ -65,11 +65,14 @@ export function scheduleProgress(tasks, now = new Date()) {
   };
   const scheduled = leaves.filter((t) => t.dueDate);
   const plannedPct = scheduled.length ? Math.round(average(scheduled, plannedOf)) : null;
+  const scheduledActualPct = scheduled.length ? Math.round(average(scheduled, actualOf)) : null;
   return {
     actualPct: Math.round(average(leaves, actualOf)),
     plannedPct,
+    // Thực tế của riêng các việc có hạn: đặt cạnh plannedPct để hai số so được với nhau.
+    scheduledActualPct,
     // So trên cùng tập việc có kế hoạch, việc chưa có hạn không làm lệch kết quả.
-    deltaPct: plannedPct == null ? null : Math.round(average(scheduled, actualOf)) - plannedPct,
+    deltaPct: plannedPct == null ? null : scheduledActualPct - plannedPct,
     unscheduled: leaves.length - scheduled.length,
   };
 }
@@ -92,14 +95,49 @@ export function labelStats(tasks) {
 }
 
 /** Số liệu tổng quan tính trực tiếp từ DB. Truyền sẵn `project` (đã tải khi kiểm quyền) để bớt một truy vấn. */
-export async function projectOverview(projectId, { from, to, project: given, now = new Date() } = {}) {
+/** Như populate(…, 'blockedBy', 'task', fields) nhưng tra trong danh sách việc chưa xóa của dự án đã tải sẵn. */
+function blockersFrom(all, rows, fields) {
+  const byId = new Map(all.map((t) => [t.id, t]));
+  for (const r of rows) {
+    r.blockedBy = r.blockedBy
+      .map((id) => byId.get(id))
+      .filter((b) => b && b.project === r.project)
+      .map((b) => Object.fromEntries([...fields, 'id'].map((f) => [f, b[f]])));
+  }
+}
+
+/** Như subtaskCounts nhưng tính từ danh sách việc chưa xóa đã tải sẵn. */
+function subtaskCountsFrom(all) {
+  const out = {};
+  for (const t of all) {
+    if (!t.parent) continue;
+    const s = (out[t.parent] ||= { total: 0, done: 0 });
+    s.total += 1;
+    if (t.status === 'done') s.done += 1;
+  }
+  return out;
+}
+
+/**
+ * `tasks` (tùy chọn): promise mọi việc chưa xóa của dự án, sắp theo number – trang Tổng quan tải MỘT lần rồi chia cho
+ * projectOverview và riskAlerts (mỗi hàm tự sao chép phần mình dùng vì populate sửa trực tiếp bản ghi).
+ */
+export async function projectOverview(projectId, { from, to, project: given, now = new Date(), withAssignee = false, tasks: givenTasks } = {}) {
   const sod = startOfDay(now);
   const [project, top, allTasks] = await Promise.all([
     loadProject(projectId, given),
-    prisma.task
-      .findMany({ where: { deletedAt: null, project: projectId, parent: null }, orderBy: { number: 'asc' } })
-      .then((r) => populate(r, 'blockedBy', 'task', { status: true, dueDate: true, key: true, title: true })),
-    prisma.task.findMany({ where: { deletedAt: null, project: projectId }, select: { id: true, parent: true, status: true, progressPct: true, estimateHours: true, plannedStartDate: true, dueDate: true, labels: true } }),
+    (givenTasks
+      ? Promise.resolve(givenTasks).then((all) => {
+          const top = structuredClone(all.filter((t) => t.parent === null));
+          blockersFrom(all, top, ['status', 'dueDate', 'key', 'title']);
+          return top;
+        })
+      : prisma.task
+          .findMany({ where: { deletedAt: null, project: projectId, parent: null }, orderBy: { number: 'asc' } })
+          .then((r) => populate(r, 'blockedBy', 'task', { status: true, dueDate: true, key: true, title: true })))
+      // withAssignee: nạp tên người nhận cùng lượt (trang Tổng quan), khỏi thêm một lượt đi-về sau cùng.
+      .then((r) => (withAssignee ? populate(r, 'assignee', 'user', { name: true, title: true }) : r)),
+    givenTasks ?? prisma.task.findMany({ where: { deletedAt: null, project: projectId }, select: { id: true, parent: true, status: true, progressPct: true, estimateHours: true, plannedStartDate: true, dueDate: true, labels: true } }),
   ]);
   const total = top.length;
   const done = top.filter((t) => t.status === 'done');
@@ -144,13 +182,18 @@ export async function workload(projectId, given, now = new Date(), db = prisma) 
   const project = await loadProject(projectId, given);
   const { end } = weekRange(now);
   const week = currentCapacityWeek(now);
-  const [tasks, memberships, users, capacities, projectMembers] = await Promise.all([
+  // Người dùng + membership workspace + vai trò dự án trong một câu SQL (trước đây 3 câu).
+  const [tasks, people, capacities] = await Promise.all([
     db.task.findMany({ where: { deletedAt: null, project: projectId, status: { not: 'done' }, OR: [{ assignee: { not: null } }, { contributors: { some: {} } }], subtasks: { none: { deletedAt: null } } }, include: { contributors: true } }),
-    db.membership.findMany({ where: { workspace: project.workspace, user: { in: project.members } } }),
-    db.user.findMany({ where: { id: { in: project.members } }, select: { id: true, name: true, email: true, title: true } }),
+    db.user.findMany({
+      where: { id: { in: project.members } },
+      select: { id: true, name: true, email: true, title: true, memberships: { where: { workspace: project.workspace } }, projectMemberships: { where: { project: projectId } } },
+    }),
     db.weeklyCapacity.findMany({ where: { workspace: project.workspace, user: { in: project.members }, weekStart: capacityWeek(week) } }),
-    db.projectMember.findMany({ where: { project: projectId } }),
   ]);
+  const users = people.map(({ memberships: _m, projectMemberships: _p, ...u }) => u);
+  const memberships = people.flatMap((u) => u.memberships);
+  const projectMembers = people.flatMap((u) => u.projectMemberships);
   return users
     .map((u) => {
       const m = memberships.find((x) => x.user === u.id);
@@ -189,25 +232,36 @@ export async function workload(projectId, given, now = new Date(), db = prisma) 
  * Key nhận diện quy tắc; sourceVersion nhận diện đúng đầu vào đã được xem xét.
  * Thời điểm đọc không nằm trong hash: cùng nguồn không tạo phiên bản giả mỗi lần refresh.
  */
-export async function riskAlerts(projectId, { project: given, load: givenLoad, now = new Date(), db = prisma } = {}) {
+export async function riskAlerts(projectId, { project: given, load: givenLoad, now = new Date(), db = prisma, tasks: givenTasks } = {}) {
   const project = await loadProject(projectId, given);
   const rules = project.riskRules || {};
   // Việc chưa xong + tải tuần + danh sách đã xử lý: chạy song song
   const [tasks, load, resolved] = await Promise.all([
-    db.task.findMany({ where: { deletedAt: null, project: projectId, status: { not: 'done' } }, orderBy: { number: 'asc' } }),
+    givenTasks
+      ? Promise.resolve(givenTasks).then((all) => structuredClone(all.filter((t) => t.status !== 'done')))
+      : db.task.findMany({ where: { deletedAt: null, project: projectId, status: { not: 'done' } }, orderBy: { number: 'asc' } }),
     rules.overload !== false ? (givenLoad ?? workload(projectId, project, now, db)) : null,
     db.riskResolution.findMany({ where: { project: projectId }, orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }] }).then((r) => populate(r, 'resolvedBy', 'user', { name: true }, db)),
   ]);
   // Việc chưa xong đang bị chặn bởi từng việc – tính từ id thô trước khi nạp blockedBy
   const blockingOf = {};
   for (const t of tasks) for (const b of t.blockedBy) (blockingOf[b] ||= []).push(t);
-  const [, subs] = await Promise.all([
-    populateAll(tasks, [
-      ['assignee', 'user', { name: true }],
-      ['blockedBy', 'task', { key: true, title: true, status: true, dueDate: true, project: true, version: true }],
-    ], db),
-    subtaskCounts(tasks.map((t) => t.id), db),
-  ]);
+  let subs;
+  if (givenTasks) {
+    // Việc chặn và số việc con tra trong danh sách đã tải: chỉ còn một câu SQL cho tên người nhận.
+    const all = await givenTasks;
+    blockersFrom(all, tasks, ['key', 'title', 'status', 'dueDate', 'project', 'version']);
+    subs = subtaskCountsFrom(all);
+    await populate(tasks, 'assignee', 'user', { name: true }, db);
+  } else {
+    [, subs] = await Promise.all([
+      populateAll(tasks, [
+        ['assignee', 'user', { name: true }],
+        ['blockedBy', 'task', { key: true, title: true, status: true, dueDate: true, project: true, version: true }],
+      ], db),
+      subtaskCounts(tasks.map((t) => t.id), db),
+    ]);
+  }
   for (const t of tasks) t.blockedBy = t.blockedBy.filter((b) => b.project === projectId);
   const ref = (t) => ({ id: t.id, key: t.key, title: t.title });
   const alerts = [];
@@ -301,6 +355,10 @@ export async function riskAlerts(projectId, { project: given, load: givenLoad, n
         });
       }
     }
+  }
+
+  // Luật riêng: tắt "Đến hạn trong 24 giờ" không được tắt ngầm cảnh báo chờ duyệt. Thiếu khóa (dự án cũ) = bật.
+  if (rules.reviewStale !== false) {
     for (const t of tasks) {
       if (t.status === 'review' && t.reviewSince) {
         const days = Math.floor((now - t.reviewSince) / 86400000);

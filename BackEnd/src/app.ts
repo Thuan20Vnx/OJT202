@@ -5,6 +5,7 @@ import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import helmet from 'helmet';
 import { config } from './config.js';
+import { pingDb } from './db.js';
 import { csrfGuard, requireAuth } from './middleware/auth.js';
 import { myTasksFromQuery } from './services/my-tasks.js';
 import { errorHandler } from './utils/http.js';
@@ -23,6 +24,8 @@ import adminRoutes from './routes/admin.js';
 import devRoutes from './routes/dev.js';
 import deliveryRoutes from './routes/delivery.js';
 import planningRoutes from './routes/planning.js';
+import agentRoutes from './routes/agent.js';
+import mcpRoutes from './routes/mcp.js';
 
 export function createApp(options: { staticDir?: string } = {}): express.Express {
   const app = express();
@@ -55,6 +58,26 @@ export function createApp(options: { staticDir?: string } = {}): express.Express
 
   const api = express.Router();
   api.get('/health', (_req, res) => { res.setHeader('Cache-Control', 'no-store'); res.json({ ok: true, time: new Date().toISOString(), build: config.release }); });
+  // Readiness cho load balancer/Docker: chỉ báo sẵn sàng khi truy vấn được database (liveness ở /health).
+  api.get('/health/ready', async (_req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    const started = Date.now();
+    let timer;
+    try {
+      const timeout = new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('timeout')), 3000); });
+      await Promise.race([pingDb(), timeout]);
+      res.json({ ok: true, db: 'up', dbLatencyMs: Date.now() - started, build: config.release });
+    } catch {
+      res.status(503).json({ ok: false, db: 'down', build: config.release });
+    } finally {
+      clearTimeout(timer);
+    }
+  });
+  // PostgreSQL không nhận ký tự NUL trong chuỗi: chặn sớm %00 trong đường dẫn để trả 400 thay vì 500.
+  api.use((req, res, next) => (/%00/.test(req.path) ? res.status(400).json({ error: 'Đường dẫn không được chứa ký tự NUL' }) : next()));
+  // Tham số query (kể cả dạng mảng/đối tượng) cũng không được có NUL hay ký tự UTF-16 lẻ: PostgreSQL từ chối → 500.
+  const badText = (v: unknown): boolean => (typeof v === 'string' ? v.includes('\u0000') || !(v as unknown as { isWellFormed(): boolean }).isWellFormed() : Array.isArray(v) ? v.some(badText) : !!v && typeof v === 'object' && Object.values(v).some(badText));
+  api.use((req, res, next) => (badText(req.query) ? res.status(400).json({ error: 'Tham số không được chứa ký tự NUL hoặc ký tự không hợp lệ' }) : next()));
   api.use(csrfGuard);
   api.get(['/tasks', '/me/tasks'], requireAuth, myTasksFromQuery);
   api.use('/auth', authRoutes);
@@ -62,8 +85,9 @@ export function createApp(options: { staticDir?: string } = {}): express.Express
   api.use('/workspaces', workspaceRoutes, capacityRoutes);
   api.use('/notifications', notificationRoutes);
   api.use('/admin', adminRoutes);
+  api.use('/mcp', mcpRoutes);
   if (!config.isProd) api.use('/dev', devRoutes);
-  api.use(projectRoutes, taskRoutes, documentRoutes, dashboardRoutes, aiRoutes, deliveryRoutes, planningRoutes);
+  api.use(projectRoutes, taskRoutes, documentRoutes, dashboardRoutes, aiRoutes, deliveryRoutes, planningRoutes, agentRoutes);
   api.use((_req, res) => res.status(404).json({ error: 'Không tìm thấy API' }));
   // Both paths share handlers, access checks and rate-limit state.
   app.use('/api/v1', api);
@@ -79,7 +103,8 @@ export function createApp(options: { staticDir?: string } = {}): express.Express
       if (path.extname(req.path)) return res.status(404).type('text').send('Không tìm thấy tệp');
       if (!req.accepts('html')) return next();
       res.setHeader('Cache-Control', 'no-store');
-      return res.sendFile(path.join(dist, 'index.html'));
+      // Dùng root để thư mục cha có dấu chấm (vd worktree trong .claude/) không bị send coi là dotfile.
+      return res.sendFile('index.html', { root: dist });
     });
   }
 

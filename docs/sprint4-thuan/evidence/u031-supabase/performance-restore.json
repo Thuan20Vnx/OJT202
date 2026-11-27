@@ -1,0 +1,304 @@
+{
+  "schemaVersion": 1,
+  "kind": "performance-restore",
+  "build": {
+    "revision": "d3c45a67773d40793c548d2ade0049b39d53fa15",
+    "sourceHash": "ff6088a81166968836299ed267b13c6d5b0f6b1a553287241c3cb1ceb0b3b2db",
+    "sourceHashAlgorithm": "sha256-lf-v1",
+    "promptHash": "533c2c256becc980797bb51826a44b4399e82a829895af6c7a668f2bc6ed05ac",
+    "dirty": true,
+    "node": "v24.21.0"
+  },
+  "createdAt": "2026-11-18T17:14:51.676Z",
+  "environment": "Windows_NT 10.0.26300 x64; 16× AMD Ryzen 9 8945HS w/ Radeon 780M Graphics; RAM 15 GB; Node v24.21.0; PostgreSQL 17.11 on x86_64-pc-linux-gnu aws-0-ap-southeast-1.pooler.supabase.com (schema perf_u031); API + client trên máy, DB qua Internet",
+  "method": {
+    "virtualUsers": 50,
+    "loginsExcluded": "đăng nhập xong trước khi bắt đầu đo",
+    "iterationsPerUser": 6,
+    "thinkTimeMs": [
+      1000,
+      3000
+    ],
+    "requestsPerIteration": 10,
+    "readEndpoints": [
+      "GET /me",
+      "GET my-tasks",
+      "GET projects",
+      "GET board",
+      "GET overview",
+      "GET task",
+      "GET comments",
+      "GET search",
+      "GET notifications"
+    ],
+    "note": "Mỗi người dùng ảo đăng nhập bằng tài khoản riêng, chỉ đọc dự án mình tham gia; đo từ trước fetch đến khi đọc xong body."
+  },
+  "dataset": {
+    "users": 50,
+    "projects": 20,
+    "taskCount": 10050,
+    "projectTasks": 10000,
+    "comments": 5000,
+    "files": 40,
+    "tasksPerProject": 500
+  },
+  "virtualUsers": 50,
+  "taskCount": 10050,
+  "readRequests": 2700,
+  "writeRequests": 300,
+  "p95Ms": 502,
+  "reads": {
+    "requests": 2700,
+    "errors": 0,
+    "p50Ms": 217.7,
+    "p95Ms": 502,
+    "p99Ms": 823.7,
+    "maxMs": 1001.5
+  },
+  "writes": {
+    "requests": 300,
+    "errors": 0,
+    "p50Ms": 485.4,
+    "p95Ms": 610.1,
+    "p99Ms": 749.6,
+    "maxMs": 796
+  },
+  "byEndpoint": {
+    "GET /me": {
+      "requests": 300,
+      "errors": 0,
+      "p50Ms": 104.8,
+      "p95Ms": 426.6,
+      "p99Ms": 674.5,
+      "maxMs": 734.1
+    },
+    "GET my-tasks": {
+      "requests": 300,
+      "errors": 0,
+      "p50Ms": 229,
+      "p95Ms": 439.7,
+      "p99Ms": 564.1,
+      "maxMs": 607.6
+    },
+    "GET projects": {
+      "requests": 300,
+      "errors": 0,
+      "p50Ms": 240.3,
+      "p95Ms": 397.8,
+      "p99Ms": 530.5,
+      "maxMs": 546.3
+    },
+    "GET board": {
+      "requests": 300,
+      "errors": 0,
+      "p50Ms": 376.9,
+      "p95Ms": 601,
+      "p99Ms": 769.1,
+      "maxMs": 918.1
+    },
+    "GET overview": {
+      "requests": 300,
+      "errors": 0,
+      "p50Ms": 322.8,
+      "p95Ms": 864.1,
+      "p99Ms": 938.4,
+      "maxMs": 1001.5
+    },
+    "GET task": {
+      "requests": 300,
+      "errors": 0,
+      "p50Ms": 175.4,
+      "p95Ms": 366.5,
+      "p99Ms": 733.8,
+      "maxMs": 817.2
+    },
+    "GET comments": {
+      "requests": 300,
+      "errors": 0,
+      "p50Ms": 186.8,
+      "p95Ms": 279.2,
+      "p99Ms": 397.7,
+      "maxMs": 476
+    },
+    "GET search": {
+      "requests": 300,
+      "errors": 0,
+      "p50Ms": 229.7,
+      "p95Ms": 373.1,
+      "p99Ms": 472.4,
+      "maxMs": 503.4
+    },
+    "GET notifications": {
+      "requests": 300,
+      "errors": 0,
+      "p50Ms": 107,
+      "p95Ms": 158.1,
+      "p99Ms": 210.3,
+      "maxMs": 372.9
+    },
+    "POST comment": {
+      "requests": 300,
+      "errors": 0,
+      "p50Ms": 485.4,
+      "p95Ms": 610.1,
+      "p99Ms": 749.6,
+      "maxMs": 796
+    }
+  },
+  "durationSec": 145.5,
+  "throughputRps": 20.6,
+  "explains": [
+    {
+      "sql": "SELECT \"t0\".\"id\", \"t0\".\"remember\", \"t0\".\"user_id\" AS \"user\", \"t0\".\"refreshHash\", \"t0\".\"family\", \"t0\".\"userAgent\", \"t0\".\"ip\", \"t0\".\"lastUsedAt\", \"t0\".\"expiresAt\", \"t0\".\"revokedAt\", \"t0\".\"replacedBy\", \"t0\".\"createdAt\", \"t0\".\"updatedAt\", \"Session_userRef\".\"__prisma_data__\" AS \"userRef\" FROM \"perf_u031\".\"sessions\" AS \"t0\" LEFT JOIN LATERAL (SELECT JSONB_BUILD_OBJECT('id', \"t1\".\"id\", 'email', \"t1\".\"email\", 'name', \"t1\".\"name\", 'googleId', \"t1\".\"googleId\", 'emailVerified', \"t1\".\"emailVerified\", 'title', \"t1\".\"title\", 'timezone', \"t1\".\"timezone\", 'language', \"t1\".\"language\", 'isSystemAdmin', \"t1\".\"is…",
+      "calls": 3000,
+      "totalMs": 145585,
+      "avgMs": 48.5,
+      "maxMs": 319,
+      "executionMs": 2.2,
+      "scans": [
+        "Seq Scan on sessions",
+        "Index Scan (users_pkey) on users"
+      ],
+      "seqScanRows": 53
+    },
+    {
+      "sql": "SELECT \"t0\".\"id\", \"t0\".\"timezone\", \"t0\".\"workspace_id\" AS \"workspace\", \"t0\".\"name\", \"t0\".\"description\", \"t0\".\"color\", \"t0\".\"keyPrefix\", \"t0\".\"startDate\", \"t0\".\"endDate\", \"t0\".\"status\"::text, \"t0\".\"members\", \"t0\".\"manager_id\" AS \"manager\", \"t0\".\"sprint\", \"t0\".\"riskRules\", \"t0\".\"riskRulesVersion\", \"t0\".\"agent_daily\" AS \"agentDaily\", \"t0\".\"agent_daily_time\" AS \"agentDailyTime\", \"t0\".\"created_by_id\" AS \"createdBy\", \"t0\".\"createdAt\", \"t0\".\"updatedAt\", \"Project_workspaceRef\".\"__prisma_data__\" AS \"workspaceRef\", \"Project_memberships\".\"__prisma_data__\" AS \"memberships\" FROM \"perf_u031\".\"projects\" AS \"…",
+      "calls": 900,
+      "totalMs": 44492,
+      "avgMs": 49.4,
+      "maxMs": 109,
+      "executionMs": 2.4,
+      "scans": [
+        "Seq Scan on projects",
+        "Seq Scan on workspaces",
+        "Seq Scan on memberships",
+        "Index Scan (project_members_pkey) on project_members"
+      ],
+      "seqScanRows": 73
+    },
+    {
+      "sql": "SELECT \"t0\".\"id\", \"t0\".\"workspace_id\" AS \"workspace\", \"t0\".\"project_id\" AS \"project\", \"t0\".\"number\", \"t0\".\"key\", \"t0\".\"title\", \"t0\".\"description\", \"t0\".\"acceptance_criteria\" AS \"acceptanceCriteria\", \"t0\".\"status\"::text, \"t0\".\"priority\"::text, \"t0\".\"assignee_id\" AS \"assignee\", \"t0\".\"creator_id\" AS \"creator\", \"t0\".\"dueDate\", \"t0\".\"plannedStartDate\", \"t0\".\"actualStartDate\", \"t0\".\"actualEndDate\", \"t0\".\"estimateHours\", \"t0\".\"spentHours\", \"t0\".\"legacySpentHours\", \"t0\".\"workType\", \"t0\".\"progressPct\", \"t0\".\"remainingHours\", \"t0\".\"deleted_at\" AS \"deletedAt\", \"t0\".\"labels\", \"t0\".\"sprint\", \"t0\".\"parent_t…",
+      "calls": 900,
+      "totalMs": 43891,
+      "avgMs": 48.8,
+      "maxMs": 118,
+      "executionMs": 1.2,
+      "scans": [
+        "Index Scan (tasks_pkey) on tasks",
+        "Seq Scan on task_contributors",
+        "Seq Scan on projects",
+        "Seq Scan on workspaces",
+        "Seq Scan on memberships",
+        "Index Scan (project_members_pkey) on project_members"
+      ],
+      "seqScanRows": 80
+    },
+    {
+      "sql": "SELECT \"t0\".\"id\", \"t0\".\"name\", \"t0\".\"email\", \"t0\".\"title\" FROM \"perf_u031\".\"users\" AS \"t0\" WHERE \"t0\".\"id\" IN ($1)",
+      "calls": 750,
+      "totalMs": 36175,
+      "avgMs": 48.2,
+      "maxMs": 111,
+      "executionMs": 0.1,
+      "scans": [
+        "Index Scan (users_pkey) on users"
+      ],
+      "seqScanRows": 0
+    },
+    {
+      "sql": "SELECT \"t0\".\"id\", \"t0\".\"workspace_id\" AS \"workspace\", \"t0\".\"project_id\" AS \"project\", \"t0\".\"number\", \"t0\".\"key\", \"t0\".\"title\", \"t0\".\"description\", \"t0\".\"acceptance_criteria\" AS \"acceptanceCriteria\", \"t0\".\"status\"::text, \"t0\".\"priority\"::text, \"t0\".\"assignee_id\" AS \"assignee\", \"t0\".\"creator_id\" AS \"creator\", \"t0\".\"dueDate\", \"t0\".\"plannedStartDate\", \"t0\".\"actualStartDate\", \"t0\".\"actualEndDate\", \"t0\".\"estimateHours\", \"t0\".\"spentHours\", \"t0\".\"legacySpentHours\", \"t0\".\"workType\", \"t0\".\"progressPct\", \"t0\".\"remainingHours\", \"t0\".\"deleted_at\" AS \"deletedAt\", \"t0\".\"labels\", \"t0\".\"sprint\", \"t0\".\"parent_t…",
+      "calls": 300,
+      "totalMs": 35739,
+      "avgMs": 119.1,
+      "maxMs": 392,
+      "executionMs": 20.4,
+      "scans": [
+        "Bitmap Heap Scan on tasks",
+        "Bitmap Index Scan (tasks_project_id_aiDraftItem_key)",
+        "Seq Scan on task_contributors",
+        "Index Scan (users_pkey) on users",
+        "Index Scan (users_pkey) on users",
+        "Index Scan (users_pkey) on users",
+        "Seq Scan on checklist_items",
+        "Index Scan (tasks_parent_task_id_idx) on tasks",
+        "Index Scan (comments_task_id_idx) on comments",
+        "Index Only Scan (documents_task_id_idx) on documents",
+        "Seq Scan on task_daily_updates"
+      ],
+      "seqScanRows": 4
+    },
+    {
+      "sql": "SELECT \"t0\".\"id\", \"t0\".\"workspace_id\" AS \"workspace\", \"t0\".\"user_id\" AS \"user\", \"t0\".\"role\"::text, \"t0\".\"title\", \"t0\".\"weeklyHours\", \"t0\".\"specialties\", \"t0\".\"isMentor\", \"t0\".\"createdAt\", \"t0\".\"updatedAt\", \"Membership_workspaceRef\".\"__prisma_data__\" AS \"workspaceRef\" FROM \"perf_u031\".\"memberships\" AS \"t0\" LEFT JOIN LATERAL (SELECT JSONB_BUILD_OBJECT('id', \"t1\".\"id\", 'name', \"t1\".\"name\", 'slug', \"t1\".\"slug\", 'owner', \"t1\".\"owner_id\", 'size', \"t1\".\"size\", 'plan', \"t1\".\"plan\", 'ai', \"t1\".\"ai\", 'createdAt', \"t1\".\"createdAt\", 'updatedAt', \"t1\".\"updatedAt\", 'deletionScheduledAt', \"t1\".\"deletion_sche…",
+      "calls": 600,
+      "totalMs": 29220,
+      "avgMs": 48.7,
+      "maxMs": 104,
+      "executionMs": 0.1,
+      "scans": [
+        "Seq Scan on memberships",
+        "Seq Scan on workspaces"
+      ],
+      "seqScanRows": 34
+    },
+    {
+      "sql": "SELECT \"t0\".\"id\", \"t0\".\"workspace_id\" AS \"workspace\", \"t0\".\"project_id\" AS \"project\", \"t0\".\"number\", \"t0\".\"key\", \"t0\".\"title\", \"t0\".\"description\", \"t0\".\"acceptance_criteria\" AS \"acceptanceCriteria\", \"t0\".\"status\"::text, \"t0\".\"priority\"::text, \"t0\".\"assignee_id\" AS \"assignee\", \"t0\".\"creator_id\" AS \"creator\", \"t0\".\"dueDate\", \"t0\".\"plannedStartDate\", \"t0\".\"actualStartDate\", \"t0\".\"actualEndDate\", \"t0\".\"estimateHours\", \"t0\".\"spentHours\", \"t0\".\"legacySpentHours\", \"t0\".\"workType\", \"t0\".\"progressPct\", \"t0\".\"remainingHours\", \"t0\".\"deleted_at\" AS \"deletedAt\", \"t0\".\"labels\", \"t0\".\"sprint\", \"t0\".\"parent_t…",
+      "calls": 300,
+      "totalMs": 26063,
+      "avgMs": 86.9,
+      "maxMs": 283,
+      "executionMs": 32,
+      "scans": [
+        "Bitmap Heap Scan on tasks",
+        "Bitmap Index Scan (tasks_project_id_aiDraftItem_key)",
+        "Seq Scan on task_contributors",
+        "Index Scan (users_pkey) on users",
+        "Index Scan (users_pkey) on users",
+        "Index Scan (users_pkey) on users",
+        "Seq Scan on checklist_items",
+        "Index Scan (tasks_parent_task_id_idx) on tasks",
+        "Index Scan (comments_task_id_idx) on comments",
+        "Index Only Scan (documents_task_id_idx) on documents",
+        "Seq Scan on task_daily_updates"
+      ],
+      "seqScanRows": 4
+    },
+    {
+      "sql": "SELECT \"t0\".\"id\", \"t0\".\"workspace_id\" AS \"workspace\", \"t0\".\"project_id\" AS \"project\", \"t0\".\"number\", \"t0\".\"key\", \"t0\".\"title\", \"t0\".\"description\", \"t0\".\"acceptance_criteria\" AS \"acceptanceCriteria\", \"t0\".\"status\"::text, \"t0\".\"priority\"::text, \"t0\".\"assignee_id\" AS \"assignee\", \"t0\".\"creator_id\" AS \"creator\", \"t0\".\"dueDate\", \"t0\".\"plannedStartDate\", \"t0\".\"actualStartDate\", \"t0\".\"actualEndDate\", \"t0\".\"estimateHours\", \"t0\".\"spentHours\", \"t0\".\"legacySpentHours\", \"t0\".\"workType\", \"t0\".\"progressPct\", \"t0\".\"remainingHours\", \"t0\".\"deleted_at\" AS \"deletedAt\", \"t0\".\"labels\", \"t0\".\"sprint\", \"t0\".\"parent_t…",
+      "calls": 300,
+      "totalMs": 23936,
+      "avgMs": 79.8,
+      "maxMs": 190,
+      "executionMs": 58.1,
+      "scans": [
+        "Seq Scan on tasks",
+        "Seq Scan on task_contributors",
+        "Index Only Scan (projects_pkey) on projects",
+        "Seq Scan on task_contributors",
+        "Index Scan (users_pkey) on users",
+        "Seq Scan on projects",
+        "Index Scan (project_members_pkey) on project_members",
+        "Seq Scan on checklist_items",
+        "Index Scan (tasks_parent_task_id_idx) on tasks",
+        "Index Scan (comments_task_id_idx) on comments",
+        "Index Only Scan (project_members_pkey) on project_members"
+      ],
+      "seqScanRows": 10069
+    }
+  ],
+  "backup": {
+    "durationMs": 13352,
+    "dumpBytes": 920595,
+    "files": 42,
+    "tables": 39,
+    "rows": 15864,
+    "migrations": 27
+  },
+  "restore": {
+    "durationMs": 24178,
+    "files": 42,
+    "mismatchedTables": [],
+    "target": "xóa schema perf_u031 rồi khôi phục lại trên cùng database"
+  },
+  "backupHash": "47364d522f98c01ffdd1ad207c5a58e2be9eb0b10d324dcbe81136128369baf1",
+  "restoreVerified": true
+}

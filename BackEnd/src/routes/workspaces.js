@@ -16,6 +16,7 @@ import { badRequest, conflict, forbidden, notFound, parse } from '../utils/http.
 import { pagination } from '../utils/http.js';
 import { randomToken, sha256, slugify, toCsv } from '../utils/security.js';
 import { enforce } from '../services/throttle.js';
+import { DELETION_DELAY_MS, announceDeletion } from '../services/workspace-deletion.js';
 import { isDateInput, parseDate, startOfDay } from '../utils/dates.js';
 
 const router = Router();
@@ -74,6 +75,42 @@ router.patch('/:wsId', middlewareWorkspace('wsId', 'admin'), async (req, res) =>
     });
     return updated;
   });
+  res.json({ workspace: ws });
+});
+
+// ---------- Xóa workspace (hẹn 24 giờ) ----------
+// Không dùng middlewareWorkspace cho 2 route này: middleware chặn mọi thao tác ghi khi workspace đang chờ xóa, mà Owner vẫn phải hủy được.
+router.post('/:wsId/deletion', async (req, res) => {
+  const body = parse(z.object({ name: z.string({ error: 'Gõ lại tên workspace để xác nhận' }).trim().min(1, 'Gõ lại tên workspace để xác nhận') }).strict(), req.body);
+  const ws = await withWorkspaceLock((await workspaceAccess(req.user.id, req.params.wsId)).workspace.id, async (tx) => {
+    const fresh = await workspaceAccess(req.user.id, req.params.wsId, tx);
+    if (fresh.role !== 'owner') throw forbidden('Chỉ Owner được xóa workspace');
+    if (fresh.workspace.deletionScheduledAt) throw conflict('Workspace đã được hẹn xóa', { workspace: fresh.workspace });
+    if (body.name !== fresh.workspace.name) throw badRequest('Tên workspace không khớp', { fields: { name: 'Gõ lại đúng tên workspace' } });
+    const updated = await tx.workspace.update({ where: { id: fresh.workspace.id }, data: { deletionScheduledAt: new Date(Date.now() + DELETION_DELAY_MS), deletionRequestedBy: req.user.id } });
+    await logActivityIn(tx, {
+      workspace: updated.id, actor: req.user.id, action: 'Yêu cầu xóa workspace',
+      entityType: 'workspace', entityId: updated.id, entityLabel: updated.name,
+    });
+    return updated;
+  });
+  await announceDeletion(ws, 'scheduled', { by: req.user.name, actor: req.user.id });
+  res.json({ workspace: ws });
+});
+
+router.delete('/:wsId/deletion', async (req, res) => {
+  const { before, ws } = await withWorkspaceLock((await workspaceAccess(req.user.id, req.params.wsId)).workspace.id, async (tx) => {
+    const fresh = await workspaceAccess(req.user.id, req.params.wsId, tx);
+    if (fresh.role !== 'owner') throw forbidden('Chỉ Owner được hủy xóa workspace');
+    if (!fresh.workspace.deletionScheduledAt) throw conflict('Workspace không có yêu cầu xóa nào', { workspace: fresh.workspace });
+    const updated = await tx.workspace.update({ where: { id: fresh.workspace.id }, data: { deletionScheduledAt: null, deletionRequestedBy: null } });
+    await logActivityIn(tx, {
+      workspace: updated.id, actor: req.user.id, action: 'Hủy xóa workspace',
+      entityType: 'workspace', entityId: updated.id, entityLabel: updated.name,
+    });
+    return { before: fresh.workspace, ws: updated };
+  });
+  await announceDeletion({ ...ws, deletionScheduledAt: before.deletionScheduledAt }, 'cancelled', { by: req.user.name, actor: req.user.id });
   res.json({ workspace: ws });
 });
 
@@ -311,14 +348,32 @@ router.post('/:wsId/invites', middlewareWorkspace('wsId', 'admin'), async (req, 
     if (projects.length !== new Set(body.projects).size) throw badRequest('Dự án không thuộc workspace hoặc đã lưu trữ');
     const created = [];
     const skipped = [];
+    const added = [];
     for (const email of [...new Set(body.emails)]) {
       const existingUser = await tx.user.findUnique({ where: { email }, select: { id: true } });
-      if (existingUser && (await tx.membership.findUnique({ where: { workspace_user: { workspace: ws.id, user: existingUser.id } } }))) {
-        skipped.push({ email, reason: 'Đã là thành viên' });
+      const member = existingUser && (await tx.membership.findUnique({ where: { workspace_user: { workspace: ws.id, user: existingUser.id } } }));
+      if (member) {
+        // Đã ở trong workspace: mời kèm dự án thì thêm thẳng vào các dự án đó thay vì bỏ qua.
+        const joined = [];
+        for (const p of projects) {
+          const exists = await tx.projectMember.findUnique({ where: { project_user: { project: p.id, user: member.user } } });
+          if (exists) continue;
+          await tx.projectMember.create({ data: { project: p.id, user: member.user, role: member.role === 'viewer' ? 'viewer' : 'member' } });
+          await tx.project.update({ where: { id: p.id }, data: { members: { push: member.user } } });
+          joined.push(p.id);
+        }
+        if (joined.length) added.push({ email, user: member.user, projects: joined });
+        else skipped.push({ email, reason: 'Đã là thành viên' });
         continue;
       }
       const pending = await tx.invite.findFirst({ where: { workspace: ws.id, email, acceptedAt: null, revokedAt: null, role: 'admin' } });
       if (pending && fresh.role !== 'owner') throw forbidden('Chỉ Owner được thay đổi lời mời Admin');
+      // Mời lại cùng email: lời mời cũ bị thay, nhưng giữ các dự án đã chọn ở lời mời cũ (người mời vẫn là PM của dự án đó).
+      const previous = await tx.invite.findMany({ where: { workspace: ws.id, email, acceptedAt: null, revokedAt: null }, select: { projects: true } });
+      const carried = previous.flatMap((i) => i.projects).filter((id) => !projects.some((p) => p.id === id));
+      const kept = carried.length
+        ? await tx.project.findMany({ where: { id: { in: carried }, workspace: ws.id, status: 'active', memberships: { some: { user: req.user.id, role: 'pm' } } }, select: { id: true } })
+        : [];
       await tx.invite.updateMany({ where: { workspace: ws.id, email, acceptedAt: null, revokedAt: null }, data: { revokedAt: new Date() } });
       const raw = randomToken(24);
       const inv = await tx.invite.create({
@@ -327,7 +382,7 @@ router.post('/:wsId/invites', middlewareWorkspace('wsId', 'admin'), async (req, 
           email,
           role: body.role,
           mentor: body.mentor,
-          projects: projects.map((p) => p.id),
+          projects: [...projects, ...kept].map((p) => p.id),
           tokenHash: sha256(raw),
           invitedBy: req.user.id,
           expiresAt: new Date(Date.now() + config.inviteTtlMs),
@@ -335,10 +390,18 @@ router.post('/:wsId/invites', middlewareWorkspace('wsId', 'admin'), async (req, 
       });
       created.push({ inv, raw });
     }
-    return { ws, created, skipped };
+    return { ws, created, skipped, added };
   });
   for (const { inv, raw } of result.created) await sendInvite(result.ws, inv, raw, req.user);
-  res.status(201).json({ created: result.created.map(({ inv }) => ({ id: inv.id, email: inv.email, role: inv.role, expiresAt: inv.expiresAt })), skipped: result.skipped });
+  for (const row of result.added) {
+    await refreshUserAccess(row.user);
+    for (const project of row.projects) await emitProject(project, 'board:refresh', {});
+  }
+  res.status(201).json({
+    created: result.created.map(({ inv }) => ({ id: inv.id, email: inv.email, role: inv.role, expiresAt: inv.expiresAt, projects: inv.projects.length })),
+    skipped: result.skipped,
+    added: result.added.map(({ email, projects }) => ({ email, projects: projects.length })),
+  });
 });
 
 router.post('/:wsId/invites/:id/resend', middlewareWorkspace('wsId', 'admin'), async (req, res) => {
@@ -350,7 +413,10 @@ router.post('/:wsId/invites/:id/resend', middlewareWorkspace('wsId', 'admin'), a
     const inv = isId(req.params.id) ? await tx.invite.findFirst({ where: { id: req.params.id, workspace: fresh.workspace.id, acceptedAt: null, revokedAt: null } }) : null;
     if (!inv) throw notFound('Không tìm thấy lời mời');
     if (inv.role === 'admin' && fresh.role !== 'owner') throw forbidden('Chỉ Owner được thay đổi lời mời Admin');
-    return tx.invite.update({ where: { id: inv.id }, data: { tokenHash: sha256(raw), expiresAt: new Date(Date.now() + config.inviteTtlMs) } });
+    // Người mời cũ đã rời workspace/bị hạ quyền thì lời mời sẽ bị từ chối khi nhận: người gửi lại đứng tên thay.
+    const original = await tx.membership.findUnique({ where: { workspace_user: { workspace: fresh.workspace.id, user: inv.invitedBy } }, select: { role: true } });
+    const takeOver = !atLeast(original?.role, 'admin');
+    return tx.invite.update({ where: { id: inv.id }, data: { tokenHash: sha256(raw), expiresAt: new Date(Date.now() + config.inviteTtlMs), ...(takeOver && { invitedBy: req.user.id }) } });
   });
   await sendInvite(req.ws.workspace, updated, raw, req.user);
   res.json({ ok: true, expiresAt: updated.expiresAt });
@@ -448,11 +514,12 @@ router.get('/:wsId/ai', middlewareWorkspace(), async (req, res) => {
     aiServiceInfo(),
   ]);
   const ok = today.filter((c) => c.status.includes('success'));
-  const latencies = today.filter((c) => c.finishedAt && c.status !== 'pending').map((c) => c.latencyMs).sort((a, b) => a - b);
+  const latencies = today.filter((c) => c.status !== 'pending' && c.latencyMs > 0).map((c) => c.latencyMs).sort((a, b) => a - b);
   res.json({
     settings: req.ws.workspace.ai,
     today: {
-      used: today.length,
+      // Khớp hạn mức ngày (gateway.js UNCOUNTED): lần lỗi không ra kết quả không trừ lượt.
+      used: today.filter((c) => c.status !== 'error').length,
       tokens: today.reduce((s, c) => s + c.inputTokens + c.outputTokens, 0),
       unknownUsageCalls: today.filter((c) => !c.usageComplete).length,
       p50LatencyMs: latencies.length ? latencies[Math.ceil(latencies.length * 0.5) - 1] : null,
@@ -472,7 +539,7 @@ router.patch('/:wsId/ai', middlewareWorkspace('wsId', 'admin'), async (req, res)
       enabled: z.boolean().optional(),
       dailyLimit: z.number().int().min(0, 'Hạn mức không âm').max(10000).optional(),
       timeoutSec: z.number().int().min(5).max(120).optional(),
-      features: z.object({ planner: z.boolean(), report: z.boolean(), qa: z.boolean(), risk: z.boolean(), meeting: z.boolean() }).partial().optional(),
+      features: z.object({ planner: z.boolean(), report: z.boolean(), qa: z.boolean(), risk: z.boolean(), meeting: z.boolean(), suggest: z.boolean() }).partial().optional(),
     }),
     req.body,
   );

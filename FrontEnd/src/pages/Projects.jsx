@@ -31,6 +31,16 @@ export default function Projects() {
       setParams({}, { replace: true });
     }
   }, [params, setParams]);
+  // ?edit=<id> (từ menu 3 chấm ở Dự án gần đây): mở luôn form sửa dự án đó khi danh sách đã tải.
+  useEffect(() => {
+    const id = params.get('edit');
+    const target = id && data?.projects?.find((p) => p._id === id);
+    if (target) {
+      if (target.projectRole === 'pm' && target.status !== 'archived') setEditing(target);
+      else toast(target.status === 'archived' ? tr("Dự án đã lưu trữ, chỉ được xem") : tr("Chỉ PM của dự án được sửa dự án và quản lý thành viên"), 'error');
+      setParams({}, { replace: true });
+    }
+  }, [params, setParams, data]);
 
   const archive = async (p, restore) => {
     try {
@@ -189,7 +199,7 @@ export default function Projects() {
 function ProjectModal({ open, project, members, meId, wsId, onClose, onSaved }) {
   useI18n();
   const toast = useToast();
-  const [f, setF] = useState({});
+  const [f, setF] = useState({ name: '', description: '', color: 'blue', timezone: 'Asia/Ho_Chi_Minh', startDate: '', endDate: '', members: [], memberRoles: {} });
   const [errors, setErrors] = useState({});
   const [busy, setBusy] = useState(false);
   const [q, setQ] = useState('');
@@ -240,7 +250,7 @@ function ProjectModal({ open, project, members, meId, wsId, onClose, onSaved }) 
     >
       <div className="space-y-4">
         <Field label={tr("Tên dự án")} required error={errors.name}>
-          <input className="input" value={f.name || ''} onChange={(e) => setF({ ...f, name: e.target.value })} placeholder={tr("Hệ thống CRM Khách hàng")} />
+          <input className="input" maxLength={100} value={f.name || ''} onChange={(e) => setF({ ...f, name: e.target.value })} placeholder={tr("Hệ thống CRM Khách hàng")} />
         </Field>
         <Field label={tr("Mô tả dự án")}>
           <textarea

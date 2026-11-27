@@ -1,0 +1,22 @@
+{
+  "algorithm": "sha256-file-bytes",
+  "sourceHash": "4b82d96f20b46683ab48f67e5beb192c4e28fba8a10ecf0ffd8bb7e2f741f5bc",
+  "files": {
+    "build.txt": "b8ead4f8d464602a29b4f5315be9baba3c8a0ee652a671f5d32f32237241e879",
+    "clean-install.json": "e6b360d13a470dd28b1772a25a23fc8626baca94a767fbb656b5337b9a9fe891",
+    "e2e.txt": "e744598ef10c320382471cc8dcbb747ee3558c960915be80783d841b4759b150",
+    "lint.txt": "b4ea5a411b86ba75e69924d5c5182d3b69fb95b5b8e17b8b5a0bb5576eb58dd0",
+    "rehearsal-template.json": "df2bb95d6dac201227c313e5f4f4bbb9132d63fcbe23d76897a11f18867f632b",
+    "security-before-agent-cases.json": "17d81854dbf3f9404e02d760d7abdc481d6c63991a740a1e98f1517088deb443",
+    "security.json": "437008ddf682e799387b4df7390b596a747f8351fe54b837bac6cc741565f172",
+    "tests.txt": "a2ceb8b62206fc7d831303322de527938329fac74c7dc8237bda1e4d29acef98",
+    "token-revocation-after.txt": "45a7f8a136f89ecb0dafbf5ca2fb520bd158e907e34d1c1b33b00ac18b1639c9",
+    "token-revocation-before.txt": "8d17143e4c50a9da506a559f2f821274ea52351aab9f1728149731b4c155b5d9",
+    "uat-kit.json": "8c2d79d5fd272c96f8b9ae604f5483405886e4afd6333937d2398e5775e11320",
+    "uat-observations-empty.json": "b4c9d575bccd0f1f9e506ee5a37c5fa8dc2e3b595e1ef32ab63b62903578ca75",
+    "../../images/guide-owner.png": "96dec8ba560f5cbcd93df3e056b8883cce4a98be7f112323f9ad06846ed37760",
+    "../../images/guide-pm.png": "536eebdada80fd18959bd58f04389537cb9fe8f57e85a8ff24233944a03d2209",
+    "../../images/guide-member.png": "ebaa05941514ba9c654518c4ee91fb411de541f786a1858122759e574f5dbf01",
+    "../../images/guide-viewer.png": "07b77b3c0c2baca713cc8778517912018dc915b33ca157e707df6b2e740ae52e"
+  }
+}

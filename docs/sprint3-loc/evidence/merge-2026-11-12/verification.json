@@ -1,0 +1,28 @@
+{
+  "date": "2026-11-12",
+  "timezone": "Asia/Saigon",
+  "workbook": { "path": "DN26_CPL_Mock_Project_Nhom24 (1).xlsx", "sha256": "46f3c870dcf25c05003c9a979bff5c19fa154dac1c35438b6410deb35e76da16", "modified": false },
+  "base": { "loc": "f6780cf8225274b2cc25f3ca9ad9c225e576bfd0", "originMain": "795320fc3229df895d573cdd3c84da29a2baf477", "merge": "73f4d3cbed0528b0ab8e40c883e4fa2c4707e241" },
+  "build": {
+    "revision": "c0a7ff8652211680fa5d782ca7e9d95e1588771c",
+    "sourceHash": "ea0a92d48788b5eb44ca052f636d93060b9bbca4abc940bd8b634c1503713b88",
+    "sourceHashAlgorithm": "sha256-lf-v1",
+    "promptHash": "533c2c256becc980797bb51826a44b4399e82a829895af6c7a668f2bc6ed05ac",
+    "node": "v24.15.0",
+    "note": "Các lệnh chạy trên working tree trước commit c0a7ff8; sourceHash của commit trùng sourceHash đã kiểm thử."
+  },
+  "commands": {
+    "tests": { "validation": 21, "aiService": 85, "backend": 343, "frontend": 96, "mcp": 14, "total": 559, "failed": 0 },
+    "typecheck": { "exitCode": 0 },
+    "build": { "exitCode": 0, "warning": "chunk chính > 500 kB" },
+    "lint": { "exitCode": 0 },
+    "e2e": { "passed": 13, "failed": 0, "beforeFix": { "passed": 0, "failed": 11, "cancelled": 2 } },
+    "securityMatrix": { "checks": 92, "failed": 0, "beforeFix": { "checks": 86, "failedUiWorkflow": 4 } },
+    "u025": { "executed": 70, "passed": 70, "failed": 0, "runHash": "f19dd5f9783ecad504cd9d4681a9aaaedfcf3f3ddad15f82941bd4481a3e2dfe", "humanQuality": "pending-independent-grading", "acceptance": "pending-private-custodian-pack" }
+  },
+  "technicalStatus": "complete-local",
+  "independentAcceptance": "pending",
+  "cloudDatabaseUsed": false,
+  "paidProviderUsed": false,
+  "ciRemoteVerified": false
+}

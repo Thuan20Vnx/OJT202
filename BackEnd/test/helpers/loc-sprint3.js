@@ -295,6 +295,17 @@ export function locSprint3({ fixture, db, Client, seed, socketFor, join }) {
       assert.equal(report.sections.find((s) => s.key === 'summary').refs[0]._id, f.ids[0]);
       assert.equal((await f.owner.patch(`/ai/reports/${report._id}`, { share: true })).status, 200);
       assert.equal((await f.member.get(`/ai/reports/${report._id}`)).status, 200);
+      // Chia sẻ là publish: snapshot bất biến, sửa nội dung/tiêu đề/xóa mục đều bị từ chối; chia sẻ lại là no-op.
+      for (const edit of [{ sections: [{ key: 'summary', body: 'Đã hoàn thành 9999 việc' }] }, { title: 'Đổi tên sau khi chia sẻ' }, { removeKeys: ['late'] }, { share: true, sections: [{ key: 'done', body: 'x' }] }]) {
+        const rejected = await f.owner.patch(`/ai/reports/${report._id}`, edit);
+        assert.equal(rejected.status, 409, JSON.stringify(edit));
+        assert.equal(rejected.data.details?.code, 'REPORT_SHARED');
+      }
+      const reshared = await f.owner.patch(`/ai/reports/${report._id}`, { share: true });
+      assert.equal(reshared.status, 200);
+      assert.equal(reshared.data.report.title, report.title);
+      assert.deepEqual(reshared.data.report.sections.map((s) => [s.key, s.body]), report.sections.map((s) => [s.key, s.body]));
+      assert.ok(!JSON.stringify(reshared.data.report).includes('9999'));
       await db.prisma.task.update({ where: { id: f.ids[0] }, data: { status: 'in_progress', completedAt: null, version: { increment: 1 } } });
       const saved = (await f.owner.get(`/ai/reports/${report._id}`)).data.report;
       assert.equal(saved.sourceState, 'changed');

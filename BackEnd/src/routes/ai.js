@@ -7,26 +7,17 @@ import { logActivityIn } from '../services/activity.js';
 import { withWorkspaceLock } from '../services/membership.js';
 import { runAi, usageToday } from '../services/ai/gateway.js';
 import { annotateConversation, collectSources, reportSourceRevision, sourceFingerprint } from '../services/ai/qa.js';
+import { createAiDraft, loadDraft, plainJson, projectMembers } from '../services/ai/drafts.js';
 import { buildReportData } from '../services/ai/report.js';
 import { reportPeriod } from '../services/ai/report-period.js';
 import { notify } from '../services/notify.js';
 import { emitProject } from '../services/realtime.js';
 import { badRequest, conflict, notFound, parse } from '../utils/http.js';
-import { randomToken, sha256 } from '../utils/security.js';
+import { sha256 } from '../utils/security.js';
 import { isDateInput, parseDate } from '../utils/dates.js';
 
 const router = Router();
 router.use(requireAuth);
-
-/** Đưa về dạng JSON thuần (Date => chuỗi ISO) trước khi lưu vào cột JSONB */
-const plainJson = (v) => JSON.parse(JSON.stringify(v));
-
-async function projectMembers(project) {
-  const users = await prisma.user.findMany({ where: { id: { in: project.members }, isLocked: false }, select: USER });
-  const ms = await prisma.membership.findMany({ where: { workspace: project.workspace, user: { in: project.members } } });
-  const pms = await prisma.projectMember.findMany({ where: { project: project.id, role: { not: 'viewer' } } });
-  return users.filter((u) => pms.some((m) => m.user === u.id) && ms.some((m) => m.user === u.id && m.role !== 'viewer')).map((u) => ({ ...u, jobTitle: ms.find((m) => m.user === u.id)?.title || u.title }));
-}
 
 router.get('/projects/:projectId/ai/usage', middlewareProject(), async (req, res) => {
   const ws = await prisma.workspace.findUnique({ where: { id: req.pa.project.workspace }, select: { id: true, ai: true } });
@@ -34,8 +25,6 @@ router.get('/projects/:projectId/ai/usage', middlewareProject(), async (req, res
 });
 
 // ===================== LẬP KẾ HOẠCH =====================
-const loadDraft = async (id) => populate(await prisma.aiDraft.findUnique({ where: { id } }), 'items.assignee', 'user', USER);
-
 /** Bản nháp của chính người dùng (người khác nhận 404) */
 async function ownDraft(req, db = prisma) {
   const draft = isId(req.params.id) ? await db.aiDraft.findUnique({ where: { id: req.params.id } }) : null;
@@ -46,7 +35,7 @@ async function ownDraft(req, db = prisma) {
 router.get('/projects/:projectId/ai/drafts', middlewareProject(), async (req, res) => {
   const type = req.query.type === 'meeting' ? 'meeting' : 'plan';
   const drafts = await prisma.aiDraft.findMany({ where: { project: req.pa.project.id, user: req.user.id, type }, orderBy: { createdAt: 'desc' }, take: 10 });
-  res.json({ drafts: drafts.map((d) => ({ id: d.id, title: d.title, status: d.status, createdAt: d.createdAt, count: d.items.length })) });
+  res.json({ drafts: drafts.map((d) => ({ id: d.id, title: d.title, status: d.status, createdAt: d.createdAt, count: d.items.length, agent: d.input?.agent || null })) });
 });
 
 router.get('/ai/drafts/:id', async (req, res) => {
@@ -55,33 +44,8 @@ router.get('/ai/drafts/:id', async (req, res) => {
   res.json({ draft: await loadDraft(draft.id) });
 });
 
-async function createDraft(req, type, title, input, items) {
-  const draft = await withWorkspaceLock(req.pa.project.workspace, async (tx) => {
-    await assertActiveSession(req, tx, true);
-    assertManage(await projectAccess(req.user.id, req.pa.project.id, tx));
-    return tx.aiDraft.create({
-      data: {
-        workspace: req.pa.project.workspace,
-        project: req.pa.project.id,
-        user: req.user.id,
-        type,
-        title,
-        input: type === 'meeting' ? { ...input, sourceHash: sha256(input.text), spanEncoding: 'utf-16' } : input,
-        items: plainJson(
-          items.map((it) => ({
-            ...it,
-            // A suggested plan is not an assignment. The PM chooses recipients in the draft.
-            ...(type === 'plan' && { assignee: null }),
-            dueDate: it.dueDate && isDateInput(it.dueDate) ? parseDate(it.dueDate, req.user.timezone, true) : null,
-            key: randomToken(8),
-            selected: true,
-          })),
-        ),
-      },
-    });
-  });
-  return loadDraft(draft.id);
-}
+const createDraft = (req, type, title, input, items) =>
+  createAiDraft({ project: req.pa.project, user: req.user, type, title, input, items, guard: (tx) => assertActiveSession(req, tx, true) });
 
 router.post('/projects/:projectId/ai/plan', middlewareProject(), async (req, res) => {
   assertManage(req.pa);
@@ -429,6 +393,12 @@ router.patch('/ai/reports/:id', async (req, res) => {
       }),
       req.body,
     );
+    // Chia sẻ là bước publish: snapshot đã chia sẻ bất biến, muốn cập nhật thì tạo báo cáo mới.
+    if (report.status === 'shared') {
+      if (body.title || body.sections?.length || body.removeKeys?.length)
+        throw conflict('Báo cáo đã chia sẻ là bản chốt, không sửa được. Hãy tạo báo cáo mới nếu cần cập nhật.', { code: 'REPORT_SHARED' });
+      return report;
+    }
     const data = {};
     if (body.title) data.title = body.title;
     let sections = report.sections;
@@ -469,17 +439,44 @@ router.delete('/ai/reports/:id', async (req, res) => {
 // ===================== HỎI ĐÁP DỰ ÁN =====================
 router.get('/projects/:projectId/ai/sources', middlewareProject(), async (req, res) => {
   const project = req.pa.project.id;
-  const [tasks, documents, latestTask, latestDocument] = await Promise.all([
+  const [tasks, documents, latestTask, latestDocument, taskSamples, blockedTasks, documentSample] = await Promise.all([
     prisma.task.count({ where: { project, deletedAt: null } }),
     prisma.document.count({ where: { project, isScan: false, OR: [{ kind: 'doc' }, { mime: 'text/plain' }] } }),
     prisma.task.findFirst({ where: { project, deletedAt: null }, orderBy: { updatedAt: 'desc' }, select: { updatedAt: true } }),
     prisma.document.findFirst({ where: { project, isScan: false, OR: [{ kind: 'doc' }, { mime: 'text/plain' }] }, orderBy: { updatedAt: 'desc' }, select: { updatedAt: true } }),
+    prisma.task.findMany({
+      where: { project, deletedAt: null, status: { not: 'done' } },
+      orderBy: { updatedAt: 'desc' },
+      take: 3,
+      select: { id: true, key: true, blockedBy: true },
+    }),
+    prisma.task.findMany({
+      where: { project, deletedAt: null, status: { not: 'done' }, blockedBy: { isEmpty: false } },
+      orderBy: { updatedAt: 'desc' },
+      take: 10,
+      select: { key: true, blockedBy: true },
+    }),
+    prisma.document.findFirst({
+      where: { project, isScan: false, OR: [{ kind: 'doc' }, { mime: 'text/plain' }] },
+      orderBy: { updatedAt: 'desc' },
+      select: { name: true },
+    }),
   ]);
-  res.json({ tasks, documents, retrieval: 'live', latestTaskAt: latestTask?.updatedAt || null, latestDocumentAt: latestDocument?.updatedAt || null });
+  const blockerIds = [...new Set(blockedTasks.flatMap((task) => task.blockedBy))];
+  const openBlockers = blockerIds.length
+    ? new Set((await prisma.task.findMany({ where: { id: { in: blockerIds }, project, deletedAt: null, status: { not: 'done' } }, select: { id: true } })).map((task) => task.id))
+    : new Set();
+  const blockedTask = blockedTasks.find((task) => task.blockedBy.some((id) => openBlockers.has(id)));
+  const suggestions = [];
+  if (blockedTask) suggestions.push(`Vì sao ${blockedTask.key} đang bị chặn và cần xử lý việc nào trước?`);
+  const taskSample = taskSamples.find((task) => task.key !== blockedTask?.key);
+  if (taskSample) suggestions.push(`Trạng thái, người phụ trách và hạn chót của ${taskSample.key} là gì?`);
+  if (documentSample) suggestions.push(`Tóm tắt nội dung chính của tài liệu ${documentSample.name}`);
+  res.json({ tasks, documents, retrieval: 'live', latestTaskAt: latestTask?.updatedAt || null, latestDocumentAt: latestDocument?.updatedAt || null, suggestions });
 });
 router.get('/projects/:projectId/ai/conversations', middlewareProject(), async (req, res) => {
   const convs = await prisma.aiConversation.findMany({ where: { project: req.pa.project.id, user: req.user.id }, orderBy: { updatedAt: 'desc' }, take: 20 });
-  res.json({ conversations: convs.map((c) => ({ id: c.id, title: c.title, updatedAt: c.updatedAt, count: c.messages.length })) });
+  res.json({ conversations: convs.map((c) => ({ id: c.id, title: c.title, updatedAt: c.updatedAt, count: c.messages.length, agent: c.messages.findLast((m) => m.agent)?.agent ?? null })) });
 });
 
 router.get('/ai/conversations/:id', async (req, res) => {

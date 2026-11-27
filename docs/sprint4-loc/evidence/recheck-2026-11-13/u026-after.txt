@@ -1,0 +1,25 @@
+[seed] Tạo dữ liệu demo Nhóm 24…
+[seed] Xong. Đăng nhập: mai.anh@nhom24.edu.vn / TaskFlow@2026  (System Admin: admin@taskflow.local)
+▶ Hoàng Anh Sprint 3 — planner và nguồn cảnh báo
+  ✔ U026: biên quá hạn đúng mili giây; Blocked suy ra chỉ từ dependency quá hạn chưa Done (667.8768ms)
+  ✔ U026: tải đúng ngưỡng không cảnh báo; số 0 giờ khả dụng và remainingHours được tính đúng (549.713ms)
+  ✔ U026: tắt "đến hạn 24 giờ" không tắt ngầm cảnh báo chờ duyệt; luật chờ duyệt có công tắc riêng (497.7116ms)
+  ✔ U026: xử lý cần lý do/đúng nguồn, idempotent; chỉ nguồn liên quan thay đổi mới mở lại (933.1121ms)
+  ✔ U026: threshold có phiên bản, refresh không tạo hash giả; dismiss cũ thiếu nguồn không che cảnh báo (445.9341ms)
+✔ Hoàng Anh Sprint 3 — planner và nguồn cảnh báo (49606.7102ms)
+▶ Lộc Sprint 3: meeting, report, admin security
+  ✔ U026: cảnh báo vượt ngưỡng 80% chỉ dẫn tới task còn đóng góp giờ (393.934ms)
+  ✔ Recheck U026: Viewer and archived projects cannot spend AI quota (512.0122ms)
+  ✔ Recheck U026: risk AI rechecks project-role before returning (414.2669ms)
+  ✔ Recheck U026: risk AI rechecks workspace-role before returning (492.0209ms)
+  ✔ Recheck U026: risk AI rechecks archive before returning (550.8976ms)
+  ✔ Recheck U026: overload sources include only the current contributor remaining work (585.1921ms)
+✔ Lộc Sprint 3: meeting, report, admin security (2949.591ms)
+ℹ tests 11
+ℹ suites 2
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 55118.3528

@@ -1,0 +1,10 @@
+✔ OpenAPI liệt kê đủ mọi tuyến của từng file route (5.933ms)
+✔ API agent /mcp dùng Bearer token agent, không dùng cookie (1.0531ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 154.2433

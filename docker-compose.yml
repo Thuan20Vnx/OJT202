@@ -1,0 +1,49 @@
+# Release candidate chạy trên máy (hoặc VPS) bằng Docker: PostgreSQL + AIService + API/web.
+#   RELEASE_SHA=$(git rev-parse HEAD) docker compose --env-file .env.docker up -d --build
+#   mở http://localhost:4000 ; kiểm tra: curl http://localhost:4000/api/health/ready
+# Bí mật đặt trong .env.docker (KHÔNG commit, mẫu: .env.docker.example) – xem docs/RELEASE_RUNBOOK.md.
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: taskflow
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Đặt POSTGRES_PASSWORD trong .env.docker}
+      POSTGRES_DB: taskflow
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U taskflow -d taskflow"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  ai:
+    build: { context: ., dockerfile: AIService/Dockerfile }
+    image: taskflow-ai:${RELEASE_SHA:-local}
+    env_file: [.env.docker]
+    restart: unless-stopped
+
+  api:
+    build:
+      context: .
+      args:
+        RELEASE_SHA: ${RELEASE_SHA:-}
+    image: taskflow:${RELEASE_SHA:-local}
+    depends_on:
+      db: { condition: service_healthy }
+      ai: { condition: service_started }
+    ports:
+      - "4000:4000"
+    # JWT_SECRET, AI_SERVICE_KEY, CLIENT_URL, MAIL_* … lấy từ .env.docker; dưới đây chỉ là phần nối các service.
+    env_file: [.env.docker]
+    environment:
+      DATABASE_URL: postgresql://taskflow:${POSTGRES_PASSWORD}@db:5432/taskflow?connection_limit=10
+      AI_SERVICE_URL: http://ai:5000
+      UPLOAD_DIR: /app/BackEnd/.data/uploads
+    volumes:
+      - uploads:/app/BackEnd/.data/uploads
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  uploads:

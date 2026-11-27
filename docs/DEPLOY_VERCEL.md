@@ -68,7 +68,7 @@ Khóa này có toàn quyền trên project: chỉ đặt ở Render, không đư
 | `SUPABASE_URL`, `SUPABASE_SERVICE_KEY` | Project URL và khóa ở mục 3 |
 | `GOOGLE_CLIENT_ID` | Client ID ở mục 1 |
 | `AI_SERVICE_URL` | URL của `taskflow-ai`, ví dụ `https://taskflow-ai.onrender.com` |
-| `ANTHROPIC_API_KEY` | Để trống nếu dùng bộ luật nội bộ |
+| `GEMINI_API_KEY` | Để trống nếu dùng bộ luật nội bộ |
 
 3. Ghi lại URL của dịch vụ `taskflow`. Lần khởi động đầu tiên sẽ tự áp migration lên Supabase.
 

@@ -3,3 +3,9 @@ dist/
 .data/
 .env
 *.log
+
+# Cấu hình MCP trên máy (chứa token agent)
+mcp.json
+
+# Biến môi trường cho docker compose
+.env.docker

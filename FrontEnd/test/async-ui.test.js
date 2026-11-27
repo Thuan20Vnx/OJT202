@@ -7,7 +7,14 @@ import { api } from '../src/lib/api.js';
 import { AppCtx, useLoad } from '../src/lib/app.jsx';
 import { invalidateProject, useProjectInfo } from '../src/lib/hooks.js';
 import Planner from '../src/pages/ai/Planner.jsx';
-import { History } from '../src/pages/ai/Planner.jsx';
+import { History, HistoryButton } from '../src/pages/ai/Planner.jsx';
+
+// Nút chính của Lập kế hoạch / Ghi chú họp chạy theo lựa chọn lưu ở trình duyệt: chọn "AI của nhóm" để thử đường gọi API.
+const useTeamEngine = (t) => {
+  const previous = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+  Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: { getItem: (key) => (key === 'taskflow.engine' ? 'team' : null), setItem() {} } });
+  t.after(() => { if (previous) Object.defineProperty(globalThis, 'localStorage', previous); else delete globalThis.localStorage; });
+};
 import Ai from '../src/pages/Ai.jsx';
 import Qa from '../src/pages/ai/Qa.jsx';
 import Report from '../src/pages/ai/Report.jsx';
@@ -91,11 +98,11 @@ test('chọn lịch sử sau cùng thắng phản hồi cũ đến muộn', asyn
   });
   const tree = await mount(t, React.createElement(MemoryRouter, null, React.createElement(Planner, { project: { _id: 'history', name: 'P' }, onUsage() {} })));
   let first, last;
-  act(() => { first = tree.root.findByType(History).props.onOpen('a'); last = tree.root.findByType(History).props.onOpen('b'); });
+  act(() => { first = tree.root.findByType(HistoryButton).props.onOpen('a'); last = tree.root.findByType(HistoryButton).props.onOpen('b'); });
   const draft = (id) => ({ draft: { _id: id, title: id, status: 'draft', items: [], input: { goal: id } } });
   await act(async () => { b.resolve(draft('b')); await last; });
   await act(async () => { a.resolve(draft('a')); await first; });
-  assert.equal(tree.root.findByType(History).props.activeId, 'b');
+  assert.equal(tree.root.findByType(HistoryButton).props.activeId, 'b');
 });
 
 test('mở lịch sử thất bại được báo trên giao diện, không reject khỏi handler', async (t) => {
@@ -104,7 +111,7 @@ test('mở lịch sử thất bại được báo trên giao diện, không reje
     return url.includes('/ai/drafts?') ? { drafts: [] } : { project: { members: [] }, access: {} };
   });
   const tree = await mount(t, React.createElement(MemoryRouter, null, React.createElement(Planner, { project: { _id: 'missing-history' }, onUsage() {} })));
-  await act(async () => tree.root.findByType(History).props.onOpen('missing'));
+  await act(async () => tree.root.findByType(HistoryButton).props.onOpen('missing'));
   assert.match(JSON.stringify(tree.toJSON()), /Bản nháp không còn/);
 });
 
@@ -119,17 +126,18 @@ const stubReads = (t) => t.mock.method(api, 'get', async (url) => {
   if (url.endsWith('/ai/conversations')) return { conversations: [] };
   if (url.endsWith('/tasks')) return { tasks: [] };
   if (url.includes('/documents?')) return { counts: { doc: 0 } };
-  return { project: { members: [] }, access: { canManage: true, canWrite: true } };
+  return { project: { members: [] }, access: { canManage: true, canWrite: true, canAsk: true } };
 });
 
 test('đổi dự án xóa kế hoạch đang mở và bỏ phản hồi tạo nháp cũ', async (t) => {
   stubReads(t);
+  useTeamEngine(t);
   const pending = deferred();
   t.mock.method(api, 'post', () => pending.promise);
   const tree = await mount(t, app(React.createElement(Ai), { _id: 'a', name: 'A' }));
   await act(async () => tree.root.findByType('textarea').props.onChange({ target: { value: 'Kế hoạch dự án A' } }));
   let request;
-  act(() => { request = button(tree, 'Tạo kế hoạch nháp').props.onClick(); });
+  act(() => { request = button(tree, 'Lập kế hoạch').props.onClick(); });
   await act(async () => tree.update(app(React.createElement(Ai), { _id: 'b', name: 'B' })));
   assert.equal(tree.root.findByType('textarea').props.value, '');
   await act(async () => { pending.resolve({ draft: { _id: 'old', status: 'draft', items: [] } }); await request; });
@@ -167,21 +175,27 @@ test('mở báo cáo khác đóng editor cũ để không lưu nhầm nội dung
   assert.equal(tree.root.findByType(History).props.activeId, 'b');
 });
 
-test('hỏi đáp chặn Enter gửi lặp khi đang chờ và bỏ phản hồi sau Cuộc hỏi mới', async (t) => {
-  stubReads(t);
-  const pending = deferred();
-  const post = t.mock.method(api, 'post', () => pending.promise);
-  const tree = await mount(t, app(React.createElement(Qa, { project: { _id: 'p', name: 'P' }, onUsage() {} })));
+test('hỏi đáp chỉ giao cho agent trên máy, chặn gửi lặp khi đang chờ', async (t) => {
+  t.mock.method(api, 'get', async (url) => {
+    if (url === '/agent/runner') return { runner: { online: true, agents: ['antigravity'] } };
+    if (url.endsWith('/repo')) return { connection: null };
+    if (url.endsWith('/ai/conversations')) return { conversations: [] };
+    return { project: { members: [] }, access: { canManage: true, canWrite: true, canAsk: true } };
+  });
+  const post = t.mock.method(api, 'post', async () => ({ job: { _id: 'j', status: 'queued', agent: 'antigravity', createdAt: new Date().toISOString() } }));
+  const tree = await mount(t, app(React.createElement(Qa, { project: { _id: 'p', name: 'P' } })));
   await act(async () => tree.root.findByType('textarea').props.onChange({ target: { value: 'Tiến độ hiện tại?' } }));
-  let request;
-  act(() => { request = button(tree, 'Gửi').props.onClick(); });
-  await act(async () => tree.root.findByType('textarea').props.onChange({ target: { value: 'Câu thứ hai' } }));
   await act(async () => tree.root.findByType('textarea').props.onKeyDown({ key: 'Enter', preventDefault() {} }));
   assert.equal(post.mock.callCount(), 1);
-  await act(async () => button(tree, 'Cuộc hỏi mới').props.onClick());
-  await act(async () => { pending.resolve({ conversation: { _id: 'old', messages: [{ role: 'assistant', content: 'Phản hồi cũ', citations: [] }] } }); await request; });
-  assert.doesNotMatch(JSON.stringify(tree.toJSON()), /Phản hồi cũ/);
+  const [url, body] = post.mock.calls[0].arguments;
+  assert.equal(url, '/projects/p/agent/jobs');
+  assert.deepEqual(body, { kind: 'qa', agent: 'antigravity', input: { question: 'Tiến độ hiện tại?', conversation: null, source: 'auto' } });
+  assert.match(JSON.stringify(tree.toJSON()), /Tiến độ hiện tại\?/, 'câu hỏi hiện ngay trong khung chat');
   assert.equal(tree.root.findByType('textarea').props.value, '');
+  await act(async () => tree.root.findByType('textarea').props.onChange({ target: { value: 'Câu thứ hai' } }));
+  await act(async () => tree.root.findByType('textarea').props.onKeyDown({ key: 'Enter', preventDefault() {} }));
+  assert.equal(post.mock.callCount(), 1, 'đang chờ agent thì không gửi thêm');
+  assert.ok(!tree.root.findAllByType('button').some((node) => /ai\/ask/.test(String(node.props.onClick))), 'không còn nút gọi API');
 });
 
 test('duyệt nháp phải chờ lưu checkbox và không duyệt khi còn sửa chưa lưu', async (t) => {

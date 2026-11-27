@@ -1,15 +1,17 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import type { ProjectSummary, UserSummary } from '../lib/app-context.ts';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { api } from '../lib/api.js';
 import { useApp, useToast } from '../lib/app.jsx';
 import { t as tr, useI18n } from '../lib/i18n.js';
 import { PROJECT_COLOR, ROLE } from '../lib/format.js';
-import { Avatar, Dropdown, Icon, MenuItem, StatusChip } from './ui.jsx';
+import { Avatar, DialogFocus, Dropdown, Icon, MenuItem, StatusChip } from './ui.jsx';
 import CreateTaskModal from './CreateTaskModal.jsx';
 import TaskDetailModal from './TaskDetailModal.jsx';
+import DeletionBanner from './DeletionBanner.jsx';
 import ErrorBoundary from './ErrorBoundary.jsx';
 import ConnectionStatus from './ConnectionStatus.jsx';
+import RecentProjects from './RecentProjects.jsx';
 
 const NAV = [
   { to: '/overview', icon: 'dashboard', get label() { return tr("Tổng quan"); }, en: 'Overview' },
@@ -72,13 +74,25 @@ function SearchBox() {
   const [q, setQ] = useState('');
   const [res, setRes] = useState<{ projects: ProjectSummary[]; tasks: { _id: string; key: string; title: string; status: string; project: { _id: string } }[] } | null>(null);
   const [open, setOpen] = useState(false);
+  // Dưới lg ô tìm kiếm thu thành nút kính lúp; bấm vào thì mở thành thanh ngang dưới topbar.
+  const [expanded, setExpanded] = useState(false);
   const ref = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
+  const [active, setActive] = useState(-1);
+  const listId = useId();
+  const pick = () => { setQ(''); setExpanded(false); setOpen(false); setActive(-1); };
+  const choices = [
+    ...(res?.projects || []).map((p) => ({ id: p._id, run: () => { setProjectId(p._id); navigate('/overview'); pick(); } })),
+    ...(res?.tasks || []).map((t) => ({ id: t._id, run: () => { setProjectId(t.project._id); navigate(`?task=${t._id}`); pick(); } })),
+  ];
+  const optId = (i: number) => `${listId}-opt-${i}`;
+  const showList = open && !!res;
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
-        ref.current?.focus();
+        setExpanded(true);
+        setTimeout(() => ref.current?.focus());
       }
     };
     window.addEventListener('keydown', onKey);
@@ -86,48 +100,71 @@ function SearchBox() {
   }, []);
   useEffect(() => {
     if (!q.trim() || !wsId) return setRes(null);
-    const t = setTimeout(() => api.get<NonNullable<typeof res>>(`/workspaces/${wsId}/search?q=${encodeURIComponent(q)}`).then(setRes).catch(() => {}), 200);
+    const t = setTimeout(() => api.get<NonNullable<typeof res>>(`/workspaces/${wsId}/search?q=${encodeURIComponent(q)}`).then((r) => { setRes(r); setActive(-1); }).catch(() => {}), 200);
     return () => clearTimeout(t);
   }, [q, wsId]);
   return (
-    <div className="relative mx-6 hidden max-w-md flex-1 lg:block">
+    <>
+    <button type="button" className="icon-btn lg:hidden" aria-label={tr("Tìm kiếm")} title={tr("Tìm kiếm")} aria-expanded={expanded} onClick={() => { setExpanded(true); setTimeout(() => ref.current?.focus()); }}>
+      <Icon name="search" />
+    </button>
+    <div className={`${expanded ? 'fixed inset-x-0 top-[60px] z-50 block border-b border-slate-200 bg-white px-3 py-2 shadow-pop' : 'hidden'} lg:relative lg:inset-auto lg:top-auto lg:z-auto lg:mx-6 lg:block lg:max-w-md lg:flex-1 lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none`}>
+    <div className="relative">
       <Icon name="search" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
       <input
         ref={ref}
         value={q}
         onChange={(e) => setQ(e.target.value)}
         onFocus={() => setOpen(true)}
-        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        onBlur={() => setTimeout(() => { setOpen(false); setExpanded(false); }, 150)}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') { setExpanded(false); ref.current?.blur(); return; }
+          if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+            if (!choices.length) return;
+            e.preventDefault();
+            setOpen(true);
+            setActive((i) => (e.key === 'ArrowDown' ? (i + 1) % choices.length : i <= 0 ? choices.length - 1 : i - 1));
+          } else if (e.key === 'Enter' && showList && choices[active]) {
+            e.preventDefault();
+            choices[active].run();
+          }
+        }}
+        role="combobox"
+        aria-autocomplete="list"
+        aria-expanded={showList && choices.length > 0}
+        aria-controls={showList && choices.length > 0 ? listId : undefined}
+        aria-activedescendant={showList && active >= 0 && active < choices.length ? optId(active) : undefined}
+        aria-label={tr("Tìm kiếm công việc")}
         className="input h-9 rounded-lg bg-slate-50 pl-9 pr-12 text-body-sm"
         placeholder={tr("Tìm kiếm công việc... (⌘K)")}
       />
-      <kbd className="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 rounded border border-slate-200 bg-white px-1.5 py-0.5 font-mono text-[10px] text-slate-400">⌘K</kbd>
-      {open && res && (
-        <div className="absolute left-0 right-0 top-11 z-50 rounded-xl border border-slate-200 bg-white p-1.5 shadow-pop">
-          {!res.tasks.length && !res.projects.length && <p className="px-3 py-4 text-center text-body-sm text-slate-500">{tr("Không có kết quả")}</p>}
-          {res.projects.map((p) => (
+      <kbd className="pointer-events-none absolute right-2.5 hidden lg:block top-1/2 -translate-y-1/2 rounded border border-slate-200 bg-white px-1.5 py-0.5 font-mono text-[10px] text-slate-400">⌘K</kbd>
+      {showList && res && (
+        <div id={choices.length ? listId : undefined} role={choices.length ? 'listbox' : undefined} aria-label={choices.length ? tr("Kết quả tìm kiếm") : undefined} className="absolute left-0 right-0 top-11 z-50 rounded-xl border border-slate-200 bg-white p-1.5 shadow-pop">
+          {!res.tasks.length && !res.projects.length && <p role="status" className="px-3 py-4 text-center text-body-sm text-slate-500">{tr("Không có kết quả")}</p>}
+          {res.projects.map((p, i) => (
             <button
               key={p._id}
-              onMouseDown={() => {
-                setProjectId(p._id);
-                navigate('/overview');
-                setQ('');
-              }}
-              className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-body-sm hover:bg-slate-50"
+              id={optId(i)}
+              role="option"
+              aria-selected={active === i}
+              tabIndex={-1}
+              onMouseDown={() => choices[i].run()}
+              className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-body-sm hover:bg-slate-50 ${active === i ? 'bg-slate-100' : ''}`}
             >
               <span className={`h-2.5 w-2.5 rounded-full ${PROJECT_COLOR[p.color]}`} />
               {p.name}
             </button>
           ))}
-          {res.tasks.map((t) => (
+          {res.tasks.map((t, j) => (
             <button
               key={t._id}
-              onMouseDown={() => {
-                setProjectId(t.project._id);
-                navigate(`?task=${t._id}`);
-                setQ('');
-              }}
-              className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-body-sm hover:bg-slate-50"
+              id={optId(res.projects.length + j)}
+              role="option"
+              aria-selected={active === res.projects.length + j}
+              tabIndex={-1}
+              onMouseDown={() => choices[res.projects.length + j].run()}
+              className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-body-sm hover:bg-slate-50 ${active === res.projects.length + j ? 'bg-slate-100' : ''}`}
             >
               <span className="font-mono text-label-md text-slate-400">{t.key}</span>
               <span className="flex-1 truncate">{t.title}</span>
@@ -137,11 +174,13 @@ function SearchBox() {
         </div>
       )}
     </div>
+    </div>
+    </>
   );
 }
 
 function TopBar({ onToggleSidebar, onCreate, sidebarOpen }: { onToggleSidebar: () => void; onCreate: () => void; sidebarOpen: boolean }) {
-  const { me, ws, role, unread, logout, theme, toggleTheme, project, canManageProject } = useApp();
+  const { me, ws, role, unread, logout, theme, toggleTheme, project, canManageProject, pendingDeletion } = useApp();
   const { language: lang, setLanguage: setLang } = useI18n();
   const { setMe } = useApp();
   const toast = useToast();
@@ -168,8 +207,8 @@ function TopBar({ onToggleSidebar, onCreate, sidebarOpen }: { onToggleSidebar: (
   };
 
   return (
-    <header className="sticky top-0 z-40 flex h-[60px] shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4">
-      <div className="flex min-w-0 items-center gap-3">
+    <header className="sticky top-0 z-40 flex h-[60px] shrink-0 items-center justify-between gap-2 border-b border-slate-200 bg-white px-3 sm:px-4">
+      <div className="flex min-w-0 items-center gap-2 sm:gap-3">
         <button className="icon-btn" onClick={onToggleSidebar} title={tr("Thu gọn / Mở rộng sidebar")} aria-label={tr("Mở/đóng menu")} aria-expanded={sidebarOpen}>
           {/* Biểu tượng ☰ xoay và đổi thành "menu_open" khi menu đang mở */}
           <span className="relative h-5 w-5">
@@ -177,15 +216,15 @@ function TopBar({ onToggleSidebar, onCreate, sidebarOpen }: { onToggleSidebar: (
             <Icon name="menu_open" className={`absolute inset-0 transition-all duration-300 ${sidebarOpen ? 'opacity-100' : '-rotate-90 scale-50 opacity-0'}`} />
           </span>
         </button>
-        <Link to="/overview" className="flex items-center gap-2">
+        <Link to="/overview" className="flex shrink-0 items-center gap-2" aria-label="TaskFlow">
           <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-600 text-white shadow-sm">
             <Icon name="task_alt" size={17} />
           </span>
-          <span className="text-headline-sm font-bold tracking-tight text-slate-900">TaskFlow</span>
+          <span className="hidden text-headline-sm font-bold tracking-tight text-slate-900 sm:inline">TaskFlow</span>
         </Link>
-        <div className="mx-1 h-4 w-px bg-slate-200" />
+        <div className="mx-1 hidden h-4 w-px bg-slate-200 lg:block" />
         <nav className="hidden min-w-0 items-center gap-1.5 whitespace-nowrap text-body-sm text-slate-500 lg:flex">
-          <span className="truncate">{base === '/admin' ? tr("Quản trị hệ thống") : tr("Không gian làm việc")}</span>
+          <span className="truncate">{base === '/admin' ? tr("Hệ thống") : tr("Không gian làm việc")}</span>
           {base === '/settings' && ws && (
             <>
               <Icon name="chevron_right" size={14} className="text-slate-400" />
@@ -207,7 +246,7 @@ function TopBar({ onToggleSidebar, onCreate, sidebarOpen }: { onToggleSidebar: (
         </nav>
       </div>
       <SearchBox />
-      <div className="flex shrink-0 items-center gap-2.5">
+      <div className="flex shrink-0 items-center gap-1.5 sm:gap-2.5">
         <div className="flex items-center rounded-lg bg-slate-100 p-0.5 text-label-sm" role="group" aria-label={tr("Ngôn ngữ")}>
           {['vi', 'en'].map((l) => (
             <button key={l} disabled={savingLanguage} aria-pressed={lang === l} onClick={() => changeLang(l)} className={`rounded-md px-2 py-1 font-bold uppercase ${lang === l ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}>
@@ -222,8 +261,10 @@ function TopBar({ onToggleSidebar, onCreate, sidebarOpen }: { onToggleSidebar: (
           <Icon name="notifications" />
           {unread > 0 && <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white" />}
         </button>
-        <button className="btn-primary hidden sm:inline-flex" onClick={onCreate} disabled={!canManageProject}>
-          <Icon name="add" size={16} />{tr("Tạo công việc")}</button>
+        <span className="hidden sm:inline-flex" title={canManageProject ? undefined : pendingDeletion ? tr("Workspace đang chờ xóa nên chỉ được xem.") : tr("Chỉ PM của dự án tạo được công việc. Thành viên cập nhật việc được giao cho mình.")}>
+          <button className="btn-primary" onClick={onCreate} disabled={!canManageProject}>
+            <Icon name="add" size={16} />{tr("Tạo công việc")}</button>
+        </span>
         <div className="h-4 w-px bg-slate-200" />
         <Dropdown
           trigger={
@@ -254,7 +295,7 @@ function TopBar({ onToggleSidebar, onCreate, sidebarOpen }: { onToggleSidebar: (
 
 function Sidebar({ collapsed, overlay, onClose }: { collapsed: boolean; overlay: boolean; onClose: () => void }) {
   useI18n();
-  const { ws, workspaces, setWsId, activeProjects, project, setProjectId, me, role } = useApp();
+  const { ws, workspaces, setWsId, activeProjects, project, setProjectId, me, role, reloadWorkspace, pendingDeletion } = useApp();
   const navItems = workspaces.some((w) => w.isMentor)
     ? [...NAV, { to: '/mentoring', icon: 'school', get label() { return tr('Các nhóm hướng dẫn'); }, en: 'My groups' }]
     : NAV;
@@ -297,8 +338,8 @@ function Sidebar({ collapsed, overlay, onClose }: { collapsed: boolean; overlay:
             <button className="flex w-full items-center justify-between rounded-xl border border-slate-200 p-2 text-left transition-colors hover:bg-slate-50">
               <span className="flex min-w-0 items-center gap-2.5">
                 <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-label-md font-bold text-blue-600">{(wsName.match(/\d+/) || [wsName[0] || 'W'])[0]}</span>
-                <span className="truncate text-label-lg font-semibold text-slate-900">{wsName}</span>
-                <span className="rounded bg-blue-100 px-1.5 py-0.5 text-[10px] font-bold text-blue-700">{ws?.workspace?.plan || 'Pro'}</span>
+                <span className="truncate text-label-lg font-semibold text-slate-900">{wsName || tr("Chưa có workspace")}</span>
+                {ws && <span className="rounded bg-blue-100 px-1.5 py-0.5 text-[10px] font-bold text-blue-700">{ws.workspace.plan || 'Pro'}</span>}
               </span>
               <Icon name="unfold_more" size={16} className="text-slate-400" />
             </button>
@@ -315,6 +356,10 @@ function Sidebar({ collapsed, overlay, onClose }: { collapsed: boolean; overlay:
           <MenuItem icon="add" onClick={() => navigate('/onboarding')}>{tr("Tạo workspace mới")}</MenuItem>
         </Dropdown>
 
+        {!ws && (
+          <p className="rounded-lg bg-slate-50 p-3 text-body-sm text-slate-500">{tr("Bạn chưa thuộc workspace nào. Tạo workspace mới hoặc nhờ Owner/Admin mời để dùng bảng công việc, dự án và trợ lý AI.")}</p>
+        )}
+        {ws && <>
         <div>
           <div className="section-label mb-1.5 px-2">{tr("Điều hướng")}</div>
           <nav className="space-y-0.5">
@@ -345,39 +390,34 @@ function Sidebar({ collapsed, overlay, onClose }: { collapsed: boolean; overlay:
             <span className="section-label">{tr("Dự án gần đây")}</span>
             <span className="flex items-center gap-1">
               <NavLink to="/projects" className={({ isActive }) => `text-label-sm ${isActive ? 'font-semibold text-blue-700' : 'text-slate-400 hover:text-slate-700'}`}>{tr("Xem tất cả")}</NavLink>
-              <button disabled={role === 'viewer'} className="flex h-5 w-5 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-40" title={tr("Thêm dự án")} onClick={() => navigate('/projects?new=1')}>
+              <button disabled={!['owner', 'admin'].includes(role ?? '')} className="flex h-5 w-5 items-center justify-center rounded text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-40" title={['owner', 'admin'].includes(role ?? '') ? tr("Thêm dự án") : pendingDeletion ? tr("Workspace đang chờ xóa nên chỉ được xem.") : tr("Chỉ Owner/Admin của workspace tạo được dự án")} onClick={() => navigate('/projects?new=1')}>
                 <Icon name="add" size={15} />
               </button>
             </span>
           </div>
-          <nav className="space-y-0.5">
-            {activeProjects.map((p) => (
-              <button
-                key={p._id}
-                onClick={() => {
-                  setProjectId(p._id);
-                  if (!PROJECT_SCOPED.includes('/' + loc.pathname.split('/')[1])) navigate('/overview');
-                }}
-                className={`flex w-full items-center gap-2.5 rounded-xl px-2.5 py-1.5 text-left text-body-sm transition-colors ${
-                  project?._id === p._id ? 'bg-slate-100 font-semibold text-slate-900' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                }`}
-              >
-                <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${PROJECT_COLOR[p.color] || 'bg-blue-500'}`} />
-                <span className="truncate">{p.name}</span>
-              </button>
-            ))}
-            {!activeProjects.length && <p className="px-2.5 py-1.5 text-body-sm text-slate-400">{tr("Chưa có dự án")}</p>}
-          </nav>
+          <RecentProjects
+            projects={activeProjects}
+            current={project}
+            wsId={ws?.workspace?._id}
+            role={role}
+            setProjectId={setProjectId}
+            reloadWorkspace={reloadWorkspace}
+            onOpen={(p: ProjectSummary) => {
+              setProjectId(p._id);
+              if (!PROJECT_SCOPED.includes('/' + loc.pathname.split('/')[1])) navigate('/overview');
+            }}
+          />
         </div>
+        </>}
       </div>
       <div className="space-y-0.5 border-t border-slate-100 p-3">
         {me?.isSystemAdmin && (
           <NavLink to="/admin" className={({ isActive }) => `nav-item ${isActive ? 'nav-item-active' : ''}`}>
             <Icon name="admin_panel_settings" className="text-slate-400" />{tr("Quản trị hệ thống")}</NavLink>
         )}
-        <NavLink to="/settings/members" className={({ isActive }) => `nav-item ${isActive || loc.pathname.startsWith('/settings') ? 'nav-item-active' : ''}`}>
-          <Icon name="settings" className="text-slate-400" />{tr("Cài đặt Workspace")}</NavLink>
-        <a href="https://github.com" onClick={(e) => e.preventDefault()} className="nav-item" title={tr("Xem README trong thư mục dự án")}>
+        {ws && <NavLink to="/settings/members" className={({ isActive }) => `nav-item ${isActive || loc.pathname.startsWith('/settings') ? 'nav-item-active' : ''}`}>
+          <Icon name="settings" className="text-slate-400" />{tr("Cài đặt Workspace")}</NavLink>}
+        <a href="https://github.com/Thuan20Vnx/OJT202#readme" target="_blank" rel="noreferrer noopener" className="nav-item" title={tr("Mở hướng dẫn sử dụng (README) của TaskFlow")}>
           <Icon name="help_outline" className="text-slate-400" />{tr("Trợ giúp & Tài liệu")}</a>
       </div>
     </aside>
@@ -436,15 +476,41 @@ export default function AppShell() {
   const loc = useLocation();
   const navigate = useNavigate();
   const params = new URLSearchParams(loc.search);
-  const taskId = params.get('task');
+  const urlTaskId = params.get('task');
+  // Chi tiết việc còn thay đổi chưa lưu mà URL đổi (nút Quay lại, bấm link khác) thì giữ hộp chi tiết lại và hỏi trước.
+  const [taskId, setTaskId] = useState(urlTaskId);
+  const taskDirty = useRef(false);
+  const [leaveRequest, setLeaveRequest] = useState<{ search: string; pathname: string } | null>(null);
+  const shownTask = useRef(taskId);
+  shownTask.current = taskId;
+  useEffect(() => {
+    if (urlTaskId === shownTask.current) { setLeaveRequest(null); return; }
+    if (shownTask.current && taskDirty.current) setLeaveRequest({ search: loc.search, pathname: loc.pathname });
+    else setTaskId(urlTaskId);
+  }, [urlTaskId, loc.search, loc.pathname]);
+  const onTaskDirty = useCallback((d: boolean) => { taskDirty.current = d; }, []);
   const closeTask = () => {
+    taskDirty.current = false;
     params.delete('task');
+    setTaskId(null);
     navigate({ search: params.toString() }, { replace: true });
+  };
+  const leaveTask = () => {
+    taskDirty.current = false;
+    setLeaveRequest(null);
+    setTaskId(urlTaskId);
+  };
+  const stayOnTask = () => {
+    const next = new URLSearchParams(loc.search);
+    if (taskId) next.set('task', taskId);
+    setLeaveRequest(null);
+    navigate({ pathname: loc.pathname, search: next.toString() }, { replace: true });
   };
   return (
     <div className="flex h-full flex-col overflow-hidden">
       <TopBar onToggleSidebar={() => setCollapsed((c) => !c)} onCreate={() => setCreating(true)} sidebarOpen={!collapsed} />
       <ConnectionStatus />
+      <DeletionBanner />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar collapsed={collapsed} overlay={narrow} onClose={() => setCollapsed(true)} />
         <main id="main-content" className="scroll-thin min-w-0 flex-1 overflow-y-auto bg-slate-50">
@@ -455,7 +521,7 @@ export default function AppShell() {
         </main>
       </div>
       <CreateTaskModal open={creating} onClose={() => setCreating(false)} />
-      {taskId && <TaskDetailModal key={taskId} taskId={taskId} onClose={closeTask} />}
+      {taskId && <DialogFocus key={taskId}><TaskDetailModal taskId={taskId} onClose={closeTask} onDirtyChange={onTaskDirty} leaveRequest={leaveRequest} onLeave={leaveTask} onStay={stayOnTask} /></DialogFocus>}
     </div>
   );
 }

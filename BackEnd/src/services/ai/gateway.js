@@ -42,7 +42,7 @@ function withTimeout(fn, ms) {
   ]).finally(() => clearTimeout(timer));
 }
 
-const FEATURE_VI = { planner: 'Lập kế hoạch', report: 'Báo cáo tiến độ', qa: 'Hỏi đáp dự án', risk: 'Diễn giải rủi ro', meeting: 'Ghi chú họp' };
+const FEATURE_VI = { planner: 'Lập kế hoạch', report: 'Báo cáo tiến độ', qa: 'Hỏi đáp dự án', risk: 'Diễn giải rủi ro', meeting: 'Ghi chú họp', suggest: 'Gợi ý skill và plugin' };
 
 function attemptRecord(number, startedAt, status, response) {
   const known = response && [response.inputTokens, response.outputTokens].every((value) => Number.isSafeInteger(value) && value >= 0);
@@ -58,8 +58,12 @@ const attemptUsage = (attempts) => ({
   usageComplete: attempts.every((item) => item.inputTokens !== null && item.outputTokens !== null),
 });
 
+// Không tính vào hạn mức ngày: lần bị chặn (tắt AI, hết lượt) và lần lỗi không ra kết quả (AI bận, nhà cung cấp lỗi).
+// Hết thời gian chờ vẫn tính vì nhà cung cấp có thể đã xử lý xong.
+const UNCOUNTED = ['quota_exceeded', 'disabled', 'error'];
+
 export async function usageToday(workspaceId) {
-  return prisma.aiCall.count({ where: { workspace: workspaceId, createdAt: { gte: startOfDay() }, status: { notIn: ['quota_exceeded', 'disabled'] } } });
+  return prisma.aiCall.count({ where: { workspace: workspaceId, createdAt: { gte: startOfDay() }, status: { notIn: UNCOUNTED } } });
 }
 
 /**
@@ -68,13 +72,13 @@ export async function usageToday(workspaceId) {
  *
  * feature: planner | meeting | qa | report | risk; payload: dữ liệu đã lọc quyền gửi sang AIService.
  */
-export async function runAi({ workspaceId, userId, feature, payload }) {
+export async function runAi({ workspaceId, userId, feature, payload, minTimeoutMs = config.ai.featureMinTimeoutMs[feature] ?? 0 }) {
   const queuedAt = new Date();
   const started = performance.now();
   // Giữ chỗ trong transaction ngắn; không giữ khóa trong lúc đợi dịch vụ AI.
   const { ws, call } = await withWorkspaceLock(workspaceId, async (tx) => {
     const ws = await tx.workspace.findUniqueOrThrow({ where: { id: workspaceId } });
-    const used = await tx.aiCall.count({ where: { workspace: workspaceId, createdAt: { gte: startOfDay() }, status: { notIn: ['quota_exceeded', 'disabled'] } } });
+    const used = await tx.aiCall.count({ where: { workspace: workspaceId, createdAt: { gte: startOfDay() }, status: { notIn: UNCOUNTED } } });
     const status = !ws.ai?.enabled || ws.ai?.features?.[feature] === false ? 'disabled' : used >= (ws.ai?.dailyLimit ?? 50) ? 'quota_exceeded' : 'pending';
     const call = await tx.aiCall.create({ data: { workspace: workspaceId, user: userId, feature, status, model: '-', queuedAt } });
     return { ws, call };
@@ -89,7 +93,7 @@ export async function runAi({ workspaceId, userId, feature, payload }) {
     throw new HttpError(429, `Đã dùng hết ${ws.ai.dailyLimit} lượt AI hôm nay. Hạn mức đặt lại lúc 00:00.`, { code: 'AI_QUOTA' });
   }
 
-  const timeoutMs = Math.min(config.ai.timeoutMs, (ws.ai?.timeoutSec ?? 30) * 1000);
+  const timeoutMs = Math.max(minTimeoutMs, Math.min(config.ai.timeoutMs, (ws.ai?.timeoutSec ?? 30) * 1000));
   const attempts = [];
   let attempt = 0;
   for (;;) {
@@ -109,7 +113,7 @@ export async function runAi({ workspaceId, userId, feature, payload }) {
         status: e instanceof Timeout ? 'timeout' : 'error', latencyMs: Math.round(performance.now() - started),
         finishedAt: new Date(), attempts: attempts.map((item) => item.status === 'success' ? item : { ...item, model: null, provider: null }), ...attemptUsage(attempts), error: diagnostic,
       });
-      console.error(`[ai] ${feature} lỗi:`, diagnostic);
+      console.error(`[ai] ${feature} lỗi:`, diagnostic, diagnostic === 'AI_CALL_FAILED' ? e.name : '');
       throw new HttpError(503, 'AI đang bận, vui lòng thử lại sau. Các chức năng khác vẫn hoạt động bình thường.', { code: 'AI_UNAVAILABLE' });
     }
     // A persistence failure must not be misreported as a second provider attempt.

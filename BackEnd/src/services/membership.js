@@ -4,11 +4,16 @@ import { prisma } from '../db.js';
  * Cùng khóa workspace cho thay đổi quyền, thành viên dự án và giao việc.
  * Đọc lại quyền SAU khi lấy khóa; tránh hai request cùng xóa Owner cuối hoặc
  * giao task cho người vừa bị gỡ. PostgreSQL tự nhả khóa khi commit/rollback.
+ *
+ * `shared: true` (FOR SHARE) cho thao tác chỉ cần quyền KHÔNG ĐỔI trong lúc ghi và không cần loại trừ nhau
+ * (vd bình luận): nhiều thao tác chia sẻ chạy song song, nhưng vẫn chờ/chặn mọi thao tác giữ FOR UPDATE.
+ * Đo U031: 50 người bình luận cùng lúc với khóa độc quyền làm p95 đọc vượt 1,5 s vì giao dịch chờ khóa giữ kết nối.
  */
-export function withWorkspaceLock(workspaceId, action) {
+export function withWorkspaceLock(workspaceId, action, { shared = false } = {}) {
   return prisma.$transaction(
     async (tx) => {
-      await tx.$queryRaw`SELECT id FROM workspaces WHERE id = ${workspaceId}::uuid FOR UPDATE`;
+      if (shared) await tx.$queryRaw`SELECT id FROM workspaces WHERE id = ${workspaceId}::uuid FOR SHARE`;
+      else await tx.$queryRaw`SELECT id FROM workspaces WHERE id = ${workspaceId}::uuid FOR UPDATE`;
       return action(tx);
     },
     { maxWait: 10000, timeout: 15000 },

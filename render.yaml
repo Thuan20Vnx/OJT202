@@ -10,7 +10,8 @@ services:
     branch: main
     buildCommand: npm --prefix BackEnd ci --omit=dev
     startCommand: npm --prefix BackEnd start
-    healthCheckPath: /api/health
+    # Readiness: Render chỉ chuyển traffic sang bản mới khi truy vấn được database.
+    healthCheckPath: /api/health/ready
     envVars:
       - key: NODE_VERSION
         value: "24"
@@ -66,6 +67,6 @@ services:
         value: production
       - key: AI_SERVICE_KEY
         generateValue: true
-      # Để trống thì dùng bộ luật nội bộ, không gọi Anthropic.
-      - key: ANTHROPIC_API_KEY
+      # Để trống thì dùng bộ luật nội bộ, không gọi Gemini.
+      - key: GEMINI_API_KEY
         sync: false

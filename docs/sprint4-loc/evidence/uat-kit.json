@@ -1,0 +1,563 @@
+{
+  "schemaVersion": 1,
+  "kind": "uat-preparation",
+  "build": {
+    "revision": "ec87c7a93a37cd3462ce926a570277cdc35038e8",
+    "sourceHash": "9a389c62a102eb420e5c3d4567bcb9205efc023af4d750ef41bc4c1b37ff7b2f",
+    "sourceHashAlgorithm": "sha256-lf-v1",
+    "promptHash": "5ed987e127f9b3fdc2c72817903cee4e407a0cebf7e08a9bb6beecf916ffce29",
+    "dirty": true,
+    "node": "v24.15.0"
+  },
+  "mode": "isolated-local",
+  "status": "prepared",
+  "humanAcceptance": "pending",
+  "dataset": {
+    "version": "loc-sprint4-uat-v1",
+    "clock": "2026-11-07T13:45:17.939Z",
+    "slots": [
+      {
+        "slot": "P01",
+        "participant": null,
+        "relationship": null,
+        "plannedOrder": "manual-first",
+        "workspace": "72f7180f-a251-4a36-a8ff-991d6e607eb3",
+        "accounts": {
+          "owner": {
+            "id": "aedbce65-ff9b-4809-aac9-38db5be22414",
+            "email": "p01.owner@uat.example.test",
+            "workspaceRole": "owner",
+            "projectRole": null
+          },
+          "pm": {
+            "id": "1065ee4e-be06-48b4-ba2f-588246a709ea",
+            "email": "p01.pm@uat.example.test",
+            "workspaceRole": "member",
+            "projectRole": "pm"
+          },
+          "member": {
+            "id": "55dd57e4-86c0-4630-8635-30547df99aa5",
+            "email": "p01.member@uat.example.test",
+            "workspaceRole": "member",
+            "projectRole": "member"
+          },
+          "viewer": {
+            "id": "a54c5b31-84ed-4638-b2cf-357c87a91147",
+            "email": "p01.viewer@uat.example.test",
+            "workspaceRole": "viewer",
+            "projectRole": "viewer"
+          }
+        },
+        "projects": [
+          {
+            "variant": "A",
+            "id": "1a5213a4-a22f-42f2-a33c-bdaea780f811",
+            "name": "Bài A — đăng ký sự kiện",
+            "taskIds": [
+              "c9037a50-3bcf-41a5-aca4-94f14b078b81",
+              "1ee24d68-36c4-4ff0-84ae-b4d0871110ab",
+              "b4296f5d-163b-4c53-aea1-cfef2d1a1e90",
+              "05d44661-71bb-4692-909e-1be3c6697a8d",
+              "deb8f0c5-7691-4eb3-b29b-479d96c6929b",
+              "e05a07dd-b592-4fab-b29b-cadc57726b14",
+              "d26633d4-1e0e-4117-bf97-b1ffc773b046",
+              "70a38292-a724-427f-93fe-b8ba540fcbb0",
+              "91b10ebc-a1bd-4b47-b192-f7d156151c5d",
+              "459e7348-be31-4da5-bdbb-3af9da94820c"
+            ],
+            "documentId": "42c4f8d1-feb0-4a95-9f8a-b5e96f26b265"
+          },
+          {
+            "variant": "B",
+            "id": "eec905c5-1b1d-4e6b-a1ba-0bc5cde8ff31",
+            "name": "Bài B — đăng ký sự kiện",
+            "taskIds": [
+              "f69d0999-7ba1-44d0-8e9b-f723201bbff4",
+              "9ed2887f-0d1b-49c7-8edb-4e9ee43f7686",
+              "82042bca-b281-4c91-8d13-b7adb88eb1cb",
+              "1136f8cc-5252-4e63-a4a1-0b5f47af6cdd",
+              "f1b2192e-8929-460e-8df6-8e5e34c21623",
+              "dd0e1f38-795b-4293-8263-5c6858556e5d",
+              "6955ba68-1d94-452e-9daa-ea8db40e7114",
+              "0d6bf75f-1bde-429c-bbe8-f1af306b7122",
+              "278fd773-878b-4ef6-93aa-83fb14ee069a",
+              "d3dacb6f-a522-4f83-b3de-f049e6b90b08"
+            ],
+            "documentId": "202225e5-28c9-4fff-88eb-39d6438cd7fa"
+          }
+        ]
+      },
+      {
+        "slot": "P02",
+        "participant": null,
+        "relationship": null,
+        "plannedOrder": "manual-first",
+        "workspace": "113feaaa-ebf0-4362-a827-19fb35cc24b9",
+        "accounts": {
+          "owner": {
+            "id": "4161ce6d-aff7-4aee-89a0-b3a05b138244",
+            "email": "p02.owner@uat.example.test",
+            "workspaceRole": "owner",
+            "projectRole": null
+          },
+          "pm": {
+            "id": "4bf22da0-9cab-4940-82d8-5159b3b22204",
+            "email": "p02.pm@uat.example.test",
+            "workspaceRole": "member",
+            "projectRole": "pm"
+          },
+          "member": {
+            "id": "d20eaae8-c8c6-4f2e-9ee3-ea8125a4a65a",
+            "email": "p02.member@uat.example.test",
+            "workspaceRole": "member",
+            "projectRole": "member"
+          },
+          "viewer": {
+            "id": "2854a429-db3d-456f-b0f9-f4c43f5229d5",
+            "email": "p02.viewer@uat.example.test",
+            "workspaceRole": "viewer",
+            "projectRole": "viewer"
+          }
+        },
+        "projects": [
+          {
+            "variant": "A",
+            "id": "e641c66a-f072-47e5-907a-78689dde5f3b",
+            "name": "Bài A — đăng ký sự kiện",
+            "taskIds": [
+              "f7874818-2b4f-442b-b960-16aa2205b2c9",
+              "0a24c903-e192-4499-a7ff-a6f1c996c6b6",
+              "a53e992d-55fc-4efd-af00-0dbb6ae74ca4",
+              "4eae5e4b-8e17-4034-bd01-2fc4b8605bb3",
+              "ba459115-6c67-4ebc-9f5c-d28d67a18aa9",
+              "90c1544b-0006-440c-b008-7b4798ab1700",
+              "38199e2b-ecf7-4726-9f37-478594e40200",
+              "b7fe6a6b-d625-4aa0-a5a1-f2a4e1f377a2",
+              "9a1f0d49-da53-4579-88a3-80dfa6498821",
+              "dffcffec-ebab-4763-a80d-135354c5498a"
+            ],
+            "documentId": "cceabc3f-83f7-4afa-9bb4-e9c013010f83"
+          },
+          {
+            "variant": "B",
+            "id": "9d1e580d-6c7c-48e8-a7e5-0f6beb6724d0",
+            "name": "Bài B — đăng ký sự kiện",
+            "taskIds": [
+              "61505a4e-5505-470f-bfae-8484416b9713",
+              "a3e2f8df-eded-46be-a3af-53ba452dfe92",
+              "b49ed30a-eebd-4d47-ad19-ae43cf3cf8e3",
+              "80095d5a-8de8-4cce-86a0-30384bab0a93",
+              "b7dc7d88-81ff-4551-9515-d3aa7496d276",
+              "a822ddbd-534f-4b3e-841e-76f5dc513c00",
+              "80ecec0c-daf2-4512-929d-c08f01cdc951",
+              "a4a154af-198e-4f65-94ea-b8d6f0549db0",
+              "70023e35-c69e-4745-bc03-59f6153aae39",
+              "866031b0-ed56-4982-b789-03fb95c1f13d"
+            ],
+            "documentId": "2cfa79af-4229-42df-b11b-8c347efe7f06"
+          }
+        ]
+      },
+      {
+        "slot": "P03",
+        "participant": null,
+        "relationship": null,
+        "plannedOrder": "manual-first",
+        "workspace": "9f183b2b-5c36-4f4b-b5d6-f1bf54464157",
+        "accounts": {
+          "owner": {
+            "id": "28f9939e-fd69-4ac0-ac0c-5be25e7d7790",
+            "email": "p03.owner@uat.example.test",
+            "workspaceRole": "owner",
+            "projectRole": null
+          },
+          "pm": {
+            "id": "937b7cb2-780b-4a16-abe9-2442a33a4a32",
+            "email": "p03.pm@uat.example.test",
+            "workspaceRole": "member",
+            "projectRole": "pm"
+          },
+          "member": {
+            "id": "f98454ea-2f67-4e94-85f8-b757071a2306",
+            "email": "p03.member@uat.example.test",
+            "workspaceRole": "member",
+            "projectRole": "member"
+          },
+          "viewer": {
+            "id": "1024fe57-2b2f-4e48-85d3-93ac65f173cd",
+            "email": "p03.viewer@uat.example.test",
+            "workspaceRole": "viewer",
+            "projectRole": "viewer"
+          }
+        },
+        "projects": [
+          {
+            "variant": "A",
+            "id": "c9aefa51-faf5-4b74-86cc-6c0c2a728d02",
+            "name": "Bài A — đăng ký sự kiện",
+            "taskIds": [
+              "0e177539-4bd4-4430-9681-af5b95749a3e",
+              "04776699-1da6-412b-b12b-f703537eaa73",
+              "5510226a-524d-4237-aa46-47b416342845",
+              "ff364897-9288-4873-9b1f-aa2c286172a5",
+              "aba06b88-6e01-47ee-bcdf-d91c921c69e3",
+              "fe85b07f-83e7-42e3-aa93-c69b926b3887",
+              "d95011d3-940d-4cfd-83fa-a5156bde056f",
+              "8a5d2b7c-b0cf-4ec8-b9ae-03ddbb153078",
+              "daa94411-9a87-41c1-b362-2f06767b8577",
+              "76990c53-8b6d-4b8a-8b40-6010247e13d7"
+            ],
+            "documentId": "2ff4cc9e-d830-4fea-864c-65c1065f04c9"
+          },
+          {
+            "variant": "B",
+            "id": "91f004f6-f9a4-4533-ad1e-04388bb906e6",
+            "name": "Bài B — đăng ký sự kiện",
+            "taskIds": [
+              "1ec6c5e3-5004-476c-a1bc-e4da536c8af0",
+              "877f23df-8c3c-4758-9af7-59b0d8a712ed",
+              "03ff281f-dec9-4032-95be-1adcebdb5ea9",
+              "50428e1a-7dbe-422e-a297-9606c53956f9",
+              "a0b4a077-ed1e-44ed-a34c-21e17ac7f367",
+              "9abe53a1-7669-44c0-83de-a88d0cde35aa",
+              "ad13e8b7-00a2-4817-adde-e11b66f04ab4",
+              "53f9656f-4ff7-44bb-879e-8d95afea6988",
+              "b0824a39-8320-40d7-888e-453e9d70167f",
+              "88f158ae-4eb9-49b4-af5b-60f56533988f"
+            ],
+            "documentId": "8775f436-a783-4a6f-a555-6c72c6946deb"
+          }
+        ]
+      },
+      {
+        "slot": "P04",
+        "participant": null,
+        "relationship": null,
+        "plannedOrder": "ai-first",
+        "workspace": "d627fa3e-5dc9-49dc-850d-d535c5ca5be2",
+        "accounts": {
+          "owner": {
+            "id": "ba8139e4-5058-4012-b8d5-aa9f22d81d2d",
+            "email": "p04.owner@uat.example.test",
+            "workspaceRole": "owner",
+            "projectRole": null
+          },
+          "pm": {
+            "id": "1884141d-31a5-4b0e-9168-9dd40e714e78",
+            "email": "p04.pm@uat.example.test",
+            "workspaceRole": "member",
+            "projectRole": "pm"
+          },
+          "member": {
+            "id": "9027ab11-b92e-4519-a08b-66e2fe51cd1e",
+            "email": "p04.member@uat.example.test",
+            "workspaceRole": "member",
+            "projectRole": "member"
+          },
+          "viewer": {
+            "id": "2ba5a1cd-4569-4ad3-95d3-f86f46a50d7a",
+            "email": "p04.viewer@uat.example.test",
+            "workspaceRole": "viewer",
+            "projectRole": "viewer"
+          }
+        },
+        "projects": [
+          {
+            "variant": "A",
+            "id": "8a8945ac-4098-4705-bfed-5a517778f5a1",
+            "name": "Bài A — đăng ký sự kiện",
+            "taskIds": [
+              "3c7afbbf-8ab0-438f-89aa-b1a39d858c55",
+              "939e529e-4f0a-4936-9779-f8df1aff559f",
+              "988eebf0-9309-4f92-b524-85b7a954b910",
+              "c0168539-c629-4d15-a176-fe3c9fd87271",
+              "522b6d39-bbed-4797-83dd-e0624155f593",
+              "4ca03ac9-bc7a-47bd-b11a-1869f5c3db67",
+              "6050f73c-8869-4879-b69a-2220db707d7f",
+              "d286bff3-19af-4d1f-8740-099dd461903d",
+              "5aa44547-1b3b-4073-a30c-7afc8e0e3803",
+              "b4d95bc4-5755-4786-8c29-537e554feb1d"
+            ],
+            "documentId": "4170c3dc-7af6-4b47-9439-de2796bd88c2"
+          },
+          {
+            "variant": "B",
+            "id": "9a26c558-604b-48ab-b6be-b52a5b08e180",
+            "name": "Bài B — đăng ký sự kiện",
+            "taskIds": [
+              "ffe60972-295a-4844-9c41-ea631ba65aaf",
+              "c95b66e7-d1fa-4d27-acb5-9ccf1a8621c6",
+              "74244f00-8ea8-453a-83b8-8fd0b83e5d4a",
+              "ff382f3a-c205-41af-a2fd-2ab5a2946832",
+              "08aea76a-525d-4f61-8a96-474c0fa7c5e8",
+              "1f9a0a38-f1e6-422f-b545-473d639641f0",
+              "914294c2-a6f0-40f0-8576-b39dcf9356ec",
+              "41e5765a-2fd3-4c3a-bd49-c3f059461875",
+              "1356d658-426a-4beb-80e9-29d514a7e6a0",
+              "ae3af55a-2910-4160-9424-893d7ed4be19"
+            ],
+            "documentId": "2983b3f9-e71d-4163-a099-9b55e43bba2e"
+          }
+        ]
+      },
+      {
+        "slot": "P05",
+        "participant": null,
+        "relationship": null,
+        "plannedOrder": "ai-first",
+        "workspace": "8fa70e92-c998-4313-a709-2ae3b897d7f9",
+        "accounts": {
+          "owner": {
+            "id": "3c27f878-0633-4ffc-a6bb-6653b4ca807e",
+            "email": "p05.owner@uat.example.test",
+            "workspaceRole": "owner",
+            "projectRole": null
+          },
+          "pm": {
+            "id": "241e4f84-4bcd-46b4-9938-d5aece8d9c86",
+            "email": "p05.pm@uat.example.test",
+            "workspaceRole": "member",
+            "projectRole": "pm"
+          },
+          "member": {
+            "id": "853d462b-7a2e-4a2e-a505-208fcb661b0c",
+            "email": "p05.member@uat.example.test",
+            "workspaceRole": "member",
+            "projectRole": "member"
+          },
+          "viewer": {
+            "id": "4540d9d0-fe17-4a5d-8283-321e34836b44",
+            "email": "p05.viewer@uat.example.test",
+            "workspaceRole": "viewer",
+            "projectRole": "viewer"
+          }
+        },
+        "projects": [
+          {
+            "variant": "A",
+            "id": "0743214a-dfa1-48bc-a910-6da1f183b4ae",
+            "name": "Bài A — đăng ký sự kiện",
+            "taskIds": [
+              "a605a631-c890-4692-bd4a-d67f28d51f65",
+              "5d7da812-f23d-4639-a12b-1b4094a3717b",
+              "a418f37f-ef66-4b95-86ae-d49c7704f7f0",
+              "73876824-db9c-45d6-9451-eda4d14ca681",
+              "c1ddcef7-3ff9-46b7-a8ba-f61fb9a5ad95",
+              "bc8a7c72-67c6-429f-9e69-51aecc6b1bcb",
+              "b7fd90ed-b92c-470c-903e-d56b3065ede0",
+              "f7e1db93-db7c-4813-84a5-591a05f4dea1",
+              "28540dd5-35d7-4515-887a-2b04ccfce02a",
+              "a9d7adef-d6e9-43cb-b541-2c3ea3da6ddb"
+            ],
+            "documentId": "ca914d2b-7638-4d9b-83af-e03a520b760f"
+          },
+          {
+            "variant": "B",
+            "id": "1d451e90-c7e5-4c69-bab8-6cde245bc2aa",
+            "name": "Bài B — đăng ký sự kiện",
+            "taskIds": [
+              "274d3fe3-b1f4-42aa-a022-349dd455ec35",
+              "88e09f7b-d87d-4973-a447-399a4c5a144e",
+              "17b8f624-662e-42e2-8db2-8fe5be7a6cb4",
+              "42da77f9-95cd-488f-a9d5-26454f5937b8",
+              "dfc710d7-98d8-4dd7-b0b0-682eaa4f0dbd",
+              "1ad02446-5d53-436e-aa24-ae55e191ca9b",
+              "c817914d-411c-4f4f-ac3b-16778d10a014",
+              "6db41a90-4828-451a-8f40-e7c3381ca087",
+              "262371f1-70f8-4673-b4e6-e9730a05c76d",
+              "d700479a-adb1-43fb-89d7-e51d60d2d354"
+            ],
+            "documentId": "7f21f9b5-fc4a-4574-ba73-78d3b57fb9fc"
+          }
+        ]
+      },
+      {
+        "slot": "P06",
+        "participant": null,
+        "relationship": null,
+        "plannedOrder": "ai-first",
+        "workspace": "a7ea8e52-6485-4654-8b59-54a0b10c93eb",
+        "accounts": {
+          "owner": {
+            "id": "3c086a0f-ebd4-41b5-becc-6447dbdd4bd4",
+            "email": "p06.owner@uat.example.test",
+            "workspaceRole": "owner",
+            "projectRole": null
+          },
+          "pm": {
+            "id": "df6c1db1-1282-4ec4-ad99-6125692402a7",
+            "email": "p06.pm@uat.example.test",
+            "workspaceRole": "member",
+            "projectRole": "pm"
+          },
+          "member": {
+            "id": "44111432-3d34-4d81-bf16-1af12ef28c5c",
+            "email": "p06.member@uat.example.test",
+            "workspaceRole": "member",
+            "projectRole": "member"
+          },
+          "viewer": {
+            "id": "60b65762-9117-4b6c-89d4-cd68afbbf3be",
+            "email": "p06.viewer@uat.example.test",
+            "workspaceRole": "viewer",
+            "projectRole": "viewer"
+          }
+        },
+        "projects": [
+          {
+            "variant": "A",
+            "id": "ced7e264-0e5b-49b2-9247-283cf57a987d",
+            "name": "Bài A — đăng ký sự kiện",
+            "taskIds": [
+              "b1206f01-5e83-4d70-ba96-e0125ea9130c",
+              "40880ea5-ba84-45c5-b2a6-0b61e7413270",
+              "098fcebc-7430-4f1b-9eb1-60e9f34f05ea",
+              "12b3de70-ece6-4243-9170-c32667fc5a63",
+              "3c564da1-4cc9-4887-b570-289107ee4c49",
+              "0dd0bc35-ac48-4bd4-8498-de50030ff2f6",
+              "3fc2316b-4253-4d79-8b47-78ef464c18c3",
+              "b8a8f196-b317-4a1f-88a7-044af29e5d90",
+              "8d0e7a1f-0282-45cf-9965-f946241d0d40",
+              "76de335f-173a-4eb6-ba51-e92eea13c932"
+            ],
+            "documentId": "a470e444-a69a-46e4-bd7c-19d1195b6efa"
+          },
+          {
+            "variant": "B",
+            "id": "92898db9-1ffa-4788-bc26-23575216ae13",
+            "name": "Bài B — đăng ký sự kiện",
+            "taskIds": [
+              "f31aac3b-a1a2-439d-af94-0aec9016b284",
+              "e83713b9-0a31-4e0b-8736-cc40b2e7f795",
+              "77e5f0ad-9c53-4934-89c4-6391394922bd",
+              "8cc2ee68-f844-4829-933e-797e95a69901",
+              "9c3cbc4d-12a9-4c2f-a845-e6c2c3bfadea",
+              "e8774e80-8863-46a2-852a-439dfd567099",
+              "b0ab8fe8-8920-4a4d-b01a-fec91f0cd872",
+              "228e0205-dc1b-4170-9c23-e2e3742dfbdf",
+              "c5c9f934-7837-4551-839b-1f0f437e8ab5",
+              "bf43feae-ab7b-466a-aa6d-332f02fc0a00"
+            ],
+            "documentId": "910fddc1-e288-41e0-b6d8-073843f5e421"
+          }
+        ]
+      }
+    ],
+    "taskCount": 120,
+    "workspaceCount": 6,
+    "projectCount": 12,
+    "hash": "704390a60439aeb1adfdf23dec39025e63c56ee4f9b8e5c75ea15d514f7c72ff"
+  },
+  "scenarios": [
+    {
+      "id": "S1",
+      "roles": [
+        "pm",
+        "member"
+      ],
+      "steps": [
+        "PM tạo task có mô tả, tiêu chí, người nhận, estimate và hạn.",
+        "Member tìm task trong My Tasks, lọc dự án rồi bắt đầu; tải lại trang."
+      ],
+      "expected": [
+        "Đúng người nhận, dữ liệu giữ sau reload.",
+        "Member không sửa người nhận hoặc estimate."
+      ]
+    },
+    {
+      "id": "S2",
+      "roles": [
+        "member",
+        "pm"
+      ],
+      "steps": [
+        "Member cập nhật remaining và gửi Review.",
+        "PM duyệt Done rồi mở lại với remaining mới."
+      ],
+      "expected": [
+        "Member không tự Done.",
+        "Done có completedAt; reopen xóa completedAt, giữ lịch sử và remaining mới."
+      ]
+    },
+    {
+      "id": "S3",
+      "roles": [
+        "pm",
+        "member",
+        "viewer"
+      ],
+      "steps": [
+        "Hai tài khoản mở task, bình luận @mention.",
+        "Member tải TXT, xem/sửa nội dung; Viewer mở bản được cấp quyền."
+      ],
+      "expected": [
+        "Thông báo/realtime đúng người và dự án.",
+        "Viewer đọc được, không tải lên/sửa; tài khoản ngoài nhóm không tải được file."
+      ]
+    },
+    {
+      "id": "S4",
+      "roles": [
+        "pm",
+        "member"
+      ],
+      "steps": [
+        "PM tạo kế hoạch AI, sửa/chọn mục, người nhận và hạn rồi duyệt.",
+        "Thử duyệt lại; tạo báo cáo theo kỳ và mở nguồn."
+      ],
+      "expected": [
+        "Chưa duyệt thì chưa tạo task; duyệt lặp không nhân task.",
+        "Số liệu theo DB, kỳ [start,end); nguồn mở đúng task, đề xuất AI có nhãn."
+      ]
+    },
+    {
+      "id": "S5",
+      "roles": [
+        "member",
+        "viewer",
+        "outsider"
+      ],
+      "steps": [
+        "Member hỏi mã xác nhận trong tài liệu, mở citation.",
+        "Hỏi thông tin không có nguồn; thử cùng endpoint bằng Viewer và ngoài nhóm."
+      ],
+      "expected": [
+        "Câu có nguồn trả đúng mã và citation mở được.",
+        "Thiếu nguồn thì từ chối; Viewer không gọi AI; ngoài nhóm không đọc project/nguồn."
+      ]
+    }
+  ],
+  "credentials": {
+    "mode": "public-demo-only",
+    "passwordSource": "BackEnd/src/seed.js DEMO_PASSWORD",
+    "validWhileSessionRuns": true
+  },
+  "comparisonRubric": {
+    "version": "loc-sprint4-task-quality-v1",
+    "criteria": [
+      "Đủ công việc trong phạm vi",
+      "Đúng người phụ trách",
+      "Hạn có căn cứ",
+      "Tiêu chí nghiệm thu kiểm được",
+      "Không thêm dữ kiện ngoài đề"
+    ],
+    "score": "Số tiêu chí đạt / 5; cùng rubric cho A và B",
+    "inputs": "Cùng mục tiêu và giới hạn 24 giờ công, số người 2; đổi bài A/B theo plannedOrder."
+  },
+  "observation": {
+    "fields": [
+      "participant",
+      "scenario",
+      "build",
+      "success",
+      "assisted",
+      "durationMs",
+      "errors",
+      "observer",
+      "actual",
+      "issueIds"
+    ],
+    "results": null
+  },
+  "reset": "Dừng phiên rồi chạy lại; database/uploads tạm mới. Không dùng reset với DB thật."
+}

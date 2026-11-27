@@ -1,0 +1,35 @@
+[seed] Tạo dữ liệu demo Nhóm 24…
+[seed] Xong. Đăng nhập: mai.anh@nhom24.edu.vn / TaskFlow@2026  (System Admin: admin@taskflow.local)
+▶ Lộc Sprint 3: meeting, report, admin security
+  ✖ U022: provider bịa hoàn thành không thay số liệu; snapshot giữ nguyên sau reopen và revoke chặn nguồn (886.8076ms)
+✖ Lộc Sprint 3: meeting, report, admin security (45573.5291ms)
+ℹ tests 1
+ℹ suites 1
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 47455.7357
+
+✖ failing tests:
+
+test at test\helpers\loc-sprint3.js:287:5
+✖ U022: provider bịa hoàn thành không thay số liệu; snapshot giữ nguyên sau reopen và revoke chặn nguồn (886.8076ms)
+  AssertionError [ERR_ASSERTION]: {"sections":[{"key":"summary","body":"Đã hoàn thành 9999 việc"}]}
+  
+  200 !== 409
+  
+      at TestContext.<anonymous> (file:///D:/Desktop/Nhom24/OJT202/BackEnd/test/helpers/loc-sprint3.js:301:16)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1208:7)
+      at async Promise.all (index 13)
+      at async Suite.run (node:internal/test_runner/test:1619:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 200,
+    expected: 409,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

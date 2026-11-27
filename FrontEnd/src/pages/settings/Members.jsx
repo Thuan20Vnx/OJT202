@@ -35,7 +35,7 @@ function SpecialtyCell({ member, editable, onChange }) {
   ));
   if (!editable) return <div className="flex flex-wrap gap-1">{chips}{!chips.length && <span className="text-slate-300">—</span>}</div>;
   return (
-    <Dropdown trigger={
+    <Dropdown portal trigger={
       <button type="button" aria-label={tr('Sửa vai trò chuyên môn của {0}', [member.user.name])} className="flex min-h-8 flex-wrap items-center gap-1 rounded-md p-0.5 text-left hover:bg-slate-100">
         {chips}{!chips.length && <span className="px-1 text-label-md font-normal text-slate-400">{tr('+ Thêm vai trò')}</span>}
       </button>
@@ -78,7 +78,12 @@ export function InviteModal({ open, onClose, onDone }) {
     setBusy(true);
     try {
       const d = await api.post(`/workspaces/${ws.workspace._id}/invites`, { emails, ...(inviteRole === 'mentor' ? { role: 'viewer', mentor: true } : { role: inviteRole }), projects: sel });
-      toast(tr("Đã gửi {0} lời mời{1}", [d.created.length, d.skipped.length ? tr(", bỏ qua {0} (đã là thành viên)", [d.skipped.length]) : '']));
+      const parts = [
+        d.created.length && tr("Đã gửi {0} lời mời", [d.created.length]),
+        d.added?.length && tr("đã thêm {0} thành viên sẵn có vào dự án", [d.added.length]),
+        d.skipped.length && tr("bỏ qua {0} (đã là thành viên)", [d.skipped.length]),
+      ].filter(Boolean);
+      toast(parts.join(', '));
       setEmails([]);
       setSel([]);
       onDone?.();
@@ -140,8 +145,11 @@ export function InviteModal({ open, onClose, onDone }) {
         <div>
           <span className="label">{tr("Chỉ định dự án tham gia ngay")}</span>
           <div className="space-y-1.5 rounded-lg border border-slate-200 p-2.5">
+            {!projects.some((p) => p.status === 'active' && p.projectRole === 'pm') && (
+              <p className="text-body-sm text-slate-400">{tr("Bạn chưa là PM của dự án nào nên chưa gán được dự án khi mời. Người được mời sẽ do PM thêm vào dự án sau.")}</p>
+            )}
             {projects
-              .filter((p) => p.status === 'active')
+              .filter((p) => p.status === 'active' && p.projectRole === 'pm')
               .map((p) => (
                 <label key={p._id} className="flex items-center gap-2 text-body-sm">
                   <input type="checkbox" className="form-checkbox rounded text-blue-600" checked={sel.includes(p._id)} onChange={() => setSel(sel.includes(p._id) ? sel.filter((x) => x !== p._id) : [...sel, p._id])} />
@@ -151,7 +159,8 @@ export function InviteModal({ open, onClose, onDone }) {
               ))}
           </div>
         </div>
-        <Notice tone="warn">{tr("Lưu ý: Lời mời sẽ tự động hết hạn sau 72 giờ kể từ khi gửi email.")}</Notice>
+        {!sel.length && <Notice tone="warn">{tr("Chưa chọn dự án: người được mời chỉ vào workspace và chưa thấy dự án nào cho tới khi PM thêm họ vào dự án.")}</Notice>}
+        <Notice tone="warn">{tr("Lưu ý: Lời mời sẽ tự động hết hạn sau 72 giờ kể từ khi gửi email. Mời lại cùng email sẽ thay lời mời cũ nhưng vẫn giữ các dự án đã chọn trước đó; nếu người đó đã ở trong workspace thì được thêm thẳng vào dự án đã chọn.")}</Notice>
       </div>
     </Modal>
   );
@@ -248,7 +257,7 @@ export default function Members() {
           <StatCard label={tr("Tổng thành viên")} value={`${members.length}/20`} icon="group" />
           <StatCard label="Owner / Admin" value={count('owner') + count('admin')} icon="shield_person" tone="purple" />
           <StatCard label="Member" value={count('member')} icon="person" tone="green" />
-          <StatCard label="Viewer" value={count('viewer')} icon="visibility" tone="slate" />
+          <StatCard label="Viewer" value={members.filter((m) => m.role === 'viewer' && !m.isMentor).length} sub={members.some((m) => m.isMentor) ? tr("+ {0} giảng viên", [members.filter((m) => m.isMentor).length]) : undefined} icon="visibility" tone="slate" />
         </div>
         <ErrorBox error={error} onRetry={reload} />
         <div className="card">
@@ -364,11 +373,11 @@ export default function Members() {
                       {isAdmin && (
                         <td className="table-td text-right">
                           {lastOwner || !canEditRole ? (
-                            <span className="text-label-md font-normal text-slate-400" title={tr("Không thể xóa Owner cuối cùng")}>
+                            <span className="text-label-md font-normal text-slate-400" title={lastOwner ? tr("Không thể xóa Owner cuối cùng") : tr("Chỉ Owner được đổi quyền hoặc xóa Owner/Admin")}>
                               <Icon name="lock" size={16} />
                             </span>
                           ) : (
-                            <Dropdown trigger={<button className="icon-btn h-8 w-8"><Icon name="more_vert" /></button>}>
+                            <Dropdown portal trigger={<button className="icon-btn h-8 w-8"><Icon name="more_vert" /></button>}>
                               {m.projects.map((p) => (
                                 <MenuItem key={p._id} icon="folder_off" onClick={() => removeFromProject(m, p)}>{tr("Gỡ khỏi ")}{p.name}
                                 </MenuItem>
@@ -381,6 +390,11 @@ export default function Members() {
                     </tr>
                   );
                 })}
+                {!list.length && (
+                  <tr>
+                    <td colSpan={8} className="table-td py-8 text-center text-body-sm text-slate-400">{tr("Không tìm thấy thành viên phù hợp với bộ lọc.")}</td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>

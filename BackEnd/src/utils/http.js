@@ -39,6 +39,11 @@ export function parse(schema, data) {
         const message = 'Văn bản không được chứa ký tự NUL';
         throw badRequest(message, { fields: { [path || '_']: message } });
       }
+      // Nửa cặp UTF-16 đứng một mình không mã hóa được sang UTF-8: PostgreSQL từ chối (trước đây thành 500).
+      if (typeof value === 'string' && !value.isWellFormed()) {
+        const message = 'Văn bản chứa ký tự không hợp lệ';
+        throw badRequest(message, { fields: { [path || '_']: message } });
+      }
       if (value && typeof value === 'object') {
         for (const [key, child] of Object.entries(value)) pending.push([child, path ? `${path}.${key}` : key]);
       }
@@ -47,10 +52,28 @@ export function parse(schema, data) {
   } catch (e) {
     if (e instanceof ZodError) {
       const fields = {};
-      for (const issue of e.issues) fields[issue.path.join('.') || '_'] = issue.message;
-      throw badRequest(Object.values(fields)[0] || 'Dữ liệu không hợp lệ', { fields });
+      for (const issue of e.issues) fields[issue.path.join('.') || '_'] = viMessage(issue);
+      const [firstPath, firstMessage] = Object.entries(fields)[0] || [];
+      // Câu mặc định (không gắn với ô nào trên form) thì nêu tên trường để người gọi API biết sai ở đâu.
+      const generic = firstMessage && firstMessage !== e.issues[0]?.message && firstPath !== '_';
+      throw badRequest(firstMessage ? (generic ? `${firstPath}: ${firstMessage}` : firstMessage) : 'Dữ liệu không hợp lệ', { fields });
     }
     throw e;
+  }
+}
+
+/** Câu lỗi mặc định của zod là tiếng Anh; câu do code tự viết (tiếng Việt) thì giữ nguyên. */
+function viMessage(issue) {
+  if (!/^(Invalid|Too big|Too small|Unrecognized)/.test(issue.message)) return issue.message;
+  const unit = issue.origin === 'string' ? ' ký tự' : issue.origin === 'array' || issue.origin === 'set' ? ' mục' : '';
+  switch (issue.code) {
+    case 'too_big': return `Tối đa ${issue.maximum}${unit}`;
+    case 'too_small': return issue.origin === 'string' && Number(issue.minimum) === 1 ? 'Không được để trống' : `Tối thiểu ${issue.minimum}${unit}`;
+    case 'invalid_type': return /received undefined/.test(issue.message) ? 'Thiếu dữ liệu bắt buộc' : 'Sai kiểu dữ liệu';
+    case 'unrecognized_keys': return `Trường không được hỗ trợ: ${(issue.keys || []).join(', ')}`;
+    case 'invalid_value': return 'Giá trị không hợp lệ';
+    case 'invalid_format': return 'Sai định dạng';
+    default: return 'Dữ liệu không hợp lệ';
   }
 }
 
@@ -59,10 +82,20 @@ export function errorHandler(err, req, res, _next) {
     const msg = err.code === 'LIMIT_FILE_SIZE' ? 'Tệp vượt quá 10MB' : 'Tải tệp thất bại';
     return res.status(400).json({ error: msg });
   }
+  // busboy (bên dưới multer) ném Error thường khi body multipart hỏng/thiếu boundary: lỗi của request, không phải server.
+  if (/^(Unexpected end of form|Multipart: Boundary not found|Malformed part header|Unexpected end of multipart data)/.test(err?.message || ''))
+    return res.status(400).json({ error: 'Dữ liệu tải lên không hợp lệ' });
+  // express.json: JSON hỏng
+  if (err?.type === 'entity.parse.failed') return res.status(400).json({ error: 'Dữ liệu JSON không hợp lệ' });
   // Prisma: id sai định dạng uuid (P2023) hoặc bản ghi không còn (P2025) => 404; vi phạm UNIQUE => 409
   if (err?.code === 'P2023' || err?.code === 'P2025') return res.status(404).json({ error: 'Không tìm thấy' });
+  // Hết kết nối/không mở được transaction khi quá tải: báo bận để client thử lại, không phải 500.
+  if (err?.code === 'P2024' || err?.code === 'P2028') return res.status(503).set('Retry-After', '2').json({ error: 'Hệ thống đang bận, vui lòng thử lại sau giây lát' });
+  // Xung đột tuần tự hóa giữa hai transaction
+  if (err?.code === 'P2034') return res.status(409).json({ error: 'Dữ liệu vừa được người khác cập nhật, vui lòng thử lại' });
   if (err?.code === 'P2002') return res.status(409).json({ error: 'Dữ liệu bị trùng', details: { fields: err.meta?.target } });
   const status = err.status || 500;
   if (status >= 500) console.error('[error]', err);
-  res.status(status).json({ error: status >= 500 ? 'Đã có lỗi xảy ra, vui lòng thử lại' : err.message, details: err.details });
+  // HttpError là câu báo do code chủ động viết (ví dụ AI đang bận); lỗi bất ngờ thì không lộ chi tiết.
+  res.status(status).json({ error: status >= 500 && !(err instanceof HttpError) ? 'Đã có lỗi xảy ra, vui lòng thử lại' : err.message, details: err.details });
 }

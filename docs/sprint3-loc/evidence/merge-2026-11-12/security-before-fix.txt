@@ -1,0 +1,6 @@
+=== SECURITY
+[seed] Tạo dữ liệu demo Nhóm 24…
+[seed] Xong. Đăng nhập: mai.anh@nhom24.edu.vn / TaskFlow@2026  (System Admin: admin@taskflow.local)
+{"command":"security","out":"D:\\Desktop\\Nhom24\\OJT202\\.claude\\worktrees\\du-an-chi-tiet-eb8fd9\\.data\\sprint4-loc\\security-merge-2026-11-12","sourceHash":"65d2bb75f4bf71fb32382f72a7903062aa066d50566c784cd42c81342b838939","slots":6,"tasks":120,"humanAcceptance":"pending"}
+{"checks":86,"failed":[{"id":"ui-workflow-owner","surface":"ui","role":"owner","expected":"passed","actual":"locator.fill: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByLabel('Email công việc')\u001b[22m\n","passed":false},{"id":"ui-workflow-pm","surface":"ui","role":"pm","expected":"passed","actual":"locator.fill: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByLabel('Email công việc')\u001b[22m\n","passed":false},{"id":"ui-workflow-member","surface":"ui","role":"member","expected":"passed","actual":"locator.fill: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByLabel('Email công việc')\u001b[22m\n","passed":false},{"id":"ui-workflow-viewer","surface":"ui","role":"viewer","expected":"passed","actual":"locator.fill: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByLabel('Email công việc')\u001b[22m\n","passed":false}]}
+security exit=0

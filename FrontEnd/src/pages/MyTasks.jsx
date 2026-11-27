@@ -1,13 +1,14 @@
 import { t as tr, useI18n } from '../lib/i18n.js';
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Avatar, Empty, ErrorBox, Icon, PageHeader, PageLoader, Pagination, PriorityChip, Select, StatCard, StatusChip } from '../components/ui.jsx';
+import { Avatar, Confirm, Empty, ErrorBox, Icon, PageHeader, PageLoader, Pagination, PriorityChip, Select, StatCard, StatusChip } from '../components/ui.jsx';
 import { api, qs } from '../lib/api.js';
 import { useApp, useLoad, useToast } from '../lib/app.jsx';
 import { PROJECT_COLOR, STATUS, STATUS_ORDER, dueInfo, sod } from '../lib/format.js';
 import { useDebouncedValue, useSocketEvent } from '../lib/hooks.js';
 import { dates, timeZone } from '../lib/dates.js';
 import { taskActions } from '../lib/task-actions.js';
+import { unfinishedText, unfinishedWork } from '../lib/task-done.js';
 
 const DEFAULT = { assignee: 'me', status: '', priority: '', due: '', project: '', search: '' };
 
@@ -29,6 +30,7 @@ export default function MyTasks() {
   const [f, setF] = useState(DEFAULT);
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
+  const [doneAsk, setDoneAsk] = useState(null);
   const [collapsed, setCollapsed] = useState({});
   const search = useDebouncedValue(f.search);
   const pending = useRef(new Set());
@@ -49,8 +51,9 @@ export default function MyTasks() {
   const greet = hour < 11 ? tr("Chào buổi sáng") : hour < 14 ? tr("Chào buổi trưa") : hour < 18 ? tr("Chào buổi chiều") : tr("Chào buổi tối");
 
   const toggleDone = (t) => setStatus(t, taskActions(t).nextStatus);
-  const setStatus = async (t, status) => {
+  const setStatus = async (t, status, confirmed = false) => {
     if (!status || pending.current.has(t._id)) return;
+    if (status === 'done' && t.status !== 'done' && !confirmed && !t.isBlocked && unfinishedWork(t).any) { setDoneAsk({ task: t, run: () => setStatus(t, status, true) }); return; }
     pending.current.add(t._id);
     setBusyIds(new Set(pending.current));
     try {
@@ -74,7 +77,7 @@ export default function MyTasks() {
       <PageHeader
         title={`${greet}, ${me?.name || ''} 👋`}
         subtitle={
-          <>{tr("Bạn có ")}<b className="text-blue-700">{s.actionable ?? '–'}{tr(" việc")}</b>{tr(" cần xử lý hôm nay.")}</>
+          <>{tr("Bạn có ")}<b className="text-blue-700">{data ? s.actionable ?? 0 : '–'}{tr(" việc")}</b>{tr(" cần xử lý hôm nay.")}</>
         }
         actions={
           <div className="flex rounded-lg border border-slate-200 bg-white p-0.5">
@@ -185,6 +188,13 @@ export default function MyTasks() {
         <PageLoader />
       ) : !items.length && !error ? (
         <div className="card">
+          {JSON.stringify(f) === JSON.stringify(DEFAULT) ? (
+            <Empty
+              icon="assignment_ind"
+              title={tr("Bạn chưa có công việc nào cần làm")}
+              action={<button className="btn-outline" onClick={() => navigate('/board')}>{tr("Xem Bảng công việc")}</button>}
+            >{tr("Khi PM giao việc cho bạn, việc sẽ hiện ở đây. Trong lúc chờ, xem Bảng công việc để nắm dự án.")}</Empty>
+          ) : (
           <Empty
             icon="filter_alt_off"
             title={tr("Không có công việc nào khớp bộ lọc")}
@@ -192,6 +202,7 @@ export default function MyTasks() {
               <button className="btn-outline" onClick={() => { setF(DEFAULT); setPage(1); }}>{tr("Đặt lại bộ lọc")}</button>
             }
           >{tr("Thử bỏ bớt điều kiện lọc hoặc chọn “Giao cho: Tất cả”.")}</Empty>
+          )}
         </div>
       ) : (
         <div className="space-y-4">
@@ -229,16 +240,16 @@ export default function MyTasks() {
                           <span className="chip border-rose-200 bg-rose-50 text-rose-700">
                             <Icon name="block" size={12} />{tr(" Đang bị chặn")}</span>
                         )}
-                        <span className="hidden items-center gap-1.5 whitespace-nowrap text-label-md text-slate-600 lg:flex">
+                        <span className="flex min-w-0 max-w-[9rem] items-center gap-1.5 whitespace-nowrap text-label-md text-slate-600 lg:max-w-none">
                           <span className={`h-2 w-2 rounded-full ${PROJECT_COLOR[t.project?.color]}`} />
-                          {t.project?.name}
+                          <span className="truncate">{t.project?.name}</span>
                         </span>
                         <span className="hidden md:inline-flex">
                           <StatusChip status={t.status} />
                         </span>
                         <PriorityChip priority={t.priority} />
                         <span
-                          className={`hidden w-28 whitespace-nowrap text-right text-label-md sm:block ${due?.tone === 'danger' ? 'font-semibold text-rose-600' : 'text-slate-500'}`}
+                          className={`whitespace-nowrap text-right text-label-md sm:w-28 ${due?.tone === 'danger' ? 'font-semibold text-rose-600' : 'text-slate-500'}`}
                         >
                           {due ? due.text : tr("Không có hạn")}
                         </span>
@@ -273,6 +284,15 @@ export default function MyTasks() {
           </div>
         </div>
       )}
+      <Confirm
+        open={!!doneAsk}
+        title={tr("Vẫn chuyển sang Hoàn thành?")}
+        confirmText={tr("Vẫn hoàn thành")}
+        onClose={() => setDoneAsk(null)}
+        onConfirm={() => { const a = doneAsk; setDoneAsk(null); a.run(); }}
+      >
+        <p>{doneAsk && tr("{0} còn {1}.", [doneAsk.task.key, unfinishedText(unfinishedWork(doneAsk.task))])}</p>
+      </Confirm>
     </div>
   );
 }

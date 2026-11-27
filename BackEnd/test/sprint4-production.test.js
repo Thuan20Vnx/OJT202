@@ -48,6 +48,11 @@ test('U033: route reload dùng HTML không cache; asset có hash immutable, asse
 });
 test('U033: health nhận đúng build, API private không rơi vào SPA và Origin sai bị chặn', async () => {
   assert.deepEqual((await (await fetch(base + '/api/health')).json()).build, config.release);
+  // Không có database: liveness vẫn 200 nhưng readiness phải 503 để load balancer không chuyển traffic.
+  const ready = await fetch(base + '/api/health/ready');
+  assert.equal(ready.status, 503);
+  assert.match(ready.headers.get('cache-control'), /no-store/);
+  assert.deepEqual(await ready.json(), { ok: false, db: 'down', build: config.release });
   const missing = await fetch(base + '/api/not-a-route');
   assert.ok([401, 404].includes(missing.status));
   assert.match(missing.headers.get('content-type'), /json/);
