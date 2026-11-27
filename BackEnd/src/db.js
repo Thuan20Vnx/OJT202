@@ -2,7 +2,8 @@ import fs from 'node:fs';
 import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
-import { execFile } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
+import { once } from 'node:events';
 import { createRequire } from 'node:module';
 import { promisify } from 'node:util';
 import { Prisma, PrismaClient } from '@prisma/client';
@@ -69,11 +70,22 @@ async function startEmbedded(ephemeral) {
       // a terminal is elevated. Starting postgres.exe directly refuses that case.
       const { postgres } = await import('@embedded-postgres/windows-x64');
       const ctl = path.join(path.dirname(postgres), 'pg_ctl.exe');
-      const runCtl = (args) => promisify(execFile)(ctl, args, { windowsHide: true, timeout: 40000 });
-      await runCtl(['start', '-D', databaseDir, '-l', path.join(databaseDir, 'server.log'), '-o', `-p ${port}`, '-w', '-t', '30']);
+      const log = path.join(databaseDir, 'server.log');
+      const runCtl = async (operation, args, timeout) => {
+        // The background server may inherit pipes from pg_ctl on Windows.
+        const child = spawn(ctl, [operation, '-D', databaseDir, ...args], {
+          windowsHide: true,
+          stdio: 'ignore',
+          signal: AbortSignal.timeout(timeout),
+        });
+        const [code] = await once(child, 'exit');
+        if (code !== 0) throw new Error(`pg_ctl ${operation} thất bại (mã ${code}). Xem log: ${log}`);
+      };
+      // Crash recovery on Windows can take longer than pg_ctl's previous 30-second wait.
+      await runCtl('start', ['-l', log, '-o', `-p ${port}`, '-w', '-t', '90'], 100000);
       embedded = {
         async stop() {
-          await runCtl(['stop', '-D', databaseDir, '-m', 'fast', '-w', '-t', '30']);
+          await runCtl('stop', ['-m', 'fast', '-w', '-t', '30'], 40000);
           // Only ephemeral directories created above may be removed.
           if (ephemeral && path.dirname(databaseDir) === os.tmpdir() && path.basename(databaseDir).startsWith('taskflow-pg-')) {
             await fs.promises.rm(databaseDir, { recursive: true, force: true });

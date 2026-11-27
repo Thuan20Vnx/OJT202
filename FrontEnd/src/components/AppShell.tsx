@@ -64,7 +64,7 @@ const CRUMBS: Record<string, string[]> = {
   get '/profile'() { return [tr("Hồ sơ cá nhân")]; },
   get '/admin'() { return [tr("Quản trị hệ thống")]; },
 };
-const PROJECT_SCOPED = ['/overview', '/board', '/calendar', '/documents', '/ai', '/reports', '/risks', '/timeline', '/meetings'];
+const PROJECT_SCOPED = ['/overview', '/board', '/calendar', '/documents', '/ai', '/reports', '/risks', '/timeline', '/meetings', '/sprints', '/contributions'];
 
 function SearchBox() {
   useI18n();

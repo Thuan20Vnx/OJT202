@@ -5,16 +5,13 @@ Version 2026-10-29; chạy lệnh tại thư mục chứa package.json gốc (v�
 ## Máy mới — PowerShell
 
 ```powershell
-npm ci
-npm --prefix BackEnd ci
-npm --prefix AIService ci
-npm --prefix FrontEnd ci
-Copy-Item BackEnd/.env.example BackEnd/.env
-Copy-Item AIService/.env.example AIService/.env
+npm run setup
 npm run dev
 ```
 
-Chỉ Copy-Item khi .env chưa tồn tại để tránh ghi đè cấu hình máy. Sửa JWT_SECRET và cấu hình riêng trước chạy. Web :5173, backend :4000, AIService :5000. DATABASE_URL trống dùng PostgreSQL nhúng dev, không cần Docker; lần đầu cần binary/package đúng OS. DATABASE_URL có giá trị dùng PostgreSQL được cấu hình; không đưa URL/password vào Git hoặc báo cáo.
+`npm run setup` cài các gói theo lockfile và tạo lại Prisma Client. Chạy lại lệnh này sau khi pull có thay đổi dependency hoặc Prisma schema. Dừng phiên dev trước khi cài, nhất là trên Windows.
+
+Mặc định cho máy mới: web :5173, backend :4000, AIService :5000, PostgreSQL nhúng và hộp thư outbox. Khi cần tùy chỉnh, sao chép `BackEnd/.env.example` và `AIService/.env.example` thành `.env` trong từng thư mục nếu chưa có. Đặt JWT_SECRET riêng. DATABASE_URL trống dùng PostgreSQL nhúng. DATABASE_URL có giá trị dùng PostgreSQL được cấu hình. Không đưa URL/password vào Git hoặc báo cáo.
 
 Backend tự chạy `prisma migrate deploy` khi connectDb; DB dev trống + SEED_DEMO=true có dữ liệu demo. DB đã có dữ liệu không reset tự động. Có thể dùng `npm --prefix BackEnd run db:migrate`; không dùng migrate reset với dữ liệu người dùng. Prisma generate chạy theo package install; nếu cần chạy lại trên Windows, dừng backend trước.
 

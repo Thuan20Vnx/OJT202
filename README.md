@@ -30,11 +30,7 @@ Hướng dẫn cài mới trên PowerShell: [cài đặt và bàn giao](docs/des
 Yêu cầu: Node.js ≥ 24.15.0 (backend chạy trực tiếp các module TypeScript).
 
 ```bash
-cd taskflow
-npm ci                                      # TypeScript và công cụ kiểm thử ở root
-npm run install:all
-cp BackEnd/.env.example BackEnd/.env        # rồi đổi JWT_SECRET
-cp AIService/.env.example AIService/.env
+npm run setup                               # cài từ lockfile và generate Prisma Client
 npm run dev                                 # chạy cả AIService + BackEnd + FrontEnd
 ```
 
@@ -42,6 +38,7 @@ npm run dev                                 # chạy cả AIService + BackEnd + 
 - Không cần cài PostgreSQL: khi `DATABASE_URL` để trống, API tự chạy PostgreSQL 17 nhúng (gói `embedded-postgres`, binary PostgreSQL thật) ở cổng `54329`. Dữ liệu dev lưu ở `BackEnd/.data/pg` nên khởi động lại không mất.
 - Mỗi lần khởi động, API tự áp dụng migration (`prisma migrate deploy`).
 - DB trống sẽ được seed dữ liệu demo của Nhóm 24 (`SEED_DEMO=true`).
+- Sau khi pull có thay đổi dependency hoặc Prisma schema, dừng phiên dev rồi chạy lại `npm run setup`. Cấu hình riêng của máy đặt trong các file `.env` theo hướng dẫn cài đặt.
 
 ### Hợp đồng Sprint 1
 

@@ -1,19 +1,25 @@
 import { useState } from 'react';
 import { Avatar, Empty, ErrorBox, Icon, PageHeader, PageLoader, Select } from '../components/ui.jsx';
 import { api, download } from '../lib/api.js';
-import { useApp, useLoad } from '../lib/app.jsx';
+import { useApp, useLoad, useToast } from '../lib/app.jsx';
 import { useSocketEvent } from '../lib/hooks.js';
 import { t as tr, useI18n } from '../lib/i18n.js';
 
 export default function Contributions() {
   useI18n();
   const { project } = useApp();
+  if (!project) return <Empty icon="folder_off" title={tr('Chọn dự án để xem đóng góp')} />;
+  return <ProjectContributions key={project._id} project={project} />;
+}
+
+function ProjectContributions({ project }) {
+  const toast = useToast();
   const [sprint, setSprint] = useState('');
   const query = sprint ? `?sprint=${sprint}` : '';
-  const { data, error, loading, reload } = useLoad(() => (project ? api.get(`/projects/${project._id}/contributions${query}`) : Promise.resolve(null)), [project?._id, query]);
-  const sprints = useLoad(() => (project ? api.get(`/projects/${project._id}/sprints`) : Promise.resolve(null)), [project?._id]);
+  const base = `/projects/${project._id}`;
+  const { data, error, loading, reload } = useLoad(() => api.get(`${base}/contributions${query}`), [base, query]);
+  const sprints = useLoad(() => api.get(`${base}/sprints`), [base]);
   useSocketEvent('board:refresh', () => reload(), [reload]);
-  if (!project) return <Empty icon="folder_off" title={tr('Chọn dự án để xem đóng góp')} />;
   if (loading && !data) return <PageLoader />;
   if (error) return <div className="p-6"><ErrorBox error={error} onRetry={reload} /></div>;
   const sprintName = sprints.data?.sprints.find((s) => s._id === sprint)?.name;
@@ -25,7 +31,7 @@ export default function Contributions() {
         subtitle={`${project.name}${sprintName ? ` · ${sprintName}` : ''} · ${tr('Số liệu từ công việc và nhật ký hằng ngày, sắp theo tên, không xếp hạng.')}`}
         actions={
           <div className="no-print flex flex-wrap gap-2">
-            <button className="btn-outline" onClick={() => download(`/projects/${project._id}/contributions.csv${query}`, 'dong-gop-thanh-vien.csv')}><Icon name="download" size={16} />{tr(' Xuất CSV')}</button>
+            <button className="btn-outline" onClick={() => download(`${base}/contributions.csv${query}`, 'dong-gop-thanh-vien.csv').catch((e) => toast(e.message, 'error'))}><Icon name="download" size={16} />{tr(' Xuất CSV')}</button>
             <button className="btn-outline" onClick={() => window.print()}><Icon name="print" size={16} />{tr(' In / Lưu PDF')}</button>
           </div>
         }

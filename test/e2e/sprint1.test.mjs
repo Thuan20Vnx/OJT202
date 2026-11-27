@@ -72,6 +72,110 @@ async function status(page, name) {
   await expect(page.getByRole('button', { name: 'Đổi trạng thái công việc' })).toContainText(name);
 }
 
+test('Đồ án: lập Sprint, ghi giờ, giảng viên xem đóng góp và tải báo cáo', { timeout: 90000 }, async () => {
+  const owner = await context();
+  const student = await context();
+  const mentor = await context();
+  const errorsBefore = errors.length;
+  const headers = { 'x-taskflow': '1' };
+  const ws = seed.workspace.id;
+  const sprintName = 'Sprint nghiệm thu';
+  try {
+    await login(owner.page, 'mai.anh@nhom24.edu.vn');
+    const createProject = async (name, keyPrefix) => {
+      const response = await owner.ctx.request.post(`/api/v1/workspaces/${ws}/projects`, {
+        headers, data: { name, keyPrefix, members: [seed.users.nhu.id] },
+      });
+      assert.equal(response.status(), 201, await response.text());
+      return (await response.json()).project;
+    };
+    const project = await createProject('Đồ án thử Sprint', 'UAT');
+    const other = await createProject('Đồ án đối chiếu', 'CMP');
+    const role = await owner.ctx.request.patch(`/api/v1/workspaces/${ws}/members/${seed.users.linh.id}`, {
+      headers, data: { isMentor: true },
+    });
+    assert.equal(role.status(), 200, await role.text());
+
+    const selectProject = async (page, id, url) => {
+      await page.evaluate(({ ws, id }) => {
+        localStorage.setItem('tf_ws', ws);
+        localStorage.setItem('tf_project', id);
+      }, { ws, id });
+      await page.goto(url);
+    };
+    const page = owner.page;
+    await selectProject(page, project._id, '/sprints');
+    await page.getByRole('button', { name: 'Tạo Sprint' }).click();
+    const sprintForm = page.getByRole('dialog', { name: 'Tạo Sprint' });
+    await sprintForm.getByLabel('Tên Sprint').fill(sprintName);
+    await sprintForm.getByLabel('Ngày bắt đầu').fill('2026-11-02');
+    await sprintForm.getByLabel('Ngày kết thúc').fill('2026-11-15');
+    await sprintForm.getByRole('button', { name: 'Lưu Sprint' }).click();
+    const sprintCard = page.locator('section').filter({ has: page.getByRole('heading', { name: new RegExp(sprintName) }) });
+    await sprintCard.getByRole('button', { name: 'Bắt đầu', exact: true }).click();
+    await expect(sprintCard.getByText('Đang chạy')).toBeVisible();
+
+    const taskResponse = await owner.ctx.request.post(`/api/v1/projects/${project._id}/tasks`, {
+      headers, data: { title: 'Kiểm thử nộp báo cáo', assignee: seed.users.nhu.id, estimateHours: 5 },
+    });
+    assert.equal(taskResponse.status(), 201, await taskResponse.text());
+    const { task } = await taskResponse.json();
+    assert.equal(task.sprint, sprintName);
+    await login(student.page, 'nhu@nhom24.edu.vn');
+    await selectProject(student.page, project._id, `/board?task=${task._id}`);
+    const detail = student.page.getByRole('dialog', { name: 'Chi tiết công việc' });
+    await detail.getByRole('button', { name: /Tiến độ & cộng tác/ }).click();
+    await detail.getByRole('button', { name: 'Nhật ký hằng ngày' }).click();
+    await detail.getByLabel('Giờ đã làm trong ngày').fill('2');
+    await detail.getByLabel('Giờ còn lại của tôi').fill('3');
+    await detail.getByLabel('Tiến độ task (%)').fill('40');
+    await detail.getByLabel('Đã làm được gì?').fill('Đã chạy bộ kiểm thử báo cáo');
+    await detail.getByRole('button', { name: 'Lưu nhật ký' }).click();
+    await expect(detail.getByText('Đã chạy bộ kiểm thử báo cáo', { exact: true })).toBeVisible();
+
+    await login(mentor.page, 'khanh.linh@nhom24.edu.vn');
+    await mentor.page.goto('/mentoring');
+    const card = mentor.page.locator('article').filter({ has: mentor.page.getByRole('heading', { name: project.name, exact: true }) });
+    await card.getByRole('button', { name: 'Đóng góp', exact: true }).click();
+    const filter = mentor.page.getByRole('combobox', { name: 'Phạm vi' });
+    await expect(mentor.page.getByText(/Tổng 2 giờ đã ghi trên 1 công việc/)).toBeVisible();
+    await filter.click();
+    await mentor.page.getByRole('option', { name: sprintName, exact: true }).click();
+    await expect(filter).toContainText(sprintName);
+    const csv = mentor.page.waitForEvent('download');
+    await mentor.page.getByRole('button', { name: 'Xuất CSV' }).click();
+    const csvFile = await csv;
+    assert.equal(csvFile.suggestedFilename(), 'dong-gop-thanh-vien.csv');
+    assert.match(await fs.readFile(await csvFile.path(), 'utf8'), /Giờ đã ghi/);
+
+    await mentor.page.getByRole('button', { name: other.name, exact: true }).click();
+    await expect(mentor.page).toHaveURL(/\/contributions$/);
+    await expect(filter).toContainText('Toàn dự án');
+    await expect(mentor.page.getByText(/Tổng 0 giờ đã ghi trên 0 công việc/)).toBeVisible();
+
+    const csvRoute = '**/contributions.csv';
+    await mentor.page.route(csvRoute, (route) => route.fulfill({ status: 503, json: { error: 'Tạm thời không xuất được CSV' } }));
+    await mentor.page.getByRole('button', { name: 'Xuất CSV' }).click();
+    await expect(mentor.page.getByText('Tạm thời không xuất được CSV')).toBeVisible();
+    await mentor.page.unroute(csvRoute);
+    const retry = mentor.page.waitForEvent('download');
+    await mentor.page.getByRole('button', { name: 'Xuất CSV' }).click();
+    assert.equal((await retry).suggestedFilename(), 'dong-gop-thanh-vien.csv');
+
+    await page.goto('/ai/report');
+    await page.getByRole('button', { name: 'Tạo báo cáo nháp' }).click();
+    const report = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'Xuất tệp' }).click();
+    assert.match(await fs.readFile(await (await report).path(), 'utf8'), /Báo cáo/);
+    assert.deepEqual(errors.slice(errorsBefore), []);
+  } finally {
+    await owner.ctx.request.patch(`/api/v1/workspaces/${ws}/members/${seed.users.linh.id}`, {
+      headers, data: { isMentor: false },
+    });
+    await Promise.all([owner.ctx.close(), student.ctx.close(), mentor.ctx.close()]);
+  }
+});
+
 test('Lộc Sprint 3: báo cáo mở nguồn thật; quản trị lỗi/thử lại, khóa và mở tài khoản', { timeout: 120000 }, async () => {
   const owner = await context();
   const system = await context();
